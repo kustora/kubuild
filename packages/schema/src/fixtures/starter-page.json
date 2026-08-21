@@ -95,7 +95,7 @@
                 "id": "hero-image",
                 "type": "image",
                 "props": {
-                  "src": "asset://hero-banner.webp",
+                  "src": "https://picsum.photos/200/300",
                   "alt": "KUBUILD Platform Graphic",
                   "width": 640,
                   "height": 360
