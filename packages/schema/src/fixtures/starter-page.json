@@ -1,0 +1,148 @@
+{
+  "schema": "stora.page",
+  "version": "1.0.0",
+  "metadata": {
+    "title": "Welcome to KUBUILD",
+    "description": "A starter template built with KUBUILD portable web builder",
+    "author": "KUBUILD Team",
+    "tags": ["landing-page", "starter", "portable"],
+    "category": "landing",
+    "version": "1.0.0"
+  },
+  "document": {
+    "id": "root-page",
+    "type": "page",
+    "props": {
+      "title": "KUBUILD Starter Page"
+    },
+    "styles": {
+      "base": {
+        "backgroundColor": "#ffffff",
+        "fontFamily": "Inter, sans-serif",
+        "color": "#111827",
+        "minHeight": "100vh"
+      }
+    },
+    "children": [
+      {
+        "id": "hero-section",
+        "type": "section",
+        "props": {},
+        "styles": {
+          "base": {
+            "paddingTop": "64px",
+            "paddingBottom": "64px",
+            "paddingLeft": "24px",
+            "paddingRight": "24px",
+            "backgroundColor": "#f8fafc"
+          }
+        },
+        "children": [
+          {
+            "id": "hero-container",
+            "type": "container",
+            "props": {
+              "maxWidth": "1200px"
+            },
+            "styles": {
+              "base": {
+                "margin": "0 auto",
+                "display": "flex",
+                "flexDirection": "column",
+                "alignItems": "center",
+                "textAlign": "center",
+                "gap": "24px"
+              }
+            },
+            "children": [
+              {
+                "id": "hero-heading",
+                "type": "heading",
+                "props": {
+                  "text": "Build Once, Render Anywhere",
+                  "level": 1
+                },
+                "styles": {
+                  "base": {
+                    "fontSize": "48px",
+                    "fontWeight": "800",
+                    "color": "#0f172a",
+                    "lineHeight": "1.2"
+                  },
+                  "mobile": {
+                    "fontSize": "32px"
+                  }
+                },
+                "children": []
+              },
+              {
+                "id": "hero-text",
+                "type": "text",
+                "props": {
+                  "content": "KUBUILD is an open, portable web page builder engine designed for modern web applications."
+                },
+                "styles": {
+                  "base": {
+                    "fontSize": "18px",
+                    "color": "#475569",
+                    "maxWidth": "680px",
+                    "lineHeight": "1.6"
+                  }
+                },
+                "children": []
+              },
+              {
+                "id": "hero-image",
+                "type": "image",
+                "props": {
+                  "src": "asset://hero-banner.webp",
+                  "alt": "KUBUILD Platform Graphic",
+                  "width": 640,
+                  "height": 360
+                },
+                "styles": {
+                  "base": {
+                    "borderRadius": "12px",
+                    "maxWidth": "100%",
+                    "height": "auto",
+                    "boxShadow": "0 20px 25px -5px rgba(0, 0, 0, 0.1)"
+                  }
+                },
+                "children": []
+              },
+              {
+                "id": "hero-button",
+                "type": "button",
+                "props": {
+                  "label": "Get Started",
+                  "action": {
+                    "type": "navigate",
+                    "payload": {
+                      "url": "/docs"
+                    }
+                  }
+                },
+                "styles": {
+                  "base": {
+                    "backgroundColor": "#2563eb",
+                    "color": "#ffffff",
+                    "paddingTop": "12px",
+                    "paddingBottom": "12px",
+                    "paddingLeft": "28px",
+                    "paddingRight": "28px",
+                    "borderRadius": "8px",
+                    "fontWeight": "600",
+                    "fontSize": "16px",
+                    "cursor": "pointer",
+                    "border": "none"
+                  }
+                },
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
