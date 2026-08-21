@@ -16,7 +16,7 @@
     "build": "tsup && tsc --emitDeclarationOnly",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "test": "vitest run"
   },
   "dependencies": {
@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "tsup": "^8.3.6",
-    "typescript": "^7.0.0",
+    "typescript": "^6.0.0",
     "vitest": "^3.0.5"
   }
 }

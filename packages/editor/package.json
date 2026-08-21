@@ -16,7 +16,7 @@
     "build": "tsup && tsc --emitDeclarationOnly",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "test": "vitest run"
   },
   "peerDependencies": {
@@ -28,15 +28,15 @@
     "@kubuild/core": "workspace:*",
     "@kubuild/renderer": "workspace:*",
     "@kubuild/schema": "workspace:*",
-    "zustand": "^5.0.3"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "tsup": "^8.3.6",
-    "typescript": "^7.0.0",
+    "typescript": "^6.0.0",
     "vitest": "^3.0.5"
   }
 }

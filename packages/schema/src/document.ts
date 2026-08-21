@@ -10,12 +10,12 @@ export type VariableBinding = z.infer<typeof VariableBindingSchema>;
 
 export const ActionBindingSchema = z.object({
   type: z.string().min(1),
-  payload: z.record(z.unknown()).optional(),
+  payload: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type ActionBinding = z.infer<typeof ActionBindingSchema>;
 
-export const StyleDefinitionSchema = z.record(z.unknown()).optional();
+export const StyleDefinitionSchema = z.record(z.string(), z.unknown()).optional();
 export type StyleDefinition = z.infer<typeof StyleDefinitionSchema>;
 
 export const ResponsiveStylesSchema = z
@@ -42,7 +42,7 @@ export const NodeSchema: z.ZodType<Node> = z.lazy(() =>
   z.object({
     id: z.string().min(1),
     type: z.string().min(1),
-    props: z.record(z.unknown()).optional().default({}),
+    props: z.record(z.string(), z.unknown()).optional().default({}),
     styles: ResponsiveStylesSchema.optional().default({}),
     children: z.array(NodeSchema).optional().default([]),
   }),
