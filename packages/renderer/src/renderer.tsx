@@ -74,7 +74,7 @@ export function NodeRenderer({
     case 'heading': {
       const level = (props.level as number) || 2;
       const text = (props.text as string) || '';
-      const Tag = `h${Math.min(Math.max(level, 1), 6)}` as keyof JSX.IntrinsicElements;
+      const Tag = `h${Math.min(Math.max(level, 1), 6)}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
       return (
         <Tag id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
           {text}
