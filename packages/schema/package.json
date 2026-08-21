@@ -14,7 +14,7 @@
     "./fixtures/*": "./src/fixtures/*"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsc --emitDeclarationOnly",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "tsup": "^8.3.6",
-    "typescript": "^5.7.3",
+    "typescript": "^7.0.0",
     "vitest": "^3.0.5"
   }
 }

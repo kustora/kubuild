@@ -8,9 +8,6 @@
     "allowJs": true,
     "strict": true,
     "noEmit": false,
-    "paths": {
-      "@kubuild/*": ["./packages/*/src"]
-    },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
