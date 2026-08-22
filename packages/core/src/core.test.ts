@@ -3,6 +3,14 @@ import {
   createBlankDocument,
   validateDocument,
   findNodeById,
+  insertNode,
+  moveNode,
+  updateProps,
+  updateStyle,
+  removeNode,
+  duplicateNode,
+  findNodeLocation,
+  isDescendantOf,
   ComponentRegistryLike,
 } from './index';
 import { PageDocument, Node } from '@kubuild/schema';
@@ -391,6 +399,386 @@ describe('STORA-011: Document Validator and Error Diagnostics', () => {
 
       const notFound = findNodeById(doc.document, 'non-existent');
       expect(notFound).toBeNull();
+    });
+  });
+});
+
+describe('STORA-012: Immutable Command Engine', () => {
+  const createSampleDoc = (): PageDocument => {
+    const doc = createBlankDocument('Test Page');
+    doc.document.children = [
+      {
+        id: 'section-1',
+        type: 'section',
+        styles: { base: { padding: '20px' } },
+        children: [
+          {
+            id: 'container-1',
+            type: 'container',
+            children: [
+              {
+                id: 'heading-1',
+                type: 'heading',
+                props: { title: 'Initial Title' },
+                styles: { base: { color: '#000000' } },
+                children: [],
+              },
+              {
+                id: 'button-1',
+                type: 'button',
+                props: { label: 'Click Me' },
+                styles: { base: { backgroundColor: '#blue' } },
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'section-2',
+        type: 'section',
+        children: [],
+      },
+    ];
+    return doc;
+  };
+
+  describe('Acceptance Criteria 1: Six commands available via public API', () => {
+    it('exports all six commands as callable functions', () => {
+      expect(typeof insertNode).toBe('function');
+      expect(typeof moveNode).toBe('function');
+      expect(typeof updateProps).toBe('function');
+      expect(typeof updateStyle).toBe('function');
+      expect(typeof removeNode).toBe('function');
+      expect(typeof duplicateNode).toBe('function');
+    });
+  });
+
+  describe('Acceptance Criteria 4: Input document immutability across all commands', () => {
+    it('does not mutate input document when executing commands', () => {
+      const doc = createSampleDoc();
+      const snapshot = JSON.parse(JSON.stringify(doc));
+
+      // Execute insert
+      insertNode(doc, {
+        parentId: 'container-1',
+        node: { id: 'text-1', type: 'text', props: { text: 'Hello' } },
+      });
+      expect(doc).toEqual(snapshot);
+
+      // Execute move
+      moveNode(doc, {
+        nodeId: 'button-1',
+        targetParentId: 'section-2',
+      });
+      expect(doc).toEqual(snapshot);
+
+      // Execute updateProps
+      updateProps(doc, {
+        nodeId: 'heading-1',
+        props: { title: 'Updated Title' },
+      });
+      expect(doc).toEqual(snapshot);
+
+      // Execute updateStyle
+      updateStyle(doc, {
+        nodeId: 'heading-1',
+        styles: { color: '#ffffff' },
+        breakpoint: 'base',
+      });
+      expect(doc).toEqual(snapshot);
+
+      // Execute removeNode
+      removeNode(doc, {
+        nodeId: 'heading-1',
+      });
+      expect(doc).toEqual(snapshot);
+
+      // Execute duplicateNode
+      duplicateNode(doc, {
+        nodeId: 'container-1',
+      });
+      expect(doc).toEqual(snapshot);
+    });
+  });
+
+  describe('Command: insertNode', () => {
+    it('inserts a node into target parent at specified or default index and emits NODE_INSERTED event', () => {
+      const doc = createSampleDoc();
+      const newNode: Node = {
+        id: 'badge-1',
+        type: 'badge',
+        props: { label: 'New' },
+        children: [],
+      };
+
+      const result = insertNode(doc, {
+        parentId: 'container-1',
+        node: newNode,
+        index: 0,
+      });
+
+      expect(result.document).not.toBe(doc);
+      expect(result.event.type).toBe('NODE_INSERTED');
+      expect(result.event.nodeId).toBe('badge-1');
+      expect(result.event.parentId).toBe('container-1');
+      expect(result.event.index).toBe(0);
+
+      const targetLoc = findNodeLocation(result.document.document, 'badge-1');
+      expect(targetLoc?.parent?.id).toBe('container-1');
+      expect(targetLoc?.index).toBe(0);
+      expect(targetLoc?.node.props?.label).toBe('New');
+    });
+
+    it('rejects insertion with duplicate node ID', () => {
+      const doc = createSampleDoc();
+      const duplicateNodeItem: Node = {
+        id: 'heading-1', // Already exists in doc
+        type: 'heading',
+        children: [],
+      };
+
+      expect(() => {
+        insertNode(doc, {
+          parentId: 'section-2',
+          node: duplicateNodeItem,
+        });
+      }).toThrow(/Duplicate node ID "heading-1"/);
+    });
+
+    it('rejects insertion when parent node is not found', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        insertNode(doc, {
+          parentId: 'non-existent-parent',
+          node: { id: 'new-node', type: 'text' },
+        });
+      }).toThrow(/Target parent node with ID "non-existent-parent" not found/);
+    });
+  });
+
+  describe('Command: moveNode & Acceptance Criteria 2 (descendant check)', () => {
+    it('moves node to a different parent with accurate NODE_MOVED event', () => {
+      const doc = createSampleDoc();
+      const result = moveNode(doc, {
+        nodeId: 'button-1',
+        targetParentId: 'section-2',
+        index: 0,
+      });
+
+      expect(result.event.type).toBe('NODE_MOVED');
+      expect(result.event.nodeId).toBe('button-1');
+      expect(result.event.parentId).toBe('section-2');
+      expect(result.event.previousParentId).toBe('container-1');
+      expect(result.event.index).toBe(0);
+      expect(result.event.previousIndex).toBe(1);
+
+      const oldParentLoc = findNodeLocation(result.document.document, 'container-1');
+      expect(oldParentLoc?.node.children?.map((c) => c.id)).toEqual(['heading-1']);
+
+      const newParentLoc = findNodeLocation(result.document.document, 'section-2');
+      expect(newParentLoc?.node.children?.map((c) => c.id)).toEqual(['button-1']);
+    });
+
+    it('reorders node within the same parent', () => {
+      const doc = createSampleDoc();
+      const result = moveNode(doc, {
+        nodeId: 'button-1',
+        targetParentId: 'container-1',
+        index: 0,
+      });
+
+      expect(result.event.previousParentId).toBe('container-1');
+      expect(result.event.parentId).toBe('container-1');
+
+      const containerLoc = findNodeLocation(result.document.document, 'container-1');
+      expect(containerLoc?.node.children?.map((c) => c.id)).toEqual(['button-1', 'heading-1']);
+    });
+
+    it('prevents moving a node into itself or its own descendant tree (Acceptance Criteria 2)', () => {
+      const doc = createSampleDoc();
+
+      // Trying to move section-1 into its child container-1
+      expect(() => {
+        moveNode(doc, {
+          nodeId: 'section-1',
+          targetParentId: 'container-1',
+        });
+      }).toThrow(/is the node itself or a descendant/);
+
+      // Trying to move section-1 into itself
+      expect(() => {
+        moveNode(doc, {
+          nodeId: 'section-1',
+          targetParentId: 'section-1',
+        });
+      }).toThrow(/is the node itself or a descendant/);
+    });
+
+    it('prevents moving the root page node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        moveNode(doc, {
+          nodeId: 'root-page',
+          targetParentId: 'section-1',
+        });
+      }).toThrow(/Cannot move the root page node/);
+    });
+  });
+
+  describe('Command: updateProps', () => {
+    it('shallow merges props by default and emits PROPS_UPDATED event', () => {
+      const doc = createSampleDoc();
+      const result = updateProps(doc, {
+        nodeId: 'heading-1',
+        props: { subtitle: 'New Subtitle', level: 2 },
+      });
+
+      expect(result.event.type).toBe('PROPS_UPDATED');
+      expect(result.event.nodeId).toBe('heading-1');
+      expect(result.event.payload?.previousProps).toEqual({ title: 'Initial Title' });
+
+      const updated = findNodeById(result.document.document, 'heading-1');
+      expect(updated?.props).toEqual({
+        title: 'Initial Title',
+        subtitle: 'New Subtitle',
+        level: 2,
+      });
+    });
+
+    it('replaces props when merge is false', () => {
+      const doc = createSampleDoc();
+      const result = updateProps(doc, {
+        nodeId: 'heading-1',
+        props: { onlyNewProp: 'value' },
+        merge: false,
+      });
+
+      const updated = findNodeById(result.document.document, 'heading-1');
+      expect(updated?.props).toEqual({ onlyNewProp: 'value' });
+    });
+  });
+
+  describe('Command: updateStyle', () => {
+    it('updates specific breakpoint style with merge support', () => {
+      const doc = createSampleDoc();
+      const result = updateStyle(doc, {
+        nodeId: 'heading-1',
+        breakpoint: 'base',
+        styles: { fontSize: '24px' },
+      });
+
+      expect(result.event.type).toBe('STYLE_UPDATED');
+      expect(result.event.nodeId).toBe('heading-1');
+
+      const updated = findNodeById(result.document.document, 'heading-1');
+      expect(updated?.styles?.base).toEqual({
+        color: '#000000',
+        fontSize: '24px',
+      });
+    });
+
+    it('updates full responsive styles structure', () => {
+      const doc = createSampleDoc();
+      const result = updateStyle(doc, {
+        nodeId: 'heading-1',
+        styles: {
+          desktop: { display: 'block' },
+          mobile: { display: 'none' },
+        },
+      });
+
+      const updated = findNodeById(result.document.document, 'heading-1');
+      expect(updated?.styles?.base).toEqual({ color: '#000000' });
+      expect(updated?.styles?.desktop).toEqual({ display: 'block' });
+      expect(updated?.styles?.mobile).toEqual({ display: 'none' });
+    });
+  });
+
+  describe('Command: removeNode', () => {
+    it('removes target node and emits NODE_REMOVED event', () => {
+      const doc = createSampleDoc();
+      const result = removeNode(doc, { nodeId: 'button-1' });
+
+      expect(result.event.type).toBe('NODE_REMOVED');
+      expect(result.event.nodeId).toBe('button-1');
+      expect(result.event.parentId).toBe('container-1');
+
+      const container = findNodeById(result.document.document, 'container-1');
+      expect(container?.children?.map((c) => c.id)).toEqual(['heading-1']);
+      expect(findNodeById(result.document.document, 'button-1')).toBeNull();
+    });
+
+    it('prevents removing the root page node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        removeNode(doc, { nodeId: 'root-page' });
+      }).toThrow(/Cannot remove the root page node/);
+    });
+  });
+
+  describe('Command: duplicateNode & Acceptance Criteria 3 (unique IDs for entire subtree)', () => {
+    it('duplicates subtree generating new unique IDs while preserving props and styles (Acceptance Criteria 3)', () => {
+      const doc = createSampleDoc();
+      const result = duplicateNode(doc, {
+        nodeId: 'container-1',
+      });
+
+      expect(result.event.type).toBe('NODE_DUPLICATED');
+      expect(result.event.parentId).toBe('section-1');
+      expect(result.event.payload?.originalNodeId).toBe('container-1');
+
+      const section = findNodeById(result.document.document, 'section-1');
+      expect(section?.children?.length).toBe(2);
+
+      const originalContainer = section?.children?.[0];
+      const duplicatedContainer = section?.children?.[1];
+
+      expect(originalContainer?.id).toBe('container-1');
+      expect(duplicatedContainer?.id).toBe('container-1_copy');
+
+      // Verify all child IDs in duplicated subtree are brand new unique IDs
+      expect(duplicatedContainer?.children?.length).toBe(2);
+      const dupHeading = duplicatedContainer?.children?.[0];
+      const dupButton = duplicatedContainer?.children?.[1];
+
+      expect(dupHeading?.id).toBe('heading-1_copy');
+      expect(dupHeading?.type).toBe('heading');
+      expect(dupHeading?.props).toEqual({ title: 'Initial Title' });
+      expect(dupHeading?.styles).toEqual({ base: { color: '#000000' } });
+
+      expect(dupButton?.id).toBe('button-1_copy');
+      expect(dupButton?.type).toBe('button');
+      expect(dupButton?.props).toEqual({ label: 'Click Me' });
+      expect(dupButton?.styles).toEqual({ base: { backgroundColor: '#blue' } });
+
+      // Validating duplicated document passes whole schema validation
+      const validation = validateDocument(result.document);
+      expect(validation.valid).toBe(true);
+    });
+
+    it('supports duplicating to a different target parent and index with custom ID generator', () => {
+      const doc = createSampleDoc();
+      const customIdGen = (oldId: string) => `custom_${oldId}`;
+
+      const result = duplicateNode(doc, {
+        nodeId: 'button-1',
+        targetParentId: 'section-2',
+        index: 0,
+        idGenerator: customIdGen,
+      });
+
+      const targetSection = findNodeById(result.document.document, 'section-2');
+      expect(targetSection?.children?.length).toBe(1);
+      expect(targetSection?.children?.[0].id).toBe('custom_button-1');
+      expect(targetSection?.children?.[0].props?.label).toBe('Click Me');
+    });
+
+    it('prevents duplicating the root page node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        duplicateNode(doc, { nodeId: 'root-page' });
+      }).toThrow(/Cannot duplicate the root page node/);
     });
   });
 });

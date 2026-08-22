@@ -141,7 +141,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Buat immutable command engine untuk edit document
 - **Description:** Tambahkan command `insertNode`, `moveNode`, `updateProps`, `updateStyle`, `removeNode`, dan `duplicateNode`. Semua command mengembalikan document baru dan event perubahan terstruktur.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-010, STORA-011
 - **Acceptance Criteria:**
   - Enam command tersedia lewat public API `@kubuild/core`.
