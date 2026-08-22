@@ -109,7 +109,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Rancang schema Page Document v1
 - **Description:** Definisikan root document, node, node id, `type`, `props`, `style`, `children`, metadata, asset references, dan `schemaVersion`. Pisahkan serializable document dari UI/editor state.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-002
 - **Acceptance Criteria:**
   - TypeScript type dan JSON Schema mendefinisikan document v1 yang sama.
