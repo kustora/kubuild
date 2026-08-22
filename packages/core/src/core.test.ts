@@ -14,6 +14,10 @@ import {
   HistoryEngine,
   DocumentHistoryManager,
   DEFAULT_MAX_HISTORY,
+  migrateDocument,
+  canMigrate,
+  getMigrationPath,
+  MigrationRegistry,
   ComponentRegistryLike,
 } from './index';
 import { PageDocument, Node } from '@kubuild/schema';
@@ -1091,6 +1095,241 @@ describe('STORA-013: Generic Undo/Redo History Engine', () => {
       expect(history.present).toEqual(modified);
       expect(history.canUndo()).toBe(false);
       expect(history.canRedo()).toBe(false);
+    });
+  });
+});
+
+describe('STORA-014: Schema Migration Registry and Document Migration', () => {
+  describe('Acceptance Criteria 1: migrateDocument() migrates legacy versions to v1 preserving semantics', () => {
+    it('migrates 0.1.0 alpha format (root key, flat styles) to v1.0.0', () => {
+      const legacyAlphaDoc = {
+        schema: 'stora.page',
+        version: '0.1.0',
+        metadata: {
+          title: 'Alpha Legacy Page',
+        },
+        root: {
+          id: 'root-page',
+          type: 'page',
+          styles: {
+            backgroundColor: '#ffffff',
+            minHeight: '100vh',
+          },
+          children: [
+            {
+              id: 'section-1',
+              type: 'section',
+              styles: {
+                padding: '24px',
+              },
+              children: [
+                {
+                  id: 'heading-1',
+                  type: 'heading',
+                  props: { title: 'Legacy Title' },
+                  styles: {
+                    color: '#333333',
+                    fontSize: '20px',
+                  },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      };
+
+      const result = migrateDocument(legacyAlphaDoc);
+
+      expect(result.success).toBe(true);
+      expect(result.document).toBeDefined();
+      expect(result.diagnostic.stepsApplied).toBe(1);
+      expect(result.diagnostic.sourceVersion).toBe('0.1.0');
+      expect(result.diagnostic.targetVersion).toBe('1.0.0');
+
+      const doc = result.document!;
+      expect(doc.version).toBe('1.0.0');
+      expect(doc.schema).toBe('stora.page');
+      expect(doc.document.id).toBe('root-page');
+
+      // Styles must be converted to responsive { base: ... }
+      expect(doc.document.styles?.base).toEqual({
+        backgroundColor: '#ffffff',
+        minHeight: '100vh',
+      });
+
+      const section = doc.document.children?.[0];
+      expect(section?.styles?.base).toEqual({ padding: '24px' });
+
+      const heading = section?.children?.[0];
+      expect(heading?.props?.title).toBe('Legacy Title');
+      expect(heading?.styles?.base).toEqual({
+        color: '#333333',
+        fontSize: '20px',
+      });
+
+      // Migrated document passes schema validation completely
+      const validation = validateDocument(doc);
+      expect(validation.valid).toBe(true);
+    });
+
+    it('migrates 0.9.0 beta format to v1.0.0', () => {
+      const betaDoc = {
+        schema: 'stora.page',
+        version: '0.9.0',
+        document: {
+          id: 'root-page',
+          type: 'page',
+          children: [],
+        },
+      };
+
+      const result = migrateDocument(betaDoc);
+      expect(result.success).toBe(true);
+      expect(result.document?.version).toBe('1.0.0');
+      expect(result.document?.metadata?.title).toBe('Migrated Page');
+      expect(result.document?.metadata?.category).toBe('general');
+    });
+
+    it('migrates shorthand version "1.0" to "1.0.0"', () => {
+      const shorthandDoc = {
+        schema: 'stora.page',
+        version: '1.0',
+        document: {
+          id: 'root-page',
+          type: 'page',
+          children: [],
+        },
+      };
+
+      const result = migrateDocument(shorthandDoc);
+      expect(result.success).toBe(true);
+      expect(result.document?.version).toBe('1.0.0');
+    });
+  });
+
+  describe('Acceptance Criteria 2: Current document experiences zero changes during migration', () => {
+    it('returns unmodified copy when document is already at current 1.0.0 schema', () => {
+      const currentDoc = createBlankDocument('Current Live Page');
+      currentDoc.document.children = [
+        {
+          id: 'sec-1',
+          type: 'section',
+          children: [
+            {
+              id: 'btn-1',
+              type: 'button',
+              props: { label: 'Click' },
+              children: [],
+            },
+          ],
+        },
+      ];
+
+      const snapshot = JSON.parse(JSON.stringify(currentDoc));
+      const result = migrateDocument(currentDoc);
+
+      expect(result.success).toBe(true);
+      expect(result.diagnostic.stepsApplied).toBe(0);
+      expect(result.diagnostic.sourceVersion).toBe('1.0.0');
+      expect(result.diagnostic.targetVersion).toBe('1.0.0');
+      expect(result.document).toEqual(snapshot);
+      expect(currentDoc).toEqual(snapshot); // input untouched
+    });
+  });
+
+  describe('Acceptance Criteria 3: Versions without migration path fail with structured compatibility error', () => {
+    it('returns structured NO_MIGRATION_PATH error for unknown legacy or future schema version', () => {
+      const futureDoc = {
+        schema: 'stora.page',
+        version: '2.0.0', // Unsupported future version
+        document: {
+          id: 'root-page',
+          type: 'page',
+          children: [],
+        },
+      };
+
+      const result = migrateDocument(futureDoc);
+
+      expect(result.success).toBe(false);
+      expect(result.document).toBeUndefined();
+      expect(result.diagnostic.success).toBe(false);
+      expect(result.diagnostic.sourceVersion).toBe('2.0.0');
+      expect(result.diagnostic.targetVersion).toBe('1.0.0');
+      expect(result.diagnostic.errors).toBeDefined();
+      expect(result.diagnostic.errors?.length).toBeGreaterThan(0);
+
+      const err = result.diagnostic.errors?.[0];
+      expect(err?.code).toBe('NO_MIGRATION_PATH');
+      expect(err?.message).toContain('No migration path found from schema version "2.0.0" to "1.0.0"');
+    });
+
+    it('returns structured INVALID_SOURCE_DOCUMENT error for invalid input', () => {
+      const result = migrateDocument(null);
+      expect(result.success).toBe(false);
+      expect(result.diagnostic.errors?.[0].code).toBe('INVALID_SOURCE_DOCUMENT');
+    });
+  });
+
+  describe('Migration Path Discovery, Dry-Run, and Custom Registry', () => {
+    it('supports dry-run mode without generating final payload', () => {
+      const legacyDoc = {
+        schema: 'stora.page',
+        version: '0.1.0',
+        root: { id: 'root-page', type: 'page' },
+      };
+
+      const result = migrateDocument(legacyDoc, { dryRun: true });
+
+      expect(result.success).toBe(true);
+      expect(result.diagnostic.dryRun).toBe(true);
+      expect(result.diagnostic.stepsApplied).toBe(1);
+      expect(result.diagnostic.migrationPath).toEqual(['0.1.0', '1.0.0']);
+      expect(result.document).toBeUndefined();
+    });
+
+    it('checks migration capabilities with canMigrate and getMigrationPath', () => {
+      expect(canMigrate('0.1.0')).toBe(true);
+      expect(canMigrate('0.9.0')).toBe(true);
+      expect(canMigrate('1.0.0')).toBe(true);
+      expect(canMigrate('99.0.0')).toBe(false);
+
+      expect(getMigrationPath('0.1.0')).toEqual(['0.1.0', '1.0.0']);
+      expect(getMigrationPath('99.0.0')).toBeNull();
+    });
+
+    it('supports multi-step graph resolution in custom MigrationRegistry', () => {
+      const customRegistry = new MigrationRegistry();
+      customRegistry.register({
+        fromVersion: '0.0.1',
+        toVersion: '0.0.2',
+        migrate: (doc) => ({ ...doc, version: '0.0.2', step1: true }),
+      });
+      customRegistry.register({
+        fromVersion: '0.0.2',
+        toVersion: '1.0.0',
+        migrate: (doc) => ({
+          ...doc,
+          schema: 'stora.page',
+          version: '1.0.0',
+          document: { id: 'root-page', type: 'page', children: [] },
+          step2: true,
+        }),
+      });
+
+      expect(customRegistry.findPath('0.0.1', '1.0.0')).toEqual(['0.0.1', '0.0.2', '1.0.0']);
+
+      const doc = { version: '0.0.1' };
+      const result = migrateDocument(doc, {
+        registry: customRegistry,
+        validate: false,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.diagnostic.stepsApplied).toBe(2);
+      expect((result.document as unknown as Record<string, unknown>).step1).toBe(true);
+      expect((result.document as unknown as Record<string, unknown>).step2).toBe(true);
     });
   });
 });

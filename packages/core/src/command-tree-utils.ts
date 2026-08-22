@@ -1,4 +1,4 @@
-import { Node } from '@kubuild/schema';
+import { Node, collectNodeIds } from '@kubuild/schema';
 
 /**
  * Deep clone an object immutably (JSON-safe).
@@ -74,24 +74,10 @@ export function isDescendantOf(ancestorNode: Node, targetId: string): boolean {
 }
 
 /**
- * Collect all node IDs present in a node subtree.
+ * Collect all node IDs present in a node subtree as a Set.
  */
-export function collectNodeIds(root: Node): Set<string> {
-  const ids = new Set<string>();
-
-  function traverse(node: Node) {
-    if (node.id) {
-      ids.add(node.id);
-    }
-    if (node.children) {
-      for (const child of node.children) {
-        traverse(child);
-      }
-    }
-  }
-
-  traverse(root);
-  return ids;
+export function collectNodeIdSet(root: Node): Set<string> {
+  return new Set(collectNodeIds(root));
 }
 
 /**

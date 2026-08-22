@@ -3,7 +3,7 @@ import {
   deepClone,
   findNodeLocation,
   isDescendantOf,
-  collectNodeIds,
+  collectNodeIdSet,
   cloneTreeWithNewIds,
 } from './command-tree-utils';
 
@@ -93,10 +93,10 @@ export function insertNode(
   }
 
   const newDoc = deepClone(document);
-  const existingIds = collectNodeIds(newDoc.document);
+  const existingIds = collectNodeIdSet(newDoc.document);
 
   // Check duplicate ID
-  const incomingIds = collectNodeIds(node);
+  const incomingIds = collectNodeIdSet(node);
   for (const incId of incomingIds) {
     if (existingIds.has(incId)) {
       throw new Error(`Cannot insert node: Duplicate node ID "${incId}" already exists in document.`);
@@ -400,7 +400,7 @@ export function duplicateNode(
     throw new Error(`Cannot duplicate node: Node with ID "${nodeId}" not found in document.`);
   }
 
-  const existingIds = collectNodeIds(newDoc.document);
+  const existingIds = collectNodeIdSet(newDoc.document);
   const { clonedNode, idMap } = cloneTreeWithNewIds(loc.node, idGenerator, existingIds);
 
   const destinationParentId = targetParentId || loc.parent.id;

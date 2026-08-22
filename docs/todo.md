@@ -172,7 +172,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan migrasi schema document
 - **Description:** Buat registry migrasi dari versi lama ke current schema, dengan API dry-run dan diagnostic untuk jalur migrasi yang tidak tersedia.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-010, STORA-011
 - **Acceptance Criteria:**
   - `migrateDocument()` mengubah fixture versi lama ke v1 tanpa mengubah semantic page.

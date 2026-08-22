@@ -4,3 +4,4 @@ export * from './document-utils';
 export * from './commands';
 export * from './command-tree-utils';
 export * from './history';
+export * from './migration';
