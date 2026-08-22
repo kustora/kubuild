@@ -11,6 +11,9 @@ import {
   duplicateNode,
   findNodeLocation,
   isDescendantOf,
+  HistoryEngine,
+  DocumentHistoryManager,
+  DEFAULT_MAX_HISTORY,
   ComponentRegistryLike,
 } from './index';
 import { PageDocument, Node } from '@kubuild/schema';
@@ -779,6 +782,315 @@ describe('STORA-012: Immutable Command Engine', () => {
       expect(() => {
         duplicateNode(doc, { nodeId: 'root-page' });
       }).toThrow(/Cannot duplicate the root page node/);
+    });
+  });
+});
+
+describe('STORA-013: Generic Undo/Redo History Engine', () => {
+  const createSampleDoc = (): PageDocument => {
+    const doc = createBlankDocument('Test History Page');
+    doc.document.children = [
+      {
+        id: 'section-1',
+        type: 'section',
+        styles: { base: { padding: '20px' } },
+        children: [
+          {
+            id: 'container-1',
+            type: 'container',
+            children: [
+              {
+                id: 'heading-1',
+                type: 'heading',
+                props: { title: 'Initial Title' },
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'section-2',
+        type: 'section',
+        children: [],
+      },
+    ];
+    return doc;
+  };
+
+  describe('Acceptance Criteria 1: Undo/Redo restores identical document across all command mutations', () => {
+    it('restores identical state for insertNode', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      const insertResult = manager.execute((doc) =>
+        insertNode(doc, {
+          parentId: 'container-1',
+          node: { id: 'btn-1', type: 'button', props: { label: 'Click' } },
+        }),
+      );
+
+      expect(manager.document).toEqual(insertResult.document);
+      expect(manager.canUndo).toBe(true);
+
+      // Undo -> restores initialDoc
+      const undone = manager.undo();
+      expect(undone).toEqual(initialDoc);
+      expect(manager.document).toEqual(initialDoc);
+      expect(manager.canRedo).toBe(true);
+
+      // Redo -> restores insertResult.document
+      const redone = manager.redo();
+      expect(redone).toEqual(insertResult.document);
+      expect(manager.document).toEqual(insertResult.document);
+    });
+
+    it('restores identical state for moveNode', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      const moveResult = manager.execute((doc) =>
+        moveNode(doc, {
+          nodeId: 'heading-1',
+          targetParentId: 'section-2',
+        }),
+      );
+
+      expect(manager.document).toEqual(moveResult.document);
+
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+
+      manager.redo();
+      expect(manager.document).toEqual(moveResult.document);
+    });
+
+    it('restores identical state for updateProps', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      const updateResult = manager.execute((doc) =>
+        updateProps(doc, {
+          nodeId: 'heading-1',
+          props: { title: 'Brand New Title', level: 1 },
+        }),
+      );
+
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+
+      manager.redo();
+      expect(manager.document).toEqual(updateResult.document);
+    });
+
+    it('restores identical state for updateStyle', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      const styleResult = manager.execute((doc) =>
+        updateStyle(doc, {
+          nodeId: 'heading-1',
+          breakpoint: 'base',
+          styles: { color: '#ff0000', fontSize: '32px' },
+        }),
+      );
+
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+
+      manager.redo();
+      expect(manager.document).toEqual(styleResult.document);
+    });
+
+    it('restores identical state for removeNode', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      const removeResult = manager.execute((doc) =>
+        removeNode(doc, {
+          nodeId: 'heading-1',
+        }),
+      );
+
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+
+      manager.redo();
+      expect(manager.document).toEqual(removeResult.document);
+    });
+
+    it('restores identical state for duplicateNode', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      const duplicateResult = manager.execute((doc) =>
+        duplicateNode(doc, {
+          nodeId: 'container-1',
+        }),
+      );
+
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+
+      manager.redo();
+      expect(manager.document).toEqual(duplicateResult.document);
+    });
+  });
+
+  describe('Acceptance Criteria 2: New action after undo clears redo stack', () => {
+    it('clears redo future entries when a new action is pushed after undoing', () => {
+      const doc0 = createSampleDoc();
+      const history = new HistoryEngine<PageDocument>(doc0);
+
+      // 1. First action
+      const doc1 = updateProps(doc0, {
+        nodeId: 'heading-1',
+        props: { title: 'State 1' },
+      }).document;
+      history.push(doc1);
+
+      // 2. Second action
+      const doc2 = updateProps(doc1, {
+        nodeId: 'heading-1',
+        props: { title: 'State 2' },
+      }).document;
+      history.push(doc2);
+
+      // 3. Third action
+      const doc3 = updateProps(doc2, {
+        nodeId: 'heading-1',
+        props: { title: 'State 3' },
+      }).document;
+      history.push(doc3);
+
+      expect(history.undoCount).toBe(3);
+      expect(history.redoCount).toBe(0);
+
+      // Undo twice -> goes back to doc1
+      history.undo(); // back to doc2
+      history.undo(); // back to doc1
+      expect(history.present).toEqual(doc1);
+      expect(history.undoCount).toBe(1);
+      expect(history.redoCount).toBe(2);
+      expect(history.canRedo()).toBe(true);
+
+      // Execute a new diverging action
+      const docDiverged = updateProps(doc1, {
+        nodeId: 'heading-1',
+        props: { title: 'State Diverged' },
+      }).document;
+      history.push(docDiverged);
+
+      // Redo stack must be completely cleared
+      expect(history.canRedo()).toBe(false);
+      expect(history.redoCount).toBe(0);
+      expect(history.redo()).toBeUndefined();
+      expect(history.undoCount).toBe(2); // doc0 -> doc1 -> docDiverged
+      expect(history.present).toEqual(docDiverged);
+    });
+  });
+
+  describe('Acceptance Criteria 3: Configurable history limit and default limit tested', () => {
+    it('uses default maxHistory limit of 50 and discards oldest states', () => {
+      const initialDoc = createSampleDoc();
+      const history = new HistoryEngine<PageDocument>(initialDoc);
+      expect(history.limit).toBe(DEFAULT_MAX_HISTORY);
+      expect(DEFAULT_MAX_HISTORY).toBe(50);
+
+      // Push 60 new states
+      let current = initialDoc;
+      for (let i = 1; i <= 60; i++) {
+        current = updateProps(current, {
+          nodeId: 'heading-1',
+          props: { count: i },
+        }).document;
+        history.push(current);
+      }
+
+      // Undo count should be capped at 50
+      expect(history.undoCount).toBe(50);
+
+      // Can undo exactly 50 times
+      for (let i = 0; i < 50; i++) {
+        expect(history.canUndo()).toBe(true);
+        history.undo();
+      }
+
+      // 51st undo is impossible because the oldest 10 states were discarded
+      expect(history.canUndo()).toBe(false);
+      expect(history.undo()).toBeUndefined();
+
+      // Oldest available state has count: 10
+      const oldestAvailable = findNodeById(history.present.document, 'heading-1');
+      expect(oldestAvailable?.props?.count).toBe(10);
+    });
+
+    it('enforces custom maxHistory limit (e.g. 5)', () => {
+      const initialDoc = createSampleDoc();
+      const history = new HistoryEngine<PageDocument>(initialDoc, { maxHistory: 5 });
+      expect(history.limit).toBe(5);
+
+      let current = initialDoc;
+      for (let i = 1; i <= 10; i++) {
+        current = updateProps(current, {
+          nodeId: 'heading-1',
+          props: { step: i },
+        }).document;
+        history.push(current);
+      }
+
+      expect(history.undoCount).toBe(5);
+
+      // Undo 5 times
+      for (let i = 0; i < 5; i++) {
+        history.undo();
+      }
+
+      expect(history.canUndo()).toBe(false);
+      const oldest = findNodeById(history.present.document, 'heading-1');
+      expect(oldest?.props?.step).toBe(5);
+    });
+  });
+
+  describe('History reset and clear functionality', () => {
+    it('resets history stacks when loading a new document', () => {
+      const doc1 = createSampleDoc();
+      const manager = new DocumentHistoryManager(doc1);
+
+      manager.execute((doc) =>
+        updateProps(doc, {
+          nodeId: 'heading-1',
+          props: { title: 'Edited' },
+        }),
+      );
+      expect(manager.canUndo).toBe(true);
+
+      const newDoc = createBlankDocument('New Fresh Page');
+      manager.reset(newDoc);
+
+      expect(manager.document).toEqual(newDoc);
+      expect(manager.canUndo).toBe(false);
+      expect(manager.canRedo).toBe(false);
+      expect(manager.getState().undoCount).toBe(0);
+      expect(manager.getState().redoCount).toBe(0);
+    });
+
+    it('clears past and future while retaining current present state', () => {
+      const doc1 = createSampleDoc();
+      const history = new HistoryEngine<PageDocument>(doc1);
+
+      const modified = updateProps(doc1, {
+        nodeId: 'heading-1',
+        props: { title: 'Keep this' },
+      }).document;
+      history.push(modified);
+
+      expect(history.canUndo()).toBe(true);
+
+      history.clear();
+      expect(history.present).toEqual(modified);
+      expect(history.canUndo()).toBe(false);
+      expect(history.canRedo()).toBe(false);
     });
   });
 });

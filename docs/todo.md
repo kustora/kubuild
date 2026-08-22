@@ -157,7 +157,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan history undo/redo berbasis command
 - **Description:** Simpan snapshot atau inverse command dalam history engine generik; editor hanya menjadi consumer. Definisikan batas history dan reset saat document baru dimuat.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-012
 - **Acceptance Criteria:**
   - Undo dan redo memulihkan document identik untuk insert, move, update, delete, dan duplicate.
