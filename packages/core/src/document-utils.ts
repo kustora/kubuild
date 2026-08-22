@@ -1,23 +1,18 @@
-import { PageDocument, Node, PageDocumentSchema } from '@kubuild/schema';
+import { PageDocument, Node, SCHEMA_NAME } from '@kubuild/schema';
 
-export function validateDocument(document: unknown): {
-  success: boolean;
-  data?: PageDocument;
-  errors?: string[];
-} {
-  const result = PageDocumentSchema.safeParse(document);
-  if (result.success) {
-    return { success: true, data: result.data };
-  }
-  return {
-    success: false,
-    errors: result.error.issues.map((e) => `${e.path.map(String).join('.')}: ${e.message}`),
-  };
-}
+export { validateDocument } from './validator';
+export type {
+  DocumentValidationResult,
+  DocumentValidationError,
+  DocumentValidationErrorCode,
+  ValidationOptions,
+  ComponentDefinitionLike,
+  ComponentRegistryLike,
+} from './validator';
 
 export function createBlankDocument(title = 'Untitled Page'): PageDocument {
   return {
-    schema: 'stora.page',
+    schema: SCHEMA_NAME,
     version: '1.0.0',
     metadata: {
       title,
@@ -34,7 +29,7 @@ export function createBlankDocument(title = 'Untitled Page'): PageDocument {
       type: 'page',
       props: { title },
       styles: { base: { minHeight: '100vh', backgroundColor: '#ffffff' } },
-      children: [],
+      children: [] as Node[],
     },
   };
 }

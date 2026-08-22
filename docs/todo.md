@@ -125,7 +125,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan validator document dan error diagnostic
 - **Description:** Validasi schema global, node shape, child policy, ID duplikat, component type tidak dikenal, dan reference asset/variable secara struktural. Kembalikan errors dengan path JSON yang dapat ditampilkan UI.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-010
 - **Acceptance Criteria:**
   - Document valid menghasilkan result sukses tanpa mutasi input.
