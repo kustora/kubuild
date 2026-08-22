@@ -1,8 +1,18 @@
 import React from 'react';
-import { PageDocument, Node, isAssetReference } from '@kubuild/schema';
+import { PageDocument, Node, isAssetReference, isActionBinding } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
-import { RuntimeContext } from '@kubuild/core';
+import { AssetProvider, RuntimeContext } from '@kubuild/core';
 import { resolveNodeStyles } from './styles';
+
+/**
+ * AssetProvider.resolve may be sync or async. Renderer output must be computable
+ * synchronously (no hooks in NodeRenderer), so only a sync string result is used;
+ * an async resolution falls back to the asset's fallbackUrl for this render pass.
+ */
+function resolveAssetSync(assetProvider: AssetProvider, assetIdOrUri: string): string | undefined {
+  const result = assetProvider.resolve(assetIdOrUri);
+  return typeof result === 'string' ? result : undefined;
+}
 
 export interface KubuildRendererProps {
   document: PageDocument;
@@ -89,11 +99,16 @@ export function NodeRenderer({
       );
     case 'image': {
       const directSrc = typeof props.src === 'string' && props.src.length > 0 ? props.src : undefined;
-      const fallbackSrc = isAssetReference(props.asset) ? props.asset.fallbackUrl : undefined;
+      const asset = isAssetReference(props.asset) ? props.asset : undefined;
+      const resolvedSrc =
+        !directSrc && asset && context?.assetProvider
+          ? resolveAssetSync(context.assetProvider, asset.assetId)
+          : undefined;
+      const fallbackSrc = asset?.fallbackUrl;
       return (
         <img
           id={node.id}
-          src={directSrc || fallbackSrc || undefined}
+          src={directSrc || resolvedSrc || fallbackSrc || undefined}
           alt={(props.alt as string) || ''}
           width={props.width as number}
           height={props.height as number}
@@ -107,10 +122,22 @@ export function NodeRenderer({
       const label = (props.label as string) || 'Button';
       const disabled = props.disabled === true;
       const href = typeof props.href === 'string' ? props.href : undefined;
+      const action = isActionBinding(props.action) ? props.action : undefined;
+      const actionResolved = action ? Boolean(context?.actionRegistry?.get(action.type)) : undefined;
+      const actionAttrs = action
+        ? { 'data-kubuild-action': action.type, 'data-kubuild-action-resolved': actionResolved }
+        : {};
 
       if (href && !disabled) {
         return (
-          <a id={node.id} href={href} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <a
+            id={node.id}
+            href={href}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            {...actionAttrs}
+          >
             {label}
           </a>
         );
@@ -124,6 +151,7 @@ export function NodeRenderer({
           style={styles}
           onClick={disabled ? undefined : handleClick}
           data-kubuild-node={node.id}
+          {...actionAttrs}
         >
           {label}
         </button>

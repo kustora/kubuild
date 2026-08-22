@@ -306,7 +306,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan context runtime untuk registry, variables, assets, dan actions
 - **Description:** Buat `RenderContext` immutable yang mengalir ke component renderer. Host dapat menyediakan resolver tanpa coupling ke Stora.page.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-030, STORA-015
 - **Acceptance Criteria:**
   - Component dapat resolve asset dan action melalui context.
