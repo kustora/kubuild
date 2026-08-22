@@ -1,4 +1,4 @@
-import { Node } from '@kubuild/schema';
+import { Node, ResponsiveStyles } from '@kubuild/schema';
 
 export type ComponentCategory = 'layout' | 'typography' | 'media' | 'interactive' | 'data' | 'custom';
 
@@ -21,7 +21,8 @@ export interface ComponentDefinition<TRenderer = unknown> {
   allowedChildren?: string[];
   disallowedParents?: string[];
   defaultProps?: Record<string, unknown>;
-  defaultStyles?: Record<string, unknown>;
+  /** Default responsive style override (base/desktop/tablet/mobile), matching a Node's `styles` field. */
+  defaultStyles?: ResponsiveStyles;
   /**
    * Inspector metadata: describes each editable prop (label, input type, options)
    * so a host editor can render property controls without hardcoding per-type UI.
@@ -42,6 +43,15 @@ export interface ComponentDefinition<TRenderer = unknown> {
    * or reads this field with that type.
    */
   renderer?: TRenderer;
+  /**
+   * Host-provided runtime capabilities this component type needs to fully
+   * resolve at render time (e.g. `'assetProvider'`, `'actionRegistry'` — see
+   * `@kubuild/core`'s `RuntimeContext`). Names correspond to entries a host
+   * would list in a `.stora` manifest's `requiredCapabilities` (see
+   * `@kubuild/schema`'s `ManifestSchema`) so an importer can check it has
+   * everything a document needs before accepting it.
+   */
+  capabilities?: string[];
 }
 
 export class ComponentRegistry<TRenderer = unknown> {
@@ -89,7 +99,12 @@ export class ComponentRegistry<TRenderer = unknown> {
 
     if (def.allowedChildren && node.children) {
       for (const child of node.children) {
-        if (!def.allowedChildren.includes('*') && !def.allowedChildren.includes(child.type)) {
+        const childCategory = this.get(child.type)?.category;
+        const allowed =
+          def.allowedChildren.includes('*') ||
+          def.allowedChildren.includes(child.type) ||
+          (childCategory !== undefined && def.allowedChildren.includes(childCategory));
+        if (!allowed) {
           errors.push(`Component "${node.type}" does not allow child type "${child.type}".`);
         }
       }

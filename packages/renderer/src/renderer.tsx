@@ -1,5 +1,5 @@
 import React from 'react';
-import { PageDocument, Node } from '@kubuild/schema';
+import { PageDocument, Node, isAssetReference } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import { RuntimeContext } from '@kubuild/core';
 import { resolveNodeStyles } from './styles';
@@ -87,11 +87,13 @@ export function NodeRenderer({
           {(props.content as string) || ''}
         </p>
       );
-    case 'image':
+    case 'image': {
+      const directSrc = typeof props.src === 'string' && props.src.length > 0 ? props.src : undefined;
+      const fallbackSrc = isAssetReference(props.asset) ? props.asset.fallbackUrl : undefined;
       return (
         <img
           id={node.id}
-          src={(props.src as string) || ''}
+          src={directSrc || fallbackSrc || undefined}
           alt={(props.alt as string) || ''}
           width={props.width as number}
           height={props.height as number}
@@ -100,12 +102,33 @@ export function NodeRenderer({
           data-kubuild-node={node.id}
         />
       );
-    case 'button':
+    }
+    case 'button': {
+      const label = (props.label as string) || 'Button';
+      const disabled = props.disabled === true;
+      const href = typeof props.href === 'string' ? props.href : undefined;
+
+      if (href && !disabled) {
+        return (
+          <a id={node.id} href={href} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+            {label}
+          </a>
+        );
+      }
+
       return (
-        <button id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
-          {(props.label as string) || 'Button'}
+        <button
+          id={node.id}
+          type="button"
+          disabled={disabled}
+          style={styles}
+          onClick={disabled ? undefined : handleClick}
+          data-kubuild-node={node.id}
+        >
+          {label}
         </button>
       );
+    }
     default:
       return (
         <div

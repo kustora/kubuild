@@ -27,6 +27,7 @@ export interface DocumentValidationError {
 
 export interface ComponentDefinitionLike {
   type: string;
+  category?: string;
   acceptsChildren?: boolean;
   allowedChildren?: string[];
   disallowedParents?: string[];
@@ -316,12 +317,14 @@ function validateNodeRecursive(
 
         const childRecord = child as Record<string, unknown>;
         const childType = typeof childRecord.type === 'string' ? childRecord.type : '';
+        const childCategory = options.componentRegistry?.get(childType)?.category;
 
         if (
           componentDef?.allowedChildren &&
           childType &&
           !componentDef.allowedChildren.includes(childType) &&
-          !componentDef.allowedChildren.includes('*')
+          !componentDef.allowedChildren.includes('*') &&
+          !(childCategory && componentDef.allowedChildren.includes(childCategory))
         ) {
           errors.push({
             code: 'CHILD_POLICY_VIOLATION',

@@ -224,7 +224,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan layout components: page, section, container, columns
 - **Description:** Buat component fondasi dengan default style, batas nesting, dan responsive style fields.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-020
 - **Acceptance Criteria:**
   - User dapat membentuk page dengan section > container > columns dari document valid.
@@ -239,7 +239,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan content components: heading, text, image, button
 - **Description:** Tambahkan props minimal, default, prop schema, inspector metadata, dan renderer React untuk component MVP.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-020, STORA-021
 - **Acceptance Criteria:**
   - Heading, text, image, dan button dapat ditambah ke fixture dan dirender.
@@ -254,7 +254,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan style token dan responsive style schema
 - **Description:** Definisikan token/format untuk spacing, color, typography, background, border, width, alignment, dan breakpoint override. Batasi gaya ke serializable values aman.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-020
 - **Acceptance Criteria:**
   - Style schema menolak function, arbitrary CSS string berbahaya, dan nilai non-serializable.
@@ -269,7 +269,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Buat extension contract untuk custom consumer component
 - **Description:** Dokumentasikan cara host mendaftarkan custom component dengan schema, renderer, category, capability, dan serializable props.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-020, STORA-015
 - **Acceptance Criteria:**
   - Sample `custom.product-card` terdaftar tanpa patch source core.

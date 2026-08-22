@@ -43,10 +43,25 @@ export type ActionBinding = z.infer<typeof ActionBindingSchema>;
 /**
  * Style Definition Schema
  * Key-value mapping of CSS properties or design tokens.
+ *
+ * Values are restricted to safe, serializable primitives (string, number,
+ * boolean, null) — no functions, objects, or arrays — and string values are
+ * screened against known CSS/HTML injection vectors (e.g. `url(javascript:...)`,
+ * legacy IE `expression()`, `@import`, embedded `<script>` tags).
  */
-export const StyleValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null(), z.undefined()]);
-export const StyleDefinitionSchema = z.record(z.string(), z.unknown());
-export type StyleDefinition = Record<string, unknown>;
+const DANGEROUS_STYLE_VALUE_PATTERN = /javascript:|expression\(|@import|<script|vbscript:|data:text\/html/i;
+
+export const StyleValueSchema = z.union([
+  z.string().refine((value) => !DANGEROUS_STYLE_VALUE_PATTERN.test(value), {
+    message: 'Style value contains a disallowed or unsafe pattern',
+  }),
+  z.number(),
+  z.boolean(),
+  z.null(),
+  z.undefined(),
+]);
+export const StyleDefinitionSchema = z.record(z.string(), StyleValueSchema);
+export type StyleDefinition = Record<string, string | number | boolean | null | undefined>;
 
 /**
  * Responsive Styles Schema

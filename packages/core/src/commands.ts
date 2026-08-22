@@ -1,4 +1,11 @@
-import { PageDocument, Node, ResponsiveStyles, StyleDefinition } from '@kubuild/schema';
+import {
+  PageDocument,
+  Node,
+  ResponsiveStyles,
+  StyleDefinition,
+  StyleDefinitionSchema,
+  ResponsiveStylesSchema,
+} from '@kubuild/schema';
 import {
   deepClone,
   findNodeLocation,
@@ -275,9 +282,11 @@ export function updateStyle(
   const previousStyles = deepClone(currentStyles);
 
   if (breakpoint) {
-    // Updating a single breakpoint style definition
-    const currentBreakpointStyles = (currentStyles[breakpoint] as Record<string, unknown>) || {};
-    const newBreakpointStyles = styles as Record<string, unknown>;
+    // Updating a single breakpoint style definition. Parsed through
+    // StyleDefinitionSchema so unsafe/non-serializable values (STORA-023)
+    // are rejected here too, not just at document-parse time.
+    const currentBreakpointStyles = (currentStyles[breakpoint] as StyleDefinition) || {};
+    const newBreakpointStyles = StyleDefinitionSchema.parse(styles);
 
     if (merge) {
       currentStyles[breakpoint] = {
@@ -289,12 +298,12 @@ export function updateStyle(
     }
   } else {
     // Updating responsive styles container
-    const responsiveStylesInput = styles as ResponsiveStyles;
+    const responsiveStylesInput = ResponsiveStylesSchema.parse(styles);
     if (merge) {
       for (const bp of ['base', 'desktop', 'tablet', 'mobile'] as const) {
         if (responsiveStylesInput[bp] !== undefined) {
-          const currentBp = (currentStyles[bp] as Record<string, unknown>) || {};
-          const incomingBp = (responsiveStylesInput[bp] as Record<string, unknown>) || {};
+          const currentBp = (currentStyles[bp] as StyleDefinition) || {};
+          const incomingBp = (responsiveStylesInput[bp] as StyleDefinition) || {};
           currentStyles[bp] = {
             ...currentBp,
             ...deepClone(incomingBp),

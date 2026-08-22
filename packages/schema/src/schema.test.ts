@@ -13,6 +13,9 @@ import {
   isVariableBinding,
   isActionBinding,
   Node,
+  StyleValueSchema,
+  StyleDefinitionSchema,
+  ResponsiveStylesSchema,
 } from './document';
 import { PAGE_DOCUMENT_JSON_SCHEMA_V1, getPageDocumentJsonSchema } from './json-schema';
 import starterPage from './fixtures/starter-page.json';
@@ -191,6 +194,57 @@ describe('STORA-010: Page Document v1 Schema Specification', () => {
       const serialized = JSON.stringify(starterPage);
       const parsed = JSON.parse(serialized);
       const result = PageDocumentSchema.safeParse(parsed);
+      expect(result.success).toBe(true);
+    });
+  });
+});
+
+describe('STORA-023: Style Token and Responsive Style Schema Hardening', () => {
+  describe('Acceptance Criteria 1: rejects function, dangerous CSS strings, and non-serializable values', () => {
+    it('rejects a function value', () => {
+      expect(StyleValueSchema.safeParse(() => 'x').success).toBe(false);
+    });
+
+    it('rejects an object value', () => {
+      expect(StyleValueSchema.safeParse({ nested: true }).success).toBe(false);
+    });
+
+    it('rejects an array value', () => {
+      expect(StyleValueSchema.safeParse(['a', 'b']).success).toBe(false);
+    });
+
+    it.each([
+      'background: url(javascript:alert(1))',
+      'width: expression(alert(1))',
+      '@import url(evil.css)',
+      '<script>alert(1)</script>',
+      'behavior: vbscript:msgbox(1)',
+      'background-image: data:text/html,<script>alert(1)</script>',
+    ])('rejects the dangerous string "%s"', (value) => {
+      expect(StyleValueSchema.safeParse(value).success).toBe(false);
+    });
+
+    it.each(['16px', 700, true, null])('accepts the safe serializable value %s', (value) => {
+      expect(StyleValueSchema.safeParse(value).success).toBe(true);
+    });
+
+    it('rejects an entire StyleDefinition containing one unsafe value', () => {
+      const result = StyleDefinitionSchema.safeParse({
+        color: '#111827',
+        background: 'url(javascript:alert(1))',
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('Acceptance Criteria 2: a node can have base style plus desktop/tablet/mobile overrides', () => {
+    it('parses a ResponsiveStyles object with all four breakpoints', () => {
+      const result = ResponsiveStylesSchema.safeParse({
+        base: { fontSize: '16px' },
+        desktop: { fontSize: '48px' },
+        tablet: { fontSize: '36px' },
+        mobile: { fontSize: '28px' },
+      });
       expect(result.success).toBe(true);
     });
   });

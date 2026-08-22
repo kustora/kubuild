@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { createDefaultComponentRegistry, ComponentRegistry } from './index';
+import {
+  createDefaultComponentRegistry,
+  ComponentRegistry,
+  pageDefinition,
+  sectionDefinition,
+  containerDefinition,
+  columnsDefinition,
+  headingDefinition,
+  textDefinition,
+  imageDefinition,
+  buttonDefinition,
+  extractComponentRequirements,
+} from './index';
+import { validateDocument, createBlankDocument, insertNode } from '@kubuild/core';
+import { ResponsiveStylesSchema, ManifestSchema } from '@kubuild/schema';
 
 describe('ComponentRegistry', () => {
   it('registers and retrieves core components', () => {
@@ -162,5 +176,253 @@ describe('STORA-020: Component Registry Contract', () => {
       registry.register({ type: 'a', label: 'A', category: 'custom' });
       expect(registry.get('a')?.renderer).toBeUndefined();
     });
+  });
+});
+
+describe('STORA-021: Layout Components (page/section/container/columns)', () => {
+  describe('Acceptance Criteria 1: page > section > container > columns forms a valid document', () => {
+    it('validates a document built from the full layout chain', () => {
+      const registry = createDefaultComponentRegistry();
+      let doc = createBlankDocument('Layout Test');
+
+      doc = insertNode(doc, {
+        parentId: 'root-page',
+        node: { id: 'section-1', type: 'section', props: {}, children: [] },
+      }).document;
+      doc = insertNode(doc, {
+        parentId: 'section-1',
+        node: { id: 'container-1', type: 'container', props: {}, children: [] },
+      }).document;
+      doc = insertNode(doc, {
+        parentId: 'container-1',
+        node: { id: 'columns-1', type: 'columns', props: {}, children: [] },
+      }).document;
+
+      const result = validateDocument(doc, { componentRegistry: registry });
+      expect(result.errors).toEqual([]);
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('Acceptance Criteria 2: child policy prevents content-as-root and page-in-page', () => {
+    it('rejects a content node as the document root', () => {
+      const registry = createDefaultComponentRegistry();
+      const doc = createBlankDocument('Invalid Root');
+      const invalidDoc = { ...doc, document: { id: 'root-page', type: 'heading', props: {}, children: [] } };
+
+      const result = validateDocument(invalidDoc, { componentRegistry: registry });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.code === 'ROOT_NODE_INVALID')).toBe(true);
+    });
+
+    it('rejects a "page" node nested inside the document tree', () => {
+      const registry = createDefaultComponentRegistry();
+      let doc = createBlankDocument('Nested Page Test');
+      doc = insertNode(doc, {
+        parentId: 'root-page',
+        node: { id: 'section-1', type: 'section', props: {}, children: [] },
+      }).document;
+      doc = insertNode(doc, {
+        parentId: 'section-1',
+        node: { id: 'container-1', type: 'container', props: {}, children: [] },
+      }).document;
+      doc = insertNode(doc, {
+        parentId: 'container-1',
+        node: { id: 'nested-page', type: 'page', props: {}, children: [] },
+      }).document;
+
+      const result = validateDocument(doc, { componentRegistry: registry });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.code === 'CHILD_POLICY_VIOLATION')).toBe(true);
+    });
+  });
+
+  describe('Acceptance Criteria 3: desktop/tablet/mobile style overrides are validated', () => {
+    it.each([
+      ['page', pageDefinition],
+      ['section', sectionDefinition],
+      ['container', containerDefinition],
+      ['columns', columnsDefinition],
+    ])('%s defaultStyles conform to ResponsiveStylesSchema', (_type, definition) => {
+      const parsed = ResponsiveStylesSchema.safeParse(definition.defaultStyles);
+      expect(parsed.success).toBe(true);
+    });
+
+    it('section, container, and columns declare tablet and mobile overrides', () => {
+      expect(sectionDefinition.defaultStyles?.tablet).toBeDefined();
+      expect(sectionDefinition.defaultStyles?.mobile).toBeDefined();
+      expect(containerDefinition.defaultStyles?.tablet).toBeDefined();
+      expect(containerDefinition.defaultStyles?.mobile).toBeDefined();
+      expect(columnsDefinition.defaultStyles?.tablet).toBeDefined();
+      expect(columnsDefinition.defaultStyles?.mobile).toBeDefined();
+    });
+
+    it('columns collapses to a single track on mobile', () => {
+      expect(columnsDefinition.defaultStyles?.mobile?.gridTemplateColumns).toBe('repeat(1, minmax(0, 1fr))');
+    });
+  });
+});
+
+describe('STORA-022: Content Components (heading/text/image/button)', () => {
+  const registry = createDefaultComponentRegistry();
+
+  describe('heading', () => {
+    it('is valid with a non-empty text and level in range', () => {
+      expect(headingDefinition.validateProps?.({ text: 'Hi', level: 3 })).toBe(true);
+    });
+
+    it('rejects empty text', () => {
+      const result = headingDefinition.validateProps?.({ text: '' });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('non-empty "text"');
+    });
+
+    it('rejects an out-of-range level', () => {
+      const result = headingDefinition.validateProps?.({ text: 'Hi', level: 9 });
+      expect((result as string[])[0]).toContain('level');
+    });
+  });
+
+  describe('text', () => {
+    it('is valid with non-empty content', () => {
+      expect(textDefinition.validateProps?.({ content: 'Hello' })).toBe(true);
+    });
+
+    it('rejects missing content', () => {
+      expect(textDefinition.validateProps?.({})).toEqual(['Text requires a non-empty "content".']);
+    });
+  });
+
+  describe('image', () => {
+    it('is valid with a direct src and alt text', () => {
+      expect(imageDefinition.validateProps?.({ src: 'https://x/y.png', alt: 'An image' })).toBe(true);
+    });
+
+    it('is valid with a valid asset reference and alt text (no src required)', () => {
+      expect(
+        imageDefinition.validateProps?.({ asset: { type: 'asset', assetId: 'a1' }, alt: 'An image' }),
+      ).toBe(true);
+    });
+
+    it('rejects when neither src nor a valid asset reference is present', () => {
+      const result = imageDefinition.validateProps?.({ alt: 'An image' });
+      expect((result as string[])[0]).toContain('src" URL or a valid "asset"');
+    });
+
+    it('rejects missing alt text', () => {
+      const result = imageDefinition.validateProps?.({ src: 'https://x/y.png' });
+      expect((result as string[])[0]).toContain('alt');
+    });
+
+    it('declares the assetProvider capability', () => {
+      expect(imageDefinition.capabilities).toContain('assetProvider');
+    });
+  });
+
+  describe('button', () => {
+    it('is valid with just a label', () => {
+      expect(buttonDefinition.validateProps?.({ label: 'Click' })).toBe(true);
+    });
+
+    it('is valid with a well-formed action', () => {
+      expect(
+        buttonDefinition.validateProps?.({ label: 'Go', action: { type: 'navigate', payload: { url: '/x' } } }),
+      ).toBe(true);
+    });
+
+    it('rejects an empty label', () => {
+      expect(buttonDefinition.validateProps?.({ label: '' })).toEqual(['Button requires a non-empty "label".']);
+    });
+
+    it('rejects a malformed action', () => {
+      const result = buttonDefinition.validateProps?.({ label: 'Go', action: { payload: {} } });
+      expect((result as string[])[0]).toContain('action');
+    });
+
+    it('rejects a non-boolean disabled value', () => {
+      const result = buttonDefinition.validateProps?.({ label: 'Go', disabled: 'yes' });
+      expect((result as string[])[0]).toContain('disabled');
+    });
+
+    it('declares the actionRegistry capability', () => {
+      expect(buttonDefinition.capabilities).toContain('actionRegistry');
+    });
+  });
+
+  it('registry.validateNode reports content-component prop errors end to end', () => {
+    const invalidHeading = { id: 'h1', type: 'heading', props: { text: '' } };
+    const result = registry.validateNode(invalidHeading);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('non-empty "text"');
+  });
+});
+
+describe('STORA-024: Custom Component Extension Contract', () => {
+  const productCardDefinition = {
+    type: 'custom.product-card',
+    label: 'Product Card',
+    category: 'custom' as const,
+    acceptsChildren: false,
+    capabilities: ['dataProvider'],
+    propFields: [
+      { name: 'title', label: 'Title', type: 'string' as const },
+      { name: 'price', label: 'Price', type: 'number' as const },
+    ],
+    validateProps: (props: Record<string, unknown>) =>
+      typeof props.title === 'string' && props.title.length > 0 ? true : ['Product card requires a "title".'],
+  };
+
+  it('registers a sample custom component without touching core source', () => {
+    const registry = new ComponentRegistry();
+    expect(() => registry.register(productCardDefinition)).not.toThrow();
+    expect(registry.get('custom.product-card')?.label).toBe('Product Card');
+  });
+
+  it('AC2: a document using the custom component fails validation without the registry, and passes with it', () => {
+    let doc = createBlankDocument('Custom Component Test');
+    doc = insertNode(doc, {
+      parentId: 'root-page',
+      node: { id: 'section-1', type: 'section', props: {}, children: [] },
+    }).document;
+    doc = insertNode(doc, {
+      parentId: 'section-1',
+      node: { id: 'card-1', type: 'custom.product-card', props: { title: 'Widget', price: 10 }, children: [] },
+    }).document;
+
+    const withoutRegistry = validateDocument(doc, { strictComponentTypes: true, componentRegistry: createDefaultComponentRegistry() });
+    expect(withoutRegistry.valid).toBe(false);
+    expect(withoutRegistry.errors.some((e) => e.code === 'UNKNOWN_COMPONENT_TYPE')).toBe(true);
+
+    const registryWithCustom = createDefaultComponentRegistry();
+    registryWithCustom.register(productCardDefinition);
+    const withRegistry = validateDocument(doc, { strictComponentTypes: true, componentRegistry: registryWithCustom });
+    expect(withRegistry.valid).toBe(true);
+  });
+
+  it('AC3: required components/capabilities can be extracted and feed a valid manifest', () => {
+    const registry = createDefaultComponentRegistry();
+    registry.register(productCardDefinition);
+
+    let doc = createBlankDocument('Manifest Requirements Test');
+    doc = insertNode(doc, {
+      parentId: 'root-page',
+      node: { id: 'section-1', type: 'section', props: {}, children: [] },
+    }).document;
+    doc = insertNode(doc, {
+      parentId: 'section-1',
+      node: { id: 'card-1', type: 'custom.product-card', props: { title: 'Widget', price: 10 }, children: [] },
+    }).document;
+    doc = insertNode(doc, {
+      parentId: 'section-1',
+      node: { id: 'btn-1', type: 'button', props: { label: 'Buy' }, children: [] },
+    }).document;
+
+    const requirements = extractComponentRequirements(doc.document, registry);
+    expect(requirements.requiredComponents).toEqual(['custom.product-card']);
+    expect(requirements.requiredCapabilities).toContain('dataProvider');
+    expect(requirements.requiredCapabilities).toContain('actionRegistry');
+
+    const manifestResult = ManifestSchema.safeParse({ ...requirements });
+    expect(manifestResult.success).toBe(true);
   });
 });
