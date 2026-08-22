@@ -187,7 +187,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Definisikan interface asset provider dan action registry
 - **Description:** Definisikan kontrak host untuk upload, delete, resolve, list asset, serta action handler runtime. Tidak ada implementasi storage atau business action milik Stora.page dalam core.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-002, STORA-010
 - **Acceptance Criteria:**
   - Kontrak typed mendukung asset id, MIME type, URL resolve, dan metadata minimal.
@@ -208,7 +208,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Definisikan kontrak component registry
 - **Description:** Buat registry yang memetakan component type ke renderer, prop schema, child policy, default props, label, icon, dan inspector metadata. Registry dipakai bersama editor dan renderer.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-010, STORA-011
 - **Acceptance Criteria:**
   - API register, get, list, dan unregister tersedia dan typed.

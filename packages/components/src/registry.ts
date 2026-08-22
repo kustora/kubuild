@@ -11,7 +11,7 @@ export interface ComponentFieldDefinition {
   description?: string;
 }
 
-export interface ComponentDefinition {
+export interface ComponentDefinition<TRenderer = unknown> {
   type: string;
   label: string;
   category: ComponentCategory;
@@ -22,14 +22,32 @@ export interface ComponentDefinition {
   disallowedParents?: string[];
   defaultProps?: Record<string, unknown>;
   defaultStyles?: Record<string, unknown>;
+  /**
+   * Inspector metadata: describes each editable prop (label, input type, options)
+   * so a host editor can render property controls without hardcoding per-type UI.
+   */
   propFields?: ComponentFieldDefinition[];
+  /**
+   * Prop schema slot: validates a node's props for this component type.
+   * Returns `true`/`[]` (valid), `false` (generic failure), or an array of
+   * human-readable error messages.
+   */
   validateProps?: (props: Record<string, unknown>) => boolean | string[];
+  /**
+   * Type-to-renderer mapping slot. Deliberately untyped here (`unknown` by
+   * default) so `@kubuild/components` stays framework-agnostic — no React
+   * import. A consumer package (e.g. `@kubuild/renderer`) specializes
+   * `ComponentDefinition<TRenderer>`/`ComponentRegistry<TRenderer>` with a
+   * concrete renderer type (e.g. `React.ComponentType<...>`) and populates
+   * or reads this field with that type.
+   */
+  renderer?: TRenderer;
 }
 
-export class ComponentRegistry {
-  private components = new Map<string, ComponentDefinition>();
+export class ComponentRegistry<TRenderer = unknown> {
+  private components = new Map<string, ComponentDefinition<TRenderer>>();
 
-  register(definition: ComponentDefinition, allowOverride = false): void {
+  register(definition: ComponentDefinition<TRenderer>, allowOverride = false): void {
     if (!allowOverride && this.components.has(definition.type)) {
       throw new Error(`Component type "${definition.type}" is already registered.`);
     }
@@ -40,7 +58,7 @@ export class ComponentRegistry {
     return this.components.delete(type);
   }
 
-  get(type: string): ComponentDefinition | undefined {
+  get(type: string): ComponentDefinition<TRenderer> | undefined {
     return this.components.get(type);
   }
 
@@ -48,15 +66,15 @@ export class ComponentRegistry {
     return this.components.has(type);
   }
 
-  list(): ComponentDefinition[] {
+  list(): ComponentDefinition<TRenderer>[] {
     return Array.from(this.components.values());
   }
 
-  listByCategory(category: ComponentCategory): ComponentDefinition[] {
+  listByCategory(category: ComponentCategory): ComponentDefinition<TRenderer>[] {
     return this.list().filter((c) => c.category === category);
   }
 
-  validateNode(node: Node): { valid: boolean; errors: string[] } {
+  validateNode(node: Node, parentType?: string): { valid: boolean; errors: string[] } {
     const def = this.get(node.type);
     const errors: string[] = [];
 
@@ -67,6 +85,18 @@ export class ComponentRegistry {
 
     if (!def.acceptsChildren && node.children && node.children.length > 0) {
       errors.push(`Component "${node.type}" does not accept children.`);
+    }
+
+    if (def.allowedChildren && node.children) {
+      for (const child of node.children) {
+        if (!def.allowedChildren.includes('*') && !def.allowedChildren.includes(child.type)) {
+          errors.push(`Component "${node.type}" does not allow child type "${child.type}".`);
+        }
+      }
+    }
+
+    if (parentType && def.disallowedParents?.includes(parentType)) {
+      errors.push(`Component "${node.type}" is not allowed inside parent "${parentType}".`);
     }
 
     if (def.validateProps && node.props) {
