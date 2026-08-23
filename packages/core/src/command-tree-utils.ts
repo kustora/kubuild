@@ -84,6 +84,26 @@ export function getNavigationTarget(
 }
 
 /**
+ * Returns the chain of ancestor node ids from the root down to (but excluding)
+ * `targetId`, root first. Returns [] if targetId is the root or is not found.
+ */
+export function getAncestorChain(root: Node, targetId: string): string[] {
+  if (root.id === targetId) return [];
+
+  function walk(node: Node, acc: string[]): string[] | null {
+    if (!node.children) return null;
+    for (const child of node.children) {
+      if (child.id === targetId) return acc;
+      const found = walk(child, [...acc, child.id]);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  return walk(root, [root.id]) ?? [];
+}
+
+/**
  * Check whether `targetId` is a descendant of `ancestorNode` (or equal to ancestorNode.id).
  */
 export function isDescendantOf(ancestorNode: Node, targetId: string): boolean {

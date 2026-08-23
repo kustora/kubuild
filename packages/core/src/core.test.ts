@@ -12,6 +12,7 @@ import {
   findNodeLocation,
   isDescendantOf,
   getNavigationTarget,
+  getAncestorChain,
   HistoryEngine,
   DocumentHistoryManager,
   DEFAULT_MAX_HISTORY,
@@ -407,6 +408,40 @@ describe('STORA-011: Document Validator and Error Diagnostics', () => {
 
       const notFound = findNodeById(doc.document, 'non-existent');
       expect(notFound).toBeNull();
+    });
+
+    it('getAncestorChain returns [] for the root node', () => {
+      const doc = createBlankDocument();
+      expect(getAncestorChain(doc.document, doc.document.id)).toEqual([]);
+    });
+
+    it('getAncestorChain returns [] for an unknown id', () => {
+      const doc = createBlankDocument();
+      expect(getAncestorChain(doc.document, 'non-existent')).toEqual([]);
+    });
+
+    it('getAncestorChain returns the direct parent for a direct child of root', () => {
+      const doc = createBlankDocument();
+      doc.document.children = [{ id: 'section-1', type: 'section', children: [] }];
+      expect(getAncestorChain(doc.document, 'section-1')).toEqual([doc.document.id]);
+    });
+
+    it('getAncestorChain returns the full root-to-parent chain for a deeply nested node', () => {
+      const doc = createBlankDocument();
+      doc.document.children = [
+        {
+          id: 'section-1',
+          type: 'section',
+          children: [
+            {
+              id: 'container-1',
+              type: 'container',
+              children: [{ id: 'btn-1', type: 'button', props: { label: 'Go' } }],
+            },
+          ],
+        },
+      ];
+      expect(getAncestorChain(doc.document, 'btn-1')).toEqual([doc.document.id, 'section-1', 'container-1']);
     });
   });
 });

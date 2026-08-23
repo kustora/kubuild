@@ -45,8 +45,8 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
 
       const context = createMinimalRenderContext({
         variables: {
-          'user.id': '42',
-          'auth.token': 'tok_xyz123',
+          user: { id: '42' },
+          auth: { token: 'tok_xyz123' },
         },
         actions: {
           navigate: navigateHandler,
@@ -73,8 +73,8 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
           nodeId: 'btn-nav',
           document: doc,
           variables: expect.objectContaining({
-            'user.id': '42',
-            'auth.token': 'tok_xyz123',
+            user: { id: '42' },
+            auth: { token: 'tok_xyz123' },
           }),
         }),
       );

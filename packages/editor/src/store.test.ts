@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useEditorStore } from './store';
-import { createBlankDocument, insertNode, removeNode } from '@kubuild/core';
+import { createBlankDocument, insertNode, removeNode, collectNodeIdSet } from '@kubuild/core';
 import { PageDocument } from '@kubuild/schema';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 
@@ -158,8 +158,25 @@ describe('Editor Store', () => {
   });
 
   describe('clipboard', () => {
+    const registry = createDefaultComponentRegistry();
+
+    // Root page only allows 'section'/'custom' children per the registry, so a
+    // heading needs a section container to be a registry-valid paste/copy target.
+    function docWithSectionAndHeading(): PageDocument {
+      const doc = createBlankDocument('Clipboard Test');
+      doc.document.children = [
+        {
+          id: 'section-1',
+          type: 'section',
+          props: {},
+          children: [{ id: 'child-node', type: 'heading', props: { text: 'Hello' } }],
+        },
+      ];
+      return doc;
+    }
+
     it('copyNode clones the node into clipboard without mutating document', () => {
-      useEditorStore.getState().setDocument(docWithChild());
+      useEditorStore.getState().setDocument(docWithSectionAndHeading());
       const before = useEditorStore.getState().document;
 
       useEditorStore.getState().copyNode('child-node');
@@ -170,18 +187,20 @@ describe('Editor Store', () => {
     });
 
     it('pasteNode inserts a cloned subtree with a different id, undoable, firing onChange', () => {
-      useEditorStore.getState().setDocument(docWithChild());
+      useEditorStore.getState().setDocument(docWithSectionAndHeading());
       const handler = vi.fn();
       useEditorStore.getState().setOnChangeHandler(handler);
       useEditorStore.getState().copyNode('child-node');
 
-      useEditorStore.getState().pasteNode('root-page');
+      const result = useEditorStore.getState().pasteNode('section-1', registry);
 
+      expect(result.success).toBe(true);
       const state = useEditorStore.getState();
-      const children = state.document.document.children ?? [];
+      const children = state.document.document.children?.find((n) => n.id === 'section-1')?.children ?? [];
       expect(children).toHaveLength(2);
       const pasted = children.find((n) => n.id !== 'child-node');
       expect(pasted?.id).not.toBe('child-node');
+      expect(pasted?.id).toBe(result.nodeId);
       expect(pasted?.type).toBe('heading');
       expect(state.canUndo).toBe(true);
       expect(handler).toHaveBeenCalledTimes(1);
@@ -191,9 +210,176 @@ describe('Editor Store', () => {
       useEditorStore.getState().setDocument(docWithChild());
       const before = useEditorStore.getState().document;
 
-      useEditorStore.getState().pasteNode('root-page');
+      const result = useEditorStore.getState().pasteNode('root-page', registry);
 
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('empty');
       expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('rejects pasting into a non-existent target', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      useEditorStore.getState().copyNode('child-node');
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().pasteNode('does-not-exist', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('rejects pasting into a destination the registry disallows', () => {
+      const doc = docWithChild();
+      doc.document.children?.push({ id: 'btn-1', type: 'button', props: { label: 'Go' } });
+      useEditorStore.getState().setDocument(doc);
+      useEditorStore.getState().copyNode('child-node');
+      const before = useEditorStore.getState().document;
+
+      // button.acceptsChildren === false
+      const result = useEditorStore.getState().pasteNode('btn-1', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('does not accept children');
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('regenerates ids for every node in a nested pasted subtree', () => {
+      const doc = createBlankDocument('Nested Clipboard Test');
+      doc.document.children = [
+        {
+          id: 'section-1',
+          type: 'section',
+          props: {},
+          children: [{ id: 'heading-1', type: 'heading', props: { text: 'Hi' } }],
+        },
+      ];
+      useEditorStore.getState().setDocument(doc);
+      useEditorStore.getState().copyNode('section-1');
+
+      const result = useEditorStore.getState().pasteNode('root-page', registry);
+
+      expect(result.success).toBe(true);
+      const state = useEditorStore.getState();
+      const pasted = state.document.document.children?.find((n) => n.id === result.nodeId);
+      expect(pasted?.children?.[0].id).not.toBe('heading-1');
+      const allIds = collectNodeIdSet(state.document.document);
+      expect(allIds.size).toBe([...allIds].length); // sanity: no duplicate insertions
+    });
+  });
+
+  describe('duplicateComponent', () => {
+    const registry = createDefaultComponentRegistry();
+
+    it('duplicates a leaf node into the same parent with a new id, selects it, and is undoable', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+
+      const result = useEditorStore.getState().duplicateComponent('child-node', registry);
+
+      expect(result.success).toBe(true);
+      expect(result.nodeId).toBeDefined();
+      expect(result.nodeId).not.toBe('child-node');
+      const state = useEditorStore.getState();
+      const children = state.document.document.children ?? [];
+      expect(children).toHaveLength(2);
+      expect(state.selectedNodeId).toBe(result.nodeId);
+      expect(state.canUndo).toBe(true);
+    });
+
+    it('duplicates a nested subtree, regenerating ids for every descendant', () => {
+      const doc = createBlankDocument('Duplicate Nested Test');
+      doc.document.children = [
+        {
+          id: 'section-1',
+          type: 'section',
+          props: {},
+          children: [{ id: 'heading-1', type: 'heading', props: { text: 'Hi' } }],
+        },
+      ];
+      useEditorStore.getState().setDocument(doc);
+
+      const result = useEditorStore.getState().duplicateComponent('section-1', registry);
+
+      expect(result.success).toBe(true);
+      const state = useEditorStore.getState();
+      const duplicate = state.document.document.children?.find((n) => n.id === result.nodeId);
+      expect(duplicate?.children?.[0].id).not.toBe('heading-1');
+      expect(duplicate?.children?.[0].type).toBe('heading');
+    });
+
+    it('rejects duplicating the root page node', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().duplicateComponent('root-page', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('root');
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('rejects an unknown nodeId', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().duplicateComponent('does-not-exist', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+  });
+
+  describe('deleteComponent', () => {
+    it('deletes a node including nested children, undoable', () => {
+      const doc = createBlankDocument('Delete Test');
+      doc.document.children = [
+        {
+          id: 'section-1',
+          type: 'section',
+          props: {},
+          children: [{ id: 'heading-1', type: 'heading', props: { text: 'Hi' } }],
+        },
+      ];
+      useEditorStore.getState().setDocument(doc);
+
+      const result = useEditorStore.getState().deleteComponent('section-1');
+
+      expect(result.success).toBe(true);
+      const state = useEditorStore.getState();
+      expect(state.document.document.children?.some((n) => n.id === 'section-1')).toBe(false);
+      expect(state.canUndo).toBe(true);
+    });
+
+    it('rejects deleting the root page node', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().deleteComponent('root-page');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('root');
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('rejects an unknown nodeId', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().deleteComponent('does-not-exist');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('clears selectedNodeId when the deleted node was selected', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      useEditorStore.getState().selectNode('child-node');
+
+      useEditorStore.getState().deleteComponent('child-node');
+
+      expect(useEditorStore.getState().selectedNodeId).toBeNull();
     });
   });
 
@@ -352,6 +538,116 @@ describe('Editor Store', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('does not accept children');
+      const state = useEditorStore.getState();
+      expect(state.document).toBe(before);
+      expect(state.isDirty).toBe(false);
+    });
+  });
+
+  describe('updateNodeProps', () => {
+    const registry = createDefaultComponentRegistry();
+
+    it('updates a single prop via merge, preserving sibling props', () => {
+      const doc = docWithChild();
+      doc.document.children![0].props = { text: 'Hello', level: 2 };
+      useEditorStore.getState().setDocument(doc);
+
+      const result = useEditorStore.getState().updateNodeProps('child-node', { text: 'Updated' }, registry);
+
+      expect(result.success).toBe(true);
+      const node = useEditorStore.getState().document.document.children?.[0];
+      expect(node?.props?.text).toBe('Updated');
+      expect(node?.props?.level).toBe(2);
+      expect(useEditorStore.getState().canUndo).toBe(true);
+    });
+
+    it('rejects an invalid prop via definition.validateProps and leaves the document unchanged', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().updateNodeProps('child-node', { text: '' }, registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('non-empty');
+      expect(useEditorStore.getState().document).toBe(before);
+      expect(useEditorStore.getState().canUndo).toBe(false);
+    });
+
+    it('rejects an update for an unknown nodeId without throwing', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+
+      const result = useEditorStore.getState().updateNodeProps('does-not-exist', { text: 'x' }, registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+    });
+  });
+
+  describe('updateNodeStyle', () => {
+    function docWithStyledChild(): PageDocument {
+      const doc = createBlankDocument('Style Test');
+      doc.document.children = [
+        {
+          id: 'child-node',
+          type: 'heading',
+          props: { text: 'Hello' },
+          styles: { base: { padding: '8px' }, tablet: { padding: '4px' } },
+        },
+      ];
+      return doc;
+    }
+
+    it('writes only the active breakpoint, leaving base and other breakpoints untouched', () => {
+      useEditorStore.getState().setDocument(docWithStyledChild());
+
+      const result = useEditorStore.getState().updateNodeStyle('child-node', { padding: '2px' }, 'mobile');
+
+      expect(result.success).toBe(true);
+      const styles = useEditorStore.getState().document.document.children?.[0].styles;
+      expect(styles?.mobile).toEqual({ padding: '2px' });
+      expect(styles?.base).toEqual({ padding: '8px' });
+      expect(styles?.tablet).toEqual({ padding: '4px' });
+    });
+
+    it('merges into an existing breakpoint without clobbering sibling style keys', () => {
+      useEditorStore.getState().setDocument(docWithStyledChild());
+
+      useEditorStore.getState().updateNodeStyle('child-node', { paddingTop: '10px' }, 'base');
+
+      const base = useEditorStore.getState().document.document.children?.[0].styles?.base;
+      expect(base).toEqual({ padding: '8px', paddingTop: '10px' });
+    });
+
+    it('rejects an unsafe style value and leaves the document unchanged', () => {
+      useEditorStore.getState().setDocument(docWithStyledChild());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore
+        .getState()
+        .updateNodeStyle('child-node', { backgroundImage: 'url(javascript:alert(1))' }, 'base');
+
+      expect(result.success).toBe(false);
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('rejects an update for an unknown nodeId without throwing', () => {
+      useEditorStore.getState().setDocument(docWithStyledChild());
+
+      const result = useEditorStore.getState().updateNodeStyle('does-not-exist', { padding: '1px' }, 'base');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+    });
+  });
+
+  describe('setViewport', () => {
+    it('switching viewport never mutates the draft document', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      const before = useEditorStore.getState().document;
+
+      useEditorStore.getState().setViewport('tablet');
+      useEditorStore.getState().setViewport('mobile');
+
       const state = useEditorStore.getState();
       expect(state.document).toBe(before);
       expect(state.isDirty).toBe(false);

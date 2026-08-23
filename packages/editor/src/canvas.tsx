@@ -3,7 +3,6 @@ import { ComponentRegistry } from '@kubuild/components';
 import { KubuildRenderer } from '@kubuild/renderer';
 import {
   RuntimeContext,
-  removeNode,
   getNavigationTarget,
   NavigationDirection,
   findNodeById,
@@ -103,12 +102,39 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
         return;
       }
 
+      const mod = e.metaKey || e.ctrlKey;
+
+      if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        state.undo();
+        return;
+      }
+      if (mod && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        state.redo();
+        return;
+      }
+
       if (!state.selectedNodeId) return;
+
+      if (mod && e.key.toLowerCase() === 'c') {
+        state.copyNode(state.selectedNodeId);
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'v') {
+        state.pasteNode(state.selectedNodeId, registry);
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        state.duplicateComponent(state.selectedNodeId, registry);
+        return;
+      }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (state.selectedNodeId === state.document.document.id) return;
         e.preventDefault();
-        state.dispatch((doc) => removeNode(doc, { nodeId: state.selectedNodeId as string }));
+        state.deleteComponent(state.selectedNodeId);
         return;
       }
 
@@ -122,7 +148,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [registry]);
 
   const handleMouseOver = (e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest('[data-kubuild-node]');

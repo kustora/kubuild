@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo } from 'react';
+import { resolveBinding } from '@kubuild/core';
 import type {
   AssetProvider,
   ActionRegistry,
@@ -131,19 +132,16 @@ export function resolveVariable(context?: RenderContext, value?: unknown): unkno
 
   // Handle VariableBinding object: { type: 'variable', key: '...', fallback: '...' }
   if (isVariableBinding(value)) {
-    const resolved = context?.variables?.[value.key];
-    if (resolved !== undefined) {
-      return resolved;
-    }
-    return value.fallback ?? '';
+    return resolveBinding(value, context).value;
   }
 
-  // Handle string interpolation: "Hello {{ user.name }}"
+  // Handle string interpolation: "Hello {{ site.name }}" — resolves nested paths
+  // the same way VariableBinding does, so both binding styles stay consistent.
   if (typeof value === 'string' && value.includes('{{')) {
     return value.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, key) => {
-      const resolved = context?.variables?.[key];
-      if (resolved !== undefined) {
-        return String(resolved);
+      const outcome = resolveBinding({ key }, context);
+      if (outcome.status === 'resolved') {
+        return String(outcome.value);
       }
       return match;
     });

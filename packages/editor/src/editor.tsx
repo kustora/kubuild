@@ -5,6 +5,9 @@ import { RuntimeContext } from '@kubuild/core';
 import { useEditorStore, Viewport } from './store';
 import { EditorCanvas } from './canvas';
 import { ComponentPanel } from './component-panel';
+import { EditorToolbar } from './toolbar';
+import { InspectorPanel } from './inspector-panel';
+import { LayersPanel } from './layers-panel';
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
@@ -51,6 +54,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           </span>
         </div>
 
+        <EditorToolbar registry={registry} />
+
         {/* Viewport switcher */}
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-md text-xs">
           {(['desktop', 'tablet', 'mobile'] as Viewport[]).map((vp) => (
@@ -80,12 +85,20 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           <ComponentPanel registry={registry} />
         </div>
 
+        <div className="w-60 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col">
+          <LayersPanel registry={registry} />
+        </div>
+
         <div className="flex-1 overflow-auto p-8 flex justify-center items-start">
           <div
             className={`${viewportWidthMap[viewport]} bg-white shadow-md rounded-lg overflow-hidden transition-all duration-200 min-h-[600px] border border-slate-200`}
           >
             <EditorCanvas registry={registry} context={context} viewport={viewport} />
           </div>
+        </div>
+
+        <div className="w-72 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex flex-col">
+          <InspectorPanel registry={registry} />
         </div>
       </div>
     </div>

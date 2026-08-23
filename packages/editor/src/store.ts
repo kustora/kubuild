@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PageDocument, Node } from '@kubuild/schema';
+import { PageDocument, Node, StyleDefinition } from '@kubuild/schema';
 import {
   createBlankDocument,
   findNodeById,
@@ -7,6 +7,10 @@ import {
   isDescendantOf,
   insertNode,
   moveNode,
+  duplicateNode,
+  removeNode,
+  updateProps,
+  updateStyle,
   DocumentHistoryManager,
   CommandResult,
   deepClone,
@@ -26,6 +30,43 @@ export interface InsertComponentResult {
 export interface MoveComponentResult {
   success: boolean;
   error?: string;
+}
+
+export interface DuplicateComponentResult {
+  success: boolean;
+  nodeId?: string;
+  error?: string;
+}
+
+export interface DeleteComponentResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface PasteComponentResult {
+  success: boolean;
+  nodeId?: string;
+  error?: string;
+}
+
+export interface UpdatePropsResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface UpdateStyleResult {
+  success: boolean;
+  error?: string;
+}
+
+// Duck-types Zod's issue-array shape (from updateStyle's schema.parse) vs plain
+// Error (from updateProps/removeNode/etc) without adding a zod dependency here.
+function formatCommandError(err: unknown): string {
+  if (err && typeof err === 'object' && Array.isArray((err as { issues?: unknown }).issues)) {
+    const issues = (err as { issues: Array<{ path: (string | number)[]; message: string }> }).issues;
+    return issues.map((i) => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message)).join('; ');
+  }
+  return err instanceof Error ? err.message : String(err);
 }
 
 /** Generates a node id unique within `existingIds`, e.g. "heading-1", "heading-2". */
@@ -60,11 +101,29 @@ export interface EditorState {
     registry: ComponentRegistry,
     index?: number,
   ) => MoveComponentResult;
+  duplicateComponent: (nodeId: string, registry: ComponentRegistry) => DuplicateComponentResult;
+  deleteComponent: (nodeId: string) => DeleteComponentResult;
+  updateNodeProps: (
+    nodeId: string,
+    props: Record<string, unknown>,
+    registry: ComponentRegistry,
+    merge?: boolean,
+  ) => UpdatePropsResult;
+  updateNodeStyle: (
+    nodeId: string,
+    styles: StyleDefinition,
+    breakpoint: 'base' | 'desktop' | 'tablet' | 'mobile',
+    merge?: boolean,
+  ) => UpdateStyleResult;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
   copyNode: (nodeId: string) => void;
-  pasteNode: (targetParentId: string, index?: number) => void;
+  pasteNode: (
+    targetParentId: string,
+    registry: ComponentRegistry,
+    index?: number,
+  ) => PasteComponentResult;
   selectNode: (nodeId: string | null) => void;
   hoverNode: (nodeId: string | null) => void;
   setViewport: (viewport: Viewport) => void;
@@ -201,6 +260,95 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return { success: true };
   },
 
+  duplicateComponent: (nodeId, _registry) => {
+    const state = get();
+
+    if (nodeId === state.document.document.id) {
+      return { success: false, error: 'Cannot duplicate the root page node.' };
+    }
+
+    const location = findNodeLocation(state.document.document, nodeId);
+    if (!location || !location.parent) {
+      return { success: false, error: `Node "${nodeId}" was not found in the document.` };
+    }
+
+    let newNodeId: string | undefined;
+    try {
+      get().dispatch((doc) => {
+        const result = duplicateNode(doc, { nodeId });
+        newNodeId = result.event.nodeId;
+        return result;
+      });
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    if (newNodeId) get().selectNode(newNodeId);
+    return { success: true, nodeId: newNodeId };
+  },
+
+  deleteComponent: (nodeId) => {
+    const state = get();
+
+    if (nodeId === state.document.document.id) {
+      return { success: false, error: 'Cannot delete the root page node.' };
+    }
+
+    if (!findNodeById(state.document.document, nodeId)) {
+      return { success: false, error: `Node "${nodeId}" was not found in the document.` };
+    }
+
+    try {
+      get().dispatch((doc) => removeNode(doc, { nodeId }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
+  updateNodeProps: (nodeId, props, registry, merge = true) => {
+    const state = get();
+    const node = findNodeById(state.document.document, nodeId);
+    if (!node) {
+      return { success: false, error: `Node "${nodeId}" was not found in the document.` };
+    }
+
+    const definition = registry.get(node.type);
+    if (!definition) {
+      return { success: false, error: `Unknown component type "${node.type}".` };
+    }
+
+    if (definition.validateProps) {
+      const candidate = merge ? { ...deepClone(node.props ?? {}), ...deepClone(props) } : deepClone(props);
+      const propResult = definition.validateProps(candidate);
+      if (Array.isArray(propResult) && propResult.length > 0) {
+        return { success: false, error: propResult.join(' ') };
+      }
+      if (propResult === false) {
+        return { success: false, error: `Props failed validation for "${definition.label}".` };
+      }
+    }
+
+    try {
+      get().dispatch((doc) => updateProps(doc, { nodeId, props, merge }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
+  updateNodeStyle: (nodeId, styles, breakpoint, merge = true) => {
+    try {
+      get().dispatch((doc) => updateStyle(doc, { nodeId, styles, breakpoint, merge }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
   undo: () => {
     const restored = historyManager.undo();
     if (!restored) return;
@@ -237,12 +385,37 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ clipboard: deepClone(node) });
   },
 
-  pasteNode: (targetParentId, index) => {
+  pasteNode: (targetParentId, registry, index) => {
     const { clipboard, document } = get();
-    if (!clipboard) return;
+    if (!clipboard) {
+      return { success: false, error: 'Clipboard is empty.' };
+    }
+
+    const targetParent = findNodeById(document.document, targetParentId);
+    if (!targetParent) {
+      return { success: false, error: `Paste target "${targetParentId}" was not found in the document.` };
+    }
+
+    if (isDescendantOf(clipboard, targetParentId)) {
+      return { success: false, error: 'Cannot paste a node into itself or one of its own descendants.' };
+    }
+
+    const policy = registry.canInsertChild(targetParent.type, clipboard.type);
+    if (!policy.valid) {
+      return { success: false, error: policy.errors.join(' ') };
+    }
+
     const existingIds = collectNodeIdSet(document.document);
     const { clonedNode } = cloneTreeWithNewIds(clipboard, undefined, existingIds);
-    get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node: clonedNode, index }));
+
+    try {
+      get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node: clonedNode, index }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    get().selectNode(clonedNode.id);
+    return { success: true, nodeId: clonedNode.id };
   },
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),

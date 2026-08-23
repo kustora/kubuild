@@ -1,4 +1,5 @@
 export type * from './interfaces';
+export * from './binding-resolver';
 export * from './validator';
 export * from './document-utils';
 export * from './commands';

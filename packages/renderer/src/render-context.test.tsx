@@ -112,7 +112,7 @@ describe('STORA-031: Immutable RenderContext & Host Resolvers', () => {
   describe('Variable Resolution', () => {
     it('resolves VariableBinding objects and falls back correctly', () => {
       const context = createRenderContext({
-        variables: { 'hero.title': 'Super Hero Title' },
+        variables: { hero: { title: 'Super Hero Title' } },
       });
 
       const resolved = resolveVariable(context, {
@@ -128,6 +128,15 @@ describe('STORA-031: Immutable RenderContext & Host Resolvers', () => {
         fallback: 'Default Fallback',
       });
       expect(fallback).toBe('Default Fallback');
+    });
+
+    it('resolves a nested dotted-path key (site.name against a nested variables object)', () => {
+      const context = createRenderContext({
+        variables: { site: { name: 'My Website' } },
+      });
+
+      const resolved = resolveVariable(context, { type: 'variable', key: 'site.name' });
+      expect(resolved).toBe('My Website');
     });
 
     it('interpolates template string {{ variable.key }} patterns', () => {
@@ -165,8 +174,8 @@ describe('STORA-031: Immutable RenderContext & Host Resolvers', () => {
 
       const context = createMinimalRenderContext({
         variables: {
-          'user.name': 'Bob',
-          'plan.name': 'Enterprise',
+          user: { name: 'Bob' },
+          plan: { name: 'Enterprise' },
         },
       });
 
