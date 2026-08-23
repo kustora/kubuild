@@ -33,10 +33,19 @@ export interface ActionRegistry {
   unregister(actionType: string): void;
 }
 
+export interface ActionDiagnostic {
+  code: 'UNKNOWN_ACTION' | 'ACTION_EXECUTION_ERROR' | 'INVALID_ACTION_PAYLOAD';
+  actionType: string;
+  nodeId?: string;
+  message: string;
+  error?: unknown;
+}
+
 export type RenderContext = Readonly<{
   variables?: Readonly<Record<string, unknown>>;
   assetProvider?: AssetProvider;
   actionRegistry?: ActionRegistry;
+  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
 }>;
 
 export type RuntimeContext = RenderContext;

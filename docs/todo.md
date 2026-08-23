@@ -321,7 +321,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan action dispatch runtime yang aman
 - **Description:** Renderer meneruskan interaksi user ke registered action handler. Document hanya menyimpan action type/payload serializable; tidak menjalankan JavaScript dari document.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-031, STORA-022
 - **Acceptance Criteria:**
   - Button dengan registered `navigate` action memanggil handler dengan payload resolved.

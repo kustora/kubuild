@@ -1,8 +1,16 @@
 import React, { createContext, useContext, useMemo } from 'react';
-import type { AssetProvider, ActionRegistry, ActionHandler, RenderContext, RuntimeContext } from '@kubuild/core';
-import { isVariableBinding } from '@kubuild/schema';
+import type {
+  AssetProvider,
+  ActionRegistry,
+  ActionHandler,
+  ActionExecutionContext,
+  ActionDiagnostic,
+  RenderContext,
+  RuntimeContext,
+} from '@kubuild/core';
+import { isVariableBinding, isActionBinding, ActionBinding, PageDocument } from '@kubuild/schema';
 
-export type { RenderContext, RuntimeContext };
+export type { RenderContext, RuntimeContext, ActionDiagnostic };
 
 /**
  * Empty default frozen context
@@ -22,6 +30,7 @@ export function createRenderContext(options?: {
   variables?: Record<string, unknown>;
   assetProvider?: AssetProvider;
   actionRegistry?: ActionRegistry;
+  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
 }): RenderContext {
   if (!options) {
     return DEFAULT_RENDER_CONTEXT;
@@ -33,6 +42,7 @@ export function createRenderContext(options?: {
     variables: frozenVariables,
     ...(options.assetProvider ? { assetProvider: options.assetProvider } : {}),
     ...(options.actionRegistry ? { actionRegistry: options.actionRegistry } : {}),
+    ...(options.onDiagnostic ? { onDiagnostic: options.onDiagnostic } : {}),
   });
 }
 
@@ -44,6 +54,7 @@ export function createMinimalRenderContext(options?: {
   variables?: Record<string, unknown>;
   assets?: Record<string, string>;
   actions?: Record<string, ActionHandler>;
+  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
 }): RenderContext {
   const assetsMap = new Map<string, string>(Object.entries(options?.assets ?? {}));
   const actionsMap = new Map<string, ActionHandler>(Object.entries(options?.actions ?? {}));
@@ -68,6 +79,7 @@ export function createMinimalRenderContext(options?: {
     variables: options?.variables,
     assetProvider,
     actionRegistry,
+    onDiagnostic: options?.onDiagnostic,
   });
 }
 
@@ -141,6 +153,48 @@ export function resolveVariable(context?: RenderContext, value?: unknown): unkno
 }
 
 /**
+ * Recursively resolves variables within an action payload without mutating the input object.
+ */
+export function resolveActionPayload(
+  context?: RenderContext,
+  payload?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const resolveValueRecursively = (val: unknown): unknown => {
+    if (val === null || val === undefined) {
+      return val;
+    }
+    if (isVariableBinding(val)) {
+      return resolveVariable(context, val);
+    }
+    if (typeof val === 'string') {
+      return resolveVariable(context, val);
+    }
+    if (Array.isArray(val)) {
+      return val.map(resolveValueRecursively);
+    }
+    if (typeof val === 'object') {
+      const copy: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+        copy[k] = resolveValueRecursively(v);
+      }
+      return copy;
+    }
+    return val;
+  };
+
+  const resolved: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    resolved[key] = resolveValueRecursively(value);
+  }
+
+  return resolved;
+}
+
+/**
  * Action resolution helper.
  * Checks whether an action type is registered with the current action registry.
  */
@@ -149,4 +203,97 @@ export function isActionRegistered(actionRegistry?: ActionRegistry, actionType?:
     return false;
   }
   return Boolean(actionRegistry.get(actionType));
+}
+
+/**
+ * Safe action dispatch options
+ */
+export interface DispatchActionOptions {
+  action: ActionBinding | unknown;
+  nodeId?: string;
+  document: PageDocument;
+  context?: RenderContext;
+  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  [key: string]: unknown;
+}
+
+/**
+ * Dispatches an action safely from the renderer to registered host handlers.
+ * Guarantees that:
+ * 1. Payload variables are resolved safely.
+ * 2. Unregistered / unknown actions are not executed and trigger diagnostics.
+ * 3. No arbitrary JS code (eval, Function, script injection) from document/props is ever executed.
+ */
+export function dispatchAction(options: DispatchActionOptions): boolean {
+  const { action, nodeId, document, context, onDiagnostic } = options;
+
+  if (!isActionBinding(action)) {
+    const diagnostic: ActionDiagnostic = {
+      code: 'INVALID_ACTION_PAYLOAD',
+      actionType:
+        typeof (action as { type?: unknown })?.type === 'string'
+          ? (action as { type: string }).type
+          : 'unknown',
+      nodeId,
+      message: `Invalid action binding on node ${nodeId || 'unknown'}.`,
+    };
+    onDiagnostic?.(diagnostic);
+    context?.onDiagnostic?.(diagnostic);
+    return false;
+  }
+
+  const handler = context?.actionRegistry?.get(action.type);
+
+  if (!handler) {
+    const diagnostic: ActionDiagnostic = {
+      code: 'UNKNOWN_ACTION',
+      actionType: action.type,
+      nodeId,
+      message: `No action handler registered for action type "${action.type}".`,
+    };
+    onDiagnostic?.(diagnostic);
+    context?.onDiagnostic?.(diagnostic);
+    return false;
+  }
+
+  const resolvedPayload = resolveActionPayload(context, action.payload);
+
+  const executionContext: ActionExecutionContext = {
+    nodeId,
+    document,
+    variables: context?.variables,
+  };
+
+  try {
+    const result = handler(resolvedPayload, executionContext);
+    if (result && typeof (result as Promise<void>).catch === 'function') {
+      (result as Promise<void>).catch((error) => {
+        const diagnostic: ActionDiagnostic = {
+          code: 'ACTION_EXECUTION_ERROR',
+          actionType: action.type,
+          nodeId,
+          message: `Action "${action.type}" handler threw an asynchronous error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          error,
+        };
+        onDiagnostic?.(diagnostic);
+        context?.onDiagnostic?.(diagnostic);
+      });
+    }
+    return true;
+  } catch (error) {
+    const diagnostic: ActionDiagnostic = {
+      code: 'ACTION_EXECUTION_ERROR',
+      actionType: action.type,
+      nodeId,
+      message: `Action "${action.type}" handler threw a synchronous error: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      error,
+    };
+    onDiagnostic?.(diagnostic);
+    context?.onDiagnostic?.(diagnostic);
+    return false;
+  }
 }

@@ -3,11 +3,15 @@ import { PageDocument, Node, isAssetReference, isActionBinding } from '@kubuild/
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import {
   RenderContext,
+  DEFAULT_RENDER_CONTEXT,
   RenderContextProvider,
   useRenderContext,
   resolveAssetSync,
   resolveVariable,
+  resolveActionPayload,
   isActionRegistered,
+  dispatchAction,
+  ActionDiagnostic,
 } from './render-context';
 import { resolveNodeStyles } from './styles';
 
@@ -18,23 +22,30 @@ export interface KubuildRendererProps {
   viewport?: 'desktop' | 'tablet' | 'mobile';
   className?: string;
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
+  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
 }
 
 export function NodeRenderer({
   node,
+  document,
   registry,
   context: propContext,
   viewport = 'desktop',
   onNodeClick,
+  onDiagnostic,
+  onActionDispatch,
 }: {
   node: Node;
+  document: PageDocument;
   registry: ComponentRegistry;
   context?: RenderContext;
   viewport?: 'desktop' | 'tablet' | 'mobile';
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
+  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
 }): React.ReactElement {
-  const hookContext = useRenderContext();
-  const context = propContext || hookContext;
+  const context = propContext || DEFAULT_RENDER_CONTEXT;
   const styles = resolveNodeStyles(node.styles, viewport);
   const props = node.props || {};
 
@@ -42,16 +53,31 @@ export function NodeRenderer({
     if (onNodeClick) {
       onNodeClick(node.id, e);
     }
+    if (props.action && !props.disabled) {
+      dispatchAction({
+        action: props.action,
+        nodeId: node.id,
+        document,
+        context,
+        onDiagnostic,
+      });
+      if (onActionDispatch && isActionBinding(props.action)) {
+        onActionDispatch(props.action.type, resolveActionPayload(context, props.action.payload), node.id);
+      }
+    }
   };
 
   const childrenElements = node.children?.map((child: Node) => (
     <NodeRenderer
       key={child.id}
       node={child}
+      document={document}
       registry={registry}
       context={context}
       viewport={viewport}
       onNodeClick={onNodeClick}
+      onDiagnostic={onDiagnostic}
+      onActionDispatch={onActionDispatch}
     />
   ));
 
@@ -187,6 +213,8 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
   viewport = 'desktop',
   className,
   onNodeClick,
+  onDiagnostic,
+  onActionDispatch,
 }) => {
   if (!document || !document.document) {
     return <div className={className}>Empty Document</div>;
@@ -197,10 +225,13 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
       <div className={`kubuild-canvas-root ${className || ''}`}>
         <NodeRenderer
           node={document.document}
+          document={document}
           registry={registry}
           context={context}
           viewport={viewport}
           onNodeClick={onNodeClick}
+          onDiagnostic={onDiagnostic}
+          onActionDispatch={onActionDispatch}
         />
       </div>
     </RenderContextProvider>
