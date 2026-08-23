@@ -11,6 +11,7 @@ import {
   duplicateNode,
   findNodeLocation,
   isDescendantOf,
+  getNavigationTarget,
   HistoryEngine,
   DocumentHistoryManager,
   DEFAULT_MAX_HISTORY,
@@ -1331,5 +1332,56 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
       expect((result.document as unknown as Record<string, unknown>).step1).toBe(true);
       expect((result.document as unknown as Record<string, unknown>).step2).toBe(true);
     });
+  });
+});
+
+describe('STORA-041: navigation target resolution', () => {
+  const tree = {
+    id: 'root',
+    type: 'page',
+    children: [
+      {
+        id: 'first',
+        type: 'section',
+        children: [
+          { id: 'first-child-a', type: 'text' },
+          { id: 'first-child-b', type: 'text' },
+        ],
+      },
+      { id: 'second', type: 'section', children: [] },
+    ],
+  };
+
+  it('returns the parent id for a nested node', () => {
+    expect(getNavigationTarget(tree, 'first', 'parent')).toBe('root');
+    expect(getNavigationTarget(tree, 'first-child-a', 'parent')).toBe('first');
+  });
+
+  it('returns null for the parent of root', () => {
+    expect(getNavigationTarget(tree, 'root', 'parent')).toBeNull();
+  });
+
+  it('returns the first child id, or null for a leaf/empty-children node', () => {
+    expect(getNavigationTarget(tree, 'root', 'child')).toBe('first');
+    expect(getNavigationTarget(tree, 'first', 'child')).toBe('first-child-a');
+    expect(getNavigationTarget(tree, 'first-child-a', 'child')).toBeNull();
+    expect(getNavigationTarget(tree, 'second', 'child')).toBeNull();
+  });
+
+  it('returns adjacent sibling ids and null at the boundaries', () => {
+    expect(getNavigationTarget(tree, 'first', 'next-sibling')).toBe('second');
+    expect(getNavigationTarget(tree, 'second', 'next-sibling')).toBeNull();
+    expect(getNavigationTarget(tree, 'second', 'previous-sibling')).toBe('first');
+    expect(getNavigationTarget(tree, 'first', 'previous-sibling')).toBeNull();
+    expect(getNavigationTarget(tree, 'first-child-b', 'previous-sibling')).toBe('first-child-a');
+  });
+
+  it('returns null for prev/next-sibling on root (no parent)', () => {
+    expect(getNavigationTarget(tree, 'root', 'previous-sibling')).toBeNull();
+    expect(getNavigationTarget(tree, 'root', 'next-sibling')).toBeNull();
+  });
+
+  it('returns null for an unknown nodeId', () => {
+    expect(getNavigationTarget(tree, 'does-not-exist', 'parent')).toBeNull();
   });
 });

@@ -18,7 +18,7 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
     // NodeRenderer returns <ComponentErrorBoundary>{renderedContent}</ComponentErrorBoundary>
     const inner = (element.props as { children?: React.ReactElement }).children || element;
     const props = (inner as React.ReactElement).props as { onClick?: (e: React.MouseEvent) => void };
-    props?.onClick?.({} as React.MouseEvent);
+    props?.onClick?.({ stopPropagation: () => {} } as unknown as React.MouseEvent);
   }
 
   describe('Acceptance Criteria 1: Registered navigate action called with resolved payload', () => {

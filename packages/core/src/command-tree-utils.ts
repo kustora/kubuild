@@ -52,6 +52,37 @@ function searchNodeLocationRecursive(currentParent: Node, targetId: string): Nod
   return null;
 }
 
+export type NavigationDirection = 'parent' | 'child' | 'previous-sibling' | 'next-sibling';
+
+/**
+ * Resolve the node id reached by moving from `nodeId` in a tree-navigation direction.
+ * Returns null when there is nowhere to go (e.g. root has no parent, a leaf has no child,
+ * or the node sits at the start/end of its sibling list).
+ */
+export function getNavigationTarget(
+  root: Node,
+  nodeId: string,
+  direction: NavigationDirection,
+): string | null {
+  const location = findNodeLocation(root, nodeId);
+  if (!location) return null;
+
+  switch (direction) {
+    case 'parent':
+      return location.parent?.id ?? null;
+    case 'child':
+      return location.node.children?.[0]?.id ?? null;
+    case 'previous-sibling': {
+      if (!location.parent) return null;
+      return (location.parent.children ?? [])[location.index - 1]?.id ?? null;
+    }
+    case 'next-sibling': {
+      if (!location.parent) return null;
+      return (location.parent.children ?? [])[location.index + 1]?.id ?? null;
+    }
+  }
+}
+
 /**
  * Check whether `targetId` is a descendant of `ancestorNode` (or equal to ancestorNode.id).
  */

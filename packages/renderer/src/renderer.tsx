@@ -55,6 +55,7 @@ export function NodeRenderer({
   const props = node.props || {};
 
   const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (onNodeClick) {
       onNodeClick(node.id, e);
     }

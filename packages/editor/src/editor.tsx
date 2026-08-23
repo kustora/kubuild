@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
-import { KubuildRenderer } from '@kubuild/renderer';
 import { RuntimeContext } from '@kubuild/core';
 import { useEditorStore, Viewport } from './store';
+import { EditorCanvas } from './canvas';
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
@@ -17,9 +17,10 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   initialDocument,
   registry = createDefaultComponentRegistry(),
   context,
+  onChange,
   className,
 }) => {
-  const { document, setDocument, viewport, setViewport, selectedNodeId, selectNode } =
+  const { document, setDocument, setOnChangeHandler, viewport, setViewport, selectedNodeId } =
     useEditorStore();
 
   useEffect(() => {
@@ -27,6 +28,10 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
       setDocument(initialDocument);
     }
   }, [initialDocument, setDocument]);
+
+  useEffect(() => {
+    setOnChangeHandler(onChange ?? null);
+  }, [onChange, setOnChangeHandler]);
 
   const viewportWidthMap: Record<Viewport, string> = {
     desktop: 'w-full max-w-6xl',
@@ -73,13 +78,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         <div
           className={`${viewportWidthMap[viewport]} bg-white shadow-md rounded-lg overflow-hidden transition-all duration-200 min-h-[600px] border border-slate-200`}
         >
-          <KubuildRenderer
-            document={document}
-            registry={registry}
-            context={context}
-            viewport={viewport}
-            onNodeClick={(id: string) => selectNode(id)}
-          />
+          <EditorCanvas registry={registry} context={context} viewport={viewport} />
         </div>
       </div>
     </div>
