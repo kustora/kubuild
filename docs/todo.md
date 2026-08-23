@@ -336,7 +336,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Buat preview viewport adapter
 - **Description:** Sediakan container preview desktop, tablet, mobile yang memakai document renderer sama dengan production runtime; beda hanya chrome/editor overlay.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-030, STORA-023
 - **Acceptance Criteria:**
   - Preview dapat beralih antar tiga viewport tanpa mengubah document.

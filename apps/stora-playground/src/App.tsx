@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { KubuildEditor } from '@kubuild/editor';
-import { KubuildRenderer, createMinimalRenderContext } from '@kubuild/renderer';
+import { KubuildRenderer, PreviewViewportAdapter, ViewportDevice, createMinimalRenderContext } from '@kubuild/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { PageDocument, starterPageFixture } from '@kubuild/schema';
 import { Layout, Eye, Code2, Sparkles } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Layout, Eye, Code2, Sparkles } from 'lucide-react';
 export function App() {
   const [doc] = useState<PageDocument>(starterPageFixture);
   const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'json'>('editor');
+  const [previewViewport, setPreviewViewport] = useState<ViewportDevice>('desktop');
   const registry = createDefaultComponentRegistry();
 
   // Minimal offline RenderContext injected by host without network dependency
@@ -94,10 +95,16 @@ export function App() {
         )}
 
         {activeTab === 'preview' && (
-          <div className="h-full overflow-auto bg-slate-100 p-8 flex justify-center">
-            <div className="w-full max-w-5xl bg-white shadow-2xl rounded-xl overflow-hidden border border-slate-200">
-              <KubuildRenderer document={doc} registry={registry} context={renderContext} />
-            </div>
+          <div className="h-full overflow-auto bg-slate-950/80 p-8 flex justify-center items-start">
+            <PreviewViewportAdapter
+              document={doc}
+              registry={registry}
+              context={renderContext}
+              viewport={previewViewport}
+              onViewportChange={setPreviewViewport}
+              showChrome={true}
+              canvasClassName="bg-white shadow-2xl rounded-xl overflow-hidden border border-slate-200"
+            />
           </div>
         )}
 
