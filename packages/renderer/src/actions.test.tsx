@@ -14,6 +14,13 @@ import { createDefaultComponentRegistry } from '@kubuild/components';
 describe('STORA-032: Safe Runtime Action Dispatching', () => {
   const registry = createDefaultComponentRegistry();
 
+  function triggerNodeClick(element: React.ReactElement): void {
+    // NodeRenderer returns <ComponentErrorBoundary>{renderedContent}</ComponentErrorBoundary>
+    const inner = (element.props as { children?: React.ReactElement }).children || element;
+    const props = (inner as React.ReactElement).props as { onClick?: (e: React.MouseEvent) => void };
+    props?.onClick?.({} as React.MouseEvent);
+  }
+
   describe('Acceptance Criteria 1: Registered navigate action called with resolved payload', () => {
     it('dispatches action when button is clicked with resolved variables in payload', () => {
       const doc = createBlankDocument('Action Test');
@@ -53,8 +60,7 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
         context,
       });
 
-      const props = element.props as { onClick?: (e: React.MouseEvent) => void };
-      props.onClick?.({} as React.MouseEvent);
+      triggerNodeClick(element);
 
       expect(navigateHandler).toHaveBeenCalledTimes(1);
       expect(navigateHandler).toHaveBeenCalledWith(
@@ -133,8 +139,7 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
         onDiagnostic,
       });
 
-      const props = element.props as { onClick?: (e: React.MouseEvent) => void };
-      props.onClick?.({} as React.MouseEvent);
+      triggerNodeClick(element);
 
       expect(onDiagnostic).toHaveBeenCalled();
       expect(diagnostics.some((d) => d.code === 'UNKNOWN_ACTION' && d.actionType === 'unknown.action.type')).toBe(
@@ -185,8 +190,7 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
         context,
       });
 
-      const props = element.props as { onClick?: (e: React.MouseEvent) => void };
-      props.onClick?.({} as React.MouseEvent);
+      triggerNodeClick(element);
 
       expect(submitHandler).not.toHaveBeenCalled();
     });
@@ -229,8 +233,7 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
         context,
       });
 
-      const props = element.props as { onClick?: (e: React.MouseEvent) => void };
-      props.onClick?.({} as React.MouseEvent);
+      triggerNodeClick(element);
 
       expect(evalExecuted).toBe(false);
       expect(diagnostics.some((d) => d.code === 'UNKNOWN_ACTION')).toBe(true);

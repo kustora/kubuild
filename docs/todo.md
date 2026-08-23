@@ -290,7 +290,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan recursive document renderer
 - **Description:** Buat renderer React yang mengubah document tree menjadi element tree lewat registry. Tangani unknown component dan error boundary secara aman tanpa crash seluruh page.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-011, STORA-020, STORA-022
 - **Acceptance Criteria:**
   - Fixture starter page menghasilkan markup berisi setiap core component.

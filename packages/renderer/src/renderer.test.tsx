@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { KubuildRenderer } from './renderer';
-import { createDefaultComponentRegistry } from '@kubuild/components';
+import { createDefaultComponentRegistry, ComponentRegistry } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
 import { ActionHandler, RuntimeContext } from '@kubuild/core';
-import { Node, PageDocument } from '@kubuild/schema';
+import { Node, PageDocument, starterPageFixture } from '@kubuild/schema';
 
 describe('KubuildRenderer', () => {
   it('renders a simple document to HTML markup', () => {
@@ -22,6 +22,200 @@ describe('KubuildRenderer', () => {
     const html = renderToString(<KubuildRenderer document={doc} registry={registry} />);
     expect(html).toContain('Hello World');
     expect(html).toContain('heading-1');
+  });
+});
+
+describe('STORA-030: Recursive Document Renderer & Error Handling', () => {
+  const registry = createDefaultComponentRegistry();
+
+  describe('Acceptance Criteria 1: Starter page fixture renders every core component', () => {
+    it('renders the complete starter page fixture markup containing page, section, container, heading, text, image, and button', () => {
+      const html = renderToString(<KubuildRenderer document={starterPageFixture} registry={registry} />);
+
+      // Root Page
+      expect(html).toContain('id="root-page"');
+      // Section
+      expect(html).toContain('id="hero-section"');
+      expect(html).toContain('<section');
+      // Container
+      expect(html).toContain('id="hero-container"');
+      // Heading
+      expect(html).toContain('id="hero-heading"');
+      expect(html).toContain('Build Once, Render Anywhere');
+      // Text
+      expect(html).toContain('id="hero-text"');
+      expect(html).toContain('KUBUILD is an open, portable web page builder engine');
+      // Image
+      expect(html).toContain('id="hero-image"');
+      expect(html).toContain('alt="KUBUILD Platform Graphic"');
+      // Button
+      expect(html).toContain('id="hero-button"');
+      expect(html).toContain('Get Started');
+    });
+  });
+
+  describe('Acceptance Criteria 2: Child elements rendered strictly in document order', () => {
+    it('preserves the exact chronological order of children nodes in output markup', () => {
+      const doc = createBlankDocument('Order Test');
+      doc.document.children = [
+        { id: 'first-heading', type: 'heading', props: { text: 'First Element', level: 2 } },
+        { id: 'second-text', type: 'text', props: { content: 'Second Element' } },
+        { id: 'third-button', type: 'button', props: { label: 'Third Element' } },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} />);
+
+      const firstIndex = html.indexOf('First Element');
+      const secondIndex = html.indexOf('Second Element');
+      const thirdIndex = html.indexOf('Third Element');
+
+      expect(firstIndex).toBeGreaterThan(-1);
+      expect(secondIndex).toBeGreaterThan(firstIndex);
+      expect(thirdIndex).toBeGreaterThan(secondIndex);
+    });
+  });
+
+  describe('Acceptance Criteria 3: Unknown component handling in editor vs runtime mode', () => {
+    const docWithUnknown = createBlankDocument('Unknown Component Test');
+    docWithUnknown.document.children = [
+      {
+        id: 'node-mystery',
+        type: 'non-existent-widget',
+        props: { foo: 'bar' },
+        children: [
+          { id: 'nested-text', type: 'text', props: { content: 'Nested Content' } },
+        ],
+      },
+    ];
+
+    it('renders a diagnostic placeholder in editor mode', () => {
+      const html = renderToString(
+        <KubuildRenderer document={docWithUnknown} registry={registry} mode="editor" />,
+      );
+
+      expect(html).toContain('Unknown Component:');
+      expect(html).toContain('non-existent-widget');
+      expect(html).toContain('node-mystery');
+      expect(html).toContain('data-kubuild-unknown="non-existent-widget"');
+      expect(html).toContain('Nested Content');
+    });
+
+    it('renders a safe fallback container in runtime mode without diagnostic placeholder', () => {
+      const html = renderToString(
+        <KubuildRenderer document={docWithUnknown} registry={registry} mode="runtime" />,
+      );
+
+      expect(html).not.toContain('Unknown Component:');
+      expect(html).toContain('data-kubuild-unknown="non-existent-widget"');
+      expect(html).toContain('Nested Content');
+    });
+  });
+
+  describe('Acceptance Criteria 4: Custom Component Extension rendering via Registry', () => {
+    it('executes custom component renderer registered in ComponentRegistry', () => {
+      const customRegistry = new ComponentRegistry();
+      customRegistry.register({
+        type: 'custom-card',
+        label: 'Custom Card',
+        category: 'custom',
+        renderer: ({ props, children }: { props: Record<string, unknown>; children?: React.ReactNode }) => (
+          <div className="my-custom-card" data-testid="custom-card">
+            <h3>{String(props.cardTitle || '')}</h3>
+            <div className="card-body">{children}</div>
+          </div>
+        ),
+      });
+
+      const doc = createBlankDocument('Custom Card Test');
+      doc.document.children = [
+        {
+          id: 'card-1',
+          type: 'custom-card',
+          props: { cardTitle: 'Special Announcement' },
+          children: [
+            { id: 'card-text', type: 'text', props: { content: 'Inside the card' } },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={customRegistry} />);
+
+      expect(html).toContain('my-custom-card');
+      expect(html).toContain('Special Announcement');
+      expect(html).toContain('Inside the card');
+    });
+  });
+
+  describe('Acceptance Criteria 5: Component Error Boundary prevents full page crash', () => {
+    it('catches render errors in editor mode and renders diagnostic error box', () => {
+      const faultyRegistry = new ComponentRegistry();
+      faultyRegistry.register({
+        type: 'faulty-component',
+        label: 'Faulty',
+        category: 'custom',
+        renderer: () => {
+          throw new Error('Exploded during render!');
+        },
+      });
+
+      const doc = createBlankDocument('Error Test');
+      doc.document.children = [
+        { id: 'good-heading', type: 'heading', props: { text: 'Healthy Component' } },
+        { id: 'bad-node', type: 'faulty-component', props: {} },
+      ];
+
+      // Suppress expected console.error from React error boundary during test
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const html = renderToString(
+        <KubuildRenderer document={doc} registry={faultyRegistry} mode="editor" />,
+      );
+
+      spy.mockRestore();
+
+      expect(html).toContain('Healthy Component');
+      expect(html).toContain('Component Render Error:');
+      expect(html).toContain('faulty-component');
+      expect(html).toContain('Exploded during render!');
+    });
+
+    it('catches render errors in runtime mode and renders safe hidden fallback', () => {
+      const faultyRegistry = new ComponentRegistry();
+      faultyRegistry.register({
+        type: 'faulty-component',
+        label: 'Faulty',
+        category: 'custom',
+        renderer: () => {
+          throw new Error('Exploded in production!');
+        },
+      });
+
+      const doc = createBlankDocument('Error Test Runtime');
+      doc.document.children = [
+        { id: 'good-heading', type: 'heading', props: { text: 'Healthy Component' } },
+        { id: 'bad-node', type: 'faulty-component', props: {} },
+      ];
+
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const html = renderToString(
+        <KubuildRenderer document={doc} registry={faultyRegistry} mode="runtime" />,
+      );
+
+      spy.mockRestore();
+
+      expect(html).toContain('Healthy Component');
+      expect(html).not.toContain('Exploded in production!');
+      expect(html).toContain('data-kubuild-error="faulty-component"');
+    });
+  });
+
+  describe('Acceptance Criteria 6: Renderer operates independently with no editor state required', () => {
+    it('renders cleanly from just a PageDocument without any external store or state', () => {
+      const doc = createBlankDocument('Pure Document');
+      const html = renderToString(<KubuildRenderer document={doc} />);
+      expect(html).toContain('id="root-page"');
+    });
   });
 });
 
