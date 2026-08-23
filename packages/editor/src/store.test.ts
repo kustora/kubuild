@@ -264,6 +264,100 @@ describe('Editor Store', () => {
     });
   });
 
+  describe('moveComponent', () => {
+    const registry = createDefaultComponentRegistry();
+
+    function docWithSiblings(): PageDocument {
+      const doc = createBlankDocument('Move Test');
+      doc.document.children = [
+        { id: 'section-a', type: 'section', props: {}, children: [{ id: 'heading-a', type: 'heading', props: { text: 'A' } }] },
+        { id: 'section-b', type: 'section', props: {}, children: [] },
+      ];
+      return doc;
+    }
+
+    it('reorders a sibling to a later index in a single history entry', () => {
+      const doc = createBlankDocument('Reorder Test');
+      doc.document.children = [
+        {
+          id: 'section-1',
+          type: 'section',
+          props: {},
+          children: [
+            { id: 'h1', type: 'heading', props: { text: '1' } },
+            { id: 'h2', type: 'heading', props: { text: '2' } },
+            { id: 'h3', type: 'heading', props: { text: '3' } },
+          ],
+        },
+      ];
+      useEditorStore.getState().setDocument(doc);
+
+      // Move h1 to after h2 (index 2 in the original 3-item array).
+      const result = useEditorStore.getState().moveComponent('h1', 'section-1', registry, 2);
+
+      expect(result.success).toBe(true);
+      const state = useEditorStore.getState();
+      const section = state.document.document.children?.find((n) => n.id === 'section-1');
+      expect(section?.children?.map((n) => n.id)).toEqual(['h2', 'h1', 'h3']);
+      expect(state.canUndo).toBe(true);
+
+      useEditorStore.getState().undo();
+      const restoredSection = useEditorStore.getState().document.document.children?.find((n) => n.id === 'section-1');
+      expect(restoredSection?.children?.map((n) => n.id)).toEqual(['h1', 'h2', 'h3']);
+    });
+
+    it('moves a node into a different valid container', () => {
+      useEditorStore.getState().setDocument(docWithSiblings());
+
+      const result = useEditorStore.getState().moveComponent('heading-a', 'section-b', registry);
+
+      expect(result.success).toBe(true);
+      const state = useEditorStore.getState();
+      const sectionA = state.document.document.children?.find((n) => n.id === 'section-a');
+      const sectionB = state.document.document.children?.find((n) => n.id === 'section-b');
+      expect(sectionA?.children).toHaveLength(0);
+      expect(sectionB?.children?.some((n) => n.id === 'heading-a')).toBe(true);
+    });
+
+    it('rejects moving the root page node', () => {
+      useEditorStore.getState().setDocument(docWithSiblings());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().moveComponent('root-page', 'section-a', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('root page node');
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('rejects moving a node into its own descendant', () => {
+      useEditorStore.getState().setDocument(docWithSiblings());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().moveComponent('section-a', 'heading-a', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('descendant');
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+
+    it('rejects an invalid parent/child combination before mutating the document', () => {
+      const doc = docWithSiblings();
+      doc.document.children?.push({ id: 'btn-1', type: 'button', props: { label: 'Go' } });
+      useEditorStore.getState().setDocument(doc);
+      const before = useEditorStore.getState().document;
+
+      // button.acceptsChildren === false
+      const result = useEditorStore.getState().moveComponent('heading-a', 'btn-1', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('does not accept children');
+      const state = useEditorStore.getState();
+      expect(state.document).toBe(before);
+      expect(state.isDirty).toBe(false);
+    });
+  });
+
   describe('selection integrity', () => {
     it('clears selectedNodeId when the selected node is removed', () => {
       useEditorStore.getState().setDocument(docWithChild());

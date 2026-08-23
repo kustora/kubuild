@@ -3,7 +3,10 @@ import { PageDocument, Node } from '@kubuild/schema';
 import {
   createBlankDocument,
   findNodeById,
+  findNodeLocation,
+  isDescendantOf,
   insertNode,
+  moveNode,
   DocumentHistoryManager,
   CommandResult,
   deepClone,
@@ -17,6 +20,11 @@ export type Viewport = 'desktop' | 'tablet' | 'mobile';
 export interface InsertComponentResult {
   success: boolean;
   nodeId?: string;
+  error?: string;
+}
+
+export interface MoveComponentResult {
+  success: boolean;
   error?: string;
 }
 
@@ -46,6 +54,12 @@ export interface EditorState {
   setOnChangeHandler: (handler: ((doc: PageDocument) => void) | null) => void;
   dispatch: (executor: (doc: PageDocument) => CommandResult) => void;
   insertComponent: (type: string, registry: ComponentRegistry, parentId?: string) => InsertComponentResult;
+  moveComponent: (
+    nodeId: string,
+    targetParentId: string,
+    registry: ComponentRegistry,
+    index?: number,
+  ) => MoveComponentResult;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
@@ -147,6 +161,44 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().selectNode(nodeId);
 
     return { success: true, nodeId };
+  },
+
+  moveComponent: (nodeId, targetParentId, registry, index) => {
+    const state = get();
+
+    if (nodeId === state.document.document.id) {
+      return { success: false, error: 'Cannot move the root page node.' };
+    }
+
+    const sourceLocation = findNodeLocation(state.document.document, nodeId);
+    if (!sourceLocation || !sourceLocation.parent) {
+      return { success: false, error: `Node "${nodeId}" was not found in the document.` };
+    }
+
+    const targetParent = findNodeById(state.document.document, targetParentId);
+    if (!targetParent) {
+      return { success: false, error: `Move target "${targetParentId}" was not found in the document.` };
+    }
+
+    if (isDescendantOf(sourceLocation.node, targetParentId)) {
+      return { success: false, error: 'Cannot move a node into itself or one of its own descendants.' };
+    }
+
+    const policy = registry.canInsertChild(targetParent.type, sourceLocation.node.type);
+    if (!policy.valid) {
+      return { success: false, error: policy.errors.join(' ') };
+    }
+
+    // Reordering within the same parent: the source slot is removed before the
+    // target index is applied, so any target position after it shifts left by one.
+    const adjustedIndex =
+      sourceLocation.parent.id === targetParentId && typeof index === 'number' && index > sourceLocation.index
+        ? index - 1
+        : index;
+
+    get().dispatch((doc) => moveNode(doc, { nodeId, targetParentId, index: adjustedIndex }));
+
+    return { success: true };
   },
 
   undo: () => {
