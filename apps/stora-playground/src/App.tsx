@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { KubuildEditor } from '@kubuild/editor';
-import { KubuildRenderer } from '@kubuild/renderer';
+import { KubuildRenderer, createMinimalRenderContext } from '@kubuild/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { PageDocument, starterPageFixture } from '@kubuild/schema';
 import { Layout, Eye, Code2, Sparkles } from 'lucide-react';
@@ -9,6 +9,26 @@ export function App() {
   const [doc] = useState<PageDocument>(starterPageFixture);
   const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'json'>('editor');
   const registry = createDefaultComponentRegistry();
+
+  // Minimal offline RenderContext injected by host without network dependency
+  const renderContext = useMemo(
+    () =>
+      createMinimalRenderContext({
+        variables: {
+          siteName: 'KUBUILD Demo',
+          authorName: 'KUBUILD Team',
+        },
+        assets: {
+          'starter-hero': 'https://picsum.photos/640/360',
+        },
+        actions: {
+          navigate: (payload?: Record<string, unknown>) => {
+            console.log('[Playground Action] Navigate called with payload:', payload);
+          },
+        },
+      }),
+    [],
+  );
 
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-slate-100">
@@ -76,7 +96,7 @@ export function App() {
         {activeTab === 'preview' && (
           <div className="h-full overflow-auto bg-slate-100 p-8 flex justify-center">
             <div className="w-full max-w-5xl bg-white shadow-2xl rounded-xl overflow-hidden border border-slate-200">
-              <KubuildRenderer document={doc} registry={registry} />
+              <KubuildRenderer document={doc} registry={registry} context={renderContext} />
             </div>
           </div>
         )}

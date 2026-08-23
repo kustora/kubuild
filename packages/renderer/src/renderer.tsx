@@ -1,23 +1,20 @@
 import React from 'react';
 import { PageDocument, Node, isAssetReference, isActionBinding } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
-import { AssetProvider, RuntimeContext } from '@kubuild/core';
+import {
+  RenderContext,
+  RenderContextProvider,
+  useRenderContext,
+  resolveAssetSync,
+  resolveVariable,
+  isActionRegistered,
+} from './render-context';
 import { resolveNodeStyles } from './styles';
-
-/**
- * AssetProvider.resolve may be sync or async. Renderer output must be computable
- * synchronously (no hooks in NodeRenderer), so only a sync string result is used;
- * an async resolution falls back to the asset's fallbackUrl for this render pass.
- */
-function resolveAssetSync(assetProvider: AssetProvider, assetIdOrUri: string): string | undefined {
-  const result = assetProvider.resolve(assetIdOrUri);
-  return typeof result === 'string' ? result : undefined;
-}
 
 export interface KubuildRendererProps {
   document: PageDocument;
   registry?: ComponentRegistry;
-  context?: RuntimeContext;
+  context?: RenderContext;
   viewport?: 'desktop' | 'tablet' | 'mobile';
   className?: string;
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
@@ -26,16 +23,18 @@ export interface KubuildRendererProps {
 export function NodeRenderer({
   node,
   registry,
-  context,
+  context: propContext,
   viewport = 'desktop',
   onNodeClick,
 }: {
   node: Node;
   registry: ComponentRegistry;
-  context?: RuntimeContext;
+  context?: RenderContext;
   viewport?: 'desktop' | 'tablet' | 'mobile';
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
 }): React.ReactElement {
+  const hookContext = useRenderContext();
+  const context = propContext || hookContext;
   const styles = resolveNodeStyles(node.styles, viewport);
   const props = node.props || {};
 
@@ -83,7 +82,8 @@ export function NodeRenderer({
       );
     case 'heading': {
       const level = (props.level as number) || 2;
-      const text = (props.text as string) || '';
+      const rawText = (props.text as string) || '';
+      const text = String(resolveVariable(context, rawText) ?? '');
       const Tag = `h${Math.min(Math.max(level, 1), 6)}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
       return (
         <Tag id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
@@ -91,25 +91,32 @@ export function NodeRenderer({
         </Tag>
       );
     }
-    case 'text':
+    case 'text': {
+      const rawContent = (props.content as string) || '';
+      const content = String(resolveVariable(context, rawContent) ?? '');
       return (
         <p id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
-          {(props.content as string) || ''}
+          {content}
         </p>
       );
+    }
     case 'image': {
-      const directSrc = typeof props.src === 'string' && props.src.length > 0 ? props.src : undefined;
+      const rawSrc = typeof props.src === 'string' && props.src.length > 0 ? props.src : undefined;
+      const directSrc = rawSrc ? String(resolveVariable(context, rawSrc) ?? '') : undefined;
       const asset = isAssetReference(props.asset) ? props.asset : undefined;
       const resolvedSrc =
         !directSrc && asset && context?.assetProvider
           ? resolveAssetSync(context.assetProvider, asset.assetId)
           : undefined;
       const fallbackSrc = asset?.fallbackUrl;
+      const rawAlt = (props.alt as string) || '';
+      const alt = String(resolveVariable(context, rawAlt) ?? '');
+
       return (
         <img
           id={node.id}
           src={directSrc || resolvedSrc || fallbackSrc || undefined}
-          alt={(props.alt as string) || ''}
+          alt={alt}
           width={props.width as number}
           height={props.height as number}
           style={styles}
@@ -119,11 +126,13 @@ export function NodeRenderer({
       );
     }
     case 'button': {
-      const label = (props.label as string) || 'Button';
+      const rawLabel = (props.label as string) || 'Button';
+      const label = String(resolveVariable(context, rawLabel) ?? 'Button');
       const disabled = props.disabled === true;
-      const href = typeof props.href === 'string' ? props.href : undefined;
+      const rawHref = typeof props.href === 'string' ? props.href : undefined;
+      const href = rawHref ? String(resolveVariable(context, rawHref) ?? '') : undefined;
       const action = isActionBinding(props.action) ? props.action : undefined;
-      const actionResolved = action ? Boolean(context?.actionRegistry?.get(action.type)) : undefined;
+      const actionResolved = action ? isActionRegistered(context?.actionRegistry, action.type) : undefined;
       const actionAttrs = action
         ? { 'data-kubuild-action': action.type, 'data-kubuild-action-resolved': actionResolved }
         : {};
@@ -184,14 +193,16 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
   }
 
   return (
-    <div className={`kubuild-canvas-root ${className || ''}`}>
-      <NodeRenderer
-        node={document.document}
-        registry={registry}
-        context={context}
-        viewport={viewport}
-        onNodeClick={onNodeClick}
-      />
-    </div>
+    <RenderContextProvider value={context}>
+      <div className={`kubuild-canvas-root ${className || ''}`}>
+        <NodeRenderer
+          node={document.document}
+          registry={registry}
+          context={context}
+          viewport={viewport}
+          onNodeClick={onNodeClick}
+        />
+      </div>
+    </RenderContextProvider>
   );
 };

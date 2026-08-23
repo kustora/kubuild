@@ -33,8 +33,10 @@ export interface ActionRegistry {
   unregister(actionType: string): void;
 }
 
-export interface RuntimeContext {
-  variables?: Record<string, unknown>;
+export type RenderContext = Readonly<{
+  variables?: Readonly<Record<string, unknown>>;
   assetProvider?: AssetProvider;
   actionRegistry?: ActionRegistry;
-}
+}>;
+
+export type RuntimeContext = RenderContext;
