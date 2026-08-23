@@ -179,6 +179,63 @@ describe('STORA-020: Component Registry Contract', () => {
   });
 });
 
+describe('ComponentRegistry.canInsertChild', () => {
+  it('reports unknown parent/child types', () => {
+    const registry = createDefaultComponentRegistry();
+    expect(registry.canInsertChild('does-not-exist', 'heading').errors[0]).toContain('Unknown target parent type');
+    expect(registry.canInsertChild('section', 'does-not-exist').errors[0]).toContain('Unknown component type');
+  });
+
+  it('rejects insertion into a component that does not accept children', () => {
+    const registry = createDefaultComponentRegistry();
+    const result = registry.canInsertChild('button', 'text');
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('does not accept children');
+  });
+
+  it('rejects a child type not present in the parent allowedChildren list', () => {
+    const registry = createDefaultComponentRegistry();
+    // container.allowedChildren = ['columns', ...content types] — 'section' is not allowed inside 'container'.
+    const result = registry.canInsertChild('container', 'section');
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('does not allow');
+  });
+
+  it('allows a child type explicitly listed in allowedChildren', () => {
+    const registry = createDefaultComponentRegistry();
+    expect(registry.canInsertChild('section', 'heading').valid).toBe(true);
+    expect(registry.canInsertChild('page', 'section').valid).toBe(true);
+  });
+
+  it('allows a child type matched via category membership in allowedChildren', () => {
+    const registry = new ComponentRegistry();
+    registry.register({ type: 'parent', label: 'Parent', category: 'custom', acceptsChildren: true, allowedChildren: ['typography'] });
+    registry.register({ type: 'label', label: 'Label', category: 'typography' });
+    expect(registry.canInsertChild('parent', 'label').valid).toBe(true);
+  });
+
+  it('allows any child type when allowedChildren includes "*"', () => {
+    const registry = new ComponentRegistry();
+    registry.register({ type: 'parent', label: 'Parent', category: 'custom', acceptsChildren: true, allowedChildren: ['*'] });
+    registry.register({ type: 'anything', label: 'Anything', category: 'custom' });
+    expect(registry.canInsertChild('parent', 'anything').valid).toBe(true);
+  });
+
+  it('rejects insertion when the child declares the parent type in disallowedParents', () => {
+    const registry = new ComponentRegistry();
+    registry.register({ type: 'parent', label: 'Parent', category: 'custom', acceptsChildren: true, allowedChildren: ['*'] });
+    registry.register({ type: 'child', label: 'Child', category: 'custom', disallowedParents: ['parent'] });
+    const result = registry.canInsertChild('parent', 'child');
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('is not allowed inside');
+  });
+
+  it('rejects nesting a "page" node anywhere (page is never a valid child)', () => {
+    const registry = createDefaultComponentRegistry();
+    expect(registry.canInsertChild('section', 'page').valid).toBe(false);
+  });
+});
+
 describe('STORA-021: Layout Components (page/section/container/columns)', () => {
   describe('Acceptance Criteria 1: page > section > container > columns forms a valid document', () => {
     it('validates a document built from the full layout chain', () => {

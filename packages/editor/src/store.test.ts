@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { useEditorStore } from './store';
 import { createBlankDocument, insertNode, removeNode } from '@kubuild/core';
 import { PageDocument } from '@kubuild/schema';
+import { createDefaultComponentRegistry } from '@kubuild/components';
 
 function docWithChild(): PageDocument {
   const doc = createBlankDocument('Test Doc');
@@ -193,6 +194,73 @@ describe('Editor Store', () => {
       useEditorStore.getState().pasteNode('root-page');
 
       expect(useEditorStore.getState().document).toBe(before);
+    });
+  });
+
+  describe('insertComponent', () => {
+    const registry = createDefaultComponentRegistry();
+
+    it('inserts a node with validated default props as a child of the selected node and selects it', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      useEditorStore.getState().selectNode('root-page');
+
+      const result = useEditorStore.getState().insertComponent('section', registry);
+
+      expect(result.success).toBe(true);
+      const state = useEditorStore.getState();
+      const inserted = state.document.document.children?.find((n) => n.id === result.nodeId);
+      expect(inserted).toBeDefined();
+      expect(inserted?.type).toBe('section');
+      expect(state.selectedNodeId).toBe(result.nodeId);
+      expect(state.isDirty).toBe(true);
+    });
+
+    it('falls back to the document root when nothing is selected', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      useEditorStore.getState().selectNode(null);
+
+      const result = useEditorStore.getState().insertComponent('section', registry);
+
+      expect(result.success).toBe(true);
+      const state = useEditorStore.getState();
+      expect(state.document.document.children?.some((n) => n.id === result.nodeId)).toBe(true);
+    });
+
+    it('rejects an invalid parent/child combination with a clear message and leaves the document unchanged', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      useEditorStore.getState().selectNode('child-node'); // heading: acceptsChildren === false
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore.getState().insertComponent('text', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('does not accept children');
+      const state = useEditorStore.getState();
+      expect(state.document).toBe(before);
+      expect(state.isDirty).toBe(false);
+    });
+
+    it('rejects an unknown component type', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+
+      const result = useEditorStore.getState().insertComponent('does-not-exist', registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unknown component type');
+    });
+
+    it('honors an explicit parentId over the current selection', () => {
+      const doc = docWithChild();
+      doc.document.children?.push({ id: 'section-1', type: 'section', props: {}, children: [] });
+      useEditorStore.getState().setDocument(doc);
+      useEditorStore.getState().selectNode('child-node');
+
+      const result = useEditorStore.getState().insertComponent('heading', registry, 'section-1');
+
+      expect(result.success).toBe(true);
+      const state = useEditorStore.getState();
+      const section = state.document.document.children?.find((n) => n.id === 'section-1');
+      expect(section?.children?.some((n) => n.id === result.nodeId)).toBe(true);
     });
   });
 

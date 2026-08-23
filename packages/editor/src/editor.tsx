@@ -4,6 +4,7 @@ import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/comp
 import { RuntimeContext } from '@kubuild/core';
 import { useEditorStore, Viewport } from './store';
 import { EditorCanvas } from './canvas';
+import { ComponentPanel } from './component-panel';
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
@@ -73,12 +74,18 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         </div>
       </div>
 
-      {/* Main Canvas Area */}
-      <div className="flex-1 overflow-auto p-8 flex justify-center items-start">
-        <div
-          className={`${viewportWidthMap[viewport]} bg-white shadow-md rounded-lg overflow-hidden transition-all duration-200 min-h-[600px] border border-slate-200`}
-        >
-          <EditorCanvas registry={registry} context={context} viewport={viewport} />
+      {/* Main Body: Component Panel + Canvas */}
+      <div className="flex flex-1 overflow-hidden">
+        <div className="w-56 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col">
+          <ComponentPanel registry={registry} />
+        </div>
+
+        <div className="flex-1 overflow-auto p-8 flex justify-center items-start">
+          <div
+            className={`${viewportWidthMap[viewport]} bg-white shadow-md rounded-lg overflow-hidden transition-all duration-200 min-h-[600px] border border-slate-200`}
+          >
+            <EditorCanvas registry={registry} context={context} viewport={viewport} />
+          </div>
         </div>
       </div>
     </div>

@@ -10,8 +10,26 @@ import {
   cloneTreeWithNewIds,
   collectNodeIdSet,
 } from '@kubuild/core';
+import { ComponentRegistry } from '@kubuild/components';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
+
+export interface InsertComponentResult {
+  success: boolean;
+  nodeId?: string;
+  error?: string;
+}
+
+/** Generates a node id unique within `existingIds`, e.g. "heading-1", "heading-2". */
+function generateComponentNodeId(type: string, existingIds: Set<string>): string {
+  let counter = 1;
+  let candidate = `${type}-${counter}`;
+  while (existingIds.has(candidate)) {
+    counter += 1;
+    candidate = `${type}-${counter}`;
+  }
+  return candidate;
+}
 
 export interface EditorState {
   document: PageDocument;
@@ -27,6 +45,7 @@ export interface EditorState {
   setDocument: (document: PageDocument) => void;
   setOnChangeHandler: (handler: ((doc: PageDocument) => void) | null) => void;
   dispatch: (executor: (doc: PageDocument) => CommandResult) => void;
+  insertComponent: (type: string, registry: ComponentRegistry, parentId?: string) => InsertComponentResult;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
@@ -84,6 +103,50 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedNodeId: selectionAfter(result.document, selectedNodeId),
     });
     onChangeHandler?.(result.document);
+  },
+
+  insertComponent: (type, registry, parentId) => {
+    const state = get();
+    const targetParentId = parentId ?? state.selectedNodeId ?? state.document.document.id;
+    const parentNode = findNodeById(state.document.document, targetParentId);
+    if (!parentNode) {
+      return { success: false, error: `Insertion target "${targetParentId}" was not found in the document.` };
+    }
+
+    const definition = registry.get(type);
+    if (!definition) {
+      return { success: false, error: `Unknown component type "${type}".` };
+    }
+
+    const policy = registry.canInsertChild(parentNode.type, type);
+    if (!policy.valid) {
+      return { success: false, error: policy.errors.join(' ') };
+    }
+
+    const props = deepClone(definition.defaultProps ?? {});
+    if (definition.validateProps) {
+      const propResult = definition.validateProps(props);
+      if (Array.isArray(propResult) && propResult.length > 0) {
+        return { success: false, error: propResult.join(' ') };
+      }
+      if (propResult === false) {
+        return { success: false, error: `Default props for "${definition.label}" failed validation.` };
+      }
+    }
+
+    const existingIds = collectNodeIdSet(state.document.document);
+    const nodeId = generateComponentNodeId(type, existingIds);
+    const node: Node = {
+      id: nodeId,
+      type,
+      props,
+      ...(definition.defaultStyles ? { styles: deepClone(definition.defaultStyles) } : {}),
+    };
+
+    get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node }));
+    get().selectNode(nodeId);
+
+    return { success: true, nodeId };
   },
 
   undo: () => {

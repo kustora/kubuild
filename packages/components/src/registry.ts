@@ -84,6 +84,47 @@ export class ComponentRegistry<TRenderer = unknown> {
     return this.list().filter((c) => c.category === category);
   }
 
+  /**
+   * Check whether `childType` is a valid insertion target under `parentType`,
+   * covering both directions of child policy: the parent's `acceptsChildren`/
+   * `allowedChildren` (by type, category, or `'*'`) and the child's own
+   * `disallowedParents`. Used by the builder to reject an invalid insertion
+   * before a node is constructed, rather than after the fact via `validateNode`.
+   */
+  canInsertChild(parentType: string, childType: string): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    const parentDef = this.get(parentType);
+    const childDef = this.get(childType);
+
+    if (!parentDef) {
+      errors.push(`Unknown target parent type: "${parentType}".`);
+    }
+    if (!childDef) {
+      errors.push(`Unknown component type: "${childType}".`);
+    }
+    if (!parentDef || !childDef) {
+      return { valid: false, errors };
+    }
+
+    if (!parentDef.acceptsChildren) {
+      errors.push(`"${parentDef.label}" does not accept children.`);
+    } else if (parentDef.allowedChildren) {
+      const allowed =
+        parentDef.allowedChildren.includes('*') ||
+        parentDef.allowedChildren.includes(childType) ||
+        parentDef.allowedChildren.includes(childDef.category);
+      if (!allowed) {
+        errors.push(`"${parentDef.label}" does not allow "${childDef.label}" as a child.`);
+      }
+    }
+
+    if (childDef.disallowedParents?.includes(parentType)) {
+      errors.push(`"${childDef.label}" is not allowed inside "${parentDef.label}".`);
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
   validateNode(node: Node, parentType?: string): { valid: boolean; errors: string[] } {
     const def = this.get(node.type);
     const errors: string[] = [];
