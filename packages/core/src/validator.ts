@@ -319,11 +319,13 @@ function validateNodeRecursive(
 
         const childRecord = child as Record<string, unknown>;
         const childType = typeof childRecord.type === 'string' ? childRecord.type : '';
+        const childIsKnown = !options.componentRegistry || options.componentRegistry.has(childType);
         const childCategory = options.componentRegistry?.get(childType)?.category;
 
         if (
           componentDef?.allowedChildren &&
           childType &&
+          childIsKnown &&
           !componentDef.allowedChildren.includes(childType) &&
           !componentDef.allowedChildren.includes('*') &&
           !(childCategory && componentDef.allowedChildren.includes(childCategory))

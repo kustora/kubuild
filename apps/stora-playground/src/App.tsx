@@ -1,15 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { KubuildEditor } from '@kubuild/editor';
+import { KubuildEditor, ImportModal, downloadDocumentAsStora, downloadDocumentAsJson } from '@kubuild/editor';
 import { KubuildRenderer, PreviewViewportAdapter, ViewportDevice, createMinimalRenderContext } from '@kubuild/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { PageDocument, starterPageFixture } from '@kubuild/schema';
-import { Layout, Eye, Code2, Sparkles } from 'lucide-react';
+import { Layout, Eye, Code2, Sparkles, Download, Upload } from 'lucide-react';
 
 export function App() {
   const [doc, setDoc] = useState<PageDocument>(starterPageFixture);
   const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'json'>('editor');
   const [previewViewport, setPreviewViewport] = useState<ViewportDevice>('desktop');
+  const [isImportOpen, setIsImportOpen] = useState<boolean>(false);
   const registry = createDefaultComponentRegistry();
+
 
   // Minimal offline RenderContext injected by host without network dependency
   const renderContext = useMemo(
@@ -47,46 +49,94 @@ export function App() {
           </div>
         </div>
 
-        {/* View mode switcher */}
-        <div className="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-lg">
-          <button
-            type="button"
-            onClick={() => setActiveTab('editor')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
-              activeTab === 'editor'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Layout className="w-3.5 h-3.5" />
-            Visual Editor
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('preview')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
-              activeTab === 'preview'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            Live Preview
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('json')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
-              activeTab === 'json'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Code2 className="w-3.5 h-3.5" />
-            Document Tree
-          </button>
+        {/* Actions & View mode switcher */}
+        <div className="flex items-center gap-3">
+          {/* Quick Package Actions */}
+          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setIsImportOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
+              title="Import .stora package"
+            >
+              <Upload className="w-3.5 h-3.5 text-blue-400" />
+              Import
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await downloadDocumentAsStora(doc, undefined, { componentRegistry: registry });
+                } catch (e: unknown) {
+                  alert(e instanceof Error ? e.message : String(e));
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition"
+              title="Export .stora archive package"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export .stora
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadDocumentAsJson(doc)}
+              className="px-2.5 py-1 rounded text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
+              title="Export as JSON"
+            >
+              JSON
+            </button>
+          </div>
+
+          {/* View mode switcher */}
+          <div className="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setActiveTab('editor')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                activeTab === 'editor'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Layout className="w-3.5 h-3.5" />
+              Visual Editor
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('preview')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                activeTab === 'preview'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Live Preview
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('json')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                activeTab === 'json'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              Document Tree
+            </button>
+          </div>
         </div>
       </header>
+
+      <ImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onImport={(importedDoc) => {
+          setDoc(importedDoc);
+        }}
+        registry={registry}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden">
