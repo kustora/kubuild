@@ -67,3 +67,20 @@ export type RenderContext = Readonly<{
 }>;
 
 export type RuntimeContext = RenderContext;
+
+export type VariableValueType = 'string' | 'number' | 'boolean' | 'array' | 'object';
+
+/**
+ * Host-declared catalog entry describing a bindable variable and an editor/preview-only
+ * sample value. `sampleValue` must never be written into a `PageDocument` — it exists so
+ * the builder can preview bindings without persisting host data into the portable document.
+ */
+export interface VariableDefinition {
+  key: string;
+  label: string;
+  type: VariableValueType;
+  sampleValue: unknown;
+  description?: string;
+}
+
+export type VariableCatalog = VariableDefinition[];

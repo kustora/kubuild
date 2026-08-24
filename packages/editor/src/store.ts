@@ -16,6 +16,7 @@ import {
   deepClone,
   cloneTreeWithNewIds,
   collectNodeIdSet,
+  VariableCatalog,
 } from '@kubuild/core';
 import { ComponentRegistry } from '@kubuild/components';
 
@@ -90,8 +91,11 @@ export interface EditorState {
   canRedo: boolean;
   clipboard: Node | null;
   onChangeHandler: ((doc: PageDocument) => void) | null;
+  /** Host-declared bindable variables + editor/preview-only sample values (STORA-053). Never serialized to the document. */
+  variableCatalog: VariableCatalog;
 
   setDocument: (document: PageDocument) => void;
+  setVariableCatalog: (catalog: VariableCatalog) => void;
   setOnChangeHandler: (handler: ((doc: PageDocument) => void) | null) => void;
   dispatch: (executor: (doc: PageDocument) => CommandResult) => void;
   insertComponent: (type: string, registry: ComponentRegistry, parentId?: string) => InsertComponentResult;
@@ -149,6 +153,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   canRedo: false,
   clipboard: null,
   onChangeHandler: null,
+  variableCatalog: [],
+
+  setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
 
   setDocument: (document) => {
     historyManager = new DocumentHistoryManager(document);

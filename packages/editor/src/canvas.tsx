@@ -3,6 +3,7 @@ import { ComponentRegistry } from '@kubuild/components';
 import { KubuildRenderer } from '@kubuild/renderer';
 import {
   RuntimeContext,
+  Diagnostic,
   getNavigationTarget,
   NavigationDirection,
   findNodeById,
@@ -15,6 +16,7 @@ export interface EditorCanvasProps {
   registry: ComponentRegistry;
   context?: RuntimeContext;
   viewport: Viewport;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
 }
 
 interface Rect {
@@ -57,7 +59,7 @@ function rectFor(container: HTMLElement, nodeId: string | null): Rect | null {
   };
 }
 
-export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, viewport }) => {
+export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, viewport, onDiagnostic }) => {
   const { document, selectedNodeId, hoveredNodeId, selectNode, hoverNode } = useEditorStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
@@ -272,6 +274,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
         viewport={viewport}
         mode="editor"
         onNodeClick={(id: string) => selectNode(id)}
+        onDiagnostic={onDiagnostic}
       />
       {hoveredRect && hoveredNodeId !== selectedNodeId && (
         <div

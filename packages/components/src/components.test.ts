@@ -331,6 +331,12 @@ describe('STORA-022: Content Components (heading/text/image/button)', () => {
       expect(headingDefinition.validateProps?.({ text: 'Hi', level: 3 })).toBe(true);
     });
 
+    it('is valid with a variable binding for text (STORA-051: bindable props)', () => {
+      expect(headingDefinition.validateProps?.({ text: { type: 'variable', key: 'site.name' }, level: 2 })).toBe(
+        true,
+      );
+    });
+
     it('rejects empty text', () => {
       const result = headingDefinition.validateProps?.({ text: '' });
       expect(Array.isArray(result)).toBe(true);
@@ -348,6 +354,10 @@ describe('STORA-022: Content Components (heading/text/image/button)', () => {
       expect(textDefinition.validateProps?.({ content: 'Hello' })).toBe(true);
     });
 
+    it('is valid with a variable binding for content (STORA-051: bindable props)', () => {
+      expect(textDefinition.validateProps?.({ content: { type: 'variable', key: 'tagline' } })).toBe(true);
+    });
+
     it('rejects missing content', () => {
       expect(textDefinition.validateProps?.({})).toEqual(['Text requires a non-empty "content".']);
     });
@@ -361,6 +371,15 @@ describe('STORA-022: Content Components (heading/text/image/button)', () => {
     it('is valid with a valid asset reference and alt text (no src required)', () => {
       expect(
         imageDefinition.validateProps?.({ asset: { type: 'asset', assetId: 'a1' }, alt: 'An image' }),
+      ).toBe(true);
+    });
+
+    it('is valid with variable bindings for src and alt (STORA-051: bindable props)', () => {
+      expect(
+        imageDefinition.validateProps?.({
+          src: { type: 'variable', key: 'hero.src' },
+          alt: { type: 'variable', key: 'hero.alt' },
+        }),
       ).toBe(true);
     });
 
@@ -387,6 +406,16 @@ describe('STORA-022: Content Components (heading/text/image/button)', () => {
     it('is valid with a well-formed action', () => {
       expect(
         buttonDefinition.validateProps?.({ label: 'Go', action: { type: 'navigate', payload: { url: '/x' } } }),
+      ).toBe(true);
+    });
+
+    it('is valid with variable bindings for label/href/disabled (STORA-051: bindable props)', () => {
+      expect(
+        buttonDefinition.validateProps?.({
+          label: { type: 'variable', key: 'cta.label' },
+          href: { type: 'variable', key: 'cta.href' },
+          disabled: { type: 'variable', key: 'cta.disabled' },
+        }),
       ).toBe(true);
     });
 

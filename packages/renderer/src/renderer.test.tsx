@@ -503,3 +503,175 @@ describe('STORA-051: Centralized prop resolution & binding type diagnostics', ()
     expect(runtimeHtml).toContain('Parity Co');
   });
 });
+
+describe('STORA-052: Collection rendering', () => {
+  const registry = createDefaultComponentRegistry();
+
+  function renderCollection(
+    collectionProps: Record<string, unknown>,
+    context: RuntimeContext,
+  ): { html: string; diagnostics: unknown[] } {
+    const doc = createBlankDocument('Collection Test');
+    doc.document.children = [
+      {
+        id: 'collection-1',
+        type: 'collection',
+        props: collectionProps,
+        children: [
+          { id: 'item-name', type: 'text', props: { content: { type: 'variable', key: 'item.name' } } },
+          { id: 'item-price', type: 'text', props: { content: 'Price: {{ item.price }}' } },
+        ],
+      },
+    ];
+    const diagnostics: unknown[] = [];
+    const html = renderToString(
+      <KubuildRenderer
+        document={doc}
+        registry={registry}
+        context={context}
+        onDiagnostic={(d) => diagnostics.push(d)}
+      />,
+    );
+    return { html, diagnostics };
+  }
+
+  it('renders 3 subtrees in input order for a 3-item array', () => {
+    const { html, diagnostics } = renderCollection(
+      { sourceKey: 'products', itemAlias: 'item' },
+      {
+        variables: {
+          products: [
+            { name: 'Alpha', price: 10 },
+            { name: 'Beta', price: 20 },
+            { name: 'Gamma', price: 30 },
+          ],
+        },
+      },
+    );
+
+    expect(diagnostics).toEqual([]);
+    const alphaIndex = html.indexOf('Alpha');
+    const betaIndex = html.indexOf('Beta');
+    const gammaIndex = html.indexOf('Gamma');
+    expect(alphaIndex).toBeGreaterThan(-1);
+    expect(betaIndex).toBeGreaterThan(alphaIndex);
+    expect(gammaIndex).toBeGreaterThan(betaIndex);
+    expect(html).toContain('10');
+    expect(html).toContain('20');
+    expect(html).toContain('30');
+  });
+
+  it('produces unique DOM ids per iteration while sharing the same template data-kubuild-node', () => {
+    const { html } = renderCollection(
+      { sourceKey: 'products', itemAlias: 'item' },
+      { variables: { products: [{ name: 'A', price: 1 }, { name: 'B', price: 2 }, { name: 'C', price: 3 }] } },
+    );
+
+    const idMatches = html.match(/id="item-name[^"]*"/g) ?? [];
+    expect(new Set(idMatches).size).toBe(idMatches.length);
+    expect(idMatches.length).toBe(3);
+
+    const templateRefs = html.match(/data-kubuild-node="item-name"/g) ?? [];
+    expect(templateRefs.length).toBe(3);
+  });
+
+  it('resolves item.* bindings only within the collection scope, not for outside siblings', () => {
+    const doc = createBlankDocument('Scope Leak Test');
+    doc.document.children = [
+      {
+        id: 'collection-1',
+        type: 'collection',
+        props: { sourceKey: 'products', itemAlias: 'item' },
+        children: [{ id: 'item-name', type: 'text', props: { content: { type: 'variable', key: 'item.name' } } }],
+      },
+      {
+        id: 'outside-text',
+        type: 'text',
+        props: { content: { type: 'variable', key: 'item.name', fallback: 'NO_LEAK' } },
+      },
+    ];
+    const html = renderToString(
+      <KubuildRenderer
+        document={doc}
+        registry={registry}
+        context={{ variables: { products: [{ name: 'Alpha' }] } }}
+      />,
+    );
+
+    expect(html).toContain('Alpha');
+    expect(html).toContain('NO_LEAK');
+  });
+
+  it('renders zero subtrees for an empty array without a diagnostic', () => {
+    const { html, diagnostics } = renderCollection(
+      { sourceKey: 'products', itemAlias: 'item' },
+      { variables: { products: [] } },
+    );
+    expect(diagnostics).toEqual([]);
+    expect(html).not.toContain('id="item-name');
+  });
+
+  it.each([
+    ['a string', 'not-an-array'],
+    ['an object', { not: 'an array' }],
+    ['missing', undefined],
+  ])('emits INVALID_COLLECTION_SOURCE and renders no throw when sourceKey resolves to %s', (_label, value) => {
+    const { diagnostics } = renderCollection(
+      { sourceKey: 'products', itemAlias: 'item' },
+      { variables: value === undefined ? {} : { products: value } },
+    );
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({ code: 'INVALID_COLLECTION_SOURCE', nodeId: 'collection-1' });
+  });
+
+  it('shows an editor-mode diagnostic placeholder and a silent runtime-mode fallback for an invalid source', () => {
+    const doc = createBlankDocument('Invalid Source Test');
+    doc.document.children = [
+      { id: 'collection-1', type: 'collection', props: { sourceKey: 'products', itemAlias: 'item' }, children: [] },
+    ];
+    const context: RuntimeContext = { variables: { products: 'not-an-array' } };
+
+    const editorHtml = renderToString(
+      <KubuildRenderer document={doc} registry={registry} context={context} mode="editor" />,
+    );
+    const runtimeHtml = renderToString(
+      <KubuildRenderer document={doc} registry={registry} context={context} mode="runtime" />,
+    );
+
+    expect(editorHtml).toContain('Collection: expected an array');
+    expect(runtimeHtml).not.toContain('Collection: expected an array');
+    expect(runtimeHtml).toContain('data-kubuild-node="collection-1"');
+  });
+
+  it('supports a nested collection with a distinct inner itemAlias without corrupting the outer scope', () => {
+    const doc = createBlankDocument('Nested Collection Test');
+    doc.document.children = [
+      {
+        id: 'outer',
+        type: 'collection',
+        props: { sourceKey: 'categories', itemAlias: 'category' },
+        children: [
+          { id: 'category-name', type: 'text', props: { content: { type: 'variable', key: 'category.label' } } },
+          {
+            id: 'inner',
+            type: 'collection',
+            props: { sourceKey: 'category.products', itemAlias: 'product' },
+            children: [
+              { id: 'product-name', type: 'text', props: { content: { type: 'variable', key: 'product.name' } } },
+            ],
+          },
+        ],
+      },
+    ];
+    const context: RuntimeContext = {
+      variables: {
+        categories: [{ label: 'Fruits', products: [{ name: 'Apple' }, { name: 'Pear' }] }],
+      },
+    };
+
+    const html = renderToString(<KubuildRenderer document={doc} registry={registry} context={context} />);
+    expect(html).toContain('Fruits');
+    expect(html).toContain('Apple');
+    expect(html).toContain('Pear');
+  });
+});

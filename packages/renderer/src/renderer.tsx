@@ -254,6 +254,81 @@ export function NodeRenderer({
           </button>
         );
       }
+      case 'collection': {
+        const sourceKey = typeof props.sourceKey === 'string' ? props.sourceKey : undefined;
+        const itemAlias =
+          typeof props.itemAlias === 'string' && props.itemAlias.length > 0 ? props.itemAlias : 'item';
+        const indexKey = `${itemAlias}Index`;
+        const sourceValue = sourceKey ? resolveBinding({ key: sourceKey }, context).value : undefined;
+
+        if (!Array.isArray(sourceValue)) {
+          const collectionDiagnostic: Diagnostic = {
+            code: 'INVALID_COLLECTION_SOURCE',
+            nodeId: node.id,
+            propName: 'sourceKey',
+            message: `Collection node "${node.id}" expected an array at variable path "${
+              sourceKey ?? '(missing sourceKey)'
+            }" but found ${sourceValue === undefined ? 'nothing' : typeof sourceValue}.`,
+          };
+          onDiagnostic?.(collectionDiagnostic);
+          context?.onDiagnostic?.(collectionDiagnostic);
+
+          if (mode === 'editor') {
+            return (
+              <div
+                id={domId}
+                data-kubuild-node={node.id}
+                data-kubuild-collection-invalid={node.type}
+                style={{
+                  ...styles,
+                  border: '2px dashed #f59e0b',
+                  backgroundColor: '#fffbeb',
+                  color: '#92400e',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                }}
+                onClick={handleClick}
+              >
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>
+                  📦 Collection: expected an array at <code>{sourceKey ?? '(missing sourceKey)'}</code>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div id={domId} data-kubuild-node={node.id} style={styles} onClick={handleClick} aria-hidden="true" />
+          );
+        }
+
+        return (
+          <div id={domId} data-kubuild-node={node.id} style={styles} onClick={handleClick}>
+            {sourceValue.map((item, index) => {
+              const childContext: RenderContext = {
+                ...context,
+                variables: { ...(context?.variables ?? {}), [itemAlias]: item, [indexKey]: index },
+              };
+              const itemSuffix = `${instanceSuffix}--${index}`;
+              return node.children?.map((child: Node) => (
+                <NodeRenderer
+                  key={`${child.id}${itemSuffix}`}
+                  node={child}
+                  document={document}
+                  registry={registry}
+                  context={childContext}
+                  viewport={viewport}
+                  mode={mode}
+                  onNodeClick={onNodeClick}
+                  onDiagnostic={onDiagnostic}
+                  onActionDispatch={onActionDispatch}
+                  instanceSuffix={itemSuffix}
+                />
+              ));
+            })}
+          </div>
+        );
+      }
       default:
         // Unknown component handling
         if (mode === 'editor') {

@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
-import { RuntimeContext } from '@kubuild/core';
+import { RuntimeContext, VariableCatalog, Diagnostic, buildSampleVariablesFromCatalog } from '@kubuild/core';
 import { useEditorStore, Viewport } from './store';
 import { EditorCanvas } from './canvas';
 import { ComponentPanel } from './component-panel';
@@ -13,7 +13,10 @@ export interface KubuildEditorProps {
   initialDocument?: PageDocument;
   registry?: ComponentRegistry;
   context?: RuntimeContext;
+  /** Host-declared bindable variables + preview-only sample values (STORA-053). Never written to the document. */
+  variableCatalog?: VariableCatalog;
   onChange?: (doc: PageDocument) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
   className?: string;
 }
 
@@ -21,10 +24,12 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   initialDocument,
   registry = createDefaultComponentRegistry(),
   context,
+  variableCatalog,
   onChange,
+  onDiagnostic,
   className,
 }) => {
-  const { document, setDocument, setOnChangeHandler, viewport, setViewport, selectedNodeId } =
+  const { document, setDocument, setOnChangeHandler, setVariableCatalog, viewport, setViewport, selectedNodeId } =
     useEditorStore();
 
   useEffect(() => {
@@ -36,6 +41,24 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   useEffect(() => {
     setOnChangeHandler(onChange ?? null);
   }, [onChange, setOnChangeHandler]);
+
+  useEffect(() => {
+    setVariableCatalog(variableCatalog ?? []);
+  }, [variableCatalog, setVariableCatalog]);
+
+  const sampleVariables = useMemo(
+    () => buildSampleVariablesFromCatalog(variableCatalog),
+    [variableCatalog],
+  );
+
+  // Host-supplied context.variables wins on key conflicts — the catalog only fills gaps
+  // so the canvas can preview bindings without the host needing to wire live data itself.
+  const previewContext = useMemo<RuntimeContext | undefined>(() => {
+    if (Object.keys(sampleVariables).length === 0) {
+      return context;
+    }
+    return { ...context, variables: { ...sampleVariables, ...(context?.variables ?? {}) } };
+  }, [context, sampleVariables]);
 
   const viewportWidthMap: Record<Viewport, string> = {
     desktop: 'w-full max-w-6xl',
@@ -93,7 +116,12 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           <div
             className={`${viewportWidthMap[viewport]} bg-white shadow-md rounded-lg overflow-hidden transition-all duration-200 min-h-[600px] border border-slate-200`}
           >
-            <EditorCanvas registry={registry} context={context} viewport={viewport} />
+            <EditorCanvas
+              registry={registry}
+              context={previewContext}
+              viewport={viewport}
+              onDiagnostic={onDiagnostic}
+            />
           </div>
         </div>
 

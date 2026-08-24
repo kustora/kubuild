@@ -664,4 +664,38 @@ describe('Editor Store', () => {
       expect(useEditorStore.getState().selectedNodeId).toBeNull();
     });
   });
+
+  describe('STORA-053: variableCatalog (ephemeral UI state)', () => {
+    it('defaults to an empty catalog', () => {
+      expect(useEditorStore.getState().variableCatalog).toEqual([]);
+    });
+
+    it('setVariableCatalog replaces the catalog', () => {
+      useEditorStore.getState().setVariableCatalog([
+        { key: 'site.name', label: 'Site Name', type: 'string', sampleValue: 'My Website' },
+      ]);
+      expect(useEditorStore.getState().variableCatalog).toEqual([
+        { key: 'site.name', label: 'Site Name', type: 'string', sampleValue: 'My Website' },
+      ]);
+
+      useEditorStore.getState().setVariableCatalog([]);
+      expect(useEditorStore.getState().variableCatalog).toEqual([]);
+    });
+
+    it('binding a field to a catalog variable never writes sampleValue into the document', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      useEditorStore.getState().setVariableCatalog([
+        { key: 'site.name', label: 'Site Name', type: 'string', sampleValue: 'Secret Sample Value' },
+      ]);
+      const registry = createDefaultComponentRegistry();
+
+      useEditorStore
+        .getState()
+        .updateNodeProps('child-node', { text: { type: 'variable', key: 'site.name' } }, registry);
+
+      const serialized = JSON.stringify(useEditorStore.getState().document);
+      expect(serialized).not.toContain('Secret Sample Value');
+      expect(serialized).toContain('"key":"site.name"');
+    });
+  });
 });

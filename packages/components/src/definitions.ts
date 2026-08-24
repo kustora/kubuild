@@ -1,4 +1,4 @@
-import { isActionBinding, isAssetReference } from '@kubuild/schema';
+import { isActionBinding, isAssetReference, isVariableBinding } from '@kubuild/schema';
 import { ComponentDefinition, ComponentRegistry } from './registry';
 
 /**
@@ -115,7 +115,7 @@ export const headingDefinition: ComponentDefinition = {
   ],
   validateProps: (props) => {
     const errors: string[] = [];
-    if (typeof props.text !== 'string' || props.text.trim().length === 0) {
+    if (!isVariableBinding(props.text) && (typeof props.text !== 'string' || props.text.trim().length === 0)) {
       errors.push('Heading requires a non-empty "text".');
     }
     if (props.level !== undefined && (typeof props.level !== 'number' || props.level < 1 || props.level > 6)) {
@@ -143,7 +143,7 @@ export const textDefinition: ComponentDefinition = {
     { name: 'content', label: 'Content', type: 'string', defaultValue: 'Lorem ipsum dolor sit amet.' },
   ],
   validateProps: (props) => {
-    if (typeof props.content !== 'string' || props.content.trim().length === 0) {
+    if (!isVariableBinding(props.content) && (typeof props.content !== 'string' || props.content.trim().length === 0)) {
       return ['Text requires a non-empty "content".'];
     }
     return true;
@@ -178,12 +178,13 @@ export const imageDefinition: ComponentDefinition = {
   ],
   validateProps: (props) => {
     const errors: string[] = [];
-    const hasSrc = typeof props.src === 'string' && props.src.trim().length > 0;
+    const hasSrc = (typeof props.src === 'string' && props.src.trim().length > 0) || isVariableBinding(props.src);
     const hasAsset = isAssetReference(props.asset);
     if (!hasSrc && !hasAsset) {
       errors.push('Image requires either a non-empty "src" URL or a valid "asset" reference.');
     }
-    if (typeof props.alt !== 'string' || props.alt.trim().length === 0) {
+    const hasAlt = (typeof props.alt === 'string' && props.alt.trim().length > 0) || isVariableBinding(props.alt);
+    if (!hasAlt) {
       errors.push('Image requires non-empty "alt" text.');
     }
     return errors.length > 0 ? errors : true;
@@ -225,16 +226,18 @@ export const buttonDefinition: ComponentDefinition = {
   ],
   validateProps: (props) => {
     const errors: string[] = [];
-    if (typeof props.label !== 'string' || props.label.trim().length === 0) {
+    const hasLabel =
+      (typeof props.label === 'string' && props.label.trim().length > 0) || isVariableBinding(props.label);
+    if (!hasLabel) {
       errors.push('Button requires a non-empty "label".');
     }
-    if (props.href !== undefined && typeof props.href !== 'string') {
+    if (props.href !== undefined && typeof props.href !== 'string' && !isVariableBinding(props.href)) {
       errors.push('Button "href" must be a string when provided.');
     }
     if (props.action !== undefined && !isActionBinding(props.action)) {
       errors.push('Button "action" must be a valid action binding when provided.');
     }
-    if (props.disabled !== undefined && typeof props.disabled !== 'boolean') {
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
       errors.push('Button "disabled" must be a boolean when provided.');
     }
     return errors.length > 0 ? errors : true;
@@ -265,6 +268,10 @@ export const collectionDefinition: ComponentDefinition = {
     sourceKey: 'items',
     itemAlias: 'item',
   },
+  propFields: [
+    { name: 'sourceKey', label: 'Source Variable', type: 'string', defaultValue: 'items' },
+    { name: 'itemAlias', label: 'Item Alias', type: 'string', defaultValue: 'item' },
+  ],
 };
 
 export const coreComponentDefinitions: ComponentDefinition[] = [

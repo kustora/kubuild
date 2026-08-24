@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ComponentRegistry, ComponentFieldDefinition } from '@kubuild/components';
+import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
 import { findNodeById } from '@kubuild/core';
+import { isVariableBinding } from '@kubuild/schema';
 import { useEditorStore, Viewport } from './store';
+import { VariableBindingControl, toBindingValue } from './variable-picker';
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
@@ -35,7 +37,8 @@ function ErrorText({ message }: { message: string | null | undefined }) {
 }
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, className }) => {
-  const { document, selectedNodeId, viewport, updateNodeProps, updateNodeStyle } = useEditorStore();
+  const { document, selectedNodeId, viewport, updateNodeProps, updateNodeStyle, variableCatalog } =
+    useEditorStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
 
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
@@ -157,13 +160,26 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
           {definition.label} Props
         </div>
         <div className="flex flex-col gap-3">
-          {(definition.propFields ?? []).map((field) => (
-            <div key={field.name}>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{field.label}</label>
-              {renderPropControl(field)}
-              <ErrorText message={fieldErrors[`prop:${field.name}`]} />
-            </div>
-          ))}
+          {(definition.propFields ?? []).map((field) => {
+            const currentValue = node.props?.[field.name];
+            const bound = isVariableBinding(currentValue);
+            return (
+              <div key={field.name}>
+                <label className="block text-xs font-medium text-slate-600 mb-1">{field.label}</label>
+                {!bound && renderPropControl(field)}
+                {isBindableField(field) && (
+                  <VariableBindingControl
+                    field={field}
+                    currentValue={currentValue}
+                    catalog={variableCatalog}
+                    onBind={(key) => commitProp(field, toBindingValue(key))}
+                    onRevert={() => commitProp(field, field.defaultValue ?? '')}
+                  />
+                )}
+                <ErrorText message={fieldErrors[`prop:${field.name}`]} />
+              </div>
+            );
+          })}
         </div>
       </div>
 
