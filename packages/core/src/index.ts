@@ -8,4 +8,5 @@ export * from './command-tree-utils';
 export * from './history';
 export * from './migration';
 export * from './exporter';
+export * from './importer';
 

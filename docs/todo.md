@@ -579,7 +579,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan importer `.stora` dengan preflight validation
 - **Description:** Baca archive tanpa menjalankan code, cek size/path safety, manifest, checksum, schema version, component/capability requirements, lalu extract document/assets ke adapter host.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-060, STORA-011, STORA-014, STORA-015
 - **Acceptance Criteria:**
   - Import menolak archive tanpa manifest/page, checksum mismatch, zip-slip path, atau size limit terlewati.
