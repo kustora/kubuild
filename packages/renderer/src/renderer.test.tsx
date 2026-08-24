@@ -383,3 +383,123 @@ describe('STORA-031: RenderContext resolution', () => {
     expect(JSON.stringify(doc.document.children![0])).toBe(before);
   });
 });
+
+describe('STORA-051: Centralized prop resolution & binding type diagnostics', () => {
+  const registry = createDefaultComponentRegistry();
+
+  function renderWithDiagnostics(
+    node: Node,
+    context?: RuntimeContext,
+  ): { html: string; diagnostics: unknown[] } {
+    const doc = createBlankDocument('Binding Test');
+    doc.document.children = [node];
+    const diagnostics: unknown[] = [];
+    const html = renderToString(
+      <KubuildRenderer
+        document={doc}
+        registry={registry}
+        context={context}
+        onDiagnostic={(d) => diagnostics.push(d)}
+      />,
+    );
+    return { html, diagnostics };
+  }
+
+  it('resolves a compatible binding for heading.text', () => {
+    const { html, diagnostics } = renderWithDiagnostics(
+      { id: 'h1', type: 'heading', props: { text: { type: 'variable', key: 'site.name' } } },
+      { variables: { site: { name: 'My Website' } } },
+    );
+    expect(html).toContain('My Website');
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('resolves a compatible binding for text.content', () => {
+    const { html, diagnostics } = renderWithDiagnostics(
+      { id: 't1', type: 'text', props: { content: { type: 'variable', key: 'tagline' } } },
+      { variables: { tagline: 'Build once, render anywhere' } },
+    );
+    expect(html).toContain('Build once, render anywhere');
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('resolves compatible bindings for image.src and image.alt', () => {
+    const { html, diagnostics } = renderWithDiagnostics(
+      {
+        id: 'img-1',
+        type: 'image',
+        props: {
+          src: { type: 'variable', key: 'hero.src' },
+          alt: { type: 'variable', key: 'hero.alt' },
+        },
+      },
+      { variables: { hero: { src: 'https://example.com/hero.png', alt: 'Hero shot' } } },
+    );
+    expect(html).toContain('src="https://example.com/hero.png"');
+    expect(html).toContain('alt="Hero shot"');
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('resolves a compatible binding for button.label', () => {
+    const { html, diagnostics } = renderWithDiagnostics(
+      { id: 'btn-1', type: 'button', props: { label: { type: 'variable', key: 'cta.label' } } },
+      { variables: { cta: { label: 'Buy Now' } } },
+    );
+    expect(html).toContain('Buy Now');
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('emits an INCOMPATIBLE_BINDING_TYPE diagnostic and falls back safely when a string prop resolves to an object', () => {
+    const { html, diagnostics } = renderWithDiagnostics(
+      { id: 'img-2', type: 'image', props: { src: { type: 'variable', key: 'bad.src' }, alt: 'ok' } },
+      { variables: { bad: { src: { nested: 'object' } } } },
+    );
+    expect(html).not.toContain('[object Object]');
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({
+      code: 'INCOMPATIBLE_BINDING_TYPE',
+      propName: 'src',
+      expectedType: 'string',
+      actualType: 'object',
+      nodeId: 'img-2',
+    });
+  });
+
+  it('does not throw and falls back safely when a number prop resolves to a non-number', () => {
+    const { html, diagnostics } = renderWithDiagnostics(
+      { id: 'img-3', type: 'image', props: { alt: 'ok', width: { type: 'variable', key: 'bad.width' } } },
+      { variables: { bad: { width: 'not-a-number' } } },
+    );
+    expect(html).toContain('alt="ok"');
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({ code: 'INCOMPATIBLE_BINDING_TYPE', propName: 'width' });
+  });
+
+  it('leaves static (non-binding) values untouched', () => {
+    const { html, diagnostics } = renderWithDiagnostics({
+      id: 'h2',
+      type: 'heading',
+      props: { text: 'Plain Static Text' },
+    });
+    expect(html).toContain('Plain Static Text');
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('resolves identically in editor mode and runtime mode (preview/runtime share the same resolver)', () => {
+    const doc = createBlankDocument('Mode Parity Test');
+    doc.document.children = [
+      { id: 'h3', type: 'heading', props: { text: { type: 'variable', key: 'site.name' } } },
+    ];
+    const context: RuntimeContext = { variables: { site: { name: 'Parity Co' } } };
+
+    const editorHtml = renderToString(
+      <KubuildRenderer document={doc} registry={registry} context={context} mode="editor" />,
+    );
+    const runtimeHtml = renderToString(
+      <KubuildRenderer document={doc} registry={registry} context={context} mode="runtime" />,
+    );
+
+    expect(editorHtml).toContain('Parity Co');
+    expect(runtimeHtml).toContain('Parity Co');
+  });
+});

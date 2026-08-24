@@ -41,11 +41,29 @@ export interface ActionDiagnostic {
   error?: unknown;
 }
 
+export interface PropBindingDiagnostic {
+  code: 'INCOMPATIBLE_BINDING_TYPE';
+  nodeId?: string;
+  propName: string;
+  expectedType: string;
+  actualType: string;
+  message: string;
+}
+
+export interface CollectionDiagnostic {
+  code: 'INVALID_COLLECTION_SOURCE';
+  nodeId?: string;
+  propName: string;
+  message: string;
+}
+
+export type Diagnostic = ActionDiagnostic | PropBindingDiagnostic | CollectionDiagnostic;
+
 export type RenderContext = Readonly<{
   variables?: Readonly<Record<string, unknown>>;
   assetProvider?: AssetProvider;
   actionRegistry?: ActionRegistry;
-  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
 }>;
 
 export type RuntimeContext = RenderContext;

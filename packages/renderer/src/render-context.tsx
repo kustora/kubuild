@@ -6,12 +6,13 @@ import type {
   ActionHandler,
   ActionExecutionContext,
   ActionDiagnostic,
+  Diagnostic,
   RenderContext,
   RuntimeContext,
 } from '@kubuild/core';
 import { isVariableBinding, isActionBinding, ActionBinding, PageDocument } from '@kubuild/schema';
 
-export type { RenderContext, RuntimeContext, ActionDiagnostic };
+export type { RenderContext, RuntimeContext, ActionDiagnostic, Diagnostic };
 
 /**
  * Empty default frozen context
@@ -31,7 +32,7 @@ export function createRenderContext(options?: {
   variables?: Record<string, unknown>;
   assetProvider?: AssetProvider;
   actionRegistry?: ActionRegistry;
-  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
 }): RenderContext {
   if (!options) {
     return DEFAULT_RENDER_CONTEXT;
@@ -55,7 +56,7 @@ export function createMinimalRenderContext(options?: {
   variables?: Record<string, unknown>;
   assets?: Record<string, string>;
   actions?: Record<string, ActionHandler>;
-  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
 }): RenderContext {
   const assetsMap = new Map<string, string>(Object.entries(options?.assets ?? {}));
   const actionsMap = new Map<string, ActionHandler>(Object.entries(options?.actions ?? {}));
@@ -211,7 +212,7 @@ export interface DispatchActionOptions {
   nodeId?: string;
   document: PageDocument;
   context?: RenderContext;
-  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
   [key: string]: unknown;
 }
 

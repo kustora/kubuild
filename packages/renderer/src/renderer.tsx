@@ -6,14 +6,15 @@ import {
   DEFAULT_RENDER_CONTEXT,
   RenderContextProvider,
   resolveAssetSync,
-  resolveVariable,
   resolveActionPayload,
   isActionRegistered,
   dispatchAction,
-  ActionDiagnostic,
+  Diagnostic,
 } from './render-context';
+import { resolveBinding } from '@kubuild/core';
 import { resolveNodeStyles } from './styles';
 import { ComponentErrorBoundary } from './error-boundary';
+import { resolvePropsForNode } from './prop-resolution';
 
 export interface KubuildRendererProps {
   document: PageDocument;
@@ -23,7 +24,7 @@ export interface KubuildRendererProps {
   mode?: 'editor' | 'runtime';
   className?: string;
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
-  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
 }
 
@@ -35,8 +36,14 @@ export interface NodeRendererProps {
   viewport?: 'desktop' | 'tablet' | 'mobile';
   mode?: 'editor' | 'runtime';
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
-  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
+  /**
+   * Suffix appended to the HTML `id` attribute (never to `data-kubuild-node`, the
+   * canonical template-node reference) so a `collection` node's repeated child
+   * template produces unique DOM ids per iteration instead of duplicates.
+   */
+  instanceSuffix?: string;
 }
 
 export function NodeRenderer({
@@ -49,10 +56,18 @@ export function NodeRenderer({
   onNodeClick,
   onDiagnostic,
   onActionDispatch,
+  instanceSuffix = '',
 }: NodeRendererProps): React.ReactElement {
   const context = propContext || DEFAULT_RENDER_CONTEXT;
   const styles = resolveNodeStyles(node.styles, viewport);
   const props = node.props || {};
+  const definition = registry.get(node.type);
+  const domId = instanceSuffix ? `${node.id}${instanceSuffix}` : node.id;
+  const { props: resolvedProps, diagnostics } = resolvePropsForNode(node, definition, context);
+  diagnostics.forEach((diagnostic) => {
+    onDiagnostic?.(diagnostic);
+    context?.onDiagnostic?.(diagnostic);
+  });
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -75,7 +90,7 @@ export function NodeRenderer({
 
   const childrenElements = node.children?.map((child: Node) => (
     <NodeRenderer
-      key={child.id}
+      key={`${child.id}${instanceSuffix}`}
       node={child}
       document={document}
       registry={registry}
@@ -85,12 +100,12 @@ export function NodeRenderer({
       onNodeClick={onNodeClick}
       onDiagnostic={onDiagnostic}
       onActionDispatch={onActionDispatch}
+      instanceSuffix={instanceSuffix}
     />
   ));
 
   const renderNodeContent = (): React.ReactElement => {
     // Check if custom component renderer is registered in ComponentRegistry
-    const definition = registry.get(node.type);
     if (definition?.renderer && typeof definition.renderer === 'function') {
       const CustomRenderer = definition.renderer as React.ComponentType<{
         node: Node;
@@ -107,7 +122,7 @@ export function NodeRenderer({
           return (CustomRenderer as (p: unknown) => React.ReactElement)({
             node,
             document,
-            props,
+            props: resolvedProps,
             styles,
             context,
             children: childrenElements,
@@ -122,7 +137,7 @@ export function NodeRenderer({
         <CustomRenderer
           node={node}
           document={document}
-          props={props}
+          props={resolvedProps}
           styles={styles}
           context={context}
           onClick={handleClick}
@@ -135,67 +150,64 @@ export function NodeRenderer({
     switch (node.type) {
       case 'page':
         return (
-          <div id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <div id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
             {childrenElements}
           </div>
         );
       case 'section':
         return (
-          <section id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <section id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
             {childrenElements}
           </section>
         );
       case 'container':
         return (
-          <div id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <div id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
             {childrenElements}
           </div>
         );
       case 'columns':
         return (
-          <div id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <div id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
             {childrenElements}
           </div>
         );
       case 'heading': {
         const level = (props.level as number) || 2;
-        const rawText = (props.text as string) || '';
-        const text = String(resolveVariable(context, rawText) ?? '');
+        const text = String(resolvedProps.text ?? '');
         const Tag = `h${Math.min(Math.max(level, 1), 6)}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
         return (
-          <Tag id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <Tag id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
             {text}
           </Tag>
         );
       }
       case 'text': {
-        const rawContent = (props.content as string) || '';
-        const content = String(resolveVariable(context, rawContent) ?? '');
+        const content = String(resolvedProps.content ?? '');
         return (
-          <p id={node.id} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <p id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
             {content}
           </p>
         );
       }
       case 'image': {
-        const rawSrc = typeof props.src === 'string' && props.src.length > 0 ? props.src : undefined;
-        const directSrc = rawSrc ? String(resolveVariable(context, rawSrc) ?? '') : undefined;
+        const rawSrc = typeof resolvedProps.src === 'string' && resolvedProps.src.length > 0 ? resolvedProps.src : undefined;
+        const directSrc = rawSrc ?? undefined;
         const asset = isAssetReference(props.asset) ? props.asset : undefined;
         const resolvedSrc =
           !directSrc && asset && context?.assetProvider
             ? resolveAssetSync(context.assetProvider, asset.assetId)
             : undefined;
         const fallbackSrc = asset?.fallbackUrl;
-        const rawAlt = (props.alt as string) || '';
-        const alt = String(resolveVariable(context, rawAlt) ?? '');
+        const alt = String(resolvedProps.alt ?? '');
 
         return (
           <img
-            id={node.id}
+            id={domId}
             src={directSrc || resolvedSrc || fallbackSrc || undefined}
             alt={alt}
-            width={props.width as number}
-            height={props.height as number}
+            width={resolvedProps.width as number}
+            height={resolvedProps.height as number}
             style={styles}
             onClick={handleClick}
             data-kubuild-node={node.id}
@@ -203,11 +215,10 @@ export function NodeRenderer({
         );
       }
       case 'button': {
-        const rawLabel = (props.label as string) || 'Button';
-        const label = String(resolveVariable(context, rawLabel) ?? 'Button');
-        const disabled = props.disabled === true;
-        const rawHref = typeof props.href === 'string' ? props.href : undefined;
-        const href = rawHref ? String(resolveVariable(context, rawHref) ?? '') : undefined;
+        const label = String(resolvedProps.label ?? 'Button');
+        const disabled = resolvedProps.disabled === true;
+        const rawHref = typeof resolvedProps.href === 'string' ? resolvedProps.href : undefined;
+        const href = rawHref ?? undefined;
         const action = isActionBinding(props.action) ? props.action : undefined;
         const actionResolved = action ? isActionRegistered(context?.actionRegistry, action.type) : undefined;
         const actionAttrs = action
@@ -217,7 +228,7 @@ export function NodeRenderer({
         if (href && !disabled) {
           return (
             <a
-              id={node.id}
+              id={domId}
               href={href}
               style={styles}
               onClick={handleClick}
@@ -231,7 +242,7 @@ export function NodeRenderer({
 
         return (
           <button
-            id={node.id}
+            id={domId}
             type="button"
             disabled={disabled}
             style={styles}
@@ -248,7 +259,7 @@ export function NodeRenderer({
         if (mode === 'editor') {
           return (
             <div
-              id={node.id}
+              id={domId}
               data-kubuild-node={node.id}
               data-kubuild-unknown={node.type}
               style={{
@@ -276,7 +287,7 @@ export function NodeRenderer({
         // Safe fallback in runtime mode
         return (
           <div
-            id={node.id}
+            id={domId}
             data-kubuild-node={node.id}
             data-kubuild-unknown={node.type}
             style={styles}

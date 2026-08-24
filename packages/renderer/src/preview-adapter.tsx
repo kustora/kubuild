@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
-import { RenderContext, ActionDiagnostic } from './render-context';
+import { RenderContext, Diagnostic } from './render-context';
 import { KubuildRenderer } from './renderer';
 
 /**
@@ -183,7 +183,7 @@ export interface PreviewViewportAdapterProps {
   /** Optional click handler for canvas nodes */
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
   /** Optional diagnostic handler for action or render issues */
-  onDiagnostic?: (diagnostic: ActionDiagnostic) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
   /** Optional action dispatch handler */
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
 }

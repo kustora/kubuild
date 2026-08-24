@@ -11,6 +11,9 @@ import {
   imageDefinition,
   buttonDefinition,
   extractComponentRequirements,
+  primitiveTypeForField,
+  isBindableField,
+  ComponentFieldDefinition,
 } from './index';
 import { validateDocument, createBlankDocument, insertNode } from '@kubuild/core';
 import { ResponsiveStylesSchema, ManifestSchema } from '@kubuild/schema';
@@ -411,6 +414,37 @@ describe('STORA-022: Content Components (heading/text/image/button)', () => {
     const result = registry.validateNode(invalidHeading);
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('non-empty "text"');
+  });
+});
+
+describe('STORA-051: prop-types bindability mapping', () => {
+  const field = (type: ComponentFieldDefinition['type']): ComponentFieldDefinition => ({
+    name: 'x',
+    label: 'X',
+    type,
+  });
+
+  it.each([
+    ['string', 'string'],
+    ['color', 'string'],
+    ['number', 'number'],
+    ['boolean', 'boolean'],
+  ] as const)('maps field type "%s" to primitive type "%s"', (fieldType, expected) => {
+    expect(primitiveTypeForField(field(fieldType))).toBe(expected);
+  });
+
+  it.each(['select', 'image', 'action', 'json'] as const)(
+    'field type "%s" is not bindable',
+    (fieldType) => {
+      expect(primitiveTypeForField(field(fieldType))).toBeUndefined();
+      expect(isBindableField(field(fieldType))).toBe(false);
+    },
+  );
+
+  it('isBindableField is true for string/number/boolean fields', () => {
+    expect(isBindableField(field('string'))).toBe(true);
+    expect(isBindableField(field('number'))).toBe(true);
+    expect(isBindableField(field('boolean'))).toBe(true);
   });
 });
 

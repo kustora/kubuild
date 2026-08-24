@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { createBlankDocument } from '@kubuild/core';
-import type { ActionHandler, ActionDiagnostic } from '@kubuild/core';
+import type { ActionHandler, Diagnostic } from '@kubuild/core';
 import {
   NodeRenderer,
   createMinimalRenderContext,
@@ -121,8 +121,8 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
       };
       doc.document.children = [targetNode];
 
-      const diagnostics: ActionDiagnostic[] = [];
-      const onDiagnostic = vi.fn((diag: ActionDiagnostic) => {
+      const diagnostics: Diagnostic[] = [];
+      const onDiagnostic = vi.fn((diag: Diagnostic) => {
         diagnostics.push(diag);
       });
 
@@ -149,8 +149,8 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
 
     it('emits INVALID_ACTION_PAYLOAD diagnostic when action structure is invalid', () => {
       const doc = createBlankDocument('Invalid Action Test');
-      const diagnostics: ActionDiagnostic[] = [];
-      const onDiagnostic = (d: ActionDiagnostic) => diagnostics.push(d);
+      const diagnostics: Diagnostic[] = [];
+      const onDiagnostic = (d: Diagnostic) => diagnostics.push(d);
 
       const success = dispatchAction({
         action: { invalid: true },
@@ -220,7 +220,7 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
       };
       doc.document.children = [targetNode];
 
-      const diagnostics: ActionDiagnostic[] = [];
+      const diagnostics: Diagnostic[] = [];
       const context = createMinimalRenderContext({
         actions: {},
         onDiagnostic: (d) => diagnostics.push(d),
