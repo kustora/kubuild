@@ -6,7 +6,7 @@ import { PageDocument, starterPageFixture } from '@kubuild/schema';
 import { Layout, Eye, Code2, Sparkles } from 'lucide-react';
 
 export function App() {
-  const [doc] = useState<PageDocument>(starterPageFixture);
+  const [doc, setDoc] = useState<PageDocument>(starterPageFixture);
   const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'json'>('editor');
   const [previewViewport, setPreviewViewport] = useState<ViewportDevice>('desktop');
   const registry = createDefaultComponentRegistry();
@@ -91,7 +91,12 @@ export function App() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden">
         {activeTab === 'editor' && (
-          <KubuildEditor initialDocument={doc} registry={registry} className="h-full" />
+          <KubuildEditor
+            initialDocument={doc}
+            onChange={setDoc}
+            registry={registry}
+            className="h-full"
+          />
         )}
 
         {activeTab === 'preview' && (

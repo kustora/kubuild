@@ -76,7 +76,7 @@ export const VariableBindingControl: React.FC<VariableBindingControlProps> = ({
         onChange={(e) => {
           if (e.target.value) onBind(e.target.value);
         }}
-        className="w-full text-xs border border-slate-200 rounded px-2 py-1 text-slate-500"
+        className="w-full text-xs bg-white text-slate-700 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
       >
         <option value="">Bind variable…</option>
         {compatibleEntries.map((entry) => (

@@ -20,3 +20,8 @@ body {
 #root {
   height: 100%;
 }
+
+input, select, textarea {
+  color: #0f172a;
+}
+

@@ -36,6 +36,77 @@ function ErrorText({ message }: { message: string | null | undefined }) {
   );
 }
 
+function normalizeSpacingValue(val: string): string {
+  const trimmed = val.trim();
+  if (trimmed === '') return '';
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    return `${trimmed}px`;
+  }
+  return trimmed;
+}
+
+interface SpacingControlProps {
+  nodeId: string;
+  breakpoint: 'base' | 'tablet' | 'mobile';
+  fieldName: string;
+  fieldLabel: string;
+  value: unknown;
+  onCommit: (fieldName: string, value: string) => void;
+  error?: string | null;
+}
+
+const SpacingControl: React.FC<SpacingControlProps> = ({
+  nodeId,
+  breakpoint,
+  fieldName,
+  fieldLabel,
+  value,
+  onCommit,
+  error,
+}) => {
+  const valueStr = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+  const [text, setText] = useState(valueStr);
+
+  useEffect(() => {
+    setText(typeof value === 'string' || typeof value === 'number' ? String(value) : '');
+  }, [value, nodeId, breakpoint]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setText(raw);
+    const normalized = normalizeSpacingValue(raw);
+    onCommit(fieldName, normalized);
+  };
+
+  const handleBlur = () => {
+    const normalized = normalizeSpacingValue(text);
+    setText(normalized);
+    onCommit(fieldName, normalized);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-600 mb-1">{fieldLabel}</label>
+      <input
+        type="text"
+        value={text}
+        placeholder="0px"
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+      />
+      <ErrorText message={error} />
+    </div>
+  );
+};
+
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, className }) => {
   const { document, selectedNodeId, viewport, updateNodeProps, updateNodeStyle, variableCatalog } =
     useEditorStore();
@@ -84,7 +155,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
               const option = field.options?.find((o) => String(o.value) === e.target.value);
               commitProp(field, option ? option.value : e.target.value);
             }}
-            className="w-full text-xs border border-slate-200 rounded px-2 py-1"
+            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             {(field.options ?? []).map((opt) => (
               <option key={String(opt.value)} value={String(opt.value)}>
@@ -99,22 +170,28 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
             type="color"
             value={typeof currentValue === 'string' ? currentValue : '#000000'}
             onChange={(e) => commitProp(field, e.target.value)}
+            className="w-full h-8 cursor-pointer rounded border border-slate-300 bg-white p-1"
           />
         );
       case 'number':
         return (
           <input
             type="number"
-            defaultValue={typeof currentValue === 'number' ? currentValue : ''}
-            onBlur={(e) => {
-              const parsed = Number(e.target.value);
+            value={typeof currentValue === 'number' ? currentValue : ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === '') {
+                commitProp(field, undefined);
+                return;
+              }
+              const parsed = Number(val);
               if (Number.isNaN(parsed)) {
                 setError(errorKey, 'Must be a number.');
                 return;
               }
               commitProp(field, parsed);
             }}
-            className="w-full text-xs border border-slate-200 rounded px-2 py-1"
+            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
         );
       case 'image':
@@ -129,12 +206,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
                 parsed = JSON.parse(e.target.value);
               } catch {
                 setError(errorKey, 'Invalid JSON.');
-                return;
               }
               commitProp(field, parsed);
             }}
             rows={3}
-            className="w-full text-xs font-mono border border-slate-200 rounded px-2 py-1"
+            className="w-full text-xs font-mono bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
         );
       case 'string':
@@ -142,9 +218,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
         return (
           <input
             type="text"
-            defaultValue={typeof currentValue === 'string' ? currentValue : ''}
-            onBlur={(e) => commitProp(field, e.target.value)}
-            className="w-full text-xs border border-slate-200 rounded px-2 py-1"
+            value={typeof currentValue === 'string' ? currentValue : ''}
+            onChange={(e) => commitProp(field, e.target.value)}
+            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
         );
     }
@@ -153,8 +229,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
   const activeBreakpoint = styleBreakpointFor(viewport);
   const activeLayer = (node.styles?.[activeBreakpoint] as Record<string, unknown> | undefined) ?? {};
 
+  const handleCommitSpacing = (fieldName: string, value: string) => {
+    const errorKey = `style:${fieldName}`;
+    const result = updateNodeStyle(node.id, { [fieldName]: value }, activeBreakpoint);
+    setError(errorKey, result.success ? null : result.error ?? 'Invalid value.');
+  };
+
   return (
-    <div className={`flex flex-col gap-4 p-3 overflow-y-auto text-sm ${className || ''}`}>
+    <div className={`flex flex-col gap-4 p-3 overflow-y-auto text-sm text-slate-900 ${className || ''}`}>
       <div>
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
           {definition.label} Props
@@ -188,27 +270,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
           Spacing ({activeBreakpoint === 'base' ? 'base' : `${activeBreakpoint} override`})
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {SPACING_FIELDS.map((field) => {
-            const errorKey = `style:${field.name}`;
-            const currentValue = activeLayer[field.name];
-            return (
-              <div key={field.name}>
-                <label className="block text-xs font-medium text-slate-600 mb-1">{field.label}</label>
-                <input
-                  type="text"
-                  defaultValue={typeof currentValue === 'string' || typeof currentValue === 'number' ? String(currentValue) : ''}
-                  onBlur={(e) => {
-                    const raw = e.target.value.trim();
-                    if (raw === '') return;
-                    const result = updateNodeStyle(node.id, { [field.name]: raw }, activeBreakpoint);
-                    setError(errorKey, result.success ? null : result.error ?? 'Invalid value.');
-                  }}
-                  className="w-full text-xs border border-slate-200 rounded px-2 py-1"
-                />
-                <ErrorText message={fieldErrors[errorKey]} />
-              </div>
-            );
-          })}
+          {SPACING_FIELDS.map((field) => (
+            <SpacingControl
+              key={`${node.id}-${activeBreakpoint}-${field.name}`}
+              nodeId={node.id}
+              breakpoint={activeBreakpoint}
+              fieldName={field.name}
+              fieldLabel={field.label}
+              value={activeLayer[field.name]}
+              onCommit={handleCommitSpacing}
+              error={fieldErrors[`style:${field.name}`]}
+            />
+          ))}
         </div>
       </div>
     </div>
