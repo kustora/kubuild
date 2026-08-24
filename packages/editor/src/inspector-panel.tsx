@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
 import { findNodeById } from '@kubuild/core';
 import { isVariableBinding } from '@kubuild/schema';
@@ -60,6 +60,131 @@ function ErrorText({ message }: { message: string | null | undefined }) {
     </div>
   );
 }
+
+interface StringPropControlProps {
+  nodeId: string;
+  field: ComponentFieldDefinition;
+  value: unknown;
+  onCommit: (field: ComponentFieldDefinition, value: unknown, isBlur: boolean) => void;
+}
+
+const StringPropControl: React.FC<StringPropControlProps> = ({
+  nodeId,
+  field,
+  value,
+  onCommit,
+}) => {
+  const valueStr = typeof value === 'string' ? value : '';
+  const [text, setText] = useState(valueStr);
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setText(typeof value === 'string' ? value : '');
+    }
+  }, [value, nodeId, field.name]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value;
+    setText(nextVal);
+    onCommit(field, nextVal, false);
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    onCommit(field, text, true);
+  };
+
+  const handleFocus = () => {
+    isFocusedRef.current = true;
+    onCommit(field, text, false);
+  };
+
+  return (
+    <input
+      type="text"
+      value={text}
+      onFocus={handleFocus}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={field.defaultValue !== undefined ? String(field.defaultValue) : ''}
+      className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+    />
+  );
+};
+
+interface NumberPropControlProps {
+  nodeId: string;
+  field: ComponentFieldDefinition;
+  value: unknown;
+  onCommit: (field: ComponentFieldDefinition, value: unknown, isBlur: boolean) => void;
+  setError: (error: string | null) => void;
+}
+
+const NumberPropControl: React.FC<NumberPropControlProps> = ({
+  nodeId,
+  field,
+  value,
+  onCommit,
+  setError,
+}) => {
+  const valueStr = typeof value === 'number' ? String(value) : '';
+  const [text, setText] = useState(valueStr);
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setText(typeof value === 'number' ? String(value) : '');
+    }
+  }, [value, nodeId, field.name]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setText(val);
+    if (val === '' || val === '-') {
+      setError(null);
+      return;
+    }
+    const parsed = Number(val);
+    if (Number.isNaN(parsed)) {
+      setError('Must be a number.');
+      return;
+    }
+    setError(null);
+    onCommit(field, parsed, false);
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    if (text === '') {
+      onCommit(field, undefined, true);
+      return;
+    }
+    const parsed = Number(text);
+    if (Number.isNaN(parsed)) {
+      setError('Must be a number.');
+      return;
+    }
+    onCommit(field, parsed, true);
+  };
+
+  const handleFocus = () => {
+    isFocusedRef.current = true;
+    setError(null);
+  };
+
+  return (
+    <input
+      type="number"
+      value={text}
+      onFocus={handleFocus}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={field.defaultValue !== undefined ? String(field.defaultValue) : ''}
+      className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+    />
+  );
+};
 
 interface SpacingControlProps {
   nodeId: string;
@@ -185,9 +310,24 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
     setFieldErrors((prev) => ({ ...prev, [key]: error }));
   };
 
-  const commitProp = (field: ComponentFieldDefinition, value: unknown) => {
+  const commitProp = (field: ComponentFieldDefinition, value: unknown, isBlur = true) => {
+    const errorKey = `prop:${field.name}`;
+    if (!isBlur) {
+      // While typing / focused: allow temporary empty state without showing red error banner
+      if (typeof value === 'string' && value.trim() === '') {
+        setError(errorKey, null);
+        return;
+      }
+      const result = updateNodeProps(node.id, { [field.name]: value }, registry);
+      if (result.success) {
+        setError(errorKey, null);
+      }
+      return;
+    }
+
+    // On blur: validate and commit final value
     const result = updateNodeProps(node.id, { [field.name]: value }, registry);
-    setError(`prop:${field.name}`, result.success ? null : result.error ?? 'Invalid value.');
+    setError(errorKey, result.success ? null : result.error ?? 'Invalid value.');
   };
 
   const renderPropControl = (field: ComponentFieldDefinition) => {
@@ -200,7 +340,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
           <input
             type="checkbox"
             checked={Boolean(currentValue)}
-            onChange={(e) => commitProp(field, e.target.checked)}
+            onChange={(e) => commitProp(field, e.target.checked, true)}
           />
         );
       case 'select':
@@ -209,7 +349,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
             value={String(currentValue ?? '')}
             onChange={(e) => {
               const option = field.options?.find((o) => String(o.value) === e.target.value);
-              commitProp(field, option ? option.value : e.target.value);
+              commitProp(field, option ? option.value : e.target.value, true);
             }}
             className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -225,29 +365,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
           <input
             type="color"
             value={typeof currentValue === 'string' ? currentValue : '#000000'}
-            onChange={(e) => commitProp(field, e.target.value)}
+            onChange={(e) => commitProp(field, e.target.value, true)}
             className="w-full h-8 cursor-pointer rounded border border-slate-300 bg-white p-1"
           />
         );
       case 'number':
         return (
-          <input
-            type="number"
-            value={typeof currentValue === 'number' ? currentValue : ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '') {
-                commitProp(field, undefined);
-                return;
-              }
-              const parsed = Number(val);
-              if (Number.isNaN(parsed)) {
-                setError(errorKey, 'Must be a number.');
-                return;
-              }
-              commitProp(field, parsed);
-            }}
-            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          <NumberPropControl
+            nodeId={node.id}
+            field={field}
+            value={currentValue}
+            onCommit={commitProp}
+            setError={(err) => setError(errorKey, err)}
           />
         );
       case 'image':
@@ -263,7 +392,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
               } catch {
                 setError(errorKey, 'Invalid JSON.');
               }
-              commitProp(field, parsed);
+              commitProp(field, parsed, true);
             }}
             rows={3}
             className="w-full text-xs font-mono bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -272,11 +401,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
       case 'string':
       default:
         return (
-          <input
-            type="text"
-            value={typeof currentValue === 'string' ? currentValue : ''}
-            onChange={(e) => commitProp(field, e.target.value)}
-            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          <StringPropControl
+            nodeId={node.id}
+            field={field}
+            value={currentValue}
+            onCommit={commitProp}
           />
         );
     }
@@ -310,8 +439,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
                     field={field}
                     currentValue={currentValue}
                     catalog={variableCatalog}
-                    onBind={(key) => commitProp(field, toBindingValue(key))}
-                    onRevert={() => commitProp(field, field.defaultValue ?? '')}
+                    onBind={(key) => commitProp(field, toBindingValue(key), true)}
+                    onRevert={() => commitProp(field, field.defaultValue ?? '', true)}
                   />
                 )}
                 <ErrorText message={fieldErrors[`prop:${field.name}`]} />
