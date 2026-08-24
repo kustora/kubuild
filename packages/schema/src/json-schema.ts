@@ -304,3 +304,179 @@ export const MANIFEST_JSON_SCHEMA_V1 = {
 export function getManifestJsonSchema() {
   return MANIFEST_JSON_SCHEMA_V1;
 }
+
+/**
+ * Standard JSON Schema Draft-07 representation of Template Record v1
+ * Aligned 1:1 with TypeScript TemplateRecord type definition.
+ */
+export const TEMPLATE_RECORD_JSON_SCHEMA_V1 = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  $id: 'https://schema.stora.page/v1/template.json',
+  title: 'StoraTemplateRecord',
+  description: 'Reusable Page Template Record v1 schema definition for KUBUILD',
+  type: 'object',
+  required: ['id', 'name'],
+  additionalProperties: false,
+  properties: {
+    id: {
+      type: 'string',
+      minLength: 1,
+      description: 'Unique template identifier',
+    },
+    name: {
+      type: 'string',
+      minLength: 1,
+      description: 'Human-readable name of the template',
+    },
+    description: {
+      type: 'string',
+      default: '',
+      description: 'Detailed description of the template purpose and contents',
+    },
+    category: {
+      type: 'string',
+      default: 'general',
+      description: 'Template category grouping',
+    },
+    tags: {
+      type: 'array',
+      items: { type: 'string' },
+      default: [],
+      description: 'Search and filter tags',
+    },
+    thumbnail: {
+      oneOf: [
+        { $ref: '#/definitions/assetReference' },
+        { $ref: '#/definitions/safeThumbnailObject' },
+        { type: 'string', minLength: 1 },
+      ],
+      description: 'Safe preview image asset reference or URL',
+    },
+    author: {
+      type: 'string',
+      default: '',
+      description: 'Template creator or team',
+    },
+    version: {
+      type: 'string',
+      default: '1.0.0',
+      description: 'Semantic version of the template',
+    },
+    document: {
+      $ref: 'https://schema.stora.page/v1/page.json#',
+      description: 'Embedded PageDocument snapshot (optional if packageReference provided)',
+    },
+    packageReference: {
+      $ref: '#/definitions/templatePackageRef',
+      description: 'External package/archive reference (optional if document provided)',
+    },
+    requirements: {
+      $ref: '#/definitions/templateRequirements',
+      description: 'Component and capability requirements for this template',
+    },
+    createdAt: {
+      type: 'string',
+      format: 'date-time',
+      description: 'ISO creation timestamp',
+    },
+    updatedAt: {
+      type: 'string',
+      format: 'date-time',
+      description: 'ISO last updated timestamp',
+    },
+    custom: {
+      type: 'object',
+      description: 'Custom host-specific serializable metadata',
+    },
+  },
+  definitions: {
+    assetReference: {
+      type: 'object',
+      required: ['type', 'assetId'],
+      properties: {
+        type: {
+          type: 'string',
+          const: 'asset',
+        },
+        assetId: {
+          type: 'string',
+          minLength: 1,
+        },
+        filename: {
+          type: 'string',
+        },
+        mimeType: {
+          type: 'string',
+        },
+        fallbackUrl: {
+          type: 'string',
+          format: 'uri',
+        },
+      },
+      additionalProperties: false,
+    },
+    safeThumbnailObject: {
+      type: 'object',
+      required: ['url'],
+      properties: {
+        url: {
+          type: 'string',
+          minLength: 1,
+        },
+        alt: {
+          type: 'string',
+        },
+        width: {
+          type: 'number',
+          minimum: 1,
+        },
+        height: {
+          type: 'number',
+          minimum: 1,
+        },
+      },
+      additionalProperties: false,
+    },
+    templatePackageRef: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+        },
+        url: {
+          type: 'string',
+        },
+        checksum: {
+          type: 'string',
+        },
+        format: {
+          type: 'string',
+          enum: ['stora', 'json'],
+          default: 'stora',
+        },
+      },
+      additionalProperties: false,
+    },
+    templateRequirements: {
+      type: 'object',
+      properties: {
+        requiredComponents: {
+          type: 'array',
+          items: { type: 'string' },
+          default: [],
+        },
+        requiredCapabilities: {
+          type: 'array',
+          items: { type: 'string' },
+          default: [],
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+} as const;
+
+export function getTemplateRecordJsonSchema() {
+  return TEMPLATE_RECORD_JSON_SCHEMA_V1;
+}
+

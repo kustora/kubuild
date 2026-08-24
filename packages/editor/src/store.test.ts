@@ -698,4 +698,54 @@ describe('Editor Store', () => {
       expect(serialized).toContain('"key":"site.name"');
     });
   });
+
+  describe('STORA-071: Template Actions (saveDraftAsTemplate & loadTemplate)', () => {
+    it('saves the current draft as a template record', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+
+      const template = useEditorStore.getState().saveDraftAsTemplate({
+        id: 'tmpl_from_editor',
+        name: 'Editor Saved Template',
+        category: 'landing',
+        tags: ['editor', 'custom'],
+      });
+
+      expect(template.id).toBe('tmpl_from_editor');
+      expect(template.name).toBe('Editor Saved Template');
+      expect(template.document?.document.children?.[0]?.id).toBe('child-node');
+    });
+
+    it('loads a template as a new page with fresh node IDs and clean history', () => {
+      const template = useEditorStore.getState().saveDraftAsTemplate({
+        id: 'tmpl_to_load',
+        name: 'Template To Load',
+      });
+
+      useEditorStore.getState().loadTemplate(template, {
+        title: 'Cloned In Editor Page',
+      });
+
+      const state = useEditorStore.getState();
+      expect(state.document.metadata?.title).toBe('Cloned In Editor Page');
+      expect(state.isDirty).toBe(false);
+      expect(state.canUndo).toBe(false);
+      expect(state.canRedo).toBe(false);
+
+      // Node ID of child should be brand new, not 'child-node'
+      const childNode = state.document.document.children?.[0];
+      expect(childNode).toBeDefined();
+      expect(childNode?.id).not.toBe('child-node');
+
+      // Edit the clone
+      const registry = createDefaultComponentRegistry();
+      useEditorStore.getState().updateNodeProps(childNode!.id, { text: 'Updated Text In Clone' }, registry);
+
+      expect(useEditorStore.getState().isDirty).toBe(true);
+      expect(useEditorStore.getState().canUndo).toBe(true);
+
+      // Template snapshot should NOT be affected
+      expect(template.document?.document.children?.[0]?.props?.text).toBe('Hello');
+    });
+  });
 });
+

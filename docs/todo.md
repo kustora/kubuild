@@ -645,7 +645,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Definisikan template record dan metadata v1
 - **Description:** Template record mencakup id, nama, deskripsi, kategori, tags, thumbnail, author, version, document package/reference, dan timestamps. Tidak mencakup marketplace review atau pembayaran.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-010, STORA-060
 - **Acceptance Criteria:**
   - Metadata template tervalidasi dan serializable.
@@ -660,7 +660,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan save draft as template dan clone as new page
 - **Description:** Export snapshot draft sebagai template lalu clone ke page baru dengan node id baru. Template source tidak boleh berubah ketika clone diedit.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-070, STORA-012, STORA-061
 - **Acceptance Criteria:**
   - Save as template meminta metadata wajib dan menyimpan snapshot valid.

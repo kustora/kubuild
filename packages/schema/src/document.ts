@@ -105,19 +105,20 @@ export const NodeSchema: z.ZodType<Node> = z.lazy(() =>
   }),
 );
 
+export type RootPageNode = Node & { type: 'page' };
+
 /**
  * Root Page Node Schema
  * The root node of a PageDocument must be of type 'page'.
  */
-export const RootPageNodeSchema = NodeSchema.refine(
-  (node) => node.type === 'page',
+export const RootPageNodeSchema: z.ZodType<RootPageNode> = NodeSchema.refine(
+  (node): node is RootPageNode => node.type === 'page',
   {
     message: 'Root node must have type "page"',
     path: ['type'],
   },
 );
 
-export type RootPageNode = Node & { type: 'page' };
 
 /**
  * Document Metadata Schema
@@ -148,23 +149,13 @@ export type DocumentMetadata = z.infer<typeof DocumentMetadataSchema>;
 export const PageDocumentSchema = z.object({
   schema: z.literal(SCHEMA_NAME),
   version: z.string().min(1, 'Schema version is required').default(CURRENT_SCHEMA_VERSION),
-  metadata: DocumentMetadataSchema.optional().default({
-    title: 'Untitled Page',
-    description: '',
-    author: '',
-    tags: [],
-    category: 'general',
-    version: '1.0.0',
-  }),
+  metadata: DocumentMetadataSchema.optional(),
   document: RootPageNodeSchema,
 });
 
-export type PageDocument = {
-  schema: typeof SCHEMA_NAME;
-  version: string;
-  metadata?: DocumentMetadata;
-  document: RootPageNode;
-};
+export type PageDocument = z.infer<typeof PageDocumentSchema>;
+
+
 
 /**
  * Type guards

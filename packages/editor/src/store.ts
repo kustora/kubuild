@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PageDocument, Node, StyleDefinition } from '@kubuild/schema';
+import { PageDocument, Node, StyleDefinition, TemplateRecord } from '@kubuild/schema';
 import {
   createBlankDocument,
   findNodeById,
@@ -17,6 +17,10 @@ import {
   cloneTreeWithNewIds,
   collectNodeIdSet,
   VariableCatalog,
+  saveDraftAsTemplate,
+  cloneTemplateAsPage,
+  SaveTemplateMetadata,
+  CloneTemplateOptions,
 } from '@kubuild/core';
 import { ComponentRegistry } from '@kubuild/components';
 
@@ -132,6 +136,8 @@ export interface EditorState {
   hoverNode: (nodeId: string | null) => void;
   setViewport: (viewport: Viewport) => void;
   getSelectedNode: () => Node | null;
+  saveDraftAsTemplate: (metadata: SaveTemplateMetadata) => TemplateRecord;
+  loadTemplate: (template: TemplateRecord | PageDocument, options?: CloneTemplateOptions) => void;
 }
 
 // Held outside reactive Zustand state: a mutable class instance, not serializable.
@@ -433,4 +439,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!selectedNodeId) return null;
     return findNodeById(document.document, selectedNodeId);
   },
+
+  saveDraftAsTemplate: (metadata) => {
+    const currentDoc = get().document;
+    return saveDraftAsTemplate(currentDoc, metadata);
+  },
+
+  loadTemplate: (template, options) => {
+    const clonedDoc = cloneTemplateAsPage(template, options);
+    get().setDocument(clonedDoc);
+  },
 }));
+
