@@ -21,6 +21,31 @@ const SPACING_FIELDS: Array<{ name: string; label: string }> = [
   { name: 'paddingLeft', label: 'Padding Left' },
 ];
 
+const SPACING_UNITS = ['px', 'rem', '%', 'em', 'vh', 'vw', 'auto'] as const;
+type SpacingUnit = (typeof SPACING_UNITS)[number];
+
+function parseSpacingValue(val: unknown): { num: string; unit: SpacingUnit } {
+  if (typeof val === 'number') {
+    return { num: String(val), unit: 'px' };
+  }
+  if (typeof val !== 'string' || val.trim() === '') {
+    return { num: '', unit: 'px' };
+  }
+  const str = val.trim();
+  if (str.toLowerCase() === 'auto') {
+    return { num: 'auto', unit: 'auto' };
+  }
+  const match = str.match(/^(-?\d*\.?\d+)\s*(px|rem|%|em|vh|vw)?$/i);
+  if (match) {
+    const unitMatch = (match[2]?.toLowerCase() || 'px') as SpacingUnit;
+    return {
+      num: match[1],
+      unit: (SPACING_UNITS as readonly string[]).includes(unitMatch) ? unitMatch : 'px',
+    };
+  }
+  return { num: str, unit: 'px' };
+}
+
 // Desktop edits target the 'base' style layer (every ComponentDefinition ships its
 // baseline appearance under 'base'; nothing populates a distinct 'desktop' key today).
 function styleBreakpointFor(viewport: Viewport): 'base' | 'tablet' | 'mobile' {
@@ -34,15 +59,6 @@ function ErrorText({ message }: { message: string | null | undefined }) {
       {message}
     </div>
   );
-}
-
-function normalizeSpacingValue(val: string): string {
-  const trimmed = val.trim();
-  if (trimmed === '') return '';
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-    return `${trimmed}px`;
-  }
-  return trimmed;
 }
 
 interface SpacingControlProps {
@@ -64,24 +80,46 @@ const SpacingControl: React.FC<SpacingControlProps> = ({
   onCommit,
   error,
 }) => {
-  const valueStr = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
-  const [text, setText] = useState(valueStr);
+  const parsed = parseSpacingValue(value);
+  const [num, setNum] = useState(parsed.num);
+  const [unit, setUnit] = useState<SpacingUnit>(parsed.unit);
 
   useEffect(() => {
-    setText(typeof value === 'string' || typeof value === 'number' ? String(value) : '');
+    const next = parseSpacingValue(value);
+    setNum(next.num);
+    setUnit(next.unit);
   }, [value, nodeId, breakpoint]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    setText(raw);
-    const normalized = normalizeSpacingValue(raw);
-    onCommit(fieldName, normalized);
+  const handleNumChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawNum = e.target.value;
+    setNum(rawNum);
+    if (rawNum.trim() === '') {
+      onCommit(fieldName, '');
+      return;
+    }
+    if (unit === 'auto') {
+      onCommit(fieldName, 'auto');
+      return;
+    }
+    onCommit(fieldName, `${rawNum.trim()}${unit}`);
   };
 
-  const handleBlur = () => {
-    const normalized = normalizeSpacingValue(text);
-    setText(normalized);
-    onCommit(fieldName, normalized);
+  const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextUnit = e.target.value as SpacingUnit;
+    setUnit(nextUnit);
+    if (nextUnit === 'auto') {
+      setNum('auto');
+      onCommit(fieldName, 'auto');
+      return;
+    }
+    if (num === 'auto') {
+      setNum('');
+      onCommit(fieldName, '');
+      return;
+    }
+    if (num.trim() !== '') {
+      onCommit(fieldName, `${num.trim()}${nextUnit}`);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -90,18 +128,36 @@ const SpacingControl: React.FC<SpacingControlProps> = ({
     }
   };
 
+  const isMargin = fieldName.startsWith('margin');
+
   return (
     <div>
       <label className="block text-xs font-medium text-slate-600 mb-1">{fieldLabel}</label>
-      <input
-        type="text"
-        value={text}
-        placeholder="0px"
-        onChange={handleChange}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-      />
+      <div className="flex items-center rounded border border-slate-300 bg-white focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 overflow-hidden shadow-xs">
+        <input
+          type={unit === 'auto' ? 'text' : 'number'}
+          value={num}
+          placeholder="0"
+          disabled={unit === 'auto'}
+          onChange={handleNumChange}
+          onKeyDown={handleKeyDown}
+          className="w-full min-w-0 text-xs bg-white text-slate-900 px-2 py-1.5 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+        />
+        <select
+          value={unit}
+          onChange={handleUnitChange}
+          aria-label={`${fieldLabel} Unit`}
+          className="shrink-0 text-xs bg-slate-100 text-slate-700 font-medium px-1.5 py-1.5 border-l border-slate-200 focus:outline-none cursor-pointer hover:bg-slate-200 transition"
+        >
+          <option value="px">px</option>
+          <option value="rem">rem</option>
+          <option value="%">%</option>
+          <option value="em">em</option>
+          <option value="vh">vh</option>
+          <option value="vw">vw</option>
+          {isMargin && <option value="auto">auto</option>}
+        </select>
+      </div>
       <ErrorText message={error} />
     </div>
   );

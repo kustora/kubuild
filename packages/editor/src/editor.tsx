@@ -31,9 +31,15 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
 }) => {
   const { document, setDocument, setOnChangeHandler, setVariableCatalog, viewport, setViewport, selectedNodeId } =
     useEditorStore();
+  const lastLoadedDocRef = React.useRef<PageDocument | undefined>(undefined);
 
   useEffect(() => {
-    if (initialDocument) {
+    if (
+      initialDocument &&
+      initialDocument !== lastLoadedDocRef.current &&
+      initialDocument !== useEditorStore.getState().document
+    ) {
+      lastLoadedDocRef.current = initialDocument;
       setDocument(initialDocument);
     }
   }, [initialDocument, setDocument]);
