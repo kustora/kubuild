@@ -21,6 +21,11 @@ import {
 } from './migration';
 import { calculateChecksum } from './exporter';
 import { remapDocumentAssetReferences } from './document-utils';
+import {
+  isDangerousAssetFilename,
+  checkZipBomb,
+  containsProhibitedKeys,
+} from './security';
 import type { AssetProvider, AssetInfo } from './interfaces';
 
 export interface SecurityLimits {
@@ -82,6 +87,8 @@ export type PreflightDiagnosticCode =
   | 'SIZE_LIMIT_EXCEEDED'
   | 'FILE_COUNT_EXCEEDED'
   | 'ZIP_SLIP_DETECTED'
+  | 'EXECUTABLE_ASSET_DETECTED'
+  | 'PROTOTYPE_POLLUTION_DETECTED'
   | 'MISSING_MANIFEST'
   | 'INVALID_MANIFEST'
   | 'MISSING_PAGE_DOCUMENT'
@@ -429,6 +436,16 @@ export async function preflightPackage(
       });
     }
 
+    // Check dangerous/executable asset file extensions
+    if (entryPath.startsWith('assets/') && isDangerousAssetFilename(entryPath)) {
+      diagnostics.push({
+        code: 'EXECUTABLE_ASSET_DETECTED',
+        severity: 'error',
+        message: `Security violation: Executable or dangerous asset file extension detected in archive entry "${entryPath}".`,
+        path: entryPath,
+      });
+    }
+
     const fileBytes = unzipped[entryPath];
     if (fileBytes) {
       totalUncompressedBytes += fileBytes.byteLength;
@@ -452,6 +469,16 @@ export async function preflightPackage(
       severity: 'error',
       message: `Total uncompressed archive size (${totalUncompressedBytes} bytes) exceeds maximum limit of ${limits.maxUncompressedSize} bytes.`,
       details: { actualBytes: totalUncompressedBytes, limitBytes: limits.maxUncompressedSize },
+    });
+  }
+
+  // Check Zip Bomb expansion ratio
+  if (checkZipBomb(archiveBytes.byteLength, totalUncompressedBytes)) {
+    diagnostics.push({
+      code: 'SIZE_LIMIT_EXCEEDED',
+      severity: 'error',
+      message: `Security violation: Potential Zip Bomb attack detected (excessive compression ratio).`,
+      details: { compressedBytes: archiveBytes.byteLength, uncompressedBytes: totalUncompressedBytes },
     });
   }
 
@@ -489,6 +516,16 @@ export async function preflightPackage(
   let parsedManifest: Manifest | undefined;
   try {
     const manifestJson = JSON.parse(strFromU8(manifestEntry));
+    const manifestProtoCheck = containsProhibitedKeys(manifestJson);
+    if (manifestProtoCheck.found) {
+      diagnostics.push({
+        code: 'PROTOTYPE_POLLUTION_DETECTED',
+        severity: 'error',
+        message: `Security violation: Prohibited key "${manifestProtoCheck.key}" in manifest.json.`,
+        path: manifestProtoCheck.path,
+      });
+    }
+
     const parseResult = ManifestSchema.safeParse(manifestJson);
     if (!parseResult.success) {
       const issues = parseResult.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');
@@ -524,6 +561,15 @@ export async function preflightPackage(
   let rawPageDoc: Record<string, unknown> | undefined;
   try {
     rawPageDoc = JSON.parse(strFromU8(pageEntry)) as Record<string, unknown>;
+    const pageProtoCheck = containsProhibitedKeys(rawPageDoc);
+    if (pageProtoCheck.found) {
+      diagnostics.push({
+        code: 'PROTOTYPE_POLLUTION_DETECTED',
+        severity: 'error',
+        message: `Security violation: Prohibited key "${pageProtoCheck.key}" in page.json.`,
+        path: pageProtoCheck.path,
+      });
+    }
   } catch (err) {
     diagnostics.push({
       code: 'INVALID_PAGE_DOCUMENT',

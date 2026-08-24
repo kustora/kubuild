@@ -756,7 +756,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Audit keamanan document, action, dan archive input
 - **Description:** Tetapkan limit ukuran/depth/node count, sanitize URL/asset policy, prohibited keys, action allowlist, dan archive extraction safety.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-062, STORA-032, STORA-050
 - **Acceptance Criteria:**
   - Test menolak XSS-oriented props/URL sesuai policy host, prototype path, zip-slip, zip bomb limit, dan executable payload.

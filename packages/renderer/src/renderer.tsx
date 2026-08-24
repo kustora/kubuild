@@ -11,7 +11,7 @@ import {
   dispatchAction,
   Diagnostic,
 } from './render-context';
-import { resolveBinding } from '@kubuild/core';
+import { resolveBinding, sanitizeUrl } from '@kubuild/core';
 import { resolveNodeStyles } from './styles';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
@@ -231,13 +231,15 @@ export function NodeRenderer({
             ? resolveAssetSync(context.assetProvider, asset.assetId)
             : undefined;
         const fallbackSrc = asset?.fallbackUrl;
+        const rawUrl = directSrc || resolvedSrc || fallbackSrc;
+        const safeSrc = rawUrl ? sanitizeUrl(rawUrl) : undefined;
         const alt = typeof resolvedProps.alt === 'string' ? resolvedProps.alt : '';
         const loading = resolvedProps.loading === 'eager' ? 'eager' : 'lazy';
 
         return (
           <img
             id={domId}
-            src={directSrc || resolvedSrc || fallbackSrc || undefined}
+            src={safeSrc || undefined}
             alt={alt}
             role={alt.length === 0 ? 'presentation' : undefined}
             loading={loading}
@@ -253,7 +255,7 @@ export function NodeRenderer({
         const label = String(resolvedProps.label ?? 'Button');
         const disabled = resolvedProps.disabled === true;
         const rawHref = typeof resolvedProps.href === 'string' ? resolvedProps.href : undefined;
-        const href = rawHref ?? undefined;
+        const href = rawHref ? sanitizeUrl(rawHref, '#') : undefined;
         const action = isActionBinding(props.action) ? props.action : undefined;
         const actionResolved = action ? isActionRegistered(context?.actionRegistry, action.type) : undefined;
         const actionAttrs = action

@@ -11,5 +11,7 @@ export * from './exporter';
 export * from './importer';
 export * from './round-trip-comparator';
 export * from './template-utils';
+export * from './security';
+
 
 

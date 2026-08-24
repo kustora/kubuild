@@ -3,6 +3,10 @@ import {
   PageDocumentSchema,
   SCHEMA_NAME,
 } from '@kubuild/schema';
+import {
+  DocumentSecurityLimits,
+  validateDocumentSecurity,
+} from './security';
 
 export type DocumentValidationErrorCode =
   | 'GLOBAL_SCHEMA_INVALID'
@@ -15,7 +19,9 @@ export type DocumentValidationErrorCode =
   | 'INVALID_ASSET_REFERENCE'
   | 'INVALID_VARIABLE_BINDING'
   | 'INVALID_ACTION_BINDING'
-  | 'INVALID_METADATA';
+  | 'INVALID_METADATA'
+  | 'PROTOTYPE_POLLUTION_DETECTED'
+  | 'SECURITY_LIMIT_EXCEEDED';
 
 export interface DocumentValidationError {
   code: DocumentValidationErrorCode;
@@ -34,7 +40,6 @@ export interface ComponentDefinitionLike {
   disallowedParents?: string[];
 }
 
-
 export interface ComponentRegistryLike {
   get(type: string): ComponentDefinitionLike | undefined;
   has(type: string): boolean;
@@ -47,6 +52,7 @@ export interface ValidationOptions {
   checkAssetReferences?: boolean;
   checkVariableBindings?: boolean;
   checkActionBindings?: boolean;
+  securityLimits?: DocumentSecurityLimits;
 }
 
 export interface DocumentValidationResult {
@@ -82,6 +88,28 @@ export function validateDocument(
   }
 
   const doc = input as Record<string, unknown>;
+
+  // 1.5 Security Limits & Prototype Pollution Check
+  const securityCheck = validateDocumentSecurity(doc, options.securityLimits);
+  if (!securityCheck.safe) {
+    for (const secErr of securityCheck.errors) {
+      errors.push({
+        code: secErr.code === 'PROTOTYPE_POLLUTION_DETECTED'
+          ? 'PROTOTYPE_POLLUTION_DETECTED'
+          : 'SECURITY_LIMIT_EXCEEDED',
+        message: secErr.message,
+        path: secErr.path || '',
+        details: secErr.details,
+      });
+    }
+    if (securityCheck.errors.some((e) => e.code === 'PROTOTYPE_POLLUTION_DETECTED')) {
+      return {
+        valid: false,
+        success: false,
+        errors,
+      };
+    }
+  }
 
   // 2. Global Schema / Version / Document field checks
   if (doc.schema !== SCHEMA_NAME) {
