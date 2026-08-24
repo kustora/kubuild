@@ -278,6 +278,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
       />
       {hoveredRect && hoveredNodeId !== selectedNodeId && (
         <div
+          aria-hidden="true"
+          role="presentation"
+          data-testid="editor-hover-overlay"
           style={{
             position: 'absolute',
             pointerEvents: 'none',
@@ -291,6 +294,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
       )}
       {selectedRect && (
         <div
+          aria-hidden="true"
+          role="presentation"
+          data-testid="editor-selection-overlay"
           style={{
             position: 'absolute',
             pointerEvents: 'none',
@@ -305,6 +311,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
       {dropTarget &&
         (dropTarget.position === 'inside' ? (
           <div
+            aria-hidden="true"
+            role="presentation"
+            data-testid="editor-drop-overlay"
             style={{
               position: 'absolute',
               pointerEvents: 'none',
@@ -318,6 +327,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
           />
         ) : (
           <div
+            aria-hidden="true"
+            role="presentation"
+            data-testid="editor-drop-line-overlay"
             style={{
               position: 'absolute',
               pointerEvents: 'none',

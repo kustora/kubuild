@@ -156,28 +156,54 @@ export function NodeRenderer({
         );
       case 'section':
         return (
-          <section id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <section
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            aria-label={typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : undefined}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
             {childrenElements}
           </section>
         );
       case 'container':
         return (
-          <div id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <div
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
             {childrenElements}
           </div>
         );
       case 'columns':
         return (
-          <div id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <div
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
             {childrenElements}
           </div>
         );
       case 'heading': {
-        const level = (props.level as number) || 2;
+        const rawLevel = typeof resolvedProps.level === 'number' ? resolvedProps.level : typeof props.level === 'number' ? props.level : 2;
+        const clampedLevel = Math.min(Math.max(rawLevel, 1), 6);
         const text = String(resolvedProps.text ?? '');
-        const Tag = `h${Math.min(Math.max(level, 1), 6)}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+        const Tag = `h${clampedLevel}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
         return (
-          <Tag id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <Tag
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            aria-label={typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : undefined}
+          >
             {text}
           </Tag>
         );
@@ -185,7 +211,13 @@ export function NodeRenderer({
       case 'text': {
         const content = String(resolvedProps.content ?? '');
         return (
-          <p id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id}>
+          <p
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
             {content}
           </p>
         );
@@ -199,13 +231,16 @@ export function NodeRenderer({
             ? resolveAssetSync(context.assetProvider, asset.assetId)
             : undefined;
         const fallbackSrc = asset?.fallbackUrl;
-        const alt = String(resolvedProps.alt ?? '');
+        const alt = typeof resolvedProps.alt === 'string' ? resolvedProps.alt : '';
+        const loading = resolvedProps.loading === 'eager' ? 'eager' : 'lazy';
 
         return (
           <img
             id={domId}
             src={directSrc || resolvedSrc || fallbackSrc || undefined}
             alt={alt}
+            role={alt.length === 0 ? 'presentation' : undefined}
+            loading={loading}
             width={resolvedProps.width as number}
             height={resolvedProps.height as number}
             style={styles}
@@ -224,6 +259,7 @@ export function NodeRenderer({
         const actionAttrs = action
           ? { 'data-kubuild-action': action.type, 'data-kubuild-action-resolved': actionResolved }
           : {};
+        const ariaLabel = typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : undefined;
 
         if (href && !disabled) {
           return (
@@ -233,6 +269,8 @@ export function NodeRenderer({
               style={styles}
               onClick={handleClick}
               data-kubuild-node={node.id}
+              aria-label={ariaLabel}
+              tabIndex={0}
               {...actionAttrs}
             >
               {label}
@@ -245,6 +283,9 @@ export function NodeRenderer({
             id={domId}
             type="button"
             disabled={disabled}
+            aria-disabled={disabled ? true : undefined}
+            aria-label={ariaLabel}
+            tabIndex={disabled ? -1 : 0}
             style={styles}
             onClick={disabled ? undefined : handleClick}
             data-kubuild-node={node.id}

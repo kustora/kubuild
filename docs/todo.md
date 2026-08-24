@@ -624,7 +624,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Integrasikan create-from-import flow di Stora.page reference app
 - **Description:** Tambahkan UI pilih file, preflight report, policy decision, progress, dan pembukaan document berhasil ke editor draft.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-062, STORA-063, STORA-040
 - **Acceptance Criteria:**
   - User dapat memilih `.stora`, melihat error/preflight, lalu membuka hasil import valid di builder.
@@ -771,7 +771,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan accessibility dan visual regression baseline
 - **Description:** Pastikan core components punya semantic markup/alt text/focus behavior. Capture baseline desktop/tablet/mobile untuk fixture penting.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-033, STORA-044
 - **Acceptance Criteria:**
   - Core button, image, heading, dan text memenuhi aturan accessibility dasar yang dapat diuji otomatis.
