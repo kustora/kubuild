@@ -549,7 +549,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Definisikan manifest `.stora` dan struktur package v1
 - **Description:** Tetapkan archive berisi `manifest.json`, `page.json`, `metadata.json`, dan `assets/`. Manifest memuat package version, schema compatibility, components, capabilities, asset inventory, checksum, dan creator-safe metadata.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-010, STORA-015, STORA-024
 - **Acceptance Criteria:**
   - JSON Schema manifest dipublikasikan bersama type TypeScript.
@@ -564,7 +564,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan exporter `.stora`
 - **Description:** Validasi document, collect asset reference, tulis manifest/page/metadata, lalu buat archive `.stora`. Asset bytes diperoleh melalui interface host atau fallback ditandai external.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-060, STORA-011, STORA-015
 - **Acceptance Criteria:**
   - Export valid menghasilkan archive dengan file wajib dan directory `assets/` bila ada asset local.

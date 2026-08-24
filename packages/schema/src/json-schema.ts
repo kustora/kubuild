@@ -205,3 +205,102 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
 export function getPageDocumentJsonSchema() {
   return PAGE_DOCUMENT_JSON_SCHEMA_V1;
 }
+
+/**
+ * Standard JSON Schema Draft-07 representation of stora.page Package Manifest v1
+ * Aligned 1:1 with TypeScript Manifest type definition.
+ */
+export const MANIFEST_JSON_SCHEMA_V1 = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  $id: 'https://schema.stora.page/v1/manifest.json',
+  title: 'StoraPackageManifest',
+  description: 'Portable Package Manifest v1 schema definition for KUBUILD (.stora)',
+  type: 'object',
+  required: ['schemaVersion', 'packageVersion', 'builderCompatibility', 'requiredComponents', 'requiredCapabilities', 'assets'],
+  additionalProperties: false,
+  properties: {
+    schema: {
+      type: 'string',
+      const: 'stora.page',
+      description: 'Schema identifier',
+      default: 'stora.page',
+    },
+    schemaVersion: {
+      type: 'string',
+      pattern: '^\\d+(\\.\\d+)*$',
+      description: 'Document schema version',
+      default: '1.0.0',
+    },
+    packageVersion: {
+      type: 'string',
+      pattern: '^\\d+(\\.\\d+)*$',
+      description: 'Package version',
+      default: '1.0.0',
+    },
+    builderCompatibility: {
+      type: 'string',
+      description: 'Minimum or range of builder versions compatible with this package',
+      default: '>=0.1.0',
+    },
+    requiredComponents: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'List of custom component types required by the page',
+      default: [],
+    },
+    requiredCapabilities: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'List of capabilities required by components in the page',
+      default: [],
+    },
+    assets: {
+      type: 'array',
+      items: { $ref: '#/definitions/manifestAssetItem' },
+      description: 'Inventory of local assets packaged within the archive',
+      default: [],
+    },
+    createdAt: {
+      type: 'string',
+      format: 'date-time',
+      description: 'ISO timestamp when the package was created',
+    },
+  },
+  definitions: {
+    manifestAssetItem: {
+      type: 'object',
+      required: ['id', 'path', 'mimeType', 'size'],
+      properties: {
+        id: {
+          type: 'string',
+          minLength: 1,
+          description: 'Unique asset identifier',
+        },
+        path: {
+          type: 'string',
+          minLength: 1,
+          description: 'Relative archive path to asset file (e.g. assets/hero.png)',
+        },
+        mimeType: {
+          type: 'string',
+          minLength: 1,
+          description: 'MIME type of the asset',
+        },
+        size: {
+          type: 'number',
+          minimum: 0,
+          description: 'Asset size in bytes',
+        },
+        checksum: {
+          type: 'string',
+          description: 'SHA-256 or algorithm-prefixed checksum (e.g. sha256:...)',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+} as const;
+
+export function getManifestJsonSchema() {
+  return MANIFEST_JSON_SCHEMA_V1;
+}

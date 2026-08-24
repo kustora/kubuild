@@ -28,10 +28,12 @@ export interface DocumentValidationError {
 export interface ComponentDefinitionLike {
   type: string;
   category?: string;
+  capabilities?: string[];
   acceptsChildren?: boolean;
   allowedChildren?: string[];
   disallowedParents?: string[];
 }
+
 
 export interface ComponentRegistryLike {
   get(type: string): ComponentDefinitionLike | undefined;

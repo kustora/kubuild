@@ -17,8 +17,14 @@ import {
   StyleDefinitionSchema,
   ResponsiveStylesSchema,
 } from './document';
-import { PAGE_DOCUMENT_JSON_SCHEMA_V1, getPageDocumentJsonSchema } from './json-schema';
+import { ManifestSchema, isManifest } from './manifest';
+import {
+  getPageDocumentJsonSchema,
+  getManifestJsonSchema,
+} from './json-schema';
 import starterPage from './fixtures/starter-page.json';
+
+
 
 describe('STORA-010: Page Document v1 Schema Specification', () => {
   describe('Acceptance Criteria 1: TypeScript type and JSON Schema alignment', () => {
@@ -249,3 +255,59 @@ describe('STORA-023: Style Token and Responsive Style Schema Hardening', () => {
     });
   });
 });
+
+describe('STORA-060: Package Manifest v1 Schema Specification', () => {
+  describe('Acceptance Criteria 1: JSON Schema and TypeScript alignment', () => {
+    it('provides a valid JSON Schema Draft-07 matching Manifest v1', () => {
+      const jsonSchema = getManifestJsonSchema();
+      expect(jsonSchema).toBeDefined();
+      expect(jsonSchema.$schema).toBe('http://json-schema.org/draft-07/schema#');
+      expect(jsonSchema.properties.schema.const).toBe(SCHEMA_NAME);
+      expect(jsonSchema.properties.schemaVersion.default).toBe('1.0.0');
+      expect(jsonSchema.definitions.manifestAssetItem).toBeDefined();
+    });
+  });
+
+  describe('Acceptance Criteria 2: Manifest fields and custom component/capability requirements', () => {
+    it('validates a complete manifest with custom components, capabilities, and assets', () => {
+      const validManifest = {
+        schema: 'stora.page',
+        schemaVersion: '1.0.0',
+        packageVersion: '1.0.0',
+        builderCompatibility: '>=0.1.0',
+        requiredComponents: ['custom.product-card', 'custom.pricing-table'],
+        requiredCapabilities: ['audio-player', 'web-share'],
+        assets: [
+          {
+            id: 'hero_img',
+            path: 'assets/hero.png',
+            mimeType: 'image/png',
+            size: 10240,
+            checksum: 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+          },
+        ],
+        createdAt: '2026-08-24T12:00:00.000Z',
+      };
+
+      const result = ManifestSchema.safeParse(validManifest);
+      expect(result.success).toBe(true);
+      expect(isManifest(validManifest)).toBe(true);
+    });
+
+    it('rejects invalid manifest asset items missing required fields or negative size', () => {
+      const invalidAssetManifest = {
+        assets: [
+          {
+            id: '',
+            path: 'assets/hero.png',
+            mimeType: 'image/png',
+            size: -10,
+          },
+        ],
+      };
+      const result = ManifestSchema.safeParse(invalidAssetManifest);
+      expect(result.success).toBe(false);
+    });
+  });
+});
+

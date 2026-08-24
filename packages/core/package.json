@@ -20,7 +20,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@kubuild/schema": "workspace:*"
+    "@kubuild/schema": "workspace:*",
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
     "tsup": "^8.3.6",
