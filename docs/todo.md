@@ -609,7 +609,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Buat round-trip compatibility suite
 - **Description:** Verifikasi export lalu import menghasilkan semantic document, metadata, asset reference, bindings, action references, dan dependencies yang ekivalen.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-061, STORA-062, STORA-052, STORA-054
 - **Acceptance Criteria:**
   - Starter page dan page dengan collection/action berhasil export-import.

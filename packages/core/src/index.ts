@@ -9,4 +9,5 @@ export * from './history';
 export * from './migration';
 export * from './exporter';
 export * from './importer';
+export * from './round-trip-comparator';
 
