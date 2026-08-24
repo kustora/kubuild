@@ -594,7 +594,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan import policy untuk dependency dan conflict asset
 - **Description:** Definisikan mode `cancel`, `import-with-placeholder`, dan `install-or-register-before-import` untuk capability/component hilang. Host menentukan strategy penamaan asset conflict.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-062, STORA-024
 - **Acceptance Criteria:**
   - Import preview menampilkan component/capability missing dengan key spesifik.

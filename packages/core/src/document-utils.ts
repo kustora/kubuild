@@ -157,3 +157,135 @@ export function extractRequirementsFromTree(
   };
 }
 
+/**
+ * Remap asset references in a node tree based on an ID mapping dictionary.
+ * Mutates the node props in place and returns the number of references updated.
+ */
+export function remapAssetReferences(
+  rootNode: Node,
+  idMap: Record<string, string> | Map<string, string>,
+): number {
+  let remappedCount = 0;
+  const getMappedId = (id: string): string | undefined => {
+    if (idMap instanceof Map) return idMap.get(id);
+    return idMap[id];
+  };
+
+  function traverseProps(propsObj: unknown): void {
+    if (!propsObj || typeof propsObj !== 'object') return;
+
+    if (Array.isArray(propsObj)) {
+      for (const item of propsObj) {
+        traverseProps(item);
+      }
+      return;
+    }
+
+    const record = propsObj as Record<string, unknown>;
+
+    if (record.type === 'asset' && typeof record.assetId === 'string') {
+      const newId = getMappedId(record.assetId);
+      if (newId !== undefined && newId !== record.assetId) {
+        record.assetId = newId;
+        remappedCount++;
+      }
+    }
+
+    for (const val of Object.values(record)) {
+      if (val && typeof val === 'object') {
+        traverseProps(val);
+      }
+    }
+  }
+
+  function traverseNode(node: Node): void {
+    if (node.props) {
+      traverseProps(node.props);
+    }
+    if (node.children && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        traverseNode(child);
+      }
+    }
+  }
+
+  traverseNode(rootNode);
+  return remappedCount;
+}
+
+/**
+ * Remaps all asset references throughout a PageDocument.
+ */
+export function remapDocumentAssetReferences(
+  doc: PageDocument,
+  idMap: Record<string, string> | Map<string, string>,
+): PageDocument {
+  if (doc && doc.document) {
+    remapAssetReferences(doc.document, idMap);
+  }
+  return doc;
+}
+
+export interface MissingComponentNodeInfo {
+  nodeId: string;
+  componentType: string;
+  props: Record<string, unknown>;
+  node: Node;
+}
+
+/**
+ * Finds all nodes in a node tree that reference component types not registered in the host.
+ * This is useful in placeholder mode to inspect missing nodes and their preserved props.
+ */
+export function findMissingComponentNodes(
+  rootNode: Node,
+  registry?: ComponentRegistryLike,
+  knownTypes?: string[] | Set<string>,
+): MissingComponentNodeInfo[] {
+  const missing: MissingComponentNodeInfo[] = [];
+  const knownSet = new Set<string>();
+
+  if (knownTypes) {
+    for (const t of knownTypes) knownSet.add(t);
+  }
+
+  const standardBuiltIns = [
+    'page',
+    'section',
+    'container',
+    'columns',
+    'heading',
+    'text',
+    'image',
+    'button',
+    'collection',
+  ];
+  for (const b of standardBuiltIns) knownSet.add(b);
+
+  function checkNode(node: Node): void {
+    let isSupported = knownSet.has(node.type);
+    if (!isSupported && registry) {
+      isSupported = registry.has(node.type);
+    }
+
+    if (!isSupported) {
+      missing.push({
+        nodeId: node.id,
+        componentType: node.type,
+        props: node.props ? { ...node.props } : {},
+        node,
+      });
+    }
+
+    if (node.children && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        checkNode(child);
+      }
+    }
+  }
+
+  checkNode(rootNode);
+  return missing;
+}
+
+

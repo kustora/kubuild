@@ -9,13 +9,20 @@ import {
 import {
   preflightPackage,
   inspectPackage,
+  previewImportPackage,
   importPackage,
   importStoraPackage,
   isDangerousPath,
+  defaultRenameAssetStrategy,
 } from './importer';
-import { createBlankDocument } from './document-utils';
+import {
+  createBlankDocument,
+  findMissingComponentNodes,
+  remapAssetReferences,
+} from './document-utils';
 import type { ComponentRegistryLike } from './validator';
 import type { AssetProvider, AssetInfo } from './interfaces';
+
 
 describe('STORA-062: Importer .stora dengan Preflight Validation', () => {
   const samplePngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]);
@@ -514,3 +521,492 @@ describe('STORA-062: Importer .stora dengan Preflight Validation', () => {
     });
   });
 });
+
+describe('STORA-063: Import Policy untuk Dependency dan Conflict Asset', () => {
+  const sampleImgBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01, 0x02]);
+
+  function createPackageWithCustomNodeAndAsset(options: {
+    componentType?: string;
+    capability?: string;
+    assetId?: string;
+  }) {
+    const compType = options.componentType || 'custom.product-card';
+    const assetId = options.assetId || 'brand_logo';
+    const capability = options.capability || 'payment-gateway';
+
+    const doc: PageDocument = {
+      schema: SCHEMA_NAME,
+      version: CURRENT_SCHEMA_VERSION,
+      metadata: {
+        title: 'Custom Product Page',
+        description: 'Page with custom components and assets',
+        author: 'Tester',
+        tags: ['custom', 'ecommerce'],
+        category: 'ecommerce',
+        version: '1.0.0',
+      },
+      document: {
+        id: 'root-page',
+        type: 'page',
+        children: [
+          {
+            id: 'sec-custom',
+            type: 'section',
+            children: [
+              {
+                id: 'custom-prod-1',
+                type: compType,
+                props: {
+                  sku: 'PROD-999',
+                  price: 199.99,
+                  currency: 'USD',
+                  details: {
+                    featured: true,
+                    rating: 4.8,
+                  },
+                  thumbnail: {
+                    type: 'asset',
+                    assetId,
+                    filename: 'logo.png',
+                    mimeType: 'image/png',
+                  },
+                },
+                styles: {
+                  base: {
+                    padding: '16px',
+                    borderRadius: '8px',
+                  },
+                },
+                children: [
+                  {
+                    id: 'nested-text',
+                    type: 'text',
+                    props: { content: 'Limited Edition' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const manifest: Manifest = {
+      schema: SCHEMA_NAME,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      packageVersion: '1.0.0',
+      builderCompatibility: '>=0.1.0',
+      requiredComponents: [compType],
+      requiredCapabilities: [capability],
+      assets: [
+        {
+          id: assetId,
+          path: `assets/${assetId}.png`,
+          mimeType: 'image/png',
+          size: sampleImgBytes.byteLength,
+        },
+      ],
+    };
+
+    const archiveFiles: Record<string, Uint8Array> = {
+      'manifest.json': strToU8(JSON.stringify(manifest)),
+      'page.json': strToU8(JSON.stringify(doc)),
+      [`assets/${assetId}.png`]: sampleImgBytes,
+    };
+
+    return {
+      doc,
+      manifest,
+      archive: zipSync(archiveFiles),
+    };
+  }
+
+  describe('Acceptance Criteria 1: Import preview menampilkan missing dependency dengan key spesifik', () => {
+    it('preflight / preview lists missing custom components and capabilities with exact keys', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        componentType: 'custom.pricing-table',
+        capability: 'advanced-analytics',
+      });
+
+      const preview = await previewImportPackage(fixture.archive, {
+        dependencyPolicy: 'cancel',
+        supportedCapabilities: [], // none supported
+      });
+
+      expect(preview.valid).toBe(false);
+      expect(preview.canImport).toBe(false);
+      expect(preview.missingComponents).toEqual(['custom.pricing-table']);
+      expect(preview.missingCapabilities).toEqual(['advanced-analytics']);
+
+      const compDiag = preview.diagnostics.find((d) => d.code === 'MISSING_COMPONENTS');
+      expect(compDiag).toBeDefined();
+      expect(compDiag?.severity).toBe('error');
+      expect(compDiag?.details?.missingComponents).toEqual(['custom.pricing-table']);
+
+      const capDiag = preview.diagnostics.find((d) => d.code === 'MISSING_CAPABILITIES');
+      expect(capDiag).toBeDefined();
+      expect(capDiag?.severity).toBe('error');
+      expect(capDiag?.details?.missingCapabilities).toEqual(['advanced-analytics']);
+    });
+
+    it('preview displays detected asset conflicts with exact asset IDs', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        assetId: 'hero_banner',
+      });
+
+      const preview = await previewImportPackage(fixture.archive, {
+        knownComponentTypes: ['custom.product-card'],
+        supportedCapabilities: ['payment-gateway'],
+        existingAssetIds: ['hero_banner', 'existing_avatar'],
+      });
+
+      expect(preview.assetConflicts.length).toBe(1);
+      expect(preview.assetConflicts[0].assetId).toBe('hero_banner');
+      expect(preview.assetConflicts[0].path).toBe('assets/hero_banner.png');
+      expect(preview.canImport).toBe(false); // Default strategy is reject
+
+      const conflictDiag = preview.diagnostics.find((d) => d.code === 'ASSET_CONFLICT');
+      expect(conflictDiag).toBeDefined();
+      expect(conflictDiag?.severity).toBe('error');
+      expect(conflictDiag?.message).toContain('hero_banner');
+    });
+  });
+
+  describe('Acceptance Criteria 2: Mode placeholder mempertahankan node dan props asli', () => {
+    it('import-with-placeholder succeeds and preserves original nodes, types, styles, and props completely', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        componentType: 'custom.unregistered-widget',
+        capability: 'unknown-capability',
+        assetId: 'widget_icon',
+      });
+
+      // 1. Preview with placeholder policy
+      const preview = await preflightPackage(fixture.archive, {
+        dependencyPolicy: 'import-with-placeholder',
+      });
+
+      expect(preview.canImport).toBe(true);
+      expect(preview.dependencyPolicy).toBe('import-with-placeholder');
+      expect(preview.missingComponents).toEqual(['custom.unregistered-widget']);
+      expect(preview.missingCapabilities).toEqual(['unknown-capability']);
+
+      // Diagnostics should be non-blocking warnings
+      const compDiag = preview.diagnostics.find((d) => d.code === 'MISSING_COMPONENTS');
+      expect(compDiag?.severity).toBe('warning');
+
+      // 2. Perform import
+      const importRes = await importPackage(fixture.archive, {
+        dependencyPolicy: 'import-with-placeholder',
+      });
+
+      expect(importRes.success).toBe(true);
+      if (!importRes.success) return;
+
+      // 3. Verify node and props preservation
+      const root = importRes.document.document;
+      const sectionNode = root.children?.[0];
+      const customNode = sectionNode?.children?.[0];
+
+      expect(customNode).toBeDefined();
+      expect(customNode?.id).toBe('custom-prod-1');
+      expect(customNode?.type).toBe('custom.unregistered-widget');
+      expect(customNode?.props?.sku).toBe('PROD-999');
+      expect(customNode?.props?.price).toBe(199.99);
+      expect(customNode?.props?.currency).toBe('USD');
+      expect(customNode?.props?.details).toEqual({ featured: true, rating: 4.8 });
+      expect(customNode?.styles?.base?.padding).toBe('16px');
+      expect(customNode?.children?.[0]?.props?.content).toBe('Limited Edition');
+
+      // 4. Verify findMissingComponentNodes helper
+      const missingNodes = findMissingComponentNodes(root);
+      expect(missingNodes.length).toBe(1);
+      expect(missingNodes[0].nodeId).toBe('custom-prod-1');
+      expect(missingNodes[0].componentType).toBe('custom.unregistered-widget');
+      expect(missingNodes[0].props.sku).toBe('PROD-999');
+    });
+
+    it('rejects import when dependencyPolicy is "cancel" (default strict mode)', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        componentType: 'custom.mandatory-form',
+      });
+
+      const importRes = await importPackage(fixture.archive, {
+        dependencyPolicy: 'cancel',
+      });
+
+      expect(importRes.success).toBe(false);
+      if (!importRes.success) {
+        expect(importRes.errors.some((e) => e.code === 'MISSING_COMPONENTS')).toBe(true);
+      }
+    });
+  });
+
+  describe('Acceptance Criteria 3: Policy install-or-register-before-import', () => {
+    it('invokes onMissingDependency hook to register missing components/capabilities before finalizing import', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        componentType: 'custom.video-player',
+        capability: 'hls-stream',
+      });
+
+      const standardTypes = new Set(['page', 'section', 'container', 'columns', 'heading', 'text', 'image', 'button', 'collection']);
+      const registeredTypes = new Set<string>();
+      const registeredCaps = new Set<string>();
+
+      const mockRegistry: ComponentRegistryLike = {
+        has: vi.fn((t) => standardTypes.has(t) || registeredTypes.has(t)),
+        get: vi.fn((t) => {
+          if (registeredTypes.has(t)) return { type: t, category: 'custom' };
+          if (standardTypes.has(t)) return { type: t, category: 'core' };
+          return undefined;
+        }),
+      };
+
+      const onMissingDependency = vi.fn(async (missing) => {
+        expect(missing.components).toContain('custom.video-player');
+        expect(missing.capabilities).toContain('hls-stream');
+        registeredTypes.add('custom.video-player');
+        registeredCaps.add('hls-stream');
+      });
+
+      const importRes = await importPackage(fixture.archive, {
+        dependencyPolicy: 'install-or-register-before-import',
+        componentRegistry: mockRegistry,
+        supportedCapabilities: registeredCaps,
+        onMissingDependency,
+      });
+
+      expect(onMissingDependency).toHaveBeenCalledTimes(1);
+      expect(importRes.success).toBe(true);
+    });
+
+    it('returns error if dynamic registration fails', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        componentType: 'custom.fail-to-install',
+      });
+
+      const onMissingDependency = vi.fn(async () => {
+        throw new Error('Network error downloading component definition');
+      });
+
+      const importRes = await importPackage(fixture.archive, {
+        dependencyPolicy: 'install-or-register-before-import',
+        onMissingDependency,
+      });
+
+      expect(importRes.success).toBe(false);
+      if (!importRes.success) {
+        expect(importRes.errors.some((e) => e.code === 'HOST_ADAPTER_ERROR')).toBe(true);
+      }
+    });
+  });
+
+  describe('Acceptance Criteria 4: Asset collision tidak menimpa host tanpa explicit strategy', () => {
+    it('rejects import by default when asset ID collides with existing host asset', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        componentType: 'custom.product-card',
+        assetId: 'company_logo',
+      });
+
+      const hostAssetStore = new Map<string, string>();
+      hostAssetStore.set('company_logo', 'https://host.cdn/original_logo.png');
+
+      const mockAssetProvider: AssetProvider = {
+        resolve: (id) => hostAssetStore.get(id) || `https://host.cdn/${id}`,
+        list: async () => [{ id: 'company_logo', url: 'https://host.cdn/original_logo.png', mimeType: 'image/png' }],
+        upload: vi.fn(),
+      };
+
+      const importRes = await importPackage(fixture.archive, {
+        knownComponentTypes: ['custom.product-card'],
+        supportedCapabilities: ['payment-gateway'],
+        assetProvider: mockAssetProvider,
+        // No explicit strategy provided (defaults to 'reject')
+      });
+
+      expect(importRes.success).toBe(false);
+      if (!importRes.success) {
+        expect(importRes.errors.some((e) => e.code === 'ASSET_CONFLICT')).toBe(true);
+        expect(importRes.diagnosticMessage).toContain('company_logo');
+      }
+
+      // Verify host asset was NOT overwritten
+      expect(mockAssetProvider.upload).not.toHaveBeenCalled();
+      expect(hostAssetStore.get('company_logo')).toBe('https://host.cdn/original_logo.png');
+    });
+
+    it('rejects import when existingAssetIds function reports collision', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        assetId: 'banner_bg',
+      });
+
+      const importRes = await importPackage(fixture.archive, {
+        knownComponentTypes: ['custom.product-card'],
+        supportedCapabilities: ['payment-gateway'],
+        existingAssetIds: (id) => id === 'banner_bg',
+        assetCollisionStrategy: 'reject',
+      });
+
+      expect(importRes.success).toBe(false);
+      if (!importRes.success) {
+        expect(importRes.errors.some((e) => e.code === 'ASSET_CONFLICT')).toBe(true);
+      }
+    });
+  });
+
+  describe('Acceptance Criteria 5: Host menentukan strategy penamaan asset conflict (rename)', () => {
+    it('renames colliding asset and automatically remaps all document node props to new asset ID', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        assetId: 'colliding_banner',
+      });
+
+      const uploadedFiles: Record<string, string> = {};
+      const mockAssetProvider: AssetProvider = {
+        resolve: (id) => `https://cdn.example.com/${id}`,
+        upload: async (file, meta) => {
+          const id = (meta?.assetId as string) || 'unknown';
+          uploadedFiles[id] = id;
+          return { id, url: `https://cdn.example.com/${id}`, mimeType: file.type };
+        },
+      };
+
+      const importRes = await importPackage(fixture.archive, {
+        knownComponentTypes: ['custom.product-card'],
+        supportedCapabilities: ['payment-gateway'],
+        existingAssetIds: ['colliding_banner'],
+        assetCollisionStrategy: 'rename',
+        assetProvider: mockAssetProvider,
+      });
+
+      expect(importRes.success).toBe(true);
+      if (!importRes.success) return;
+
+      // 1. Verify asset was uploaded under renamed ID
+      const expectedRenamedId = 'colliding_banner_imported';
+      expect(importRes.extractedAssets.has(expectedRenamedId)).toBe(true);
+      expect(uploadedFiles[expectedRenamedId]).toBe(expectedRenamedId);
+
+      // 2. Verify document node prop was remapped to renamed asset ID
+      const customNode = importRes.document.document.children?.[0]?.children?.[0];
+      const thumbnailProp = customNode?.props?.thumbnail as { type: string; assetId: string };
+      expect(thumbnailProp).toBeDefined();
+      expect(thumbnailProp.assetId).toBe(expectedRenamedId);
+
+      // 3. Verify renamedAssets mapping returned in result
+      expect(importRes.renamedAssets).toEqual({
+        colliding_banner: expectedRenamedId,
+      });
+    });
+
+    it('uses custom renameAssetStrategy if provided by host', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        assetId: 'avatar_icon',
+      });
+
+      const importRes = await importPackage(fixture.archive, {
+        knownComponentTypes: ['custom.product-card'],
+        supportedCapabilities: ['payment-gateway'],
+        existingAssetIds: new Set(['avatar_icon']),
+        assetCollisionStrategy: 'rename',
+        renameAssetStrategy: (incoming) => `tenant_prefix_${incoming.id}`,
+      });
+
+      expect(importRes.success).toBe(true);
+      if (!importRes.success) return;
+
+      expect(importRes.extractedAssets.has('tenant_prefix_avatar_icon')).toBe(true);
+      const customNode = importRes.document.document.children?.[0]?.children?.[0];
+      const thumbnailProp = customNode?.props?.thumbnail as { assetId: string };
+      expect(thumbnailProp.assetId).toBe('tenant_prefix_avatar_icon');
+    });
+  });
+
+  describe('Acceptance Criteria 6: Host strategies (overwrite, reuse-existing, and onAssetConflict hook)', () => {
+    it('overwrites host asset when explicit "overwrite" strategy is selected', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        assetId: 'override_logo',
+      });
+
+      const uploaded: string[] = [];
+      const mockAssetProvider: AssetProvider = {
+        resolve: (id) => `https://cdn.example.com/${id}`,
+        upload: async (_file, meta) => {
+          uploaded.push(meta?.assetId as string);
+          return { id: meta?.assetId as string, url: '', mimeType: 'image/png' };
+        },
+      };
+
+      const importRes = await importPackage(fixture.archive, {
+        knownComponentTypes: ['custom.product-card'],
+        supportedCapabilities: ['payment-gateway'],
+        existingAssetIds: ['override_logo'],
+        assetCollisionStrategy: 'overwrite',
+        assetProvider: mockAssetProvider,
+      });
+
+      expect(importRes.success).toBe(true);
+      expect(uploaded).toContain('override_logo');
+    });
+
+    it('reuses existing host asset when "reuse-existing" strategy is selected without re-uploading', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        assetId: 'shared_icon',
+      });
+
+      const uploadMock = vi.fn();
+      const mockAssetProvider: AssetProvider = {
+        resolve: vi.fn((id) => `https://cdn.example.com/${id}`),
+        upload: uploadMock,
+      };
+
+      const importRes = await importPackage(fixture.archive, {
+        knownComponentTypes: ['custom.product-card'],
+        supportedCapabilities: ['payment-gateway'],
+        existingAssetIds: ['shared_icon'],
+        assetCollisionStrategy: 'reuse-existing',
+        assetProvider: mockAssetProvider,
+      });
+
+      expect(importRes.success).toBe(true);
+      if (!importRes.success) return;
+
+      // Upload should NOT be called since asset is reused
+      expect(uploadMock).not.toHaveBeenCalled();
+
+      // Document keeps pointing to existing shared_icon
+      const customNode = importRes.document.document.children?.[0]?.children?.[0];
+      const thumbnailProp = customNode?.props?.thumbnail as { assetId: string };
+      expect(thumbnailProp.assetId).toBe('shared_icon');
+    });
+
+    it('supports onAssetConflict hook for fine-grained per-asset resolution', async () => {
+      const fixture = createPackageWithCustomNodeAndAsset({
+        assetId: 'dynamic_conflict',
+      });
+
+      const onAssetConflict = vi.fn(async (conflict) => {
+        expect(conflict.assetId).toBe('dynamic_conflict');
+        return {
+          action: 'rename' as const,
+          newAssetId: 'custom_renamed_id',
+        };
+      });
+
+      const importRes = await importPackage(fixture.archive, {
+        knownComponentTypes: ['custom.product-card'],
+        supportedCapabilities: ['payment-gateway'],
+        existingAssetIds: ['dynamic_conflict'],
+        onAssetConflict,
+      });
+
+      expect(onAssetConflict).toHaveBeenCalledTimes(1);
+      expect(importRes.success).toBe(true);
+      if (!importRes.success) return;
+
+      expect(importRes.extractedAssets.has('custom_renamed_id')).toBe(true);
+      const customNode = importRes.document.document.children?.[0]?.children?.[0];
+      const thumbnailProp = customNode?.props?.thumbnail as { assetId: string };
+      expect(thumbnailProp.assetId).toBe('custom_renamed_id');
+    });
+  });
+});
+
