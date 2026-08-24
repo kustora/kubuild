@@ -528,7 +528,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Definisikan action payload bindings
 - **Description:** Izinkan action payload menggunakan binding aman, misalnya `item.id`, agar button di collection dapat meneruskan context item ke host action handler.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-050, STORA-032, STORA-052
 - **Acceptance Criteria:**
   - Button dalam collection dapat mengirim resolved `item.id` ke handler test.

@@ -244,3 +244,135 @@ describe('STORA-032: Safe Runtime Action Dispatching', () => {
     });
   });
 });
+
+describe('STORA-054: Action Payload Bindings', () => {
+  const registry = createDefaultComponentRegistry();
+
+  function triggerNodeClick(element: React.ReactElement): void {
+    const inner = (element.props as { children?: React.ReactElement }).children || element;
+    const props = (inner as React.ReactElement).props as { onClick?: (e: React.MouseEvent) => void };
+    props?.onClick?.({ stopPropagation: () => {} } as unknown as React.MouseEvent);
+  }
+
+  it('sends resolved item.id from a button inside a collection scope, merged with static payload', () => {
+    const doc = createBlankDocument('Collection Action Test');
+    const buttonNode = {
+      id: 'btn-select',
+      type: 'button',
+      props: {
+        label: 'Select',
+        action: {
+          type: 'selectItem',
+          payload: {
+            id: { type: 'variable', key: 'item.id' },
+            source: 'collection',
+          },
+        },
+      },
+    };
+
+    const selectHandler = vi.fn<ActionHandler>();
+    const items = [{ id: 'a1' }, { id: 'b2' }];
+
+    items.forEach((item, index) => {
+      // Mirrors the per-item scope the renderer's `collection` branch builds
+      // (renderer.tsx: `variables: { ...context.variables, [itemAlias]: item }`).
+      const itemContext = createMinimalRenderContext({
+        variables: { item },
+        actions: { selectItem: selectHandler },
+      });
+
+      const element = NodeRenderer({
+        node: buttonNode,
+        document: doc,
+        registry,
+        context: itemContext,
+      });
+
+      triggerNodeClick(element);
+      expect(selectHandler).toHaveBeenNthCalledWith(
+        index + 1,
+        { id: item.id, source: 'collection' },
+        expect.objectContaining({ nodeId: 'btn-select' }),
+      );
+    });
+
+    expect(selectHandler).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not invoke the handler when a binding path in the payload is invalid', () => {
+    const doc = createBlankDocument('Invalid Binding Test');
+    const targetNode = {
+      id: 'btn-bad-path',
+      type: 'button',
+      props: {
+        label: 'Select',
+        action: {
+          type: 'selectItem',
+          payload: {
+            id: { type: 'variable', key: 'item.nonexistent' },
+            source: 'collection',
+          },
+        },
+      },
+    };
+    doc.document.children = [targetNode];
+
+    const selectHandler = vi.fn<ActionHandler>();
+    const diagnostics: Diagnostic[] = [];
+    const context = createMinimalRenderContext({
+      variables: { item: { id: 'a1' } },
+      actions: { selectItem: selectHandler },
+      onDiagnostic: (d) => diagnostics.push(d),
+    });
+
+    const element = NodeRenderer({
+      node: targetNode,
+      document: doc,
+      registry,
+      context,
+    });
+
+    triggerNodeClick(element);
+
+    expect(selectHandler).not.toHaveBeenCalled();
+    expect(
+      diagnostics.some((d) => d.code === 'INVALID_ACTION_BINDING' && d.invalidPaths?.includes('id')),
+    ).toBe(true);
+  });
+
+  it('allows an explicit fallback on an invalid path to resolve safely without blocking dispatch', () => {
+    const doc = createBlankDocument('Fallback Binding Test');
+    const targetNode = {
+      id: 'btn-fallback',
+      type: 'button',
+      props: {
+        label: 'Select',
+        action: {
+          type: 'selectItem',
+          payload: {
+            id: { type: 'variable', key: 'item.nonexistent', fallback: 'unknown' },
+          },
+        },
+      },
+    };
+    doc.document.children = [targetNode];
+
+    const selectHandler = vi.fn<ActionHandler>();
+    const context = createMinimalRenderContext({
+      variables: { item: { id: 'a1' } },
+      actions: { selectItem: selectHandler },
+    });
+
+    const element = NodeRenderer({
+      node: targetNode,
+      document: doc,
+      registry,
+      context,
+    });
+
+    triggerNodeClick(element);
+
+    expect(selectHandler).toHaveBeenCalledWith({ id: 'unknown' }, expect.objectContaining({ nodeId: 'btn-fallback' }));
+  });
+});

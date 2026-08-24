@@ -34,11 +34,12 @@ export interface ActionRegistry {
 }
 
 export interface ActionDiagnostic {
-  code: 'UNKNOWN_ACTION' | 'ACTION_EXECUTION_ERROR' | 'INVALID_ACTION_PAYLOAD';
+  code: 'UNKNOWN_ACTION' | 'ACTION_EXECUTION_ERROR' | 'INVALID_ACTION_PAYLOAD' | 'INVALID_ACTION_BINDING';
   actionType: string;
   nodeId?: string;
   message: string;
   error?: unknown;
+  invalidPaths?: string[];
 }
 
 export interface PropBindingDiagnostic {

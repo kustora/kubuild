@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo } from 'react';
-import { resolveBinding } from '@kubuild/core';
+import { resolveBinding, type ResolveOutcome } from '@kubuild/core';
 import type {
   AssetProvider,
   ActionRegistry,
@@ -152,33 +152,63 @@ export function resolveVariable(context?: RenderContext, value?: unknown): unkno
 }
 
 /**
- * Recursively resolves variables within an action payload without mutating the input object.
+ * Result of resolving an action payload: the resolved (serializable) value, plus any
+ * binding paths that failed to resolve (missing key, no author-declared fallback).
+ * `invalidPaths` is what lets dispatchAction refuse to run a handler with an
+ * unexpected/garbage value instead of silently passing through an empty string.
  */
-export function resolveActionPayload(
-  context?: RenderContext,
-  payload?: Record<string, unknown>,
-): Record<string, unknown> | undefined {
+export interface ActionPayloadResolution {
+  value: Record<string, unknown> | undefined;
+  invalidPaths: string[];
+}
+
+/**
+ * Recursively resolves variables within an action payload without mutating the input object.
+ * Tracks dotted field paths (e.g. "item.id") whose binding resolved to the "empty" outcome —
+ * i.e. an invalid/missing path with no fallback declared — as opposed to `fallback`, which is
+ * an author-declared safe default and never treated as invalid.
+ */
+export function resolveActionPayloadDetailed(
+  context: RenderContext | undefined,
+  payload: Record<string, unknown> | undefined,
+): ActionPayloadResolution {
   if (!payload || typeof payload !== 'object') {
-    return payload;
+    return { value: payload, invalidPaths: [] };
   }
 
-  const resolveValueRecursively = (val: unknown): unknown => {
+  const invalidPaths: string[] = [];
+
+  const resolveValueRecursively = (val: unknown, path: string): unknown => {
     if (val === null || val === undefined) {
       return val;
     }
     if (isVariableBinding(val)) {
-      return resolveVariable(context, val);
+      const outcome: ResolveOutcome = resolveBinding(val, context);
+      if (outcome.status === 'empty') {
+        invalidPaths.push(path);
+      }
+      return outcome.value;
     }
     if (typeof val === 'string') {
-      return resolveVariable(context, val);
+      if (val.includes('{{')) {
+        return val.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, key) => {
+          const outcome = resolveBinding({ key }, context);
+          if (outcome.status !== 'resolved') {
+            invalidPaths.push(path);
+            return match;
+          }
+          return String(outcome.value);
+        });
+      }
+      return val;
     }
     if (Array.isArray(val)) {
-      return val.map(resolveValueRecursively);
+      return val.map((item, index) => resolveValueRecursively(item, `${path}[${index}]`));
     }
     if (typeof val === 'object') {
       const copy: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
-        copy[k] = resolveValueRecursively(v);
+        copy[k] = resolveValueRecursively(v, path ? `${path}.${k}` : k);
       }
       return copy;
     }
@@ -187,10 +217,22 @@ export function resolveActionPayload(
 
   const resolved: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(payload)) {
-    resolved[key] = resolveValueRecursively(value);
+    resolved[key] = resolveValueRecursively(value, key);
   }
 
-  return resolved;
+  return { value: resolved, invalidPaths };
+}
+
+/**
+ * Recursively resolves variables within an action payload without mutating the input object.
+ * Back-compat convenience wrapper over resolveActionPayloadDetailed for callers that only
+ * need the resolved value (e.g. previewing a payload) and not invalid-path enforcement.
+ */
+export function resolveActionPayload(
+  context?: RenderContext,
+  payload?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  return resolveActionPayloadDetailed(context, payload).value;
 }
 
 /**
@@ -255,7 +297,22 @@ export function dispatchAction(options: DispatchActionOptions): boolean {
     return false;
   }
 
-  const resolvedPayload = resolveActionPayload(context, action.payload);
+  const { value: resolvedPayload, invalidPaths } = resolveActionPayloadDetailed(context, action.payload);
+
+  if (invalidPaths.length > 0) {
+    const diagnostic: ActionDiagnostic = {
+      code: 'INVALID_ACTION_BINDING',
+      actionType: action.type,
+      nodeId,
+      message: `Action "${action.type}" payload has unresolved binding path(s) [${invalidPaths.join(
+        ', ',
+      )}] on node ${nodeId || 'unknown'}; handler was not invoked.`,
+      invalidPaths,
+    };
+    onDiagnostic?.(diagnostic);
+    context?.onDiagnostic?.(diagnostic);
+    return false;
+  }
 
   const executionContext: ActionExecutionContext = {
     nodeId,
