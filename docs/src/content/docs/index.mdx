@@ -1,0 +1,50 @@
+---
+title: KUBUILD
+description: Embeddable, backend-agnostic web page builder engine & portable .stora package ecosystem.
+template: splash
+hero:
+  tagline: Portable, Framework-Agnostic Web Page Builder Engine with Document-First Architecture.
+  image:
+    file: ../../assets/kubuild-hero.svg
+  actions:
+    - text: Get Started
+      link: /getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/kustora/kubuild
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Core Pillars
+
+<CardGrid stagger>
+  <Card title="Document as Single Source of Truth" icon="document">
+    Strict separation between document model and editor UI. Immutable command-based mutations ensure predictable state, undo/redo, and validation.
+  </Card>
+  <Card title="Zero-Framework Core Engine" icon="seti:typescript">
+    `@kubuild/core` has zero React or DOM dependencies. Run validation, migration, commands, and tree operations anywhere.
+  </Card>
+  <Card title="Portable .stora Packages" icon="package">
+    Create → Customize → Export → Share → Import → Customize → Publish. Self-contained templates with integrity checks and asset bundling.
+  </Card>
+  <Card title="Multi-Breakpoint Responsive System" icon="laptop">
+    Fluid styling engine with `base`, `desktop`, `tablet`, and `mobile` overrides. Portable style abstraction instead of hardcoded CSS classes.
+  </Card>
+</CardGrid>
+
+## Package Ecosystem
+
+```
+@kubuild/schema  →  @kubuild/core  →  @kubuild/components  →  @kubuild/renderer  →  @kubuild/editor  →  @kubuild/react
+```
+
+- **`@kubuild/schema`**: Zod schemas and TypeScript definitions for PageDocument, Nodes, and Bindings.
+- **`@kubuild/core`**: Command engine, History (Undo/Redo), Version Migration, and Tree validation.
+- **`@kubuild/components`**: Component registry and base component definitions.
+- **`@kubuild/renderer`**: Pure recursive React renderer with responsive viewports.
+- **`@kubuild/editor`**: Visual canvas, Zustand UI state, and drag-and-drop interaction.
+- **`@kubuild/react`**: Unified consumer wrapper ready for production apps.

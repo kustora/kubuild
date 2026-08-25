@@ -1,0 +1,50 @@
+---
+title: KUBUILD
+description: Engine pembuat web page visual yang embeddable, backend-agnostic & ekosistem paket portabel .stora.
+template: splash
+hero:
+  tagline: Engine Pembuat Landing Page Visual Portabel dengan Arsitektur Berbasis Dokumen (Document-First).
+  image:
+    file: ../../../assets/kubuild-hero.svg
+  actions:
+    - text: Mulai Sekarang
+      link: /id/getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: Lihat di GitHub
+      link: https://github.com/kustora/kubuild
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Pilar Utama Arsitektur
+
+<CardGrid stagger>
+  <Card title="Dokumen Sebagai Sumber Kebenaran Tunggal" icon="document">
+    Pemisahan mutlak antara model dokumen dan antarmuka builder. Seluruh perubahan dilakukan melalui <i>command system</i> yang tidak dapat diubah secara langsung (immutable), menjamin undo/redo dan validasi yang konsisten.
+  </Card>
+  <Card title="Core Engine Tanpa Ketergantungan Framework" icon="seti:typescript">
+    `@kubuild/core` ditulis dalam TypeScript murni tanpa ketergantungan pada React maupun browser DOM. Jalankan validasi, migrasi versi, dan manipulasi pohon dokumen di mana saja.
+  </Card>
+  <Card title="Paket Portabel .stora" icon="package">
+    Siklus lengkap: Buat → Kustomisasi → Ekspor → Bagikan → Impor → Kustomisasi → Publikasi. Format mandiri dengan validasi integritas dan bundling aset.
+  </Card>
+  <Card title="Sistem Responsif Multi-Breakpoint" icon="laptop">
+    Mesin styling terisolasi dengan breakpoint `base`, `desktop`, `tablet`, dan `mobile`. Abstraksi style portabel tanpa keterikatan pada class CSS eksternal.
+  </Card>
+</CardGrid>
+
+## Ekosistem Paket KUBUILD
+
+```
+@kubuild/schema  →  @kubuild/core  →  @kubuild/components  →  @kubuild/renderer  →  @kubuild/editor  →  @kubuild/react
+```
+
+- **`@kubuild/schema`**: Skema Zod dan definisi TypeScript untuk PageDocument, Node, dan Binding.
+- **`@kubuild/core`**: Command engine, Riwayat (Undo/Redo), Migrasi Versi, dan Validasi Pohon Komponen.
+- **`@kubuild/components`**: Registry komponen dan definisi komponen bawaan.
+- **`@kubuild/renderer`**: Renderer React rekursif murni dengan dukungan viewport responsif.
+- **`@kubuild/editor`**: Visual canvas, state UI Zustand, dan interaksi drag-and-drop.
+- **`@kubuild/react`**: Wrapper gabungan yang siap diintegrasikan pada aplikasi produksi.
