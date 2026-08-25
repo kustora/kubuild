@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeDocumentFilename } from './export-utils';
+import { sanitizeDocumentFilename } from '../src/export-utils';
 import { starterPageFixture } from '@kubuild/schema';
 import { exportPackage, inspectPackage, importPackage } from '@kubuild/core';
 import { createDefaultComponentRegistry } from '@kubuild/components';

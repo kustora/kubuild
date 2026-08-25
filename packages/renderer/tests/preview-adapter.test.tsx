@@ -11,9 +11,9 @@ import {
   DEFAULT_VIEWPORT_CONFIGS,
   DEFAULT_BREAKPOINTS,
   ViewportDevice,
-} from './preview-adapter';
-import { KubuildRenderer } from './renderer';
-import { createMinimalRenderContext } from './render-context';
+} from '../src/preview-adapter';
+import { KubuildRenderer } from '../src/renderer';
+import { createMinimalRenderContext } from '../src/render-context';
 
 describe('PreviewViewportAdapter', () => {
   const mockDoc: PageDocument = {

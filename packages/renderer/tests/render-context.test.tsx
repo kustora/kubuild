@@ -15,7 +15,7 @@ import {
   resolveAssetSync,
   isActionRegistered,
   DEFAULT_RENDER_CONTEXT,
-} from './index';
+} from '../src/index';
 
 describe('STORA-031: Immutable RenderContext & Host Resolvers', () => {
   const registry = createDefaultComponentRegistry();

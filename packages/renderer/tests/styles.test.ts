@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveNodeStyles } from './styles';
+import { resolveNodeStyles } from '../src/styles';
 
 describe('STORA-023: Renderer applies responsive style overrides', () => {
   it('resolves base styles unchanged when no viewport override exists', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePropsForNode } from './prop-resolution';
+import { resolvePropsForNode } from '../src/prop-resolution';
 import { headingDefinition, imageDefinition, buttonDefinition } from '@kubuild/components';
 import type { Node } from '@kubuild/schema';
 import type { RenderContext } from '@kubuild/core';

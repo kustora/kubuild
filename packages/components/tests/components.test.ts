@@ -19,7 +19,7 @@ import {
   primitiveTypeForField,
   isBindableField,
   ComponentFieldDefinition,
-} from './index';
+} from '../src/index';
 import { validateDocument, createBlankDocument, insertNode } from '@kubuild/core';
 import { ResponsiveStylesSchema, ManifestSchema } from '@kubuild/schema';
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { KubuildRenderer } from './renderer';
+import { KubuildRenderer } from '../src/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { PageDocument, starterPageFixture } from '@kubuild/schema';
 

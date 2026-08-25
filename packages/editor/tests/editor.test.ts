@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { useEditorStore } from './store';
+import { useEditorStore } from '../src/store';
 import { createBlankDocument } from '@kubuild/core';
 
 describe('Editor Store', () => {

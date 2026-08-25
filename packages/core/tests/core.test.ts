@@ -21,7 +21,7 @@ import {
   getMigrationPath,
   MigrationRegistry,
   ComponentRegistryLike,
-} from './index';
+} from '../src/index';
 import { PageDocument, Node } from '@kubuild/schema';
 
 describe('STORA-011: Document Validator and Error Diagnostics', () => {

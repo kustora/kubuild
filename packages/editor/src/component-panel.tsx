@@ -54,13 +54,15 @@ export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, classN
                 key={definition.type}
                 type="button"
                 onClick={() => handleInsert(definition)}
-                title={definition.description}
-                className="flex items-center gap-2 px-2.5 py-2 rounded-md border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/40 hover:text-blue-600 text-slate-700 text-xs font-medium text-left transition group shadow-sm"
+                title={definition.description || definition.label}
+                className="flex flex-col items-center justify-center p-2.5 min-h-[74px] rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/50 hover:shadow text-slate-700 transition group cursor-pointer text-center"
               >
-                <span className="shrink-0 text-slate-400 group-hover:text-blue-500 transition-colors">
-                  <ComponentIcon iconOrType={definition.icon ?? definition.type} size={15} />
+                <span className="mb-1.5 text-slate-500 group-hover:text-blue-600 transition-colors">
+                  <ComponentIcon iconOrType={definition.icon ?? definition.type} size={22} />
                 </span>
-                <span className="truncate">{definition.label}</span>
+                <span className="text-[11px] font-medium text-slate-700 group-hover:text-blue-600 text-center leading-tight break-words w-full select-none">
+                  {definition.label}
+                </span>
               </button>
             ))}
           </div>

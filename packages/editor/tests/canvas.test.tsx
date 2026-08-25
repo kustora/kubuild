@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { EditorCanvas } from './canvas';
+import { EditorCanvas } from '../src/canvas';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
 import { starterPageFixture } from '@kubuild/schema';
-import { useEditorStore } from './store';
+import { useEditorStore } from '../src/store';
 
 describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
   const registry = createDefaultComponentRegistry();

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { KubuildRenderer } from './renderer';
+import { KubuildRenderer } from '../src/renderer';
 import { createDefaultComponentRegistry, ComponentRegistry } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
 import { ActionHandler, RuntimeContext } from '@kubuild/core';

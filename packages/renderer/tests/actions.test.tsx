@@ -8,7 +8,7 @@ import {
   createRenderContext,
   dispatchAction,
   resolveActionPayload,
-} from './index';
+} from '../src/index';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 
 describe('STORA-032: Safe Runtime Action Dispatching', () => {

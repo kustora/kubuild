@@ -4,15 +4,15 @@ import {
   cloneTemplateAsPage,
   areNodeIdsCompletelyDistinct,
   createTemplateRecord,
-} from './template-utils';
+} from '../src/template-utils';
 import {
   insertNode,
   updateProps,
   updateStyle,
   removeNode,
   duplicateNode,
-} from './commands';
-import { DocumentHistoryManager } from './history';
+} from '../src/commands';
+import { DocumentHistoryManager } from '../src/history';
 import { starterPageFixture, collectNodeIds, type PageDocument, type Node } from '@kubuild/schema';
 
 describe('STORA-071: Save Draft as Template and Clone as New Page', () => {

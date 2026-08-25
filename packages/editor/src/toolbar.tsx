@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ComponentRegistry } from '@kubuild/components';
-import { createBlankDocument } from '@kubuild/core';
 import { useEditorStore } from './store';
 import { ImportModal } from './import-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from './export-utils';
@@ -23,6 +22,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     clipboard,
     canUndo,
     canRedo,
+    navigatorMode,
+    toggleNavigator,
     duplicateComponent,
     deleteComponent,
     copyNode,
@@ -37,11 +38,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const rootId = document.document.id;
   const hasSelection = !!selectedNodeId && selectedNodeId !== rootId;
   const canPaste = !!clipboard && !!selectedNodeId;
-
-  const handleNewPage = () => {
-    const newDoc = createBlankDocument('New Page');
-    setDocument(newDoc);
-  };
 
   const handleCopy = () => {
     if (!selectedNodeId) return;
@@ -58,46 +54,80 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const handleDuplicate = () => {
     if (!selectedNodeId) return;
     const result = duplicateComponent(selectedNodeId, registry);
-    setError(result.success ? null : result.error ?? 'Could not duplicate the selected element.');
+    setError(result.success ? null : result.error ?? 'Could not duplicate.');
   };
 
   const handleDelete = () => {
     if (!selectedNodeId) return;
     const result = deleteComponent(selectedNodeId);
-    setError(result.success ? null : result.error ?? 'Could not delete the selected element.');
+    setError(result.success ? null : result.error ?? 'Could not delete.');
   };
 
   const handleExportStora = async () => {
-    setIsExporting(true);
     setError(null);
+    setIsExporting(true);
     try {
       await downloadDocumentAsStora(document, undefined, { componentRegistry: registry });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : 'Unknown error during export.';
+      setError(`Export failed: ${msg}`);
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleExportJson = () => {
+    setError(null);
     try {
       downloadDocumentAsJson(document);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : 'Unknown error during JSON download.';
+      setError(`JSON download failed: ${msg}`);
     }
   };
 
   return (
     <>
-      <div className={`flex items-center gap-1 ${className || ''}`}>
+      <div className={`flex items-center gap-1.5 ${className || ''}`}>
         {error && (
           <div
             role="alert"
-            className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1 mr-1"
+            className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1 flex items-center gap-1 mr-1"
           >
-            {error}
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-600 font-bold ml-1"
+            >
+              ×
+            </button>
           </div>
         )}
+
+        <button
+          type="button"
+          title={`Navigator / Element Tree (${navigatorMode !== 'hidden' ? 'Open' : 'Hidden'})`}
+          onClick={toggleNavigator}
+          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium ${
+            navigatorMode !== 'hidden'
+              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
+              : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+          }`}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+          <span>Navigator</span>
+        </button>
+
+        <div className="h-4 w-px bg-slate-200 mx-1" />
+
         <button
           type="button"
           title="Copy (Ctrl/Cmd+C)"

@@ -25,6 +25,7 @@ import {
 import { ComponentRegistry, ComponentDefaultChildSpec } from '@kubuild/components';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
+export type NavigatorMode = 'docked' | 'floating' | 'hidden';
 
 export interface InsertComponentResult {
   success: boolean;
@@ -122,9 +123,12 @@ export interface EditorState {
   onChangeHandler: ((doc: PageDocument) => void) | null;
   /** Host-declared bindable variables + editor/preview-only sample values (STORA-053). Never serialized to the document. */
   variableCatalog: VariableCatalog;
+  navigatorMode: NavigatorMode;
 
   setDocument: (document: PageDocument) => void;
   setVariableCatalog: (catalog: VariableCatalog) => void;
+  setNavigatorMode: (mode: NavigatorMode) => void;
+  toggleNavigator: () => void;
   setOnChangeHandler: (handler: ((doc: PageDocument) => void) | null) => void;
   dispatch: (executor: (doc: PageDocument) => CommandResult) => void;
   insertComponent: (type: string, registry: ComponentRegistry, parentId?: string) => InsertComponentResult;
@@ -185,8 +189,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clipboard: null,
   onChangeHandler: null,
   variableCatalog: [],
+  navigatorMode: 'floating',
 
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
+  setNavigatorMode: (mode) => set({ navigatorMode: mode }),
+  toggleNavigator: () =>
+    set((state) => ({
+      navigatorMode: state.navigatorMode === 'hidden' ? 'floating' : 'hidden',
+    })),
 
   setDocument: (document) => {
     historyManager = new DocumentHistoryManager(document);

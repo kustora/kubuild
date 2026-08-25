@@ -29,8 +29,16 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   onDiagnostic,
   className,
 }) => {
-  const { document, setDocument, setOnChangeHandler, setVariableCatalog, viewport, setViewport, selectedNodeId } =
-    useEditorStore();
+  const {
+    document,
+    setDocument,
+    setOnChangeHandler,
+    setVariableCatalog,
+    viewport,
+    setViewport,
+    selectedNodeId,
+    navigatorMode,
+  } = useEditorStore();
   const lastLoadedDocRef = React.useRef<PageDocument | undefined>(undefined);
 
   useEffect(() => {
@@ -73,7 +81,10 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   };
 
   return (
-    <div className={`flex flex-col h-full bg-slate-100 text-slate-900 ${className || ''}`}>
+    <div className={`flex flex-col h-full bg-slate-100 text-slate-900 relative ${className || ''}`}>
+      {/* Floating Navigator */}
+      {navigatorMode === 'floating' && <LayersPanel registry={registry} />}
+
       {/* Editor Top Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-200">
         <div className="flex items-center gap-2">
@@ -110,13 +121,15 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
 
       {/* Main Body: Component Panel + Canvas */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-56 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col">
+        <div className="w-64 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col">
           <ComponentPanel registry={registry} />
         </div>
 
-        <div className="w-60 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col">
-          <LayersPanel registry={registry} />
-        </div>
+        {navigatorMode === 'docked' && (
+          <div className="w-60 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col">
+            <LayersPanel registry={registry} />
+          </div>
+        )}
 
         <div className="flex-1 overflow-auto p-8 flex justify-center items-start">
           <div

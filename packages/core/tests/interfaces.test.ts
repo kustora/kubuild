@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { createBlankDocument } from './index';
+import { createBlankDocument } from '../src/index';
 import type {
   AssetInfo,
   AssetProvider,
   ActionHandler,
   ActionRegistry,
   ActionExecutionContext,
-} from './interfaces';
+} from '../src/interfaces';
 import { isAssetReference, isVariableBinding, isActionBinding } from '@kubuild/schema';
-import * as coreExports from './index';
+import * as coreExports from '../src/index';
 
 describe('STORA-015: Asset Provider and Action Registry Contracts', () => {
   describe('Acceptance Criteria 1: Asset contract supports id, MIME type, URL resolve, minimal metadata', () => {

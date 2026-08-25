@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { useEditorStore } from './store';
+import { useEditorStore } from '../src/store';
 import { createBlankDocument, insertNode, removeNode, collectNodeIdSet } from '@kubuild/core';
 import { PageDocument } from '@kubuild/schema';
 import { createDefaultComponentRegistry } from '@kubuild/components';
