@@ -517,6 +517,89 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
         </div>
       )}
 
+      {node.type === 'table' && (
+        <div className="pb-3 border-b border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Table Rows ({node.children?.length ?? 0})
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const cellCount = node.children?.[0]?.children?.length || 2;
+                const result = insertComponent('table-row', registry, node.id);
+                if (result.success && result.nodeId) {
+                  for (let i = 0; i < cellCount; i++) {
+                    insertComponent('table-cell', registry, result.nodeId);
+                  }
+                }
+              }}
+              className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition"
+            >
+              + Add Row
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {(!node.children || node.children.length === 0) && (
+              <div className="text-xs text-slate-400 italic">No rows yet. Click "+ Add Row" to add one.</div>
+            )}
+            {node.children?.map((row, idx) => (
+              <div
+                key={row.id}
+                className="flex items-center justify-between bg-slate-50 px-2 py-1.5 rounded border border-slate-200 text-xs"
+              >
+                <span className="font-medium text-slate-700">
+                  Row {idx + 1} ({row.children?.length ?? 0} cells)
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => insertComponent('table-cell', registry, row.id)}
+                    className="px-1.5 py-0.5 text-[11px] text-blue-600 bg-blue-50 hover:bg-blue-100 rounded"
+                    title="Add Cell to Row"
+                  >
+                    + Cell
+                  </button>
+                  <button
+                    type="button"
+                    title="Select Row"
+                    onClick={() => selectNode(row.id)}
+                    className="p-1 text-slate-400 hover:text-blue-600 rounded"
+                  >
+                    🎯
+                  </button>
+                  <button
+                    type="button"
+                    title="Delete Row"
+                    onClick={() => deleteComponent(row.id)}
+                    className="p-1 text-slate-400 hover:text-red-600 rounded"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {node.type === 'table-row' && (
+        <div className="pb-3 border-b border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Row Cells ({node.children?.length ?? 0})
+            </div>
+            <button
+              type="button"
+              onClick={() => insertComponent('table-cell', registry, node.id)}
+              className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition"
+            >
+              + Add Cell
+            </button>
+          </div>
+        </div>
+      )}
+
       <div>
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
           {definition.label} Props

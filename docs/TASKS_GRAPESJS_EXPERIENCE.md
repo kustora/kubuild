@@ -51,7 +51,7 @@
   - `table-row`: Tag `<tr>`.
   - `table-cell`: Tag `<th>` (header) atau `<td>` (data) dengan prop `colSpan` dan `rowSpan`.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Tabel dapat dibuat, diedit kolom dan barisnya, serta mendukung sel header (`<th>`) dan sel data (`<td>`) dengan `colSpan`/`rowSpan` yang valid.

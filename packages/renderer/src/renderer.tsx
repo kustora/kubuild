@@ -384,6 +384,120 @@ export function NodeRenderer({
           />
         );
       }
+      case 'table': {
+        const isStriped = resolvedProps.striped === true;
+        const isBordered = resolvedProps.bordered !== false;
+        const isCompact = resolvedProps.compact === true;
+
+        const tableStyles: React.CSSProperties = {
+          width: '100%',
+          borderCollapse: 'collapse',
+          ...styles,
+          ...(isBordered ? { border: styles.border || '1px solid #e2e8f0' } : {}),
+        };
+
+        return (
+          <table
+            id={domId}
+            style={tableStyles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            data-striped={isStriped ? 'true' : undefined}
+            data-bordered={isBordered ? 'true' : undefined}
+            data-compact={isCompact ? 'true' : undefined}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
+            <tbody>{childrenElements}</tbody>
+          </table>
+        );
+      }
+      case 'table-row': {
+        return (
+          <tr
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
+            {childrenElements}
+          </tr>
+        );
+      }
+      case 'table-cell': {
+        const rawTag = resolvedProps.tag;
+        const Tag = rawTag === 'th' ? 'th' : 'td';
+        const colSpan =
+          typeof resolvedProps.colSpan === 'number' && resolvedProps.colSpan > 1
+            ? resolvedProps.colSpan
+            : undefined;
+        const rowSpan =
+          typeof resolvedProps.rowSpan === 'number' && resolvedProps.rowSpan > 1
+            ? resolvedProps.rowSpan
+            : undefined;
+        const text = resolvedProps.text !== undefined ? String(resolvedProps.text) : '';
+        const hasChildren = Boolean(childrenElements && childrenElements.length > 0);
+        const isEditable = mode === 'editor' && !isVariableBinding(props.text);
+
+        const cellStyles: React.CSSProperties = {
+          padding: '8px 12px',
+          border: '1px solid #e2e8f0',
+          textAlign: 'left',
+          ...styles,
+          ...(Tag === 'th'
+            ? {
+                fontWeight: styles.fontWeight || '600',
+                backgroundColor: styles.backgroundColor || '#f8fafc',
+              }
+            : {}),
+        };
+
+        if (hasChildren) {
+          return (
+            <Tag
+              id={domId}
+              colSpan={colSpan}
+              rowSpan={rowSpan}
+              style={cellStyles}
+              onClick={handleClick}
+              data-kubuild-node={node.id}
+              role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+            >
+              {text ? (
+                isEditable ? (
+                  <EditableText
+                    as="span"
+                    value={text}
+                    isEditable={isEditable}
+                    nodeId={node.id}
+                    onClick={handleClick}
+                    onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
+                  />
+                ) : (
+                  <span>{text}</span>
+                )
+              ) : null}
+              {childrenElements}
+            </Tag>
+          );
+        }
+
+        return (
+          <EditableText
+            as={Tag}
+            id={domId}
+            colSpan={colSpan}
+            rowSpan={rowSpan}
+            style={cellStyles}
+            value={text}
+            isEditable={isEditable}
+            nodeId={node.id}
+            onClick={handleClick}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          />
+        );
+      }
       case 'image': {
         const rawSrc = typeof resolvedProps.src === 'string' && resolvedProps.src.length > 0 ? resolvedProps.src : undefined;
         const directSrc = rawSrc ?? undefined;

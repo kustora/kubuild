@@ -820,4 +820,115 @@ describe('STORA-052: Collection rendering', () => {
       expect(editorHtml).toContain('data-kubuild-node="item-edit"');
     });
   });
+
+  describe('STORA-191: Table, table-row, and table-cell rendering', () => {
+    it('renders semantic table markup with header (th) and data (td) cells', () => {
+      const doc = createBlankDocument('Table Test');
+      doc.document.children = [
+        {
+          id: 'tbl-1',
+          type: 'table',
+          props: { striped: true, bordered: true, compact: false },
+          children: [
+            {
+              id: 'row-head',
+              type: 'table-row',
+              children: [
+                { id: 'th-1', type: 'table-cell', props: { tag: 'th', text: 'Product' } },
+                { id: 'th-2', type: 'table-cell', props: { tag: 'th', text: 'Price' } },
+              ],
+            },
+            {
+              id: 'row-data',
+              type: 'table-row',
+              children: [
+                { id: 'td-1', type: 'table-cell', props: { tag: 'td', text: 'Standard' } },
+                { id: 'td-2', type: 'table-cell', props: { tag: 'td', text: '$10' } },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} />);
+      expect(html).toContain('<table');
+      expect(html).toContain('id="tbl-1"');
+      expect(html).toContain('data-striped="true"');
+      expect(html).toContain('data-bordered="true"');
+      expect(html).toContain('<tr');
+      expect(html).toContain('id="row-head"');
+      expect(html).toContain('<th');
+      expect(html).toContain('Product');
+      expect(html).toContain('Price');
+      expect(html).toContain('<td');
+      expect(html).toContain('Standard');
+      expect(html).toContain('$10');
+    });
+
+    it('supports colSpan and rowSpan props on table-cell', () => {
+      const doc = createBlankDocument('Spanning Table Test');
+      doc.document.children = [
+        {
+          id: 'tbl-span',
+          type: 'table',
+          children: [
+            {
+              id: 'row-1',
+              type: 'table-row',
+              children: [
+                { id: 'th-span', type: 'table-cell', props: { tag: 'th', text: 'Full Header', colSpan: 2 } },
+              ],
+            },
+            {
+              id: 'row-2',
+              type: 'table-row',
+              children: [
+                { id: 'td-rowspan', type: 'table-cell', props: { tag: 'td', text: 'Merged Row', rowSpan: 2 } },
+                { id: 'td-side', type: 'table-cell', props: { tag: 'td', text: 'Side' } },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} />);
+      expect(html.toLowerCase()).toContain('colspan="2"');
+      expect(html.toLowerCase()).toContain('rowspan="2"');
+      expect(html).toContain('Full Header');
+      expect(html).toContain('Merged Row');
+    });
+
+    it('renders child components inside table-cell and supports inline text editing', () => {
+      const doc = createBlankDocument('Cell Children Test');
+      doc.document.children = [
+        {
+          id: 'tbl-children',
+          type: 'table',
+          children: [
+            {
+              id: 'row-1',
+              type: 'table-row',
+              children: [
+                {
+                  id: 'cell-with-btn',
+                  type: 'table-cell',
+                  props: { text: 'Cell: ' },
+                  children: [
+                    { id: 'cell-btn', type: 'button', props: { label: 'Action' } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(runtimeHtml).toContain('Cell:');
+      expect(runtimeHtml).toContain('Action');
+
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
+    });
+  });
 });
