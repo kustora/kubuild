@@ -4,6 +4,7 @@ import { renderToString } from 'react-dom/server';
 import { EditorCanvas } from './canvas';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
+import { starterPageFixture } from '@kubuild/schema';
 import { useEditorStore } from './store';
 
 describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
@@ -20,5 +21,17 @@ describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
 
     // Document nodes are rendered
     expect(html).toContain('data-kubuild-node');
+  });
+
+  it('renders contenteditable text elements in EditorCanvas for direct on-canvas editing', () => {
+    const doc = JSON.parse(JSON.stringify(starterPageFixture));
+    useEditorStore.getState().setDocument(doc);
+
+    const html = renderToString(
+      <EditorCanvas document={doc} registry={registry} viewport="desktop" />
+    );
+
+    expect(html.toLowerCase()).toContain('contenteditable="true"');
+    expect(html).toContain('Build Once, Render Anywhere');
   });
 });

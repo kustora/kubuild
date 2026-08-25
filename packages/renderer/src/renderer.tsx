@@ -1,5 +1,5 @@
-import React from 'react';
-import { PageDocument, Node, isAssetReference, isActionBinding } from '@kubuild/schema';
+import React, { useRef, useLayoutEffect, useState } from 'react';
+import { PageDocument, Node, isAssetReference, isActionBinding, isVariableBinding } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import {
   RenderContext,
@@ -16,6 +16,89 @@ import { resolveNodeStyles } from './styles';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
 
+export interface EditableTextProps {
+  as?: string;
+  id?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  value: string;
+  isEditable: boolean;
+  nodeId: string;
+  onClick?: (e: React.MouseEvent) => void;
+  onChange?: (val: string, isBlur: boolean) => void;
+  [key: string]: unknown;
+}
+
+export const EditableText: React.FC<EditableTextProps> = ({
+  as = 'p',
+  id,
+  className,
+  style,
+  value,
+  isEditable,
+  nodeId,
+  onClick,
+  onChange,
+  ...rest
+}) => {
+  const isEditingRef = useRef(false);
+
+  const Tag = as as any;
+
+  if (!isEditable) {
+    return (
+      <Tag
+        id={id}
+        className={className}
+        style={style}
+        onClick={onClick}
+        data-kubuild-node={nodeId}
+        {...rest}
+      >
+        {value}
+      </Tag>
+    );
+  }
+
+  return (
+    <Tag
+      id={id}
+      className={className}
+      style={{
+        ...style,
+        outline: 'none',
+        cursor: 'text',
+      }}
+      contentEditable={true}
+      suppressContentEditableWarning={true}
+      data-kubuild-node={nodeId}
+      onClick={(e: React.MouseEvent) => {
+        onClick?.(e);
+      }}
+      onFocus={() => {
+        isEditingRef.current = true;
+      }}
+      onInput={(e: React.FormEvent<HTMLElement>) => {
+        const text = e.currentTarget.textContent ?? '';
+        onChange?.(text, false);
+      }}
+      onBlur={(e: React.FocusEvent<HTMLElement>) => {
+        isEditingRef.current = false;
+        const text = e.currentTarget.textContent ?? '';
+        onChange?.(text, true);
+      }}
+      onKeyDown={(e: React.KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          (e.currentTarget as HTMLElement).blur();
+        }
+      }}
+      {...rest}
+    >
+      {value}
+    </Tag>
+  );
+};
+
 export interface KubuildRendererProps {
   document: PageDocument;
   registry?: ComponentRegistry;
@@ -26,6 +109,7 @@ export interface KubuildRendererProps {
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
+  onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
 }
 
 export interface NodeRendererProps {
@@ -38,6 +122,7 @@ export interface NodeRendererProps {
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
+  onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
   /**
    * Suffix appended to the HTML `id` attribute (never to `data-kubuild-node`, the
    * canonical template-node reference) so a `collection` node's repeated child
@@ -56,6 +141,7 @@ export function NodeRenderer({
   onNodeClick,
   onDiagnostic,
   onActionDispatch,
+  onNodePropChange,
   instanceSuffix = '',
 }: NodeRendererProps): React.ReactElement {
   const context = propContext || DEFAULT_RENDER_CONTEXT;
@@ -100,6 +186,7 @@ export function NodeRenderer({
       onNodeClick={onNodeClick}
       onDiagnostic={onDiagnostic}
       onActionDispatch={onActionDispatch}
+      onNodePropChange={onNodePropChange}
       instanceSuffix={instanceSuffix}
     />
   ));
@@ -195,31 +282,37 @@ export function NodeRenderer({
         const rawLevel = typeof resolvedProps.level === 'number' ? resolvedProps.level : typeof props.level === 'number' ? props.level : 2;
         const clampedLevel = Math.min(Math.max(rawLevel, 1), 6);
         const text = String(resolvedProps.text ?? '');
-        const Tag = `h${clampedLevel}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+        const Tag = `h${clampedLevel}`;
+        const isEditable = mode === 'editor' && !isVariableBinding(props.text);
         return (
-          <Tag
+          <EditableText
+            as={Tag}
             id={domId}
             style={styles}
+            value={text}
+            isEditable={isEditable}
+            nodeId={node.id}
             onClick={handleClick}
-            data-kubuild-node={node.id}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
             aria-label={typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : undefined}
-          >
-            {text}
-          </Tag>
+          />
         );
       }
       case 'text': {
         const content = String(resolvedProps.content ?? '');
+        const isEditable = mode === 'editor' && !isVariableBinding(props.content);
         return (
-          <p
+          <EditableText
+            as="p"
             id={domId}
             style={styles}
+            value={content}
+            isEditable={isEditable}
+            nodeId={node.id}
             onClick={handleClick}
-            data-kubuild-node={node.id}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, 'content', val, isBlur)}
             role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
-          >
-            {content}
-          </p>
+          />
         );
       }
       case 'image': {
@@ -262,8 +355,27 @@ export function NodeRenderer({
           ? { 'data-kubuild-action': action.type, 'data-kubuild-action-resolved': actionResolved }
           : {};
         const ariaLabel = typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : undefined;
+        const isEditable = mode === 'editor' && !isVariableBinding(props.label);
 
         if (href && !disabled) {
+          if (isEditable) {
+            return (
+              <EditableText
+                as="a"
+                id={domId}
+                href={mode === 'editor' ? undefined : href}
+                style={styles}
+                value={label}
+                isEditable={isEditable}
+                nodeId={node.id}
+                onClick={handleClick}
+                onChange={(val, isBlur) => onNodePropChange?.(node.id, 'label', val, isBlur)}
+                aria-label={ariaLabel}
+                tabIndex={0}
+                {...actionAttrs}
+              />
+            );
+          }
           return (
             <a
               id={domId}
@@ -277,6 +389,27 @@ export function NodeRenderer({
             >
               {label}
             </a>
+          );
+        }
+
+        if (isEditable) {
+          return (
+            <EditableText
+              as="button"
+              id={domId}
+              type="button"
+              disabled={disabled}
+              aria-disabled={disabled ? true : undefined}
+              aria-label={ariaLabel}
+              tabIndex={disabled ? -1 : 0}
+              style={styles}
+              value={label}
+              isEditable={isEditable}
+              nodeId={node.id}
+              onClick={disabled ? undefined : handleClick}
+              onChange={(val, isBlur) => onNodePropChange?.(node.id, 'label', val, isBlur)}
+              {...actionAttrs}
+            />
           );
         }
 
@@ -365,6 +498,7 @@ export function NodeRenderer({
                   onNodeClick={onNodeClick}
                   onDiagnostic={onDiagnostic}
                   onActionDispatch={onActionDispatch}
+                  onNodePropChange={onNodePropChange}
                   instanceSuffix={itemSuffix}
                 />
               ));
@@ -475,6 +609,7 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
   onNodeClick,
   onDiagnostic,
   onActionDispatch,
+  onNodePropChange,
 }) => {
   if (!document || !document.document) {
     return <div className={className}>Empty Document</div>;
@@ -493,6 +628,7 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
           onNodeClick={onNodeClick}
           onDiagnostic={onDiagnostic}
           onActionDispatch={onActionDispatch}
+          onNodePropChange={onNodePropChange}
         />
       </div>
     </RenderContextProvider>

@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
+import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { KubuildRenderer } from '@kubuild/renderer';
 import {
@@ -13,6 +14,7 @@ import {
 import { useEditorStore, Viewport } from './store';
 
 export interface EditorCanvasProps {
+  document?: PageDocument;
   registry: ComponentRegistry;
   context?: RuntimeContext;
   viewport: Viewport;
@@ -59,8 +61,9 @@ function rectFor(container: HTMLElement, nodeId: string | null): Rect | null {
   };
 }
 
-export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, viewport, onDiagnostic }) => {
-  const { document, selectedNodeId, hoveredNodeId, selectNode, hoverNode } = useEditorStore();
+export const EditorCanvas: React.FC<EditorCanvasProps> = ({ document: propDoc, registry, context, viewport, onDiagnostic }) => {
+  const { document: storeDoc, selectedNodeId, hoveredNodeId, selectNode, hoverNode, updateNodeProps } = useEditorStore();
+  const document = propDoc ?? storeDoc;
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [hoveredRect, setHoveredRect] = useState<Rect | null>(null);
@@ -76,11 +79,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
     };
 
     recompute();
+    const container = containerRef.current;
     window.addEventListener('resize', recompute);
     window.addEventListener('scroll', recompute, true);
+    container?.addEventListener('input', recompute);
     return () => {
       window.removeEventListener('resize', recompute);
       window.removeEventListener('scroll', recompute, true);
+      container?.removeEventListener('input', recompute);
     };
   }, [document, selectedNodeId, hoveredNodeId, viewport]);
 
@@ -89,7 +95,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
     if (!container) return;
     container.querySelectorAll<HTMLElement>('[data-kubuild-node]').forEach((el) => {
       const id = el.getAttribute('data-kubuild-node');
-      el.draggable = !!id && id !== document.document.id;
+      const isEditable = el.isContentEditable || el.getAttribute('contenteditable') === 'true';
+      el.draggable = !!id && id !== document.document.id && !isEditable;
     });
   }, [document, viewport]);
 
@@ -160,7 +167,12 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
   const handleMouseLeave = () => hoverNode(null);
 
   const handleDragStart = (e: React.DragEvent) => {
-    const el = (e.target as HTMLElement).closest('[data-kubuild-node]');
+    const target = e.target as HTMLElement;
+    if (target.isContentEditable || target.closest('[contenteditable="true"]')) {
+      e.preventDefault();
+      return;
+    }
+    const el = target.closest('[data-kubuild-node]');
     const nodeId = el?.getAttribute('data-kubuild-node');
     if (!nodeId || nodeId === document.document.id) {
       e.preventDefault();
@@ -274,6 +286,12 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ registry, context, v
         viewport={viewport}
         mode="editor"
         onNodeClick={(id: string) => selectNode(id)}
+        onNodePropChange={(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => {
+          if (!isBlur && typeof value === 'string' && value.trim() === '') {
+            return;
+          }
+          updateNodeProps(nodeId, { [propName]: value }, registry);
+        }}
         onDiagnostic={onDiagnostic}
       />
       {hoveredRect && hoveredNodeId !== selectedNodeId && (

@@ -674,4 +674,27 @@ describe('STORA-052: Collection rendering', () => {
     expect(html).toContain('Apple');
     expect(html).toContain('Pear');
   });
+
+  it('renders contentEditable elements for heading and text in editor mode', () => {
+    const doc = createBlankDocument('Inline Edit Test');
+    doc.document.children = [
+      { id: 'heading-1', type: 'heading', props: { text: 'Direct Heading Edit', level: 1 } },
+      { id: 'text-1', type: 'text', props: { content: 'Direct Text Edit' } },
+      { id: 'button-1', type: 'button', props: { label: 'Direct Button Edit' } },
+    ];
+
+    const editorHtml = renderToString(
+      <KubuildRenderer document={doc} registry={registry} mode="editor" />
+    );
+    expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
+    expect(editorHtml).toContain('Direct Heading Edit');
+    expect(editorHtml).toContain('Direct Text Edit');
+    expect(editorHtml).toContain('Direct Button Edit');
+
+    const runtimeHtml = renderToString(
+      <KubuildRenderer document={doc} registry={registry} mode="runtime" />
+    );
+    expect(runtimeHtml.toLowerCase()).not.toContain('contenteditable="true"');
+    expect(runtimeHtml).toContain('Direct Heading Edit');
+  });
 });
