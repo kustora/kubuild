@@ -8,6 +8,7 @@ import { ComponentPanel } from './component-panel';
 import { EditorToolbar } from './toolbar';
 import { InspectorPanel } from './inspector-panel';
 import { LayersPanel } from './layers-panel';
+import { TableSpreadsheetEditor, findActiveTableNode } from './table-spreadsheet-editor';
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
@@ -38,8 +39,15 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     setViewport,
     selectedNodeId,
     navigatorMode,
+    tableSpreadsheetMode,
+    setTableSpreadsheetMode,
   } = useEditorStore();
   const lastLoadedDocRef = React.useRef<PageDocument | undefined>(undefined);
+
+  const activeTable = useMemo(
+    () => findActiveTableNode(document.document, selectedNodeId),
+    [document.document, selectedNodeId],
+  );
 
   useEffect(() => {
     if (
@@ -84,6 +92,17 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     <div className={`flex flex-col h-full bg-slate-100 text-slate-900 relative ${className || ''}`}>
       {/* Floating Navigator */}
       {navigatorMode === 'floating' && <LayersPanel registry={registry} />}
+
+      {/* Floating Table Spreadsheet Editor */}
+      {activeTable && tableSpreadsheetMode === 'floating' && (
+        <TableSpreadsheetEditor
+          registry={registry}
+          tableNode={activeTable}
+          mode="floating"
+          onToggleMode={() => setTableSpreadsheetMode('docked')}
+          onClose={() => setTableSpreadsheetMode('hidden')}
+        />
+      )}
 
       {/* Editor Top Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-200">

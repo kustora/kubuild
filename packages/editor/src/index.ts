@@ -9,4 +9,5 @@ export * from './variable-picker';
 export * from './import-modal';
 export * from './export-utils';
 export * from './icons';
+export * from './table-spreadsheet-editor';
 

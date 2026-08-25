@@ -4,6 +4,8 @@ import { findNodeById, findNodeLocation } from '@kubuild/core';
 import { isVariableBinding } from '@kubuild/schema';
 import { useEditorStore, Viewport } from './store';
 import { VariableBindingControl, toBindingValue } from './variable-picker';
+import { TableSpreadsheetEditor } from './table-spreadsheet-editor';
+import { ComponentIcon } from './icons';
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
@@ -302,6 +304,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
     insertComponent,
     deleteComponent,
     selectNode,
+    tableSpreadsheetMode,
+    setTableSpreadsheetMode,
   } = useEditorStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
 
@@ -520,6 +524,68 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
       {node.type === 'table' && (
         <div className="pb-3 border-b border-slate-200">
           <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Spreadsheet Grid
+            </div>
+            <div className="flex items-center gap-1">
+              {tableSpreadsheetMode === 'docked' ? (
+                <button
+                  type="button"
+                  onClick={() => setTableSpreadsheetMode('floating')}
+                  className="px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition"
+                  title="Pop out to floating window"
+                >
+                  Pop out (Float)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setTableSpreadsheetMode('docked')}
+                  className="px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition"
+                  title="Dock grid into inspector"
+                >
+                  Dock Grid Here
+                </button>
+              )}
+            </div>
+          </div>
+
+          {tableSpreadsheetMode === 'docked' ? (
+            <div className="mb-2">
+              <TableSpreadsheetEditor
+                registry={registry}
+                tableNode={node}
+                mode="docked"
+                onToggleMode={() => setTableSpreadsheetMode('floating')}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 mb-2">
+              <div className="flex items-center justify-between p-2 bg-blue-50/70 border border-blue-200 rounded text-xs text-blue-800">
+                <span className="font-medium flex items-center gap-1.5">
+                  <ComponentIcon iconOrType="table" size={13} />
+                  <span>
+                    {tableSpreadsheetMode === 'floating'
+                      ? 'Grid is Floating on Canvas'
+                      : 'Grid is Hidden'}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTableSpreadsheetMode(
+                      tableSpreadsheetMode === 'floating' ? 'docked' : 'floating',
+                    )
+                  }
+                  className="px-2 py-0.5 text-xs font-medium bg-white text-blue-700 hover:bg-blue-100 rounded border border-blue-300 transition"
+                >
+                  {tableSpreadsheetMode === 'floating' ? 'Dock Here' : 'Open Float Grid'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between mb-2 mt-3">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               Table Rows ({node.children?.length ?? 0})
             </div>
