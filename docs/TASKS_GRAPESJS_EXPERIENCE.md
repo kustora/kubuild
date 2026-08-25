@@ -21,6 +21,7 @@
 | **EPIC-24** | Block Manager & Pre-composed Templates | `@kubuild/components`, `@kubuild/editor` | 3 Tasks |
 | **EPIC-25** | Asset Manager Modal & Live Code Viewer | `@kubuild/editor`, `@kubuild/renderer` | 2 Tasks |
 | **EPIC-26** | Motion & Animation Engine (AOS, Hover, Loop) | `@kubuild/schema`, `@kubuild/renderer`, `@kubuild/editor` | 5 Tasks |
+| **EPIC-27** | Standalone HTML & Assets Exporter Engine (`.zip` & Standalone `.html`) | `@kubuild/core`, `@kubuild/renderer`, `@kubuild/editor` | 4 Tasks |
 
 ---
 
@@ -469,3 +470,56 @@
 - **Dependencies:** STORA-260
 - **Acceptance Criteria:**
   - Tombol atau kartu dengan hover `lift` naik secara mulus sebesar 4px saat kursor diarahkan ke elemen.
+
+---
+
+# Epic 27 — Standalone HTML & Assets Exporter Engine (`.zip` & Standalone `.html`)
+
+### STORA-270
+- **Epic:** Standalone HTML & Assets Exporter Engine
+- **Task Key:** STORA-270
+- **Type:** Task
+- **Summary:** HTML & CSS Static Compiler di `@kubuild/core` / `@kubuild/renderer`
+- **Description:** Buat engine compiler yang mengubah `PageDocument` menjadi string HTML semantik lengkap (`<!DOCTYPE html><html>...`) dengan meta tag SEO, OpenGraph, dan stylesheet CSS murni yang menyertakan responsive media queries (`@media (max-width: 768px)` / `480px`) serta keyframes animasi.
+- **Priority:** Highest
+- **Status:** To Do
+- **Dependencies:** None
+- **Acceptance Criteria:**
+  - Menghasilkan string HTML dan CSS mandiri yang valid dan bebas dari atribut internal builder (`data-kubuild-*`).
+
+### STORA-271
+- **Epic:** Standalone HTML & Assets Exporter Engine
+- **Task Key:** STORA-271
+- **Type:** Task
+- **Summary:** Asset Bundling & Zip Packaging Engine
+- **Description:** Buat utilitas pengepakan zip yang membungkus: `index.html`, `styles.css`, `script.js` (AOS runtime ringan), dan folder `assets/` berisi seluruh gambar/media lokal yang digunakan di halaman.
+- **Priority:** High
+- **Status:** To Do
+- **Dependencies:** STORA-270
+- **Acceptance Criteria:**
+  - File ZIP yang di-download dapat langsung di-ekstrak dan dibuka di browser secara offline atau di-upload ke hosting tanpa aset yang hilang.
+
+### STORA-272
+- **Epic:** Standalone HTML & Assets Exporter Engine
+- **Task Key:** STORA-272
+- **Type:** Story
+- **Summary:** Single-File Standalone HTML Exporter Mode
+- **Description:** Sediakan opsi ekspor ke satu file tunggal `index.html` dengan seluruh CSS dan script di-embed inline (serta gambar di-embed sebagai Base64 atau URL absolut).
+- **Priority:** Medium
+- **Status:** To Do
+- **Dependencies:** STORA-270
+- **Acceptance Criteria:**
+  - File HTML tunggal dapat didistribusikan langsung via email atau web server sederhana.
+
+### STORA-273
+- **Epic:** Standalone HTML & Assets Exporter Engine
+- **Task Key:** STORA-273
+- **Type:** Story
+- **Summary:** Tombol "Export as HTML & Assets (ZIP)" di Editor Toolbar & Menu
+- **Description:** Tambahkan tombol aksi di toolbar atas editor dan di modal export untuk mengunduh bundle HTML & Assets ZIP secara instan dengan feedback progress loading.
+- **Priority:** High
+- **Status:** To Do
+- **Dependencies:** STORA-271
+- **Acceptance Criteria:**
+  - Mengklik tombol "Export as HTML & Assets" memicu kompilasi dan otomatis mendownload file `.zip` siap pakai ke komputer pengguna.
+

@@ -141,3 +141,34 @@ Membangun fondasi **Core Semantic HTML Elements** yang lengkap, dipadukan dengan
 - Starter Layout Blocks (1 Col, 2 Col 50/50, 2 Col 30/70, 3 Col).
 - Pre-composed UI Blocks (Hero, Pricing Table, Features, Testimonial, Footer).
 - Live Code Viewer modal (Clean HTML & CSS).
+
+---
+
+### 3.8 Module 8: Standalone HTML & Assets Exporter Engine (`.zip` & Standalone `.html`)
+
+Fitur ekspor siap produksi untuk web hosting apa pun (cPanel, Vercel, Netlify, GitHub Pages):
+
+#### 3.8.1 Production HTML & CSS Compilation
+- **Semantic `index.html`:**
+  - Header standar SEO lengkap (`<title>`, `<meta name="description">`, `<meta name="viewport" content="width=device-width, initial-scale=1.0">`, OpenGraph tags).
+  - Struktur DOM bersih tanpa atribut internal editor (membersihkan `data-kubuild-*`).
+  - Runtime variable replacement resolver (mengisi variabel fallback jika ada).
+- **Clean `styles.css`:**
+  - Kompilasi seluruh Responsive Styles (`base`, `tablet`, `mobile`) ke dalam standard CSS `@media` queries (`@media (max-width: 768px)`, `@media (max-width: 480px)`).
+  - Scoped pseudo-classes (`:hover`, `:active`, `:focus`).
+  - Keyframe CSS untuk Animate On Scroll dan Hover Micro-interactions.
+
+#### 3.8.2 Assets Packaging & Bundle (.zip)
+- Menghasilkan file zip siap deploy dengan struktur:
+  ```
+  my-landing-page.zip
+  ├── index.html
+  ├── styles.css
+  ├── script.js (Lightweight AOS runtime < 2KB)
+  └── assets/
+      ├── hero-image.webp
+      ├── logo.svg
+      └── icon-1.svg
+  ```
+- **Single-File Standalone HTML Mode:** Opsi ekspor menjadi 1 file tunggal `index.html` dengan CSS & Script embedded inline (sangat praktis untuk email marketing atau landing page single file).
+- Tombol aksi **"Export as HTML & Assets (ZIP)"** di toolbar dan menu Export.
