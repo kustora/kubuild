@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ComponentRegistry } from '@kubuild/components';
+import { createBlankDocument } from '@kubuild/core';
 import { useEditorStore } from './store';
 import { ImportModal } from './import-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from './export-utils';
@@ -36,6 +37,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const rootId = document.document.id;
   const hasSelection = !!selectedNodeId && selectedNodeId !== rootId;
   const canPaste = !!clipboard && !!selectedNodeId;
+
+  const handleNewPage = () => {
+    const newDoc = createBlankDocument('New Page');
+    setDocument(newDoc);
+  };
 
   const handleCopy = () => {
     if (!selectedNodeId) return;
