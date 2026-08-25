@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ComponentRegistry, ComponentCategory, ComponentDefinition } from '@kubuild/components';
 import { useEditorStore } from './store';
+import { ComponentIcon } from './icons';
 
 export interface ComponentPanelProps {
   registry: ComponentRegistry;
@@ -54,9 +55,12 @@ export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, classN
                 type="button"
                 onClick={() => handleInsert(definition)}
                 title={definition.description}
-                className="text-xs px-2 py-2 rounded border border-slate-200 bg-white hover:border-blue-400 hover:text-blue-600 text-slate-700 text-left transition"
+                className="flex items-center gap-2 px-2.5 py-2 rounded-md border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/40 hover:text-blue-600 text-slate-700 text-xs font-medium text-left transition group shadow-sm"
               >
-                {definition.label}
+                <span className="shrink-0 text-slate-400 group-hover:text-blue-500 transition-colors">
+                  <ComponentIcon iconOrType={definition.icon ?? definition.type} size={15} />
+                </span>
+                <span className="truncate">{definition.label}</span>
               </button>
             ))}
           </div>

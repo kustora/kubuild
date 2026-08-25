@@ -3,6 +3,7 @@ import { Node } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, findNodeLocation, isDescendantOf, getAncestorChain } from '@kubuild/core';
 import { useEditorStore } from './store';
+import { ComponentIcon } from './icons';
 
 export interface LayersPanelProps {
   registry: ComponentRegistry;
@@ -168,8 +169,11 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ registry, className })
           ) : (
             <span className="w-4 shrink-0" />
           )}
-          <span className="truncate">{node.type}</span>
-          <span className="text-slate-400 truncate">#{node.id}</span>
+          <span className="shrink-0 text-slate-400">
+            <ComponentIcon iconOrType={registry.get(node.type)?.icon ?? node.type} size={13} />
+          </span>
+          <span className="truncate">{registry.get(node.type)?.label ?? node.type}</span>
+          <span className="text-slate-400 truncate text-[10px]">#{node.id}</span>
         </div>
         {hasChildren && isExpanded && node.children!.map((child) => renderRow(child, depth + 1))}
       </div>

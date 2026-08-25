@@ -15,6 +15,7 @@ export const pageDefinition: ComponentDefinition = {
   type: 'page',
   label: 'Page',
   category: 'layout',
+  icon: 'layout',
   acceptsChildren: true,
   allowedChildren: ['section', 'custom'],
   disallowedParents: [...LAYOUT_PARENTS, ...CONTENT_CHILD_TYPES],
@@ -26,6 +27,7 @@ export const sectionDefinition: ComponentDefinition = {
   type: 'section',
   label: 'Section',
   category: 'layout',
+  icon: 'rows',
   acceptsChildren: true,
   allowedChildren: ['container', 'columns', ...CONTENT_CHILD_TYPES],
   defaultProps: {},
@@ -53,6 +55,7 @@ export const containerDefinition: ComponentDefinition = {
   type: 'container',
   label: 'Container',
   category: 'layout',
+  icon: 'box',
   acceptsChildren: true,
   allowedChildren: ['columns', ...CONTENT_CHILD_TYPES],
   defaultProps: { maxWidth: '1200px' },
@@ -77,6 +80,7 @@ export const columnsDefinition: ComponentDefinition = {
   type: 'columns',
   label: 'Columns',
   category: 'layout',
+  icon: 'columns',
   acceptsChildren: true,
   allowedChildren: ['container', ...CONTENT_CHILD_TYPES],
   defaultProps: { columns: 2, gap: '16px' },
@@ -101,6 +105,7 @@ export const headingDefinition: ComponentDefinition = {
   type: 'heading',
   label: 'Heading',
   category: 'typography',
+  icon: 'heading',
   acceptsChildren: false,
   defaultProps: { text: 'Heading Text', level: 2 },
   propFields: [
@@ -137,6 +142,7 @@ export const textDefinition: ComponentDefinition = {
   type: 'text',
   label: 'Text',
   category: 'typography',
+  icon: 'type',
   acceptsChildren: false,
   defaultProps: { content: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.' },
   propFields: [
@@ -161,6 +167,7 @@ export const imageDefinition: ComponentDefinition = {
   type: 'image',
   label: 'Image',
   category: 'media',
+  icon: 'image',
   acceptsChildren: false,
   capabilities: ['assetProvider'],
   defaultProps: {
@@ -202,6 +209,7 @@ export const buttonDefinition: ComponentDefinition = {
   type: 'button',
   label: 'Button',
   category: 'interactive',
+  icon: 'mouse-pointer',
   acceptsChildren: false,
   capabilities: ['actionRegistry'],
   defaultProps: {
@@ -263,6 +271,7 @@ export const collectionDefinition: ComponentDefinition = {
   type: 'collection',
   label: 'Collection',
   category: 'data',
+  icon: 'database',
   acceptsChildren: true,
   defaultProps: {
     sourceKey: 'items',

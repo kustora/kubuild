@@ -8,4 +8,5 @@ export * from './layers-panel';
 export * from './variable-picker';
 export * from './import-modal';
 export * from './export-utils';
+export * from './icons';
 
