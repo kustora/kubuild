@@ -315,6 +315,75 @@ export function NodeRenderer({
           />
         );
       }
+      case 'list': {
+        const rawTag = resolvedProps.tag;
+        const Tag = rawTag === 'ol' ? 'ol' : 'ul';
+        const rawListStyle = resolvedProps.listStyleType as string | undefined;
+        const listStyleType = rawListStyle === 'custom-icon' ? 'none' : rawListStyle;
+        const listStyles: React.CSSProperties = {
+          ...styles,
+          ...(listStyleType ? { listStyleType } : {}),
+        };
+        return (
+          <Tag
+            id={domId}
+            style={listStyles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            data-list-style={rawListStyle}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
+            {childrenElements}
+          </Tag>
+        );
+      }
+      case 'list-item': {
+        const text = resolvedProps.text !== undefined ? String(resolvedProps.text) : '';
+        const hasChildren = Boolean(childrenElements && childrenElements.length > 0);
+        const isEditable = mode === 'editor' && !isVariableBinding(props.text);
+
+        if (hasChildren) {
+          return (
+            <li
+              id={domId}
+              style={styles}
+              onClick={handleClick}
+              data-kubuild-node={node.id}
+              role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+            >
+              {text ? (
+                isEditable ? (
+                  <EditableText
+                    as="span"
+                    value={text}
+                    isEditable={isEditable}
+                    nodeId={node.id}
+                    onClick={handleClick}
+                    onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
+                  />
+                ) : (
+                  <span>{text}</span>
+                )
+              ) : null}
+              {childrenElements}
+            </li>
+          );
+        }
+
+        return (
+          <EditableText
+            as="li"
+            id={domId}
+            style={styles}
+            value={text}
+            isEditable={isEditable}
+            nodeId={node.id}
+            onClick={handleClick}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          />
+        );
+      }
       case 'image': {
         const rawSrc = typeof resolvedProps.src === 'string' && resolvedProps.src.length > 0 ? resolvedProps.src : undefined;
         const directSrc = rawSrc ?? undefined;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
-import { findNodeById } from '@kubuild/core';
+import { findNodeById, findNodeLocation } from '@kubuild/core';
 import { isVariableBinding } from '@kubuild/schema';
 import { useEditorStore, Viewport } from './store';
 import { VariableBindingControl, toBindingValue } from './variable-picker';
@@ -66,6 +66,7 @@ interface StringPropControlProps {
   field: ComponentFieldDefinition;
   value: unknown;
   onCommit: (field: ComponentFieldDefinition, value: unknown, isBlur: boolean) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 const StringPropControl: React.FC<StringPropControlProps> = ({
@@ -73,6 +74,7 @@ const StringPropControl: React.FC<StringPropControlProps> = ({
   field,
   value,
   onCommit,
+  onKeyDown,
 }) => {
   const valueStr = typeof value === 'string' ? value : '';
   const [text, setText] = useState(valueStr);
@@ -107,6 +109,7 @@ const StringPropControl: React.FC<StringPropControlProps> = ({
       onFocus={handleFocus}
       onChange={handleChange}
       onBlur={handleBlur}
+      onKeyDown={onKeyDown}
       placeholder={field.defaultValue !== undefined ? String(field.defaultValue) : ''}
       className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
     />
@@ -289,8 +292,17 @@ const SpacingControl: React.FC<SpacingControlProps> = ({
 };
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, className }) => {
-  const { document, selectedNodeId, viewport, updateNodeProps, updateNodeStyle, variableCatalog } =
-    useEditorStore();
+  const {
+    document,
+    selectedNodeId,
+    viewport,
+    updateNodeProps,
+    updateNodeStyle,
+    variableCatalog,
+    insertComponent,
+    deleteComponent,
+    selectNode,
+  } = useEditorStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
 
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
@@ -406,6 +418,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
             field={field}
             value={currentValue}
             onCommit={commitProp}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && node.type === 'list-item' && field.name === 'text') {
+                e.preventDefault();
+                const location = findNodeLocation(document.document, node.id);
+                if (location && location.parent && location.parent.type === 'list') {
+                  insertComponent('list-item', registry, location.parent.id);
+                }
+              }
+            }}
           />
         );
     }
@@ -420,8 +441,82 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
     setError(errorKey, result.success ? null : result.error ?? 'Invalid value.');
   };
 
+  const handleAddListItem = (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault();
+    const result = insertComponent('list-item', registry, node.id);
+    if (result.success && result.nodeId) {
+      setTimeout(() => {
+        const el = window.document.getElementById(`list-item-input-${result.nodeId}`);
+        if (el) {
+          (el as HTMLInputElement).focus();
+          (el as HTMLInputElement).select();
+        }
+      }, 50);
+    }
+  };
+
   return (
     <div className={`flex flex-col gap-4 p-3 overflow-y-auto text-sm text-slate-900 ${className || ''}`}>
+      {node.type === 'list' && (
+        <div className="pb-3 border-b border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              List Items ({node.children?.length ?? 0})
+            </div>
+            <button
+              type="button"
+              onClick={handleAddListItem}
+              className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition"
+            >
+              + Add Item
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {(!node.children || node.children.length === 0) && (
+              <div className="text-xs text-slate-400 italic">No items yet. Click "+ Add Item" or press Enter.</div>
+            )}
+            {node.children?.map((child, idx) => (
+              <div
+                key={child.id}
+                className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded border border-slate-200"
+              >
+                <span className="text-[11px] font-mono text-slate-400 w-4 text-center">{idx + 1}.</span>
+                <input
+                  id={`list-item-input-${child.id}`}
+                  type="text"
+                  value={typeof child.props?.text === 'string' ? child.props.text : ''}
+                  onChange={(e) => updateNodeProps(child.id, { text: e.target.value }, registry)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddListItem(e);
+                    }
+                  }}
+                  placeholder={`Item ${idx + 1}`}
+                  className="flex-1 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  title="Select Item"
+                  onClick={() => selectNode(child.id)}
+                  className="px-1 text-xs text-slate-400 hover:text-blue-600 rounded"
+                >
+                  🎯
+                </button>
+                <button
+                  type="button"
+                  title="Delete Item"
+                  onClick={() => deleteComponent(child.id)}
+                  className="px-1 text-xs text-slate-400 hover:text-red-600 rounded"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
           {definition.label} Props

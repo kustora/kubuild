@@ -10,6 +10,8 @@ import {
   textDefinition,
   imageDefinition,
   buttonDefinition,
+  listDefinition,
+  listItemDefinition,
   extractComponentRequirements,
   primitiveTypeForField,
   isBindableField,
@@ -546,3 +548,66 @@ describe('STORA-024: Custom Component Extension Contract', () => {
     expect(manifestResult.success).toBe(true);
   });
 });
+
+describe('STORA-190: list and list-item definitions', () => {
+  it('registers list and list-item in default component registry', () => {
+    const registry = createDefaultComponentRegistry();
+    expect(registry.has('list')).toBe(true);
+    expect(registry.has('list-item')).toBe(true);
+
+    const listDef = registry.get('list');
+    expect(listDef?.category).toBe('typography');
+    expect(listDef?.acceptsChildren).toBe(true);
+    expect(listDef?.allowedChildren).toEqual(['list-item']);
+
+    const listItemDef = registry.get('list-item');
+    expect(listItemDef?.category).toBe('typography');
+    expect(listItemDef?.acceptsChildren).toBe(true);
+  });
+
+  it('validates list props (tag and listStyleType)', () => {
+    expect(listDefinition.validateProps?.({ tag: 'ul', listStyleType: 'disc' })).toBe(true);
+    expect(listDefinition.validateProps?.({ tag: 'ol', listStyleType: 'decimal' })).toBe(true);
+    expect(listDefinition.validateProps?.({ tag: 'ul', listStyleType: 'custom-icon' })).toBe(true);
+
+    const invalidTag = listDefinition.validateProps?.({ tag: 'div' });
+    expect(Array.isArray(invalidTag)).toBe(true);
+    expect((invalidTag as string[])[0]).toContain('must be either "ul" or "ol"');
+
+    const invalidStyle = listDefinition.validateProps?.({ listStyleType: 'invalid-style' });
+    expect(Array.isArray(invalidStyle)).toBe(true);
+    expect((invalidStyle as string[])[0]).toContain('must be one of:');
+  });
+
+  it('validates list-item props', () => {
+    expect(listItemDefinition.validateProps?.({ text: 'Valid item' })).toBe(true);
+    expect(listItemDefinition.validateProps?.({ text: { type: 'variable', key: 'item.name' } })).toBe(true);
+
+    const invalidText = listItemDefinition.validateProps?.({ text: 123 });
+    expect(Array.isArray(invalidText)).toBe(true);
+    expect((invalidText as string[])[0]).toContain('must be a string');
+  });
+
+  it('enforces parent-child hierarchy between list and list-item', () => {
+    const registry = createDefaultComponentRegistry();
+
+    // Section allows list
+    const sectionCanInsertList = registry.canInsertChild('section', 'list');
+    expect(sectionCanInsertList.valid).toBe(true);
+
+    // List allows list-item
+    const listCanInsertItem = registry.canInsertChild('list', 'list-item');
+    expect(listCanInsertItem.valid).toBe(true);
+
+    // List does not allow button directly
+    const listCanInsertBtn = registry.canInsertChild('list', 'button');
+    expect(listCanInsertBtn.valid).toBe(false);
+
+    // List-item allows button or heading or text
+    expect(registry.canInsertChild('list-item', 'button').valid).toBe(true);
+    expect(registry.canInsertChild('list-item', 'heading').valid).toBe(true);
+    expect(registry.canInsertChild('list-item', 'text').valid).toBe(true);
+    expect(registry.canInsertChild('list-item', 'list').valid).toBe(true);
+  });
+});
+

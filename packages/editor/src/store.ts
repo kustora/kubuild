@@ -22,7 +22,7 @@ import {
   SaveTemplateMetadata,
   CloneTemplateOptions,
 } from '@kubuild/core';
-import { ComponentRegistry } from '@kubuild/components';
+import { ComponentRegistry, ComponentDefaultChildSpec } from '@kubuild/components';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 
@@ -83,6 +83,31 @@ function generateComponentNodeId(type: string, existingIds: Set<string>): string
     candidate = `${type}-${counter}`;
   }
   return candidate;
+}
+
+/** Recursively constructs default child nodes from ComponentDefinition.defaultChildren specs. */
+function buildDefaultChildren(
+  specs: ComponentDefaultChildSpec[] | undefined,
+  existingIds: Set<string>,
+  registry: ComponentRegistry,
+): Node[] | undefined {
+  if (!specs || specs.length === 0) return undefined;
+  return specs.map((spec) => {
+    const id = generateComponentNodeId(spec.type, existingIds);
+    existingIds.add(id);
+    const def = registry.get(spec.type);
+    const nodeProps = deepClone(spec.props ?? def?.defaultProps ?? {});
+    const nodeStyles = spec.styles ?? def?.defaultStyles;
+    const childNodes = buildDefaultChildren(spec.children ?? def?.defaultChildren, existingIds, registry);
+    const node: Node = {
+      id,
+      type: spec.type,
+      props: nodeProps,
+      ...(nodeStyles ? { styles: deepClone(nodeStyles) } : {}),
+      ...(childNodes ? { children: childNodes } : {}),
+    };
+    return node;
+  });
 }
 
 export interface EditorState {
@@ -222,11 +247,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     const existingIds = collectNodeIdSet(state.document.document);
     const nodeId = generateComponentNodeId(type, existingIds);
+    existingIds.add(nodeId);
+    const children = buildDefaultChildren(definition.defaultChildren, existingIds, registry);
     const node: Node = {
       id: nodeId,
       type,
       props,
       ...(definition.defaultStyles ? { styles: deepClone(definition.defaultStyles) } : {}),
+      ...(children ? { children } : {}),
     };
 
     get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node }));

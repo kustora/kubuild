@@ -108,8 +108,41 @@ Membangun fondasi **Core Semantic HTML Elements** yang lengkap, dipadukan dengan
 ---
 
 ### 3.2 Module 2: Sector-Based Style Manager & Visual Box Model
-- **Accordion Sectors:** Dimension & Display, Spacing (Box Model), Typography, Decorations (Background/Border/Shadow), Flex/Grid.
-- **Visual Box Model Diagram:** Kotak berlapis interaktif untuk *Margin (luar) → Border → Padding (dalam) → Content*.
+
+Style Manager diatur dalam bentuk **Accordion Sectors** yang terstruktur rapi:
+
+#### 3.2.1 Sector 1: Visual Box Model Diagram
+- Menampilkan diagram kotak persegi berlapis interaktif:
+  - **Outer Box (Margin):** Top, Right, Bottom, Left.
+  - **Middle Box (Border):** Width visual indicator.
+  - **Inner Box (Padding):** Top, Right, Bottom, Left.
+  - **Center (Content):** Indikator ukuran `width x height`.
+- Pengguna dapat langsung mengklik dan mengetik angka (atau scroll mouse) di sisi kotak yang diinginkan.
+
+#### 3.2.2 Sector 2: Dimension, Display & Positioning
+- **Display Mode:** `block`, `inline-block`, `flex`, `grid`, `none`.
+- **Dimensions:**
+  - `width` & `height` (`px`, `%`, `rem`, `vw`, `vh`, `auto`, `fit-content`).
+  - `min-width`, `max-width`, `min-height`, `max-height`.
+  - `overflow`: `visible`, `hidden`, `scroll`, `auto`.
+- **CSS Positioning & Z-Index:**
+  - **Position Type:** `static` (Default flow), `relative`, `absolute`, `fixed` (Floating di layar/viewport), `sticky` (Sticky header saat scroll).
+  - **Direction Offsets:** `top`, `right`, `bottom`, `left` (input angka dengan unit `px`, `%`, `rem`, `auto`).
+  - **Quick Pinning Matrix:** Tombol shortcut visual untuk menempelkan elemen ke sudut container (Top-Left, Top-Right, Bottom-Left, Bottom-Right, Full Stretch).
+  - **Z-Index Layering:** Input urutan tumpukan layer `z-index` (misal 1, 10, 50, 999 untuk floating CTA / modal).
+
+#### 3.2.3 Sector 3: Typography
+- `font-family`, `font-size`, `font-weight` (100–900 / Normal, Bold).
+- `color`, `line-height`, `letter-spacing`, `text-align`, `text-decoration`, `text-transform`.
+
+#### 3.2.4 Sector 4: Decorations (Background, Border, Shadow)
+- **Background:** Color swatch, Image URL, Opacity, Linear/Radial Gradient.
+- **Border:** Style (`solid`, `dashed`, `dotted`), Width, Color, Radius (terpadu atau 4 sudut terpisah).
+- **Box Shadow:** X offset, Y offset, Blur, Spread, Color, Inset toggle.
+
+#### 3.2.5 Sector 5: Flex / Layout
+- `flex-direction`, `justify-content`, `align-items`, `flex-wrap`, `gap`.
+
 
 ---
 

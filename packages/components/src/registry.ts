@@ -11,6 +11,13 @@ export interface ComponentFieldDefinition {
   description?: string;
 }
 
+export interface ComponentDefaultChildSpec {
+  type: string;
+  props?: Record<string, unknown>;
+  styles?: ResponsiveStyles;
+  children?: ComponentDefaultChildSpec[];
+}
+
 export interface ComponentDefinition<TRenderer = unknown> {
   type: string;
   label: string;
@@ -23,6 +30,8 @@ export interface ComponentDefinition<TRenderer = unknown> {
   defaultProps?: Record<string, unknown>;
   /** Default responsive style override (base/desktop/tablet/mobile), matching a Node's `styles` field. */
   defaultStyles?: ResponsiveStyles;
+  /** Default child node template specs inserted automatically when this component is instantiated. */
+  defaultChildren?: ComponentDefaultChildSpec[];
   /**
    * Inspector metadata: describes each editable prop (label, input type, options)
    * so a host editor can render property controls without hardcoding per-type UI.

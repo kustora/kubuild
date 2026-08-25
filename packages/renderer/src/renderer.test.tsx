@@ -697,4 +697,127 @@ describe('STORA-052: Collection rendering', () => {
     expect(runtimeHtml.toLowerCase()).not.toContain('contenteditable="true"');
     expect(runtimeHtml).toContain('Direct Heading Edit');
   });
+
+  describe('STORA-190: list and list-item rendering', () => {
+    it('renders unordered list <ul> and <li> semantic elements with default props', () => {
+      const doc = createBlankDocument('List Test');
+      doc.document.children = [
+        {
+          id: 'list-1',
+          type: 'list',
+          props: { tag: 'ul', listStyleType: 'disc' },
+          children: [
+            { id: 'item-1', type: 'list-item', props: { text: 'Item 1' } },
+            { id: 'item-2', type: 'list-item', props: { text: 'Item 2' } },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} />);
+      expect(html).toContain('<ul');
+      expect(html).toContain('id="list-1"');
+      expect(html).toContain('data-list-style="disc"');
+      expect(html).toContain('list-style-type:disc');
+      expect(html).toContain('<li');
+      expect(html).toContain('id="item-1"');
+      expect(html).toContain('Item 1');
+      expect(html).toContain('id="item-2"');
+      expect(html).toContain('Item 2');
+    });
+
+    it('renders ordered list <ol> with decimal style', () => {
+      const doc = createBlankDocument('Ordered List Test');
+      doc.document.children = [
+        {
+          id: 'list-ordered',
+          type: 'list',
+          props: { tag: 'ol', listStyleType: 'decimal' },
+          children: [
+            { id: 'item-1', type: 'list-item', props: { text: 'Step 1' } },
+            { id: 'item-2', type: 'list-item', props: { text: 'Step 2' } },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} />);
+      expect(html).toContain('<ol');
+      expect(html).toContain('id="list-ordered"');
+      expect(html).toContain('list-style-type:decimal');
+      expect(html).toContain('Step 1');
+      expect(html).toContain('Step 2');
+    });
+
+    it('renders custom-icon list with listStyleType none', () => {
+      const doc = createBlankDocument('Custom Icon List Test');
+      doc.document.children = [
+        {
+          id: 'list-custom',
+          type: 'list',
+          props: { tag: 'ul', listStyleType: 'custom-icon' },
+          children: [
+            { id: 'item-1', type: 'list-item', props: { text: 'Feature item' } },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} />);
+      expect(html).toContain('data-list-style="custom-icon"');
+      expect(html).toContain('list-style-type:none');
+    });
+
+    it('renders list-item with child components (Button, Text, nested List)', () => {
+      const doc = createBlankDocument('List Item Children Test');
+      doc.document.children = [
+        {
+          id: 'list-main',
+          type: 'list',
+          props: { tag: 'ul' },
+          children: [
+            {
+              id: 'item-with-children',
+              type: 'list-item',
+              props: { text: 'Parent Item: ' },
+              children: [
+                { id: 'btn-child', type: 'button', props: { label: 'Clickable Child' } },
+                {
+                  id: 'nested-list',
+                  type: 'list',
+                  props: { tag: 'ol' },
+                  children: [
+                    { id: 'nested-item-1', type: 'list-item', props: { text: 'Nested 1' } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} />);
+      expect(html).toContain('Parent Item:');
+      expect(html).toContain('Clickable Child');
+      expect(html).toContain('<ol');
+      expect(html).toContain('Nested 1');
+    });
+
+    it('supports inline editing in editor mode for list-item', () => {
+      const doc = createBlankDocument('Editable List Item Test');
+      doc.document.children = [
+        {
+          id: 'list-edit',
+          type: 'list',
+          children: [
+            { id: 'item-edit', type: 'list-item', props: { text: 'Editable List Item' } },
+          ],
+        },
+      ];
+
+      const editorHtml = renderToString(
+        <KubuildRenderer document={doc} registry={registry} mode="editor" />
+      );
+      expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
+      expect(editorHtml).toContain('Editable List Item');
+      expect(editorHtml).toContain('data-kubuild-node="item-edit"');
+    });
+  });
 });

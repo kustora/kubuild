@@ -14,7 +14,7 @@
 | Epic Key | Epic Name | Package Target | Jumlah Task |
 | :--- | :--- | :--- | :--- |
 | **EPIC-19** | Core Semantic HTML Components (List, Table, Semantic, Media, Form) | `@kubuild/components`, `@kubuild/renderer` | 6 Tasks |
-| **EPIC-20** | Sector-Based Style Manager & Visual Box Model | `@kubuild/editor`, `@kubuild/schema` | 6 Tasks |
+| **EPIC-20** | Sector-Based Style Manager & Visual Box Model | `@kubuild/editor`, `@kubuild/schema` | 7 Tasks |
 | **EPIC-21** | Trait Manager (Component Attributes & Meta) | `@kubuild/components`, `@kubuild/editor` | 4 Tasks |
 | **EPIC-22** | State & Pseudo-Class Selector (`:hover`, `:active`) | `@kubuild/schema`, `@kubuild/renderer`, `@kubuild/editor` | 4 Tasks |
 | **EPIC-23** | Canvas Navigation (Floating Badges & Breadcrumbs) | `@kubuild/editor`, `@kubuild/core` | 3 Tasks |
@@ -36,7 +36,7 @@
   - `list`: Container daftar dengan opsi tag `ul` (Unordered) dan `ol` (Ordered), prop `listStyleType` (`disc`, `circle`, `square`, `decimal`, `none`, `custom-icon`).
   - `list-item`: Item baris daftar `<li>` yang menerima teks langsung atau child komponen (Heading, Text, Icon, Button).
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Komponen `list` dan `list-item` terdaftar di Component Registry dan ter-render dengan tag `<ul>`/`<ol>` dan `<li>` semantik di `@kubuild/renderer`.
@@ -195,7 +195,25 @@
 - **Acceptance Criteria:**
   - Tombol icon alignment mengubah susunan elemen anak secara instan.
 
+### STORA-207
+- **Epic:** Sector-Based Style Manager & Visual Box Model
+- **Task Key:** STORA-207
+- **Type:** Story
+- **Summary:** CSS Positioning & Z-Index Inspector Controls
+- **Description:** Tambahkan kontrol CSS Positioning di Style Manager:
+  - Tipe posisi: `static`, `relative`, `absolute`, `fixed`, `sticky`.
+  - Input offsets: `top`, `right`, `bottom`, `left` (dengan switch unit `px`, `%`, `rem`, `auto`).
+  - Pinning Matrix visual: 4 tombol cepat untuk menempelkan ke sudut parent.
+  - Input `zIndex` untuk mengatur urutan tumpukan layer.
+- **Priority:** High
+- **Status:** To Do
+- **Dependencies:** STORA-202
+- **Acceptance Criteria:**
+  - Memilih `position: fixed` dengan `bottom: 20px` dan `right: 20px` membuat tombol melayang di pojok kanan bawah layar preview.
+  - Input `zIndex` mengatur urutan tumpukan antar elemen secara akurat.
+
 ---
+
 
 # Epic 21 — Trait Manager (Component Attributes & Meta)
 
