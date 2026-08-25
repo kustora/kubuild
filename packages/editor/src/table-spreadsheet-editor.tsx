@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Node } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getAncestorChain, deepClone } from '@kubuild/core';
@@ -92,7 +93,7 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
   className = '',
 }) => {
   const {
-    document,
+    document: editorDoc,
     selectedNodeId,
     selectNode,
     insertComponent,
@@ -101,18 +102,18 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
     dispatch,
   } = useEditorStore();
 
-  const tableNode = propTableNode ?? findActiveTableNode(document.document, selectedNodeId);
+  const tableNode = propTableNode ?? findActiveTableNode(editorDoc.document, selectedNodeId);
 
   // CSV Import State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [csvInputText, setCsvInputText] = useState('');
   const [hasHeaderRow, setHasHeaderRow] = useState(true);
   const [importMode, setImportMode] = useState<'replace' | 'append'>('replace');
+  const [isDraggingFileOverGrid, setIsDraggingFileOverGrid] = useState(false);
+  const [isDraggingFileOverModal, setIsDraggingFileOverModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const readAndProcessCsvFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
@@ -122,6 +123,12 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    readAndProcessCsvFile(file);
     e.target.value = '';
   };
 
@@ -352,6 +359,164 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
 
   const isFloating = mode === 'floating';
 
+  const modalContent = isImportModalOpen ? (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 select-auto">
+      <div
+        className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="8" y1="13" x2="16" y2="13" />
+                <line x1="8" y1="17" x2="16" y2="17" />
+              </svg>
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">Import CSV into Table</h3>
+              <p className="text-xs text-slate-500">Upload file or paste CSV / TSV text directly</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(false)}
+            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-md text-sm font-bold transition"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-4 flex flex-col gap-3">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDraggingFileOverModal(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDraggingFileOverModal(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDraggingFileOverModal(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) readAndProcessCsvFile(file);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`w-full flex flex-col items-center justify-center gap-1.5 py-4 px-3 border-2 border-dashed rounded-lg text-xs font-medium cursor-pointer transition ${
+              isDraggingFileOverModal
+                ? 'bg-emerald-100/80 border-emerald-500 text-emerald-800 scale-[1.01]'
+                : 'bg-slate-50 hover:bg-emerald-50/50 border-slate-300 hover:border-emerald-400 text-slate-700'
+            }`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-600">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <span className="font-semibold">
+              {isDraggingFileOverModal ? 'Drop CSV file here!' : 'Click to select or Drag & Drop .csv file here'}
+            </span>
+            <span className="text-[10px] text-slate-400">Supports .csv and text/tsv files</span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Or Paste CSV / Tab-Separated Data:
+            </label>
+            <textarea
+              rows={6}
+              value={csvInputText}
+              onChange={(e) => setCsvInputText(e.target.value)}
+              placeholder="Header 1, Header 2, Header 3&#10;Value 1, Value 2, Value 3&#10;Value 4, Value 5, Value 6"
+              className="w-full text-xs font-mono p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-slate-50 text-slate-900"
+            />
+          </div>
+
+          {/* Options */}
+          <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100 text-xs">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hasHeaderRow}
+                onChange={(e) => setHasHeaderRow(e.target.checked)}
+                className="rounded text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="text-slate-700 font-medium">First row is Header (&lt;th&gt;)</span>
+            </label>
+
+            <div className="flex items-center gap-3">
+              <span className="text-slate-500">Mode:</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="csv-import-mode"
+                  checked={importMode === 'replace'}
+                  onChange={() => setImportMode('replace')}
+                  className="text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-slate-700">Replace</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="csv-import-mode"
+                  checked={importMode === 'append'}
+                  onChange={() => setImportMode('append')}
+                  className="text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-slate-700">Append</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Live Preview info */}
+          {csvInputText.trim() && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-800 flex items-center justify-between">
+              <span>
+                Detected: {parseCsv(csvInputText).length} rows,{' '}
+                {Math.max(0, ...parseCsv(csvInputText).map((r) => r.length))} columns
+              </span>
+              <span className="font-semibold text-emerald-700">Ready to import</span>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex items-center justify-end gap-2 px-4 py-3 bg-slate-50 border-t border-slate-200">
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(false)}
+            className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!csvInputText.trim()}
+            onClick={handleExecuteImport}
+            className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none rounded-lg shadow-sm transition"
+          >
+            Import to Table
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const renderedModal =
+    typeof window !== 'undefined' && typeof document !== 'undefined' && modalContent
+      ? createPortal(modalContent, document.body)
+      : modalContent;
+
   const content = (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Hidden file input for CSV */}
@@ -362,136 +527,6 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
         onChange={handleFileUpload}
         className="hidden"
       />
-
-      {/* CSV Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="8" y1="13" x2="16" y2="13" />
-                    <line x1="8" y1="17" x2="16" y2="17" />
-                  </svg>
-                </span>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800">Import CSV into Table</h3>
-                  <p className="text-xs text-slate-500">Upload file or paste CSV / TSV text directly</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsImportModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-md text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-4 flex flex-col gap-3">
-              <div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-300 border-dashed rounded-lg text-xs font-medium text-slate-700 transition"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  <span>Select / Upload .csv File</span>
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Or Paste CSV / Tab-Separated Data:
-                </label>
-                <textarea
-                  rows={5}
-                  value={csvInputText}
-                  onChange={(e) => setCsvInputText(e.target.value)}
-                  placeholder="Header 1, Header 2, Header 3&#10;Value 1, Value 2, Value 3&#10;Value 4, Value 5, Value 6"
-                  className="w-full text-xs font-mono p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-slate-50 text-slate-900"
-                />
-              </div>
-
-              {/* Options */}
-              <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={hasHeaderRow}
-                    onChange={(e) => setHasHeaderRow(e.target.checked)}
-                    className="rounded text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span className="text-slate-700 font-medium">First row is Header (&lt;th&gt;)</span>
-                </label>
-
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-500">Mode:</span>
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="csv-import-mode"
-                      checked={importMode === 'replace'}
-                      onChange={() => setImportMode('replace')}
-                      className="text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-slate-700">Replace</span>
-                  </label>
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="csv-import-mode"
-                      checked={importMode === 'append'}
-                      onChange={() => setImportMode('append')}
-                      className="text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-slate-700">Append</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Live Preview info */}
-              {csvInputText.trim() && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-800 flex items-center justify-between">
-                  <span>
-                    Detected: {parseCsv(csvInputText).length} rows,{' '}
-                    {Math.max(0, ...parseCsv(csvInputText).map((r) => r.length))} columns
-                  </span>
-                  <span className="font-semibold text-emerald-700">Ready to import</span>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 px-4 py-3 bg-slate-50 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setIsImportModalOpen(false)}
-                className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!csvInputText.trim()}
-                onClick={handleExecuteImport}
-                className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none rounded-lg shadow-sm transition"
-              >
-                Import to Table
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Toolbar / Actions inside Spreadsheet */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-slate-100/90 border-b border-slate-200 text-xs select-none">
@@ -564,7 +599,47 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
       </div>
 
       {/* Spreadsheet Grid Table */}
-      <div className="flex-1 overflow-auto p-2 bg-slate-50">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDraggingFileOverGrid(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDraggingFileOverGrid(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDraggingFileOverGrid(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) readAndProcessCsvFile(file);
+        }}
+        className="flex-1 overflow-auto p-2 bg-slate-50 relative"
+      >
+        {/* Drag over grid overlay */}
+        {isDraggingFileOverGrid && (
+          <div className="absolute inset-0 z-30 bg-emerald-600/90 backdrop-blur-xs flex flex-col items-center justify-center text-white p-4 animate-in fade-in duration-150 select-none">
+            <svg
+              width="36"
+              height="36"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="animate-bounce mb-2"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <span className="text-sm font-bold">Drop CSV File to Import</span>
+            <span className="text-xs text-emerald-100">Instantly populate this table</span>
+          </div>
+        )}
+
         <table className="border-collapse w-full text-xs bg-white border border-slate-300 shadow-xs">
           <thead>
             <tr className="bg-slate-100 border-b border-slate-300 text-slate-500 select-none">
@@ -727,19 +802,25 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
 
   if (isFloating) {
     return (
-      <div
-        style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
-        onMouseDown={handleHeaderMouseDown}
-        className={`fixed z-40 min-w-[380px] max-w-[620px] bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-300 flex flex-col max-h-[460px] overflow-hidden ${className}`}
-      >
-        {content}
-      </div>
+      <>
+        {renderedModal}
+        <div
+          style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
+          onMouseDown={handleHeaderMouseDown}
+          className={`fixed z-40 min-w-[380px] max-w-[620px] bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-300 flex flex-col max-h-[460px] overflow-hidden ${className}`}
+        >
+          {content}
+        </div>
+      </>
     );
   }
 
   return (
-    <div className={`flex flex-col border border-slate-200 rounded-lg overflow-hidden bg-white shadow-xs ${className}`}>
-      {content}
-    </div>
+    <>
+      {renderedModal}
+      <div className={`flex flex-col border border-slate-200 rounded-lg overflow-hidden bg-white shadow-xs ${className}`}>
+        {content}
+      </div>
+    </>
   );
 };
