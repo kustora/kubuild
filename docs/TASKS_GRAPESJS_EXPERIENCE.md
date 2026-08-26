@@ -154,7 +154,7 @@
 - **Summary:** Dimension & Display Sector Controls
 - **Description:** Sediakan kontrol untuk `display`, `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, dan `overflow`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-202
 - **Acceptance Criteria:**
   - Input ukuran mendukung unit switch (`px`, `%`, `rem`, `vw`, `vh`, `auto`).

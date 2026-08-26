@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ComponentIcon } from './icons';
 import { BoxModelEditor } from './box-model-editor';
+import { DimensionSectorControls } from './dimension-sector-controls';
 
 export type StyleSectorId = 'dimension' | 'spacing' | 'typography' | 'decorations' | 'flex';
 
@@ -314,84 +315,10 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                   )}
 
                   {sector.id === 'dimension' && (
-                    <div className="flex flex-col gap-2.5">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Display</label>
-                          <select
-                            value={String(styles.display ?? 'block')}
-                            onChange={(e) => onCommitStyle('display', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="block">Block</option>
-                            <option value="flex">Flex</option>
-                            <option value="inline-flex">Inline Flex</option>
-                            <option value="inline-block">Inline Block</option>
-                            <option value="grid">Grid</option>
-                            <option value="none">None</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Overflow</label>
-                          <select
-                            value={String(styles.overflow ?? 'visible')}
-                            onChange={(e) => onCommitStyle('overflow', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="visible">Visible</option>
-                            <option value="hidden">Hidden</option>
-                            <option value="scroll">Scroll</option>
-                            <option value="auto">Auto</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Width</label>
-                          <input
-                            type="text"
-                            placeholder="auto"
-                            value={String(styles.width ?? '')}
-                            onChange={(e) => onCommitStyle('width', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Height</label>
-                          <input
-                            type="text"
-                            placeholder="auto"
-                            value={String(styles.height ?? '')}
-                            onChange={(e) => onCommitStyle('height', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Min Width</label>
-                          <input
-                            type="text"
-                            placeholder="auto"
-                            value={String(styles.minWidth ?? '')}
-                            onChange={(e) => onCommitStyle('minWidth', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Max Width</label>
-                          <input
-                            type="text"
-                            placeholder="none"
-                            value={String(styles.maxWidth ?? '')}
-                            onChange={(e) => onCommitStyle('maxWidth', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <DimensionSectorControls
+                      styles={styles}
+                      onChange={onCommitStyle}
+                    />
                   )}
 
                   {sector.id === 'typography' && (
