@@ -166,7 +166,7 @@
 - **Summary:** Typography Sector Controls
 - **Description:** Sediakan kontrol tipografi lengkap: font family, font size, font weight, line height, letter spacing, color picker, text align, text decoration, dan text transform.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-202
 - **Acceptance Criteria:**
   - Perubahan tipografi diterapkan secara instan ke style node terpilih.
