@@ -18,6 +18,12 @@ import {
   iconDefinition,
   htmlEmbedDefinition,
   buttonDefinition,
+  formDefinition,
+  inputDefinition,
+  textareaDefinition,
+  selectDefinition,
+  checkboxDefinition,
+  radioDefinition,
   listDefinition,
   listItemDefinition,
   tableDefinition,
@@ -845,6 +851,138 @@ describe('STORA-194: Video, Icon, and HTML Embed Components', () => {
     }
   });
 });
+
+describe('STORA-195: Form Controls (form, input, textarea, select, checkbox, radio)', () => {
+  it('registers form, input, textarea, select, checkbox, and radio in default registry under form category', () => {
+    const registry = createDefaultComponentRegistry();
+    const formTypes = ['form', 'input', 'textarea', 'select', 'checkbox', 'radio'];
+
+    for (const type of formTypes) {
+      expect(registry.has(type)).toBe(true);
+      const def = registry.get(type);
+      expect(def).toBeDefined();
+      expect(def?.category).toBe('form');
+    }
+
+    expect(registry.get('form')?.acceptsChildren).toBe(true);
+    expect(registry.get('input')?.acceptsChildren).toBe(false);
+    expect(registry.get('textarea')?.acceptsChildren).toBe(false);
+    expect(registry.get('select')?.acceptsChildren).toBe(false);
+    expect(registry.get('checkbox')?.acceptsChildren).toBe(false);
+    expect(registry.get('radio')?.acceptsChildren).toBe(false);
+  });
+
+  it('validates form definition and props', () => {
+    expect(formDefinition.type).toBe('form');
+    expect(formDefinition.category).toBe('form');
+    expect(formDefinition.validateProps?.({
+      name: 'lead_capture',
+      action: 'https://example.com/api/submit',
+      method: 'POST',
+      target: '_self',
+      autoComplete: 'on',
+    })).toBe(true);
+
+    const invalidMethod = formDefinition.validateProps?.({ method: 'DELETE' });
+    expect(Array.isArray(invalidMethod)).toBe(true);
+    expect((invalidMethod as string[])[0]).toContain('Form "method" must be either "GET" or "POST"');
+
+    const invalidTarget = formDefinition.validateProps?.({ target: 'invalid' });
+    expect(Array.isArray(invalidTarget)).toBe(true);
+    expect((invalidTarget as string[])[0]).toContain('Form "target" must be one of');
+  });
+
+  it('validates input definition and props', () => {
+    expect(inputDefinition.type).toBe('input');
+    expect(inputDefinition.category).toBe('form');
+    expect(inputDefinition.validateProps?.({
+      name: 'email',
+      type: 'email',
+      placeholder: 'user@example.com',
+      required: true,
+      disabled: false,
+    })).toBe(true);
+
+    const invalidType = inputDefinition.validateProps?.({ type: 'button' });
+    expect(Array.isArray(invalidType)).toBe(true);
+    expect((invalidType as string[])[0]).toContain('Input "type" must be one of');
+
+    const invalidRequired = inputDefinition.validateProps?.({ required: 'yes' as unknown as boolean });
+    expect(Array.isArray(invalidRequired)).toBe(true);
+    expect((invalidRequired as string[])[0]).toContain('Input "required" must be a boolean');
+  });
+
+  it('validates textarea definition and props', () => {
+    expect(textareaDefinition.type).toBe('textarea');
+    expect(textareaDefinition.category).toBe('form');
+    expect(textareaDefinition.validateProps?.({
+      name: 'feedback',
+      placeholder: 'Your feedback...',
+      rows: 5,
+      required: false,
+    })).toBe(true);
+
+    const invalidRows = textareaDefinition.validateProps?.({ rows: 0 });
+    expect(Array.isArray(invalidRows)).toBe(true);
+    expect((invalidRows as string[])[0]).toContain('Textarea "rows" must be a positive integer');
+  });
+
+  it('validates select definition and props', () => {
+    expect(selectDefinition.type).toBe('select');
+    expect(selectDefinition.category).toBe('form');
+    expect(selectDefinition.validateProps?.({
+      name: 'country',
+      options: [
+        { label: 'Indonesia', value: 'ID' },
+        { label: 'United States', value: 'US' },
+      ],
+      required: true,
+    })).toBe(true);
+
+    const invalidOptions = selectDefinition.validateProps?.({ options: 12345 as unknown as string });
+    expect(Array.isArray(invalidOptions)).toBe(true);
+    expect((invalidOptions as string[])[0]).toContain('Select "options" must be an array');
+  });
+
+  it('validates checkbox and radio definitions and props', () => {
+    expect(checkboxDefinition.type).toBe('checkbox');
+    expect(checkboxDefinition.category).toBe('form');
+    expect(checkboxDefinition.validateProps?.({
+      name: 'terms',
+      label: 'Accept Terms',
+      value: 'agreed',
+      defaultChecked: true,
+      required: true,
+    })).toBe(true);
+
+    expect(radioDefinition.type).toBe('radio');
+    expect(radioDefinition.category).toBe('form');
+    expect(radioDefinition.validateProps?.({
+      name: 'gender',
+      label: 'Male',
+      value: 'male',
+      defaultChecked: false,
+    })).toBe(true);
+
+    const invalidLabel = checkboxDefinition.validateProps?.({ label: 123 as unknown as string });
+    expect(Array.isArray(invalidLabel)).toBe(true);
+    expect((invalidLabel as string[])[0]).toContain('Checkbox "label" must be a string');
+  });
+
+  it('allows form controls to be nested inside form, container, section, and columns', () => {
+    const registry = createDefaultComponentRegistry();
+    const parents = ['form', 'container', 'section', 'columns'];
+    const children = ['input', 'textarea', 'select', 'checkbox', 'radio', 'button'];
+
+    for (const parent of parents) {
+      for (const child of children) {
+        const canInsert = registry.canInsertChild(parent, child);
+        expect(canInsert.valid, `Expected ${child} to be insertable inside ${parent}`).toBe(true);
+      }
+    }
+  });
+});
+
 
 
 

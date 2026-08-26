@@ -1260,5 +1260,173 @@ describe('STORA-052: Collection rendering', () => {
       expect(html).toContain('Turn your ideas into reality');
     });
   });
+
+  describe('STORA-195: Form Controls Rendering (form, input, textarea, select, checkbox, radio)', () => {
+    it('renders a complete contact form with input, textarea, select, checkbox, radio, and submit button', () => {
+      const doc = createBlankDocument('Contact Form Page');
+      doc.document.children = [
+        {
+          id: 'contact-form-1',
+          type: 'form',
+          props: {
+            name: 'contact_sales',
+            action: 'https://example.com/api/contact',
+            method: 'POST',
+            target: '_blank',
+            autoComplete: 'on',
+          },
+          children: [
+            {
+              id: 'input-name',
+              type: 'input',
+              props: {
+                name: 'fullname',
+                type: 'text',
+                placeholder: 'Full Name',
+                required: true,
+              },
+            },
+            {
+              id: 'input-email',
+              type: 'input',
+              props: {
+                name: 'email',
+                type: 'email',
+                placeholder: 'user@example.com',
+                required: true,
+              },
+            },
+            {
+              id: 'select-subject',
+              type: 'select',
+              props: {
+                name: 'subject',
+                placeholder: 'Select a subject...',
+                options: [
+                  { label: 'General Inquiry', value: 'general' },
+                  { label: 'Technical Support', value: 'support' },
+                  { label: 'Billing Issue', value: 'billing' },
+                ],
+                required: true,
+              },
+            },
+            {
+              id: 'textarea-message',
+              type: 'textarea',
+              props: {
+                name: 'message',
+                placeholder: 'How can we help?',
+                rows: 6,
+                required: true,
+              },
+            },
+            {
+              id: 'checkbox-terms',
+              type: 'checkbox',
+              props: {
+                name: 'agree_terms',
+                label: 'I accept the privacy policy',
+                value: 'yes',
+                defaultChecked: true,
+                required: true,
+              },
+            },
+            {
+              id: 'radio-priority-high',
+              type: 'radio',
+              props: {
+                name: 'priority',
+                label: 'High Priority',
+                value: 'high',
+                defaultChecked: false,
+              },
+            },
+            {
+              id: 'btn-submit',
+              type: 'button',
+              props: {
+                label: 'Submit Inquiry',
+                buttonType: 'submit',
+                variant: 'primary',
+              },
+            },
+          ],
+        },
+      ];
+
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+
+      // Form validation
+      expect(runtimeHtml).toContain('<form');
+      expect(runtimeHtml).toContain('action="https://example.com/api/contact"');
+      expect(runtimeHtml).toContain('method="POST"');
+      expect(runtimeHtml).toContain('name="contact_sales"');
+      expect(runtimeHtml).toContain('target="_blank"');
+      expect(runtimeHtml).toContain('autoComplete="on"');
+
+      // Inputs
+      expect(runtimeHtml).toContain('type="text"');
+      expect(runtimeHtml).toContain('placeholder="Full Name"');
+      expect(runtimeHtml).toContain('type="email"');
+      expect(runtimeHtml).toContain('placeholder="user@example.com"');
+
+      // Select
+      expect(runtimeHtml).toContain('<select');
+      expect(runtimeHtml).toContain('Select a subject...');
+      expect(runtimeHtml).toContain('value="general"');
+      expect(runtimeHtml).toContain('General Inquiry');
+      expect(runtimeHtml).toContain('Technical Support');
+
+      // Textarea
+      expect(runtimeHtml).toContain('<textarea');
+      expect(runtimeHtml).toContain('rows="6"');
+      expect(runtimeHtml).toContain('placeholder="How can we help?"');
+
+      // Checkbox & Radio
+      expect(runtimeHtml).toContain('type="checkbox"');
+      expect(runtimeHtml).toContain('I accept the privacy policy');
+      expect(runtimeHtml).toContain('checked=""');
+      expect(runtimeHtml).toContain('type="radio"');
+      expect(runtimeHtml).toContain('High Priority');
+
+      // Button submit
+      expect(runtimeHtml).toContain('type="submit"');
+      expect(runtimeHtml).toContain('Submit Inquiry');
+    });
+
+    it('renders form and controls safely in editor mode', () => {
+      const doc = createBlankDocument('Editor Form Page');
+      doc.document.children = [
+        {
+          id: 'editor-form',
+          type: 'form',
+          props: {
+            name: 'test_form',
+            action: 'https://example.com/submit',
+          },
+          children: [
+            {
+              id: 'test-input',
+              type: 'input',
+              props: { name: 'phone', type: 'tel', placeholder: '+1 234 567 890' },
+            },
+            {
+              id: 'test-btn',
+              type: 'button',
+              props: { label: 'Submit', buttonType: 'submit' },
+            },
+          ],
+        },
+      ];
+
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      expect(editorHtml).toContain('<form');
+      // In editor mode, action should NOT trigger navigation
+      expect(editorHtml).not.toContain('action="https://example.com/submit"');
+      expect(editorHtml).toContain('type="tel"');
+      expect(editorHtml).toContain('type="button"'); // Buttons inside editor use type="button" to prevent form submit refresh
+    });
+  });
 });
+
 

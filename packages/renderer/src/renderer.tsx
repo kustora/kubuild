@@ -979,6 +979,10 @@ export function NodeRenderer({
         const ariaLabel = typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : undefined;
         const isEditable = mode === 'editor' && !isVariableBinding(props.label);
 
+        const rawButtonType = typeof resolvedProps.buttonType === 'string' ? resolvedProps.buttonType : 'button';
+        const buttonType: 'button' | 'submit' | 'reset' =
+          rawButtonType === 'submit' || rawButtonType === 'reset' ? rawButtonType : 'button';
+
         if (href && !disabled) {
           if (isEditable) {
             return (
@@ -1019,7 +1023,7 @@ export function NodeRenderer({
             <EditableText
               as="button"
               id={domId}
-              type="button"
+              type={mode === 'editor' ? 'button' : buttonType}
               disabled={disabled}
               aria-disabled={disabled ? true : undefined}
               aria-label={ariaLabel}
@@ -1038,7 +1042,7 @@ export function NodeRenderer({
         return (
           <button
             id={domId}
-            type="button"
+            type={mode === 'editor' ? 'button' : buttonType}
             disabled={disabled}
             aria-disabled={disabled ? true : undefined}
             aria-label={ariaLabel}
@@ -1050,6 +1054,230 @@ export function NodeRenderer({
           >
             {label}
           </button>
+        );
+      }
+      case 'form': {
+        const action = typeof resolvedProps.action === 'string' ? resolvedProps.action : undefined;
+        const method = typeof resolvedProps.method === 'string' ? resolvedProps.method : 'POST';
+        const target = typeof resolvedProps.target === 'string' ? resolvedProps.target : undefined;
+        const autoComplete = typeof resolvedProps.autoComplete === 'string' ? resolvedProps.autoComplete : undefined;
+        const name = typeof resolvedProps.name === 'string' ? resolvedProps.name : undefined;
+
+        const handleSubmit = (e: React.FormEvent) => {
+          if (mode === 'editor') {
+            e.preventDefault();
+          }
+        };
+
+        return (
+          <form
+            id={domId}
+            name={name}
+            action={action && mode !== 'editor' ? sanitizeUrl(action, '') : undefined}
+            method={method}
+            target={target}
+            autoComplete={autoComplete}
+            style={styles}
+            onClick={handleClick}
+            onSubmit={handleSubmit}
+            data-kubuild-node={node.id}
+            role="form"
+            aria-label={name}
+          >
+            {childrenElements}
+          </form>
+        );
+      }
+      case 'input': {
+        const name = typeof resolvedProps.name === 'string' ? resolvedProps.name : undefined;
+        const inputType = typeof resolvedProps.type === 'string' ? resolvedProps.type : 'text';
+        const placeholder = typeof resolvedProps.placeholder === 'string' ? resolvedProps.placeholder : undefined;
+        const defaultValue = resolvedProps.defaultValue !== undefined ? String(resolvedProps.defaultValue) : undefined;
+        const required = resolvedProps.required === true;
+        const disabled = resolvedProps.disabled === true;
+        const readOnly = resolvedProps.readOnly === true;
+
+        return (
+          <input
+            id={domId}
+            type={inputType}
+            name={name}
+            placeholder={placeholder}
+            defaultValue={defaultValue}
+            required={required}
+            disabled={disabled}
+            readOnly={readOnly}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+          />
+        );
+      }
+      case 'textarea': {
+        const name = typeof resolvedProps.name === 'string' ? resolvedProps.name : undefined;
+        const placeholder = typeof resolvedProps.placeholder === 'string' ? resolvedProps.placeholder : undefined;
+        const defaultValue = resolvedProps.defaultValue !== undefined ? String(resolvedProps.defaultValue) : undefined;
+        const rows = typeof resolvedProps.rows === 'number' ? resolvedProps.rows : 4;
+        const required = resolvedProps.required === true;
+        const disabled = resolvedProps.disabled === true;
+        const readOnly = resolvedProps.readOnly === true;
+
+        return (
+          <textarea
+            id={domId}
+            name={name}
+            placeholder={placeholder}
+            defaultValue={defaultValue}
+            rows={rows}
+            required={required}
+            disabled={disabled}
+            readOnly={readOnly}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+          />
+        );
+      }
+      case 'select': {
+        const name = typeof resolvedProps.name === 'string' ? resolvedProps.name : undefined;
+        const placeholder = typeof resolvedProps.placeholder === 'string' ? resolvedProps.placeholder : undefined;
+        const defaultValue = resolvedProps.defaultValue !== undefined ? String(resolvedProps.defaultValue) : undefined;
+        const required = resolvedProps.required === true;
+        const disabled = resolvedProps.disabled === true;
+
+        let optionsList: Array<{ label: string; value: string }> = [];
+        const rawOptions = resolvedProps.options ?? props.options;
+        if (Array.isArray(rawOptions)) {
+          optionsList = rawOptions.map((opt) => {
+            if (typeof opt === 'object' && opt !== null) {
+              const record = opt as Record<string, unknown>;
+              return {
+                label: String(record.label ?? record.value ?? ''),
+                value: String(record.value ?? record.label ?? ''),
+              };
+            }
+            return { label: String(opt), value: String(opt) };
+          });
+        } else if (typeof rawOptions === 'string') {
+          try {
+            const parsed = JSON.parse(rawOptions);
+            if (Array.isArray(parsed)) {
+              optionsList = parsed.map((opt) => {
+                if (typeof opt === 'object' && opt !== null) {
+                  const record = opt as Record<string, unknown>;
+                  return {
+                    label: String(record.label ?? record.value ?? ''),
+                    value: String(record.value ?? record.label ?? ''),
+                  };
+                }
+                return { label: String(opt), value: String(opt) };
+              });
+            }
+          } catch {
+            // Not valid JSON
+          }
+        }
+
+        return (
+          <select
+            id={domId}
+            name={name}
+            defaultValue={defaultValue}
+            required={required}
+            disabled={disabled}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+          >
+            {placeholder && (
+              <option value="" disabled={required}>
+                {placeholder}
+              </option>
+            )}
+            {optionsList.map((opt, idx) => (
+              <option key={`${opt.value}-${idx}`} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        );
+      }
+      case 'checkbox': {
+        const name = typeof resolvedProps.name === 'string' ? resolvedProps.name : undefined;
+        const label = String(resolvedProps.label ?? 'Checkbox');
+        const value = resolvedProps.value !== undefined ? String(resolvedProps.value) : 'yes';
+        const defaultChecked = resolvedProps.defaultChecked === true;
+        const required = resolvedProps.required === true;
+        const disabled = resolvedProps.disabled === true;
+        const isEditable = mode === 'editor' && !isVariableBinding(props.label);
+
+        return (
+          <label
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+          >
+            <input
+              type="checkbox"
+              name={name}
+              value={value}
+              defaultChecked={defaultChecked}
+              required={required}
+              disabled={disabled}
+              style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+            />
+            {isEditable ? (
+              <EditableText
+                as="span"
+                value={label}
+                isEditable={isEditable}
+                nodeId={node.id}
+                onChange={(val, isBlur) => onNodePropChange?.(node.id, 'label', val, isBlur)}
+              />
+            ) : (
+              <span>{label}</span>
+            )}
+          </label>
+        );
+      }
+      case 'radio': {
+        const name = typeof resolvedProps.name === 'string' ? resolvedProps.name : undefined;
+        const label = String(resolvedProps.label ?? 'Radio');
+        const value = resolvedProps.value !== undefined ? String(resolvedProps.value) : 'option';
+        const defaultChecked = resolvedProps.defaultChecked === true;
+        const required = resolvedProps.required === true;
+        const disabled = resolvedProps.disabled === true;
+        const isEditable = mode === 'editor' && !isVariableBinding(props.label);
+
+        return (
+          <label
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={value}
+              defaultChecked={defaultChecked}
+              required={required}
+              disabled={disabled}
+              style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+            />
+            {isEditable ? (
+              <EditableText
+                as="span"
+                value={label}
+                isEditable={isEditable}
+                nodeId={node.id}
+                onChange={(val, isBlur) => onNodePropChange?.(node.id, 'label', val, isBlur)}
+              />
+            ) : (
+              <span>{label}</span>
+            )}
+          </label>
         );
       }
       case 'collection': {

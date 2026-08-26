@@ -8,12 +8,13 @@ export interface ComponentPanelProps {
   className?: string;
 }
 
-const CATEGORY_ORDER: ComponentCategory[] = ['layout', 'typography', 'media', 'interactive', 'data', 'custom'];
+const CATEGORY_ORDER: ComponentCategory[] = ['layout', 'typography', 'media', 'form', 'interactive', 'data', 'custom'];
 
 const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   layout: 'Layout',
   typography: 'Typography',
   media: 'Media',
+  form: 'Forms',
   interactive: 'Interactive',
   data: 'Data',
   custom: 'Custom',

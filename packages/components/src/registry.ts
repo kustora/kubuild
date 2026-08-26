@@ -1,6 +1,6 @@
 import { Node, ResponsiveStyles } from '@kubuild/schema';
 
-export type ComponentCategory = 'layout' | 'typography' | 'media' | 'interactive' | 'data' | 'custom';
+export type ComponentCategory = 'layout' | 'typography' | 'media' | 'form' | 'interactive' | 'data' | 'custom';
 
 export interface ComponentFieldDefinition {
   name: string;

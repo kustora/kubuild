@@ -114,7 +114,7 @@
   - `select`: Dropdown pilihan dengan options list.
   - `checkbox` & `radio`: Pilihan centang & radio dengan label.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Pengguna dapat menyusun form kontak lengkap (Nama, Email, Pesan, Checkbox persetujuan, Tombol Kirim) di kanvas editor.

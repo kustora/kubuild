@@ -22,6 +22,12 @@ const CONTENT_CHILD_TYPES = [
   'icon',
   'html-embed',
   'button',
+  'form',
+  'input',
+  'textarea',
+  'select',
+  'checkbox',
+  'radio',
   'list',
   'table',
   'collection',
@@ -239,6 +245,17 @@ export const buttonDefinition: ComponentDefinition = {
     { name: 'action', label: 'Action', type: 'action' },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
     {
+      name: 'buttonType',
+      label: 'Button Type',
+      type: 'select',
+      defaultValue: 'button',
+      options: [
+        { label: 'Button', value: 'button' },
+        { label: 'Submit Form (submit)', value: 'submit' },
+        { label: 'Reset Form (reset)', value: 'reset' },
+      ],
+    },
+    {
       name: 'variant',
       label: 'Variant',
       type: 'select',
@@ -258,6 +275,11 @@ export const buttonDefinition: ComponentDefinition = {
     }
     if (props.href !== undefined && typeof props.href !== 'string' && !isVariableBinding(props.href)) {
       errors.push('Button "href" must be a string when provided.');
+    }
+    if (props.buttonType !== undefined && !isVariableBinding(props.buttonType)) {
+      if (!['button', 'submit', 'reset'].includes(props.buttonType as string)) {
+        errors.push('Button "buttonType" must be one of: "button", "submit", "reset".');
+      }
     }
     if (props.action !== undefined && !isActionBinding(props.action)) {
       errors.push('Button "action" must be a valid action binding when provided.');
@@ -1001,6 +1023,443 @@ export const tableCellDefinition: ComponentDefinition = {
   },
 };
 
+export const formDefinition: ComponentDefinition = {
+  type: 'form',
+  label: 'Form',
+  category: 'form',
+  icon: 'form',
+  acceptsChildren: true,
+  allowedChildren: [
+    ...CONTENT_CHILD_TYPES,
+    'container',
+    'columns',
+    'section',
+  ],
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'contact_form',
+    method: 'POST',
+    action: '',
+    target: '_self',
+    autoComplete: 'on',
+  },
+  defaultChildren: [
+    { type: 'input', props: { name: 'name', type: 'text', placeholder: 'Your Name', required: true } },
+    { type: 'input', props: { name: 'email', type: 'email', placeholder: 'Your Email', required: true } },
+    { type: 'textarea', props: { name: 'message', placeholder: 'Your Message', rows: 4, required: true } },
+    { type: 'checkbox', props: { name: 'agree', label: 'I agree to the terms and privacy policy', required: true } },
+    { type: 'button', props: { label: 'Send Message', variant: 'primary', buttonType: 'submit' } },
+  ],
+  propFields: [
+    { name: 'name', label: 'Form Name', type: 'string', defaultValue: 'contact_form' },
+    { name: 'action', label: 'Action URL', type: 'string' },
+    {
+      name: 'method',
+      label: 'Method',
+      type: 'select',
+      defaultValue: 'POST',
+      options: [
+        { label: 'POST', value: 'POST' },
+        { label: 'GET', value: 'GET' },
+      ],
+    },
+    {
+      name: 'target',
+      label: 'Target',
+      type: 'select',
+      defaultValue: '_self',
+      options: [
+        { label: 'Same Window (_self)', value: '_self' },
+        { label: 'New Tab (_blank)', value: '_blank' },
+      ],
+    },
+    {
+      name: 'autoComplete',
+      label: 'Auto Complete',
+      type: 'select',
+      defaultValue: 'on',
+      options: [
+        { label: 'On', value: 'on' },
+        { label: 'Off', value: 'off' },
+      ],
+    },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('Form "name" must be a string when provided.');
+    }
+    if (props.action !== undefined && typeof props.action !== 'string' && !isVariableBinding(props.action)) {
+      errors.push('Form "action" must be a string when provided.');
+    }
+    if (props.method !== undefined && !isVariableBinding(props.method)) {
+      if (!['GET', 'POST', 'get', 'post'].includes(props.method as string)) {
+        errors.push('Form "method" must be either "GET" or "POST".');
+      }
+    }
+    if (props.target !== undefined && !isVariableBinding(props.target)) {
+      if (!['_self', '_blank', '_parent', '_top'].includes(props.target as string)) {
+        errors.push('Form "target" must be one of: "_self", "_blank", "_parent", "_top".');
+      }
+    }
+    if (props.autoComplete !== undefined && !isVariableBinding(props.autoComplete)) {
+      if (!['on', 'off'].includes(props.autoComplete as string)) {
+        errors.push('Form "autoComplete" must be either "on" or "off".');
+      }
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      width: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+    },
+  },
+};
+
+export const inputDefinition: ComponentDefinition = {
+  type: 'input',
+  label: 'Input',
+  category: 'form',
+  icon: 'input',
+  acceptsChildren: false,
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'input_field',
+    type: 'text',
+    placeholder: 'Enter text...',
+    defaultValue: '',
+    required: false,
+    disabled: false,
+    readOnly: false,
+  },
+  propFields: [
+    { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'input_field' },
+    {
+      name: 'type',
+      label: 'Input Type',
+      type: 'select',
+      defaultValue: 'text',
+      options: [
+        { label: 'Text', value: 'text' },
+        { label: 'Email', value: 'email' },
+        { label: 'Number', value: 'number' },
+        { label: 'Password', value: 'password' },
+        { label: 'Phone (tel)', value: 'tel' },
+        { label: 'URL', value: 'url' },
+        { label: 'Search', value: 'search' },
+        { label: 'Date', value: 'date' },
+      ],
+    },
+    { name: 'placeholder', label: 'Placeholder', type: 'string', defaultValue: 'Enter text...' },
+    { name: 'defaultValue', label: 'Default Value', type: 'string' },
+    { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'readOnly', label: 'Read Only', type: 'boolean', defaultValue: false },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('Input "name" must be a string when provided.');
+    }
+    if (props.type !== undefined && !isVariableBinding(props.type)) {
+      const validTypes = ['text', 'email', 'number', 'password', 'tel', 'url', 'search', 'date', 'hidden'];
+      if (!validTypes.includes(props.type as string)) {
+        errors.push(`Input "type" must be one of: ${validTypes.join(', ')}.`);
+      }
+    }
+    if (props.placeholder !== undefined && typeof props.placeholder !== 'string' && !isVariableBinding(props.placeholder)) {
+      errors.push('Input "placeholder" must be a string when provided.');
+    }
+    if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
+      errors.push('Input "required" must be a boolean when provided.');
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('Input "disabled" must be a boolean when provided.');
+    }
+    if (props.readOnly !== undefined && typeof props.readOnly !== 'boolean' && !isVariableBinding(props.readOnly)) {
+      errors.push('Input "readOnly" must be a boolean when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      width: '100%',
+      paddingTop: '10px',
+      paddingBottom: '10px',
+      paddingLeft: '14px',
+      paddingRight: '14px',
+      borderRadius: '6px',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: '#cbd5e1',
+      fontSize: '14px',
+      backgroundColor: '#ffffff',
+      color: '#1e293b',
+      boxSizing: 'border-box',
+    },
+  },
+};
+
+export const textareaDefinition: ComponentDefinition = {
+  type: 'textarea',
+  label: 'Textarea',
+  category: 'form',
+  icon: 'textarea',
+  acceptsChildren: false,
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'message',
+    placeholder: 'Enter your message...',
+    defaultValue: '',
+    rows: 4,
+    required: false,
+    disabled: false,
+    readOnly: false,
+  },
+  propFields: [
+    { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'message' },
+    { name: 'placeholder', label: 'Placeholder', type: 'string', defaultValue: 'Enter your message...' },
+    { name: 'defaultValue', label: 'Default Value', type: 'textarea' },
+    { name: 'rows', label: 'Rows', type: 'number', defaultValue: 4 },
+    { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'readOnly', label: 'Read Only', type: 'boolean', defaultValue: false },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('Textarea "name" must be a string when provided.');
+    }
+    if (props.rows !== undefined && !isVariableBinding(props.rows)) {
+      if (typeof props.rows !== 'number' || props.rows < 1 || !Number.isInteger(props.rows)) {
+        errors.push('Textarea "rows" must be a positive integer (>= 1).');
+      }
+    }
+    if (props.placeholder !== undefined && typeof props.placeholder !== 'string' && !isVariableBinding(props.placeholder)) {
+      errors.push('Textarea "placeholder" must be a string when provided.');
+    }
+    if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
+      errors.push('Textarea "required" must be a boolean when provided.');
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('Textarea "disabled" must be a boolean when provided.');
+    }
+    if (props.readOnly !== undefined && typeof props.readOnly !== 'boolean' && !isVariableBinding(props.readOnly)) {
+      errors.push('Textarea "readOnly" must be a boolean when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      width: '100%',
+      paddingTop: '10px',
+      paddingBottom: '10px',
+      paddingLeft: '14px',
+      paddingRight: '14px',
+      borderRadius: '6px',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: '#cbd5e1',
+      fontSize: '14px',
+      backgroundColor: '#ffffff',
+      color: '#1e293b',
+      boxSizing: 'border-box',
+    },
+  },
+};
+
+export const selectDefinition: ComponentDefinition = {
+  type: 'select',
+  label: 'Select',
+  category: 'form',
+  icon: 'select',
+  acceptsChildren: false,
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'select_field',
+    placeholder: 'Select an option...',
+    options: [
+      { label: 'Option 1', value: 'option1' },
+      { label: 'Option 2', value: 'option2' },
+      { label: 'Option 3', value: 'option3' },
+    ],
+    defaultValue: '',
+    required: false,
+    disabled: false,
+  },
+  propFields: [
+    { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'select_field' },
+    { name: 'placeholder', label: 'Placeholder', type: 'string', defaultValue: 'Select an option...' },
+    {
+      name: 'options',
+      label: 'Options (JSON list)',
+      type: 'json',
+      defaultValue: [
+        { label: 'Option 1', value: 'option1' },
+        { label: 'Option 2', value: 'option2' },
+        { label: 'Option 3', value: 'option3' },
+      ],
+    },
+    { name: 'defaultValue', label: 'Default Selected Value', type: 'string' },
+    { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('Select "name" must be a string when provided.');
+    }
+    if (props.options !== undefined && !isVariableBinding(props.options)) {
+      if (!Array.isArray(props.options) && typeof props.options !== 'string') {
+        errors.push('Select "options" must be an array of option objects or a JSON string.');
+      }
+    }
+    if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
+      errors.push('Select "required" must be a boolean when provided.');
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('Select "disabled" must be a boolean when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      width: '100%',
+      paddingTop: '10px',
+      paddingBottom: '10px',
+      paddingLeft: '14px',
+      paddingRight: '14px',
+      borderRadius: '6px',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: '#cbd5e1',
+      fontSize: '14px',
+      backgroundColor: '#ffffff',
+      color: '#1e293b',
+      boxSizing: 'border-box',
+    },
+  },
+};
+
+export const checkboxDefinition: ComponentDefinition = {
+  type: 'checkbox',
+  label: 'Checkbox',
+  category: 'form',
+  icon: 'checkbox',
+  acceptsChildren: false,
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'checkbox_field',
+    label: 'I agree to the terms and conditions',
+    value: 'yes',
+    defaultChecked: false,
+    required: false,
+    disabled: false,
+  },
+  propFields: [
+    { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'checkbox_field' },
+    { name: 'label', label: 'Label Text', type: 'string', defaultValue: 'I agree to the terms and conditions' },
+    { name: 'value', label: 'Checked Value', type: 'string', defaultValue: 'yes' },
+    { name: 'defaultChecked', label: 'Default Checked', type: 'boolean', defaultValue: false },
+    { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.label !== undefined && typeof props.label !== 'string' && !isVariableBinding(props.label)) {
+      errors.push('Checkbox "label" must be a string when provided.');
+    }
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('Checkbox "name" must be a string when provided.');
+    }
+    if (props.value !== undefined && typeof props.value !== 'string' && !isVariableBinding(props.value)) {
+      errors.push('Checkbox "value" must be a string when provided.');
+    }
+    if (props.defaultChecked !== undefined && typeof props.defaultChecked !== 'boolean' && !isVariableBinding(props.defaultChecked)) {
+      errors.push('Checkbox "defaultChecked" must be a boolean when provided.');
+    }
+    if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
+      errors.push('Checkbox "required" must be a boolean when provided.');
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('Checkbox "disabled" must be a boolean when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px',
+      color: '#1e293b',
+      cursor: 'pointer',
+      userSelect: 'none',
+    },
+  },
+};
+
+export const radioDefinition: ComponentDefinition = {
+  type: 'radio',
+  label: 'Radio',
+  category: 'form',
+  icon: 'radio',
+  acceptsChildren: false,
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'radio_group',
+    label: 'Option 1',
+    value: 'option1',
+    defaultChecked: false,
+    required: false,
+    disabled: false,
+  },
+  propFields: [
+    { name: 'name', label: 'Group Name', type: 'string', defaultValue: 'radio_group' },
+    { name: 'label', label: 'Label Text', type: 'string', defaultValue: 'Option 1' },
+    { name: 'value', label: 'Radio Value', type: 'string', defaultValue: 'option1' },
+    { name: 'defaultChecked', label: 'Default Selected', type: 'boolean', defaultValue: false },
+    { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.label !== undefined && typeof props.label !== 'string' && !isVariableBinding(props.label)) {
+      errors.push('Radio "label" must be a string when provided.');
+    }
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('Radio "name" must be a string when provided.');
+    }
+    if (props.value !== undefined && typeof props.value !== 'string' && !isVariableBinding(props.value)) {
+      errors.push('Radio "value" must be a string when provided.');
+    }
+    if (props.defaultChecked !== undefined && typeof props.defaultChecked !== 'boolean' && !isVariableBinding(props.defaultChecked)) {
+      errors.push('Radio "defaultChecked" must be a boolean when provided.');
+    }
+    if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
+      errors.push('Radio "required" must be a boolean when provided.');
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('Radio "disabled" must be a boolean when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px',
+      color: '#1e293b',
+      cursor: 'pointer',
+      userSelect: 'none',
+    },
+  },
+};
+
 export const coreComponentDefinitions: ComponentDefinition[] = [
   pageDefinition,
   sectionDefinition,
@@ -1018,6 +1477,12 @@ export const coreComponentDefinitions: ComponentDefinition[] = [
   iconDefinition,
   htmlEmbedDefinition,
   buttonDefinition,
+  formDefinition,
+  inputDefinition,
+  textareaDefinition,
+  selectDefinition,
+  checkboxDefinition,
+  radioDefinition,
   collectionDefinition,
   listDefinition,
   listItemDefinition,

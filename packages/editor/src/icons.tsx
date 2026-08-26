@@ -192,6 +192,52 @@ export const ComponentIcon: React.FC<ComponentIconProps> = ({
           <line x1="3" x2="21" y1="12" y2="12" />
         </svg>
       );
+    case 'form':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M7 8h10" />
+          <path d="M7 12h10" />
+          <path d="M7 16h6" />
+        </svg>
+      );
+    case 'input':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="12" x="3" y="6" rx="2" />
+          <path d="M7 10v4" />
+        </svg>
+      );
+    case 'textarea':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M7 7h10" />
+          <path d="M7 11h10" />
+          <path d="M7 15h4" />
+        </svg>
+      );
+    case 'select':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="12" x="3" y="6" rx="2" />
+          <path d="m15 10 2 2-2 2" />
+        </svg>
+      );
+    case 'checkbox':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+      );
+    case 'radio':
+      return (
+        <svg {...iconProps}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="4" fill="currentColor" />
+        </svg>
+      );
     default:
       return (
         <svg {...iconProps}>
