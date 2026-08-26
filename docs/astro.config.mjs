@@ -41,6 +41,20 @@ export default defineConfig({
           autogenerate: { directory: 'architecture' },
         },
         {
+          label: 'Editor Experience',
+          translations: {
+            id: 'Pengalaman Editor',
+          },
+          autogenerate: { directory: 'editor' },
+        },
+        {
+          label: 'API Reference',
+          translations: {
+            id: 'Referensi API',
+          },
+          autogenerate: { directory: 'api' },
+        },
+        {
           label: 'Packages',
           translations: {
             id: 'Paket / Modul',
