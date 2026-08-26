@@ -130,7 +130,7 @@
 - **Summary:** Implementasikan Komponen Visual Box Model Diagram
 - **Description:** Buat komponen diagram visual box model berlapis (Margin luar oranye, Border tengah abu-abu, Padding dalam hijau/pink, dan Content tengah) dengan input angka di setiap sisi.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Mengubah angka di kotak diagram secara instan memperbarui `marginTop/Right/Bottom/Left` atau `paddingTop/Right/Bottom/Left` pada node aktif.

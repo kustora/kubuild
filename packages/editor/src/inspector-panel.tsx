@@ -1,15 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
 import { findNodeById, findNodeLocation } from '@kubuild/core';
-import { isVariableBinding } from '@kubuild/schema';
+import { isVariableBinding, PageDocument } from '@kubuild/schema';
 import { useEditorStore, Viewport } from './store';
 import { VariableBindingControl, toBindingValue } from './variable-picker';
 import { TableSpreadsheetEditor } from './table-spreadsheet-editor';
+import { BoxModelEditor } from './box-model-editor';
 import { ComponentIcon } from './icons';
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
   className?: string;
+  document?: PageDocument;
+  selectedNodeId?: string | null;
 }
 
 const SPACING_FIELDS: Array<{ name: string; label: string }> = [
@@ -348,10 +351,17 @@ const SpacingControl: React.FC<SpacingControlProps> = ({
   );
 };
 
-export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, className }) => {
+export const InspectorPanel: React.FC<InspectorPanelProps> = ({
+  registry,
+  className,
+  document: propDocument,
+  selectedNodeId: propSelectedNodeId,
+}) => {
+  const storeState = useEditorStore((s) => s);
+  const document = propDocument ?? storeState.document;
+  const selectedNodeId =
+    propSelectedNodeId !== undefined ? propSelectedNodeId : storeState.selectedNodeId;
   const {
-    document,
-    selectedNodeId,
     viewport,
     updateNodeProps,
     updateNodeStyle,
@@ -361,7 +371,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
     selectNode,
     tableSpreadsheetMode,
     setTableSpreadsheetMode,
-  } = useEditorStore();
+  } = storeState;
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
 
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
@@ -758,23 +768,39 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
         </div>
       </div>
 
-      <div>
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-          Spacing ({activeBreakpoint === 'base' ? 'base' : `${activeBreakpoint} override`})
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Box Model & Spacing ({activeBreakpoint === 'base' ? 'base' : `${activeBreakpoint} override`})
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {SPACING_FIELDS.map((field) => (
-            <SpacingControl
-              key={`${node.id}-${activeBreakpoint}-${field.name}`}
-              nodeId={node.id}
-              breakpoint={activeBreakpoint}
-              fieldName={field.name}
-              fieldLabel={field.label}
-              value={activeLayer[field.name]}
-              onCommit={handleCommitSpacing}
-              error={fieldErrors[`style:${field.name}`]}
-            />
-          ))}
+
+        {/* Visual Box Model Diagram */}
+        <BoxModelEditor
+          key={`${node.id}-${activeBreakpoint}`}
+          values={activeLayer}
+          onChange={(prop, val) => handleCommitSpacing(prop, val)}
+        />
+
+        {/* Detailed Individual Spacing Inputs */}
+        <div className="pt-2 border-t border-slate-200">
+          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-2">
+            Detailed Fields
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {SPACING_FIELDS.map((field) => (
+              <SpacingControl
+                key={`${node.id}-${activeBreakpoint}-${field.name}`}
+                nodeId={node.id}
+                breakpoint={activeBreakpoint}
+                fieldName={field.name}
+                fieldLabel={field.label}
+                value={activeLayer[field.name]}
+                onCommit={handleCommitSpacing}
+                error={fieldErrors[`style:${field.name}`]}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

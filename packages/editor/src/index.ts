@@ -10,4 +10,5 @@ export * from './import-modal';
 export * from './export-utils';
 export * from './icons';
 export * from './table-spreadsheet-editor';
+export * from './box-model-editor';
 
