@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ComponentIcon } from './icons';
 import { BoxModelEditor } from './box-model-editor';
 import { DimensionSectorControls } from './dimension-sector-controls';
+import { TypographySectorControls } from './typography-sector-controls';
 
 export type StyleSectorId = 'dimension' | 'spacing' | 'typography' | 'decorations' | 'flex';
 
@@ -322,92 +323,10 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                   )}
 
                   {sector.id === 'typography' && (
-                    <div className="flex flex-col gap-2.5">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Font Size</label>
-                          <input
-                            type="text"
-                            placeholder="16px"
-                            value={String(styles.fontSize ?? '')}
-                            onChange={(e) => onCommitStyle('fontSize', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Font Weight</label>
-                          <select
-                            value={String(styles.fontWeight ?? 'normal')}
-                            onChange={(e) => onCommitStyle('fontWeight', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="300">Light (300)</option>
-                            <option value="400">Regular (400)</option>
-                            <option value="500">Medium (500)</option>
-                            <option value="600">Semibold (600)</option>
-                            <option value="700">Bold (700)</option>
-                            <option value="800">Extrabold (800)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Color</label>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="color"
-                              value={typeof styles.color === 'string' && styles.color.startsWith('#') ? styles.color : '#000000'}
-                              onChange={(e) => onCommitStyle('color', e.target.value)}
-                              className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0.5"
-                            />
-                            <input
-                              type="text"
-                              placeholder="#000000"
-                              value={String(styles.color ?? '')}
-                              onChange={(e) => onCommitStyle('color', e.target.value)}
-                              className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Text Align</label>
-                          <select
-                            value={String(styles.textAlign ?? 'left')}
-                            onChange={(e) => onCommitStyle('textAlign', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="left">Left</option>
-                            <option value="center">Center</option>
-                            <option value="right">Right</option>
-                            <option value="justify">Justify</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Line Height</label>
-                          <input
-                            type="text"
-                            placeholder="1.5"
-                            value={String(styles.lineHeight ?? '')}
-                            onChange={(e) => onCommitStyle('lineHeight', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Letter Spacing</label>
-                          <input
-                            type="text"
-                            placeholder="normal"
-                            value={String(styles.letterSpacing ?? '')}
-                            onChange={(e) => onCommitStyle('letterSpacing', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <TypographySectorControls
+                      styles={styles}
+                      onChange={onCommitStyle}
+                    />
                   )}
 
                   {sector.id === 'decorations' && (

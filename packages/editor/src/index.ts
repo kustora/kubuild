@@ -13,4 +13,5 @@ export * from './table-spreadsheet-editor';
 export * from './box-model-editor';
 export * from './style-manager-accordion';
 export * from './dimension-sector-controls';
+export * from './typography-sector-controls';
 
