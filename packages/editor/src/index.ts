@@ -11,4 +11,5 @@ export * from './export-utils';
 export * from './icons';
 export * from './table-spreadsheet-editor';
 export * from './box-model-editor';
+export * from './style-manager-accordion';
 

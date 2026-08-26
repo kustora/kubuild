@@ -238,6 +238,62 @@ export const ComponentIcon: React.FC<ComponentIconProps> = ({
           <circle cx="12" cy="12" r="4" fill="currentColor" />
         </svg>
       );
+    case 'dimension':
+    case 'maximize':
+      return (
+        <svg {...iconProps}>
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+        </svg>
+      );
+    case 'spacing':
+    case 'box-model':
+    case 'margin':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="18" x="3" y="3" rx="2" strokeDasharray="3 3" />
+          <rect width="10" height="10" x="7" y="7" rx="1" />
+        </svg>
+      );
+    case 'typography':
+      return (
+        <svg {...iconProps}>
+          <polyline points="4 7 4 4 20 4 20 7" />
+          <line x1="9" x2="15" y1="20" y2="20" />
+          <line x1="12" x2="12" y1="4" y2="20" />
+        </svg>
+      );
+    case 'decorations':
+    case 'palette':
+      return (
+        <svg {...iconProps}>
+          <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+          <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+          <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+          <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+        </svg>
+      );
+    case 'flex':
+    case 'alignment':
+    case 'align':
+      return (
+        <svg {...iconProps}>
+          <rect width="6" height="14" x="4" y="5" rx="1" />
+          <rect width="6" height="10" x="14" y="7" rx="1" />
+        </svg>
+      );
+    case 'chevron-down':
+      return (
+        <svg {...iconProps}>
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      );
+    case 'chevron-right':
+      return (
+        <svg {...iconProps}>
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      );
     default:
       return (
         <svg {...iconProps}>

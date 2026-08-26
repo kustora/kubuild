@@ -1,0 +1,640 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { ComponentIcon } from './icons';
+import { BoxModelEditor } from './box-model-editor';
+
+export type StyleSectorId = 'dimension' | 'spacing' | 'typography' | 'decorations' | 'flex';
+
+export interface StyleSectorDefinition {
+  id: StyleSectorId;
+  label: string;
+  icon: string;
+  description?: string;
+  properties: string[];
+}
+
+export const STYLE_SECTORS: StyleSectorDefinition[] = [
+  {
+    id: 'dimension',
+    label: 'Dimension',
+    icon: 'dimension',
+    description: 'Width, height, min/max limits, display & overflow',
+    properties: ['display', 'width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'overflow'],
+  },
+  {
+    id: 'spacing',
+    label: 'Spacing (Box Model)',
+    icon: 'spacing',
+    description: 'Margin, border widths, padding & box dimensions',
+    properties: [
+      'marginTop',
+      'marginRight',
+      'marginBottom',
+      'marginLeft',
+      'paddingTop',
+      'paddingRight',
+      'paddingBottom',
+      'paddingLeft',
+      'borderTopWidth',
+      'borderRightWidth',
+      'borderBottomWidth',
+      'borderLeftWidth',
+    ],
+  },
+  {
+    id: 'typography',
+    label: 'Typography',
+    icon: 'typography',
+    description: 'Font family, size, weight, line-height, text color & align',
+    properties: ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'textAlign', 'textDecoration', 'textTransform'],
+  },
+  {
+    id: 'decorations',
+    label: 'Decorations',
+    icon: 'decorations',
+    description: 'Background, borders, radius, shadow & opacity',
+    properties: ['backgroundColor', 'backgroundImage', 'borderStyle', 'borderWidth', 'borderColor', 'borderRadius', 'boxShadow', 'opacity'],
+  },
+  {
+    id: 'flex',
+    label: 'Flex / Alignment',
+    icon: 'flex',
+    description: 'Flex direction, alignment, wrapping & gap',
+    properties: ['flexDirection', 'justifyContent', 'alignItems', 'flexWrap', 'gap', 'alignContent', 'flexGrow', 'flexShrink'],
+  },
+];
+
+export const STORAGE_KEY_ACCORDION = 'kubuild:style-manager-accordion';
+
+export const DEFAULT_ACCORDION_STATE: Record<StyleSectorId, boolean> = {
+  dimension: true,
+  spacing: true,
+  typography: false,
+  decorations: false,
+  flex: false,
+};
+
+let memoryStorage: Record<string, string> = {};
+
+export function getStorage(): {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+} {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage;
+    }
+    if (typeof localStorage !== 'undefined') {
+      return localStorage;
+    }
+  } catch {
+    // restricted storage fallback
+  }
+  return {
+    getItem: (k: string) => memoryStorage[k] ?? null,
+    setItem: (k: string, v: string) => {
+      memoryStorage[k] = v;
+    },
+    removeItem: (k: string) => {
+      delete memoryStorage[k];
+    },
+  };
+}
+
+export function clearMemoryStorage(): void {
+  memoryStorage = {};
+}
+
+export function loadAccordionState(): Record<StyleSectorId, boolean> {
+  const storage = getStorage();
+  try {
+    const raw = storage.getItem(STORAGE_KEY_ACCORDION);
+    if (!raw) return { ...DEFAULT_ACCORDION_STATE };
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_ACCORDION_STATE,
+      ...parsed,
+    };
+  } catch {
+    return { ...DEFAULT_ACCORDION_STATE };
+  }
+}
+
+export function saveAccordionState(state: Record<StyleSectorId, boolean>): void {
+  const storage = getStorage();
+  try {
+    storage.setItem(STORAGE_KEY_ACCORDION, JSON.stringify(state));
+  } catch {
+    // ignore quota/security errors
+  }
+}
+
+export interface StyleManagerAccordionProps {
+  styles?: Record<string, unknown>;
+  onCommitStyle: (property: string, value: string) => void;
+  errors?: Record<string, string | null>;
+  breakpoint?: 'base' | 'tablet' | 'mobile';
+  className?: string;
+  initialState?: Partial<Record<StyleSectorId, boolean>>;
+}
+
+export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
+  styles = {},
+  onCommitStyle,
+  errors = {},
+  breakpoint = 'base',
+  className = '',
+  initialState,
+}) => {
+  const [openState, setOpenState] = useState<Record<StyleSectorId, boolean>>(() => ({
+    ...loadAccordionState(),
+    ...initialState,
+  }));
+
+  const toggleSector = useCallback((sectorId: StyleSectorId) => {
+    setOpenState((prev) => {
+      const next = { ...prev, [sectorId]: !prev[sectorId] };
+      saveAccordionState(next);
+      return next;
+    });
+  }, []);
+
+  const expandAll = useCallback(() => {
+    const next: Record<StyleSectorId, boolean> = {
+      dimension: true,
+      spacing: true,
+      typography: true,
+      decorations: true,
+      flex: true,
+    };
+    setOpenState(next);
+    saveAccordionState(next);
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    const next: Record<StyleSectorId, boolean> = {
+      dimension: false,
+      spacing: false,
+      typography: false,
+      decorations: false,
+      flex: false,
+    };
+    setOpenState(next);
+    saveAccordionState(next);
+  }, []);
+
+  // Compute number of active custom properties per sector
+  const getActivePropertyCount = (properties: string[]): number => {
+    return properties.filter((prop) => {
+      const val = styles[prop];
+      return val !== undefined && val !== null && val !== '';
+    }).length;
+  };
+
+  return (
+    <div className={`flex flex-col gap-2 w-full select-none ${className}`} data-testid="style-manager-accordion">
+      {/* Top Header Controls */}
+      <div className="flex items-center justify-between px-1 py-0.5">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          <span>Style Manager</span>
+          <span className="px-1.5 py-0.2 text-[10px] font-medium bg-slate-100 text-slate-600 rounded border border-slate-200">
+            {breakpoint === 'base' ? 'base' : `${breakpoint} override`}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={expandAll}
+            title="Expand All Sectors"
+            className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition"
+          >
+            Expand All
+          </button>
+          <span className="text-slate-300 text-xs">|</span>
+          <button
+            type="button"
+            onClick={collapseAll}
+            title="Collapse All Sectors"
+            className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition"
+          >
+            Collapse All
+          </button>
+        </div>
+      </div>
+
+      {/* Accordion Sectors List */}
+      <div className="flex flex-col gap-1.5">
+        {STYLE_SECTORS.map((sector) => {
+          const isOpen = Boolean(openState[sector.id]);
+          const activeCount = getActivePropertyCount(sector.properties);
+
+          return (
+            <div
+              key={sector.id}
+              data-testid={`sector-${sector.id}`}
+              className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors"
+            >
+              {/* Sector Header / Toggle Button */}
+              <button
+                type="button"
+                onClick={() => toggleSector(sector.id)}
+                aria-expanded={isOpen}
+                aria-controls={`sector-content-${sector.id}`}
+                data-testid={`sector-header-${sector.id}`}
+                className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-slate-500 shrink-0">
+                    <ComponentIcon iconOrType={sector.icon} size={14} />
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700 truncate">
+                    {sector.label}
+                  </span>
+                  {activeCount > 0 && (
+                    <span
+                      title={`${activeCount} custom properties set`}
+                      className="px-1.5 py-0.2 text-[9px] font-bold bg-blue-100 text-blue-700 rounded-full border border-blue-200 leading-none"
+                    >
+                      {activeCount}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  <span
+                    className={`text-slate-400 transform transition-transform duration-200 ${
+                      isOpen ? 'rotate-180' : 'rotate-0'
+                    }`}
+                  >
+                    <ComponentIcon iconOrType="chevron-down" size={13} />
+                  </span>
+                </div>
+              </button>
+
+              {/* Sector Body / Animated Container */}
+              {isOpen && (
+                <div
+                  id={`sector-content-${sector.id}`}
+                  data-testid={`sector-body-${sector.id}`}
+                  className="p-3 border-t border-slate-100 bg-white animate-fadeIn"
+                >
+                  {sector.id === 'spacing' && (
+                    <div className="flex flex-col gap-3">
+                      {/* Visual Box Model Diagram */}
+                      <BoxModelEditor
+                        values={styles}
+                        onChange={(prop, val) => onCommitStyle(prop, val)}
+                      />
+
+                      {/* Quick Field Grid */}
+                      <div className="pt-2 border-t border-slate-100">
+                        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Side Inputs
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {['marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map(
+                            (prop) => (
+                              <div key={prop} className="flex items-center justify-between gap-1 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                                <span className="text-[11px] text-slate-500 font-medium truncate">
+                                  {prop.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                                </span>
+                                <input
+                                  type="text"
+                                  placeholder="0"
+                                  value={String(styles[prop] ?? '')}
+                                  onChange={(e) => onCommitStyle(prop, e.target.value)}
+                                  className="w-14 text-right font-mono text-[11px] bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {sector.id === 'dimension' && (
+                    <div className="flex flex-col gap-2.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Display</label>
+                          <select
+                            value={String(styles.display ?? 'block')}
+                            onChange={(e) => onCommitStyle('display', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="block">Block</option>
+                            <option value="flex">Flex</option>
+                            <option value="inline-flex">Inline Flex</option>
+                            <option value="inline-block">Inline Block</option>
+                            <option value="grid">Grid</option>
+                            <option value="none">None</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Overflow</label>
+                          <select
+                            value={String(styles.overflow ?? 'visible')}
+                            onChange={(e) => onCommitStyle('overflow', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="visible">Visible</option>
+                            <option value="hidden">Hidden</option>
+                            <option value="scroll">Scroll</option>
+                            <option value="auto">Auto</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Width</label>
+                          <input
+                            type="text"
+                            placeholder="auto"
+                            value={String(styles.width ?? '')}
+                            onChange={(e) => onCommitStyle('width', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Height</label>
+                          <input
+                            type="text"
+                            placeholder="auto"
+                            value={String(styles.height ?? '')}
+                            onChange={(e) => onCommitStyle('height', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Min Width</label>
+                          <input
+                            type="text"
+                            placeholder="auto"
+                            value={String(styles.minWidth ?? '')}
+                            onChange={(e) => onCommitStyle('minWidth', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Max Width</label>
+                          <input
+                            type="text"
+                            placeholder="none"
+                            value={String(styles.maxWidth ?? '')}
+                            onChange={(e) => onCommitStyle('maxWidth', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {sector.id === 'typography' && (
+                    <div className="flex flex-col gap-2.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Font Size</label>
+                          <input
+                            type="text"
+                            placeholder="16px"
+                            value={String(styles.fontSize ?? '')}
+                            onChange={(e) => onCommitStyle('fontSize', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Font Weight</label>
+                          <select
+                            value={String(styles.fontWeight ?? 'normal')}
+                            onChange={(e) => onCommitStyle('fontWeight', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="300">Light (300)</option>
+                            <option value="400">Regular (400)</option>
+                            <option value="500">Medium (500)</option>
+                            <option value="600">Semibold (600)</option>
+                            <option value="700">Bold (700)</option>
+                            <option value="800">Extrabold (800)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Color</label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={typeof styles.color === 'string' && styles.color.startsWith('#') ? styles.color : '#000000'}
+                              onChange={(e) => onCommitStyle('color', e.target.value)}
+                              className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0.5"
+                            />
+                            <input
+                              type="text"
+                              placeholder="#000000"
+                              value={String(styles.color ?? '')}
+                              onChange={(e) => onCommitStyle('color', e.target.value)}
+                              className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Text Align</label>
+                          <select
+                            value={String(styles.textAlign ?? 'left')}
+                            onChange={(e) => onCommitStyle('textAlign', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right">Right</option>
+                            <option value="justify">Justify</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Line Height</label>
+                          <input
+                            type="text"
+                            placeholder="1.5"
+                            value={String(styles.lineHeight ?? '')}
+                            onChange={(e) => onCommitStyle('lineHeight', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Letter Spacing</label>
+                          <input
+                            type="text"
+                            placeholder="normal"
+                            value={String(styles.letterSpacing ?? '')}
+                            onChange={(e) => onCommitStyle('letterSpacing', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {sector.id === 'decorations' && (
+                    <div className="flex flex-col gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-600 mb-1">Background Color</label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="color"
+                            value={typeof styles.backgroundColor === 'string' && styles.backgroundColor.startsWith('#') ? styles.backgroundColor : '#ffffff'}
+                            onChange={(e) => onCommitStyle('backgroundColor', e.target.value)}
+                            className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0.5"
+                          />
+                          <input
+                            type="text"
+                            placeholder="transparent / #ffffff"
+                            value={String(styles.backgroundColor ?? '')}
+                            onChange={(e) => onCommitStyle('backgroundColor', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Border Radius</label>
+                          <input
+                            type="text"
+                            placeholder="0px"
+                            value={String(styles.borderRadius ?? '')}
+                            onChange={(e) => onCommitStyle('borderRadius', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Border Style</label>
+                          <select
+                            value={String(styles.borderStyle ?? 'none')}
+                            onChange={(e) => onCommitStyle('borderStyle', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="none">None</option>
+                            <option value="solid">Solid</option>
+                            <option value="dashed">Dashed</option>
+                            <option value="dotted">Dotted</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Border Color</label>
+                          <input
+                            type="text"
+                            placeholder="#e2e8f0"
+                            value={String(styles.borderColor ?? '')}
+                            onChange={(e) => onCommitStyle('borderColor', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Box Shadow</label>
+                          <input
+                            type="text"
+                            placeholder="none"
+                            value={String(styles.boxShadow ?? '')}
+                            onChange={(e) => onCommitStyle('boxShadow', e.target.value)}
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {sector.id === 'flex' && (
+                    <div className="flex flex-col gap-2.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Direction</label>
+                          <select
+                            value={String(styles.flexDirection ?? 'row')}
+                            onChange={(e) => onCommitStyle('flexDirection', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="row">Row (Horizontal)</option>
+                            <option value="column">Column (Vertical)</option>
+                            <option value="row-reverse">Row Reverse</option>
+                            <option value="column-reverse">Column Reverse</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Wrap</label>
+                          <select
+                            value={String(styles.flexWrap ?? 'nowrap')}
+                            onChange={(e) => onCommitStyle('flexWrap', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="nowrap">No Wrap</option>
+                            <option value="wrap">Wrap</option>
+                            <option value="wrap-reverse">Wrap Reverse</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Justify Content</label>
+                          <select
+                            value={String(styles.justifyContent ?? 'flex-start')}
+                            onChange={(e) => onCommitStyle('justifyContent', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="flex-start">Start</option>
+                            <option value="center">Center</option>
+                            <option value="flex-end">End</option>
+                            <option value="space-between">Space Between</option>
+                            <option value="space-around">Space Around</option>
+                            <option value="space-evenly">Space Evenly</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Align Items</label>
+                          <select
+                            value={String(styles.alignItems ?? 'stretch')}
+                            onChange={(e) => onCommitStyle('alignItems', e.target.value)}
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="stretch">Stretch</option>
+                            <option value="flex-start">Start</option>
+                            <option value="center">Center</option>
+                            <option value="flex-end">End</option>
+                            <option value="baseline">Baseline</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-600 mb-1">Gap</label>
+                        <input
+                          type="text"
+                          placeholder="0px / 1rem"
+                          value={String(styles.gap ?? '')}
+                          onChange={(e) => onCommitStyle('gap', e.target.value)}
+                          className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};

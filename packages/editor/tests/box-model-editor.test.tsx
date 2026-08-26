@@ -105,7 +105,7 @@ describe('Visual Box Model Component (STORA-201)', () => {
       <InspectorPanel registry={registry} document={doc} selectedNodeId={doc.document.id} />,
     );
 
-    expect(html).toContain('Box Model &amp; Spacing');
+    expect(html).toContain('Spacing (Box Model)');
     expect(html).toContain('Margin');
     expect(html).toContain('Border');
     expect(html).toContain('Padding');

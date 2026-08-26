@@ -6,6 +6,7 @@ import { useEditorStore, Viewport } from './store';
 import { VariableBindingControl, toBindingValue } from './variable-picker';
 import { TableSpreadsheetEditor } from './table-spreadsheet-editor';
 import { BoxModelEditor } from './box-model-editor';
+import { StyleManagerAccordion } from './style-manager-accordion';
 import { ComponentIcon } from './icons';
 
 export interface InspectorPanelProps {
@@ -768,40 +769,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Box Model & Spacing ({activeBreakpoint === 'base' ? 'base' : `${activeBreakpoint} override`})
-          </div>
-        </div>
-
-        {/* Visual Box Model Diagram */}
-        <BoxModelEditor
+      <div className="pt-2 border-t border-slate-200">
+        <StyleManagerAccordion
           key={`${node.id}-${activeBreakpoint}`}
-          values={activeLayer}
-          onChange={(prop, val) => handleCommitSpacing(prop, val)}
+          styles={activeLayer}
+          onCommitStyle={handleCommitSpacing}
+          errors={fieldErrors}
+          breakpoint={activeBreakpoint}
         />
-
-        {/* Detailed Individual Spacing Inputs */}
-        <div className="pt-2 border-t border-slate-200">
-          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-2">
-            Detailed Fields
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {SPACING_FIELDS.map((field) => (
-              <SpacingControl
-                key={`${node.id}-${activeBreakpoint}-${field.name}`}
-                nodeId={node.id}
-                breakpoint={activeBreakpoint}
-                fieldName={field.name}
-                fieldLabel={field.label}
-                value={activeLayer[field.name]}
-                onCommit={handleCommitSpacing}
-                error={fieldErrors[`style:${field.name}`]}
-              />
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -142,7 +142,7 @@
 - **Summary:** Struktur Accordion Sectors di Style Manager Panel
 - **Description:** Restrukturisasi panel styling menjadi accordion yang dapat dibuka/tutup: Dimension, Spacing (Box Model), Typography, Decorations, Flex/Alignment.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-201
 - **Acceptance Criteria:**
   - Tiap sektor dapat dibuka-tutup dengan animasi halus dan mengingat status buka/tutup di local state.
