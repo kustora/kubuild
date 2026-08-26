@@ -10,6 +10,7 @@ export type PropPrimitiveType = 'string' | 'number' | 'boolean';
 export function primitiveTypeForField(field: ComponentFieldDefinition): PropPrimitiveType | undefined {
   switch (field.type) {
     case 'string':
+    case 'textarea':
     case 'color':
       return 'string';
     case 'number':

@@ -931,4 +931,156 @@ describe('STORA-052: Collection rendering', () => {
       expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
     });
   });
+
+  describe('STORA-192: Core Semantic Typography Elements', () => {
+    it('renders paragraph (<p>) with clean typography styles and supports inline editing', () => {
+      const doc = createBlankDocument('Paragraph Test');
+      doc.document.children = [
+        {
+          id: 'p-1',
+          type: 'paragraph',
+          props: { text: 'Pure semantic paragraph.' },
+          styles: { base: { color: '#334155', fontSize: '18px' } },
+        },
+      ];
+
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(runtimeHtml).toContain('<p');
+      expect(runtimeHtml).toContain('id="p-1"');
+      expect(runtimeHtml).toContain('Pure semantic paragraph.');
+      expect(runtimeHtml).toContain('color:#334155');
+      expect(runtimeHtml).not.toContain('contenteditable');
+
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
+      expect(editorHtml).toContain('Pure semantic paragraph.');
+    });
+
+    it('renders link (<a>) with href, target, rel, safe URL sanitization, and editor mode support', () => {
+      const doc = createBlankDocument('Link Test');
+      doc.document.children = [
+        {
+          id: 'link-safe',
+          type: 'link',
+          props: {
+            text: 'Visit Google',
+            href: 'https://google.com',
+            target: '_blank',
+          },
+        },
+        {
+          id: 'link-unsafe',
+          type: 'link',
+          props: {
+            text: 'Unsafe Link',
+            href: 'javascript:alert(1)',
+            target: '_self',
+            rel: 'nofollow',
+          },
+        },
+      ];
+
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(runtimeHtml).toContain('<a');
+      expect(runtimeHtml).toContain('href="https://google.com"');
+      expect(runtimeHtml).toContain('target="_blank"');
+      expect(runtimeHtml).toContain('rel="noopener noreferrer"');
+      expect(runtimeHtml).toContain('Visit Google');
+      // javascript: is sanitized to '#'
+      expect(runtimeHtml).toContain('href="#"');
+      expect(runtimeHtml).toContain('rel="nofollow"');
+
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      // In editor mode, href is omitted to avoid accidental navigation while editing
+      expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
+      expect(editorHtml).toContain('Visit Google');
+    });
+
+    it('renders blockquote (<blockquote>) with decorative border-left and cite support', () => {
+      const doc = createBlankDocument('Blockquote Test');
+      doc.document.children = [
+        {
+          id: 'quote-1',
+          type: 'blockquote',
+          props: {
+            text: 'Simplicity is prerequisite for reliability.',
+            cite: 'https://en.wikipedia.org/wiki/Edsger_W._Dijkstra',
+          },
+          styles: { base: { borderLeftWidth: '4px', borderLeftColor: '#3b82f6' } },
+        },
+        {
+          id: 'quote-nested',
+          type: 'blockquote',
+          props: {
+            text: 'Outer quote',
+          },
+          children: [
+            { id: 'quote-inner-p', type: 'paragraph', props: { text: 'Nested paragraph inside blockquote' } },
+          ],
+        },
+      ];
+
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(runtimeHtml).toContain('<blockquote');
+      expect(runtimeHtml).toContain('id="quote-1"');
+      expect(runtimeHtml).toContain('cite="https://en.wikipedia.org/wiki/Edsger_W._Dijkstra"');
+      expect(runtimeHtml).toContain('Simplicity is prerequisite for reliability.');
+      expect(runtimeHtml).toContain('border-left-width:4px');
+      expect(runtimeHtml).toContain('Nested paragraph inside blockquote');
+
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
+    });
+
+    it('renders badge (<span>) pill with status variant and inline editing', () => {
+      const doc = createBlankDocument('Badge Test');
+      doc.document.children = [
+        {
+          id: 'badge-1',
+          type: 'badge',
+          props: { text: 'Active', variant: 'success' },
+          styles: { base: { borderRadius: '9999px', backgroundColor: '#dcfce7', color: '#166534' } },
+        },
+      ];
+
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(runtimeHtml).toContain('<span');
+      expect(runtimeHtml).toContain('id="badge-1"');
+      expect(runtimeHtml).toContain('data-variant="success"');
+      expect(runtimeHtml).toContain('Active');
+      expect(runtimeHtml).toContain('border-radius:9999px');
+
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
+      expect(editorHtml).toContain('Active');
+    });
+
+    it('renders code-block (<pre><code>) with dark theme and monospace font', () => {
+      const doc = createBlankDocument('CodeBlock Test');
+      doc.document.children = [
+        {
+          id: 'code-1',
+          type: 'code-block',
+          props: {
+            code: 'function hello() {\n  return "world";\n}',
+            language: 'typescript',
+          },
+          styles: { base: { backgroundColor: '#1e293b', color: '#f8fafc' } },
+        },
+      ];
+
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(runtimeHtml).toContain('<pre');
+      expect(runtimeHtml).toContain('id="code-1"');
+      expect(runtimeHtml).toContain('data-language="typescript"');
+      expect(runtimeHtml).toContain('<code');
+      expect(runtimeHtml).toContain('class="language-typescript"');
+      expect(runtimeHtml).toContain('function hello()');
+      expect(runtimeHtml).toContain('background-color:#1e293b');
+
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
+      expect(editorHtml).toContain('function hello()');
+    });
+  });
 });

@@ -118,6 +118,61 @@ const StringPropControl: React.FC<StringPropControlProps> = ({
   );
 };
 
+interface TextAreaPropControlProps {
+  nodeId: string;
+  field: ComponentFieldDefinition;
+  value: unknown;
+  onCommit: (field: ComponentFieldDefinition, value: unknown, isBlur: boolean) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+}
+
+const TextAreaPropControl: React.FC<TextAreaPropControlProps> = ({
+  nodeId,
+  field,
+  value,
+  onCommit,
+  onKeyDown,
+}) => {
+  const valueStr = typeof value === 'string' ? value : '';
+  const [text, setText] = useState(valueStr);
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setText(typeof value === 'string' ? value : '');
+    }
+  }, [value, nodeId, field.name]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const nextVal = e.target.value;
+    setText(nextVal);
+    onCommit(field, nextVal, false);
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    onCommit(field, text, true);
+  };
+
+  const handleFocus = () => {
+    isFocusedRef.current = true;
+    onCommit(field, text, false);
+  };
+
+  return (
+    <textarea
+      value={text}
+      onFocus={handleFocus}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onKeyDown={onKeyDown}
+      rows={3}
+      placeholder={field.defaultValue !== undefined ? String(field.defaultValue) : ''}
+      className="w-full text-xs font-mono bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+    />
+  );
+};
+
 interface NumberPropControlProps {
   nodeId: string;
   field: ComponentFieldDefinition;
@@ -412,6 +467,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({ registry, classN
             }}
             rows={3}
             className="w-full text-xs font-mono bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          />
+        );
+      case 'textarea':
+        return (
+          <TextAreaPropControl
+            nodeId={node.id}
+            field={field}
+            value={currentValue}
+            onCommit={commitProp}
           />
         );
       case 'string':

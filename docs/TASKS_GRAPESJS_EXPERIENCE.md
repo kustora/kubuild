@@ -68,7 +68,7 @@
   - `badge`: Tag `<span>` pill/kapsul untuk tag status atau kategori.
   - `code-block`: Tag `<pre><code>` dengan background gelap dan font monospace.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Seluruh elemen tipografi semantik terdaftar di registry dan dapat di-drag dari sidebar editor ke dalam container apapun.

@@ -9,7 +9,21 @@ import { ComponentDefinition, ComponentRegistry } from './registry';
  * (enforced separately by the schema's RootPageNodeSchema refinement).
  */
 const LAYOUT_PARENTS = ['page', 'section', 'container', 'columns'];
-const CONTENT_CHILD_TYPES = ['heading', 'text', 'image', 'button', 'list', 'table', 'collection', 'custom'];
+const CONTENT_CHILD_TYPES = [
+  'heading',
+  'text',
+  'paragraph',
+  'link',
+  'blockquote',
+  'badge',
+  'code-block',
+  'image',
+  'button',
+  'list',
+  'table',
+  'collection',
+  'custom',
+];
 
 export const pageDefinition: ComponentDefinition = {
   type: 'page',
@@ -354,7 +368,19 @@ export const listItemDefinition: ComponentDefinition = {
   category: 'typography',
   icon: 'list-item',
   acceptsChildren: true,
-  allowedChildren: ['heading', 'text', 'image', 'button', 'list', 'custom'],
+  allowedChildren: [
+    'heading',
+    'text',
+    'paragraph',
+    'link',
+    'blockquote',
+    'badge',
+    'code-block',
+    'image',
+    'button',
+    'list',
+    'custom',
+  ],
   defaultProps: {
     text: 'List item',
   },
@@ -379,6 +405,269 @@ export const listItemDefinition: ComponentDefinition = {
       fontSize: '16px',
       color: '#374151',
       lineHeight: '1.5',
+    },
+  },
+};
+
+export const paragraphDefinition: ComponentDefinition = {
+  type: 'paragraph',
+  label: 'Paragraph',
+  category: 'typography',
+  icon: 'paragraph',
+  acceptsChildren: false,
+  defaultProps: {
+    text: 'A paragraph of text with clean semantic typography.',
+  },
+  propFields: [
+    {
+      name: 'text',
+      label: 'Text',
+      type: 'string',
+      defaultValue: 'A paragraph of text with clean semantic typography.',
+    },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    const textVal = props.text ?? props.content;
+    if (
+      textVal !== undefined &&
+      !isVariableBinding(textVal) &&
+      (typeof textVal !== 'string' || textVal.trim().length === 0)
+    ) {
+      errors.push('Paragraph requires a non-empty "text".');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      fontSize: '16px',
+      color: '#4b5563',
+      lineHeight: '1.6',
+      margin: '0 0 16px 0',
+    },
+  },
+};
+
+export const linkDefinition: ComponentDefinition = {
+  type: 'link',
+  label: 'Link',
+  category: 'typography',
+  icon: 'link',
+  acceptsChildren: false,
+  defaultProps: {
+    text: 'Click here',
+    href: '#',
+    target: '_self',
+    rel: '',
+  },
+  propFields: [
+    { name: 'text', label: 'Link Text', type: 'string', defaultValue: 'Click here' },
+    { name: 'href', label: 'URL (href)', type: 'string', defaultValue: '#' },
+    {
+      name: 'target',
+      label: 'Target',
+      type: 'select',
+      defaultValue: '_self',
+      options: [
+        { label: 'Same tab (_self)', value: '_self' },
+        { label: 'New tab (_blank)', value: '_blank' },
+        { label: 'Parent (_parent)', value: '_parent' },
+        { label: 'Top (_top)', value: '_top' },
+      ],
+    },
+    { name: 'rel', label: 'Relationship (rel)', type: 'string', defaultValue: '' },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (
+      props.text !== undefined &&
+      !isVariableBinding(props.text) &&
+      (typeof props.text !== 'string' || props.text.trim().length === 0)
+    ) {
+      errors.push('Link requires a non-empty "text".');
+    }
+    if (props.href !== undefined && typeof props.href !== 'string' && !isVariableBinding(props.href)) {
+      errors.push('Link "href" must be a string when provided.');
+    }
+    if (props.target !== undefined && !isVariableBinding(props.target)) {
+      const allowedTargets = ['_self', '_blank', '_parent', '_top'];
+      if (typeof props.target !== 'string' || !allowedTargets.includes(props.target)) {
+        errors.push(`Link "target" must be one of: ${allowedTargets.join(', ')}.`);
+      }
+    }
+    if (props.rel !== undefined && typeof props.rel !== 'string' && !isVariableBinding(props.rel)) {
+      errors.push('Link "rel" must be a string when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      color: '#2563eb',
+      textDecoration: 'underline',
+      cursor: 'pointer',
+    },
+  },
+};
+
+export const blockquoteDefinition: ComponentDefinition = {
+  type: 'blockquote',
+  label: 'Blockquote',
+  category: 'typography',
+  icon: 'blockquote',
+  acceptsChildren: true,
+  allowedChildren: [
+    'paragraph',
+    'text',
+    'heading',
+    'link',
+    'badge',
+    'code-block',
+    'image',
+    'custom',
+  ],
+  defaultProps: {
+    text: '“Simplicity is the soul of efficiency.”',
+  },
+  propFields: [
+    {
+      name: 'text',
+      label: 'Quote Text',
+      type: 'string',
+      defaultValue: '“Simplicity is the soul of efficiency.”',
+    },
+    { name: 'cite', label: 'Citation URL (cite)', type: 'string' },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.text !== undefined && typeof props.text !== 'string' && !isVariableBinding(props.text)) {
+      errors.push('Blockquote "text" must be a string when provided.');
+    }
+    if (props.cite !== undefined && typeof props.cite !== 'string' && !isVariableBinding(props.cite)) {
+      errors.push('Blockquote "cite" must be a string when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      borderLeftWidth: '4px',
+      borderLeftColor: '#3b82f6',
+      borderLeftStyle: 'solid',
+      paddingTop: '8px',
+      paddingBottom: '8px',
+      paddingLeft: '16px',
+      paddingRight: '12px',
+      margin: '0 0 16px 0',
+      fontStyle: 'italic',
+      color: '#4b5563',
+      backgroundColor: '#f8fafc',
+    },
+  },
+};
+
+export const badgeDefinition: ComponentDefinition = {
+  type: 'badge',
+  label: 'Badge',
+  category: 'typography',
+  icon: 'badge',
+  acceptsChildren: false,
+  defaultProps: {
+    text: 'Badge',
+    variant: 'default',
+  },
+  propFields: [
+    { name: 'text', label: 'Badge Text', type: 'string', defaultValue: 'Badge' },
+    {
+      name: 'variant',
+      label: 'Variant',
+      type: 'select',
+      defaultValue: 'default',
+      options: [
+        { label: 'Default', value: 'default' },
+        { label: 'Success', value: 'success' },
+        { label: 'Warning', value: 'warning' },
+        { label: 'Danger', value: 'danger' },
+        { label: 'Info', value: 'info' },
+      ],
+    },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (
+      props.text !== undefined &&
+      !isVariableBinding(props.text) &&
+      (typeof props.text !== 'string' || props.text.trim().length === 0)
+    ) {
+      errors.push('Badge requires a non-empty "text".');
+    }
+    if (props.variant !== undefined && typeof props.variant !== 'string' && !isVariableBinding(props.variant)) {
+      errors.push('Badge "variant" must be a string.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      paddingLeft: '10px',
+      paddingRight: '10px',
+      paddingTop: '2px',
+      paddingBottom: '2px',
+      borderRadius: '9999px',
+      fontSize: '12px',
+      fontWeight: '500',
+      lineHeight: '1.4',
+      backgroundColor: '#e0e7ff',
+      color: '#3730a3',
+    },
+  },
+};
+
+export const codeBlockDefinition: ComponentDefinition = {
+  type: 'code-block',
+  label: 'Code Block',
+  category: 'typography',
+  icon: 'code-block',
+  acceptsChildren: false,
+  defaultProps: {
+    code: 'console.log("Hello, world!");',
+    language: 'javascript',
+  },
+  propFields: [
+    {
+      name: 'code',
+      label: 'Code',
+      type: 'textarea',
+      defaultValue: 'console.log("Hello, world!");',
+    },
+    {
+      name: 'language',
+      label: 'Language',
+      type: 'string',
+      defaultValue: 'javascript',
+    },
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.code !== undefined && typeof props.code !== 'string' && !isVariableBinding(props.code)) {
+      errors.push('Code Block "code" must be a string when provided.');
+    }
+    if (props.language !== undefined && typeof props.language !== 'string' && !isVariableBinding(props.language)) {
+      errors.push('Code Block "language" must be a string when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      backgroundColor: '#1e293b',
+      color: '#f8fafc',
+      padding: '16px',
+      borderRadius: '8px',
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+      fontSize: '14px',
+      lineHeight: '1.5',
+      overflowX: 'auto',
+      margin: '0 0 16px 0',
+      whiteSpace: 'pre',
     },
   },
 };
@@ -461,7 +750,19 @@ export const tableCellDefinition: ComponentDefinition = {
   category: 'layout',
   icon: 'table-cell',
   acceptsChildren: true,
-  allowedChildren: ['heading', 'text', 'image', 'button', 'list', 'custom'],
+  allowedChildren: [
+    'heading',
+    'text',
+    'paragraph',
+    'link',
+    'blockquote',
+    'badge',
+    'code-block',
+    'image',
+    'button',
+    'list',
+    'custom',
+  ],
   disallowedParents: ['page'],
   defaultProps: {
     tag: 'td',
@@ -524,6 +825,11 @@ export const coreComponentDefinitions: ComponentDefinition[] = [
   columnsDefinition,
   headingDefinition,
   textDefinition,
+  paragraphDefinition,
+  linkDefinition,
+  blockquoteDefinition,
+  badgeDefinition,
+  codeBlockDefinition,
   imageDefinition,
   buttonDefinition,
   collectionDefinition,
@@ -541,3 +847,4 @@ export function createDefaultComponentRegistry(): ComponentRegistry {
   }
   return registry;
 }
+

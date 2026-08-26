@@ -315,6 +315,165 @@ export function NodeRenderer({
           />
         );
       }
+      case 'paragraph': {
+        const text = String(resolvedProps.text ?? resolvedProps.content ?? props.text ?? props.content ?? '');
+        const isEditable = mode === 'editor' && !isVariableBinding(props.text) && !isVariableBinding(props.content);
+        const propName = props.content !== undefined ? 'content' : 'text';
+        return (
+          <EditableText
+            as="p"
+            id={domId}
+            style={styles}
+            value={text}
+            isEditable={isEditable}
+            nodeId={node.id}
+            onClick={handleClick}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, propName, val, isBlur)}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          />
+        );
+      }
+      case 'link': {
+        const text = String(resolvedProps.text ?? props.text ?? '');
+        const rawHref = typeof resolvedProps.href === 'string' ? resolvedProps.href : typeof props.href === 'string' ? props.href : undefined;
+        const href = rawHref ? sanitizeUrl(rawHref, '#') : '#';
+        const rawTarget = typeof resolvedProps.target === 'string' ? resolvedProps.target : undefined;
+        const rawRel = typeof resolvedProps.rel === 'string' ? resolvedProps.rel : undefined;
+        const rel = rawTarget === '_blank' && !rawRel ? 'noopener noreferrer' : rawRel;
+        const isEditable = mode === 'editor' && !isVariableBinding(props.text);
+
+        if (isEditable) {
+          return (
+            <EditableText
+              as="a"
+              id={domId}
+              href={undefined}
+              target={rawTarget}
+              rel={rel}
+              style={styles}
+              value={text}
+              isEditable={isEditable}
+              nodeId={node.id}
+              onClick={handleClick}
+              onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
+              role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+            />
+          );
+        }
+
+        return (
+          <a
+            id={domId}
+            href={href}
+            target={rawTarget}
+            rel={rel}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
+            {text}
+          </a>
+        );
+      }
+      case 'blockquote': {
+        const text = resolvedProps.text !== undefined ? String(resolvedProps.text) : props.text !== undefined ? String(props.text) : '';
+        const rawCite = typeof resolvedProps.cite === 'string' ? resolvedProps.cite : typeof props.cite === 'string' ? props.cite : undefined;
+        const safeCite = rawCite ? sanitizeUrl(rawCite) : undefined;
+        const hasChildren = Boolean(childrenElements && childrenElements.length > 0);
+        const isEditable = mode === 'editor' && !isVariableBinding(props.text);
+
+        if (hasChildren) {
+          return (
+            <blockquote
+              id={domId}
+              cite={safeCite}
+              style={styles}
+              onClick={handleClick}
+              data-kubuild-node={node.id}
+              role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+            >
+              {text ? (
+                isEditable ? (
+                  <EditableText
+                    as="p"
+                    value={text}
+                    isEditable={isEditable}
+                    nodeId={node.id}
+                    onClick={handleClick}
+                    onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
+                  />
+                ) : (
+                  <p>{text}</p>
+                )
+              ) : null}
+              {childrenElements}
+            </blockquote>
+          );
+        }
+
+        return (
+          <EditableText
+            as="blockquote"
+            id={domId}
+            cite={safeCite}
+            style={styles}
+            value={text}
+            isEditable={isEditable}
+            nodeId={node.id}
+            onClick={handleClick}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          />
+        );
+      }
+      case 'badge': {
+        const text = String(resolvedProps.text ?? props.text ?? 'Badge');
+        const variant = typeof resolvedProps.variant === 'string' ? resolvedProps.variant : 'default';
+        const isEditable = mode === 'editor' && !isVariableBinding(props.text);
+
+        return (
+          <EditableText
+            as="span"
+            id={domId}
+            style={styles}
+            value={text}
+            isEditable={isEditable}
+            nodeId={node.id}
+            data-variant={variant}
+            onClick={handleClick}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          />
+        );
+      }
+      case 'code-block': {
+        const code = String(resolvedProps.code ?? props.code ?? '');
+        const language = typeof resolvedProps.language === 'string' ? resolvedProps.language : typeof props.language === 'string' ? props.language : undefined;
+        const isEditable = mode === 'editor' && !isVariableBinding(props.code);
+
+        return (
+          <pre
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            data-language={language}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          >
+            <EditableText
+              as="code"
+              className={language ? `language-${language}` : undefined}
+              style={{ fontFamily: 'inherit', color: 'inherit', display: 'block', whiteSpace: 'pre' }}
+              value={code}
+              isEditable={isEditable}
+              nodeId={node.id}
+              onClick={handleClick}
+              onChange={(val, isBlur) => onNodePropChange?.(node.id, 'code', val, isBlur)}
+            />
+          </pre>
+        );
+      }
       case 'list': {
         const rawTag = resolvedProps.tag;
         const Tag = rawTag === 'ol' ? 'ol' : 'ul';

@@ -8,6 +8,11 @@ import {
   columnsDefinition,
   headingDefinition,
   textDefinition,
+  paragraphDefinition,
+  linkDefinition,
+  blockquoteDefinition,
+  badgeDefinition,
+  codeBlockDefinition,
   imageDefinition,
   buttonDefinition,
   listDefinition,
@@ -676,5 +681,90 @@ describe('STORA-191: Table component definitions', () => {
     expect(registry.canInsertChild('table-cell', 'heading').valid).toBe(true);
   });
 });
+
+describe('STORA-192: Core Semantic Typography Components', () => {
+  it('registers all typography components in default registry', () => {
+    const registry = createDefaultComponentRegistry();
+    const typographyTypes = ['paragraph', 'link', 'blockquote', 'badge', 'code-block'];
+
+    for (const type of typographyTypes) {
+      expect(registry.has(type)).toBe(true);
+      const def = registry.get(type);
+      expect(def).toBeDefined();
+      expect(def?.category).toBe('typography');
+    }
+  });
+
+  it('validates paragraph definition and props', () => {
+    expect(paragraphDefinition.type).toBe('paragraph');
+    expect(paragraphDefinition.acceptsChildren).toBe(false);
+    expect(paragraphDefinition.defaultProps?.text).toBeDefined();
+    expect(paragraphDefinition.validateProps?.({ text: 'Valid paragraph' })).toBe(true);
+    expect(paragraphDefinition.validateProps?.({ content: 'Alternative prop' })).toBe(true);
+
+    const invalid = paragraphDefinition.validateProps?.({ text: '   ' });
+    expect(Array.isArray(invalid)).toBe(true);
+    expect((invalid as string[])[0]).toContain('Paragraph requires a non-empty "text"');
+  });
+
+  it('validates link definition and props', () => {
+    expect(linkDefinition.type).toBe('link');
+    expect(linkDefinition.acceptsChildren).toBe(false);
+    expect(linkDefinition.validateProps?.({ text: 'Link text', href: 'https://example.com', target: '_blank', rel: 'noopener' })).toBe(true);
+
+    const invalidTarget = linkDefinition.validateProps?.({ text: 'Link', target: '_invalid' });
+    expect(Array.isArray(invalidTarget)).toBe(true);
+    expect((invalidTarget as string[])[0]).toContain('Link "target" must be one of');
+
+    const emptyText = linkDefinition.validateProps?.({ text: '' });
+    expect(Array.isArray(emptyText)).toBe(true);
+    expect((emptyText as string[])[0]).toContain('Link requires a non-empty "text"');
+  });
+
+  it('validates blockquote definition and props', () => {
+    expect(blockquoteDefinition.type).toBe('blockquote');
+    expect(blockquoteDefinition.acceptsChildren).toBe(true);
+    expect(blockquoteDefinition.allowedChildren).toContain('paragraph');
+    expect(blockquoteDefinition.validateProps?.({ text: 'A quote', cite: 'https://source.org' })).toBe(true);
+
+    const invalidText = blockquoteDefinition.validateProps?.({ text: 123 as unknown as string });
+    expect(Array.isArray(invalidText)).toBe(true);
+    expect((invalidText as string[])[0]).toContain('Blockquote "text" must be a string');
+  });
+
+  it('validates badge definition and props', () => {
+    expect(badgeDefinition.type).toBe('badge');
+    expect(badgeDefinition.acceptsChildren).toBe(false);
+    expect(badgeDefinition.validateProps?.({ text: 'New', variant: 'success' })).toBe(true);
+
+    const emptyBadge = badgeDefinition.validateProps?.({ text: '  ' });
+    expect(Array.isArray(emptyBadge)).toBe(true);
+    expect((emptyBadge as string[])[0]).toContain('Badge requires a non-empty "text"');
+  });
+
+  it('validates code-block definition and props', () => {
+    expect(codeBlockDefinition.type).toBe('code-block');
+    expect(codeBlockDefinition.acceptsChildren).toBe(false);
+    expect(codeBlockDefinition.validateProps?.({ code: 'const x = 1;', language: 'typescript' })).toBe(true);
+
+    const invalidCode = codeBlockDefinition.validateProps?.({ code: 123 as unknown as string });
+    expect(Array.isArray(invalidCode)).toBe(true);
+    expect((invalidCode as string[])[0]).toContain('Code Block "code" must be a string');
+  });
+
+  it('allows typography components inside container, section, columns, list-item, and table-cell', () => {
+    const registry = createDefaultComponentRegistry();
+    const parents = ['section', 'container', 'columns', 'list-item', 'table-cell'];
+    const types = ['paragraph', 'link', 'blockquote', 'badge', 'code-block'];
+
+    for (const parent of parents) {
+      for (const child of types) {
+        const canInsert = registry.canInsertChild(parent, child);
+        expect(canInsert.valid, `Expected ${child} to be insertable inside ${parent}`).toBe(true);
+      }
+    }
+  });
+});
+
 
 
