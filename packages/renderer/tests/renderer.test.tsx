@@ -1083,4 +1083,145 @@ describe('STORA-052: Collection rendering', () => {
       expect(editorHtml).toContain('function hello()');
     });
   });
+
+  describe('STORA-194: Video, Icon, and HTML Embed Rendering', () => {
+    it('renders native HTML5 video with poster, controls, and aspect ratio', () => {
+      const doc = createBlankDocument('HTML5 Video Test');
+      doc.document.children = [
+        {
+          id: 'video-html5',
+          type: 'video',
+          props: {
+            src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+            poster: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800',
+            controls: true,
+            autoplay: false,
+            loop: true,
+            muted: true,
+            aspectRatio: '16:9',
+          },
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(html).toContain('<video');
+      expect(html).toContain('id="video-html5"');
+      expect(html).toContain('src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"');
+      expect(html).toContain('poster="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800"');
+      expect(html).toContain('controls=""');
+      expect(html).toContain('loop=""');
+      expect(html).toContain('muted=""');
+      expect(html).toContain('aspect-ratio:16 / 9');
+    });
+
+    it('renders YouTube video iframe with auto-detection and query parameters', () => {
+      const doc = createBlankDocument('YouTube Video Test');
+      doc.document.children = [
+        {
+          id: 'video-yt',
+          type: 'video',
+          props: {
+            src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            autoplay: true,
+            muted: true,
+          },
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(html).toContain('data-video-provider="youtube"');
+      expect(html).toContain('<iframe');
+      expect(html).toContain('src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&amp;loop=0&amp;mute=1&amp;controls=1"');
+      expect(html.toLowerCase()).toContain('allowfullscreen');
+    });
+
+    it('renders Vimeo video iframe with auto-detection', () => {
+      const doc = createBlankDocument('Vimeo Video Test');
+      doc.document.children = [
+        {
+          id: 'video-vimeo',
+          type: 'video',
+          props: {
+            src: 'https://vimeo.com/76979871',
+            autoplay: false,
+            loop: true,
+          },
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(html).toContain('data-video-provider="vimeo"');
+      expect(html).toContain('<iframe');
+      expect(html).toContain('src="https://player.vimeo.com/video/76979871?autoplay=0&amp;loop=1&amp;muted=0"');
+    });
+
+    it('renders Lucide icons dynamically with color, size, and stroke width', () => {
+      const doc = createBlankDocument('Lucide Icon Test');
+      doc.document.children = [
+        {
+          id: 'icon-heart',
+          type: 'icon',
+          props: {
+            name: 'heart',
+            size: 36,
+            color: '#ef4444',
+            strokeWidth: 2.5,
+          },
+        },
+        {
+          id: 'icon-arrow',
+          type: 'icon',
+          props: {
+            name: 'arrow-right',
+            size: 20,
+            color: '#3b82f6',
+          },
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(html).toContain('id="icon-heart"');
+      expect(html).toContain('data-icon-name="heart"');
+      expect(html).toContain('width="36"');
+      expect(html).toContain('height="36"');
+      expect(html).toContain('stroke="#ef4444"');
+
+      expect(html).toContain('id="icon-arrow"');
+      expect(html).toContain('data-icon-name="arrow-right"');
+      expect(html).toContain('width="20"');
+      expect(html).toContain('stroke="#3b82f6"');
+    });
+
+    it('renders html-embed with sanitized HTML in runtime and editor placeholder when empty', () => {
+      const doc = createBlankDocument('HTML Embed Test');
+      doc.document.children = [
+        {
+          id: 'embed-custom',
+          type: 'html-embed',
+          props: {
+            html: '<div class="custom-card"><h3>Widget Header</h3><p>Widget Description</p><script>alert("hack")</script></div>',
+          },
+        },
+        {
+          id: 'embed-empty',
+          type: 'html-embed',
+          props: {
+            html: '',
+          },
+        },
+      ];
+
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(runtimeHtml).toContain('class="custom-card"');
+      expect(runtimeHtml).toContain('Widget Header');
+      expect(runtimeHtml).toContain('Widget Description');
+      // Script tags MUST be stripped
+      expect(runtimeHtml).not.toContain('<script');
+      expect(runtimeHtml).not.toContain('alert("hack")');
+
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      expect(editorHtml).toContain('HTML Embed');
+      expect(editorHtml).toContain('Click to configure HTML code in Inspector Panel');
+    });
+  });
 });

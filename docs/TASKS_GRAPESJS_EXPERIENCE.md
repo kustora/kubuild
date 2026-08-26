@@ -97,7 +97,7 @@
   - `icon`: Render ikon vektor SVG dari paket Lucide icons dengan pengatur warna dan ukuran.
   - `html-embed`: Komponen penyemat kode HTML / iframe kustom yang aman tersanitasi.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Video HTML5 dan video YouTube ter-render mulus di kanvas preview; ikon Lucide tampil dengan warna/ukuran dinamis.

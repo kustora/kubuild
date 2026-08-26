@@ -28,6 +28,7 @@
     "@kubuild/core": "workspace:*",
     "@kubuild/renderer": "workspace:*",
     "@kubuild/schema": "workspace:*",
+    "lucide-react": "^1.33.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

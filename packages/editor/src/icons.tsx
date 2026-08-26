@@ -162,6 +162,22 @@ export const ComponentIcon: React.FC<ComponentIconProps> = ({
           <path d="M15 3v18" />
         </svg>
       );
+    case 'icon':
+    case 'sparkles':
+    case 'star':
+      return (
+        <svg {...iconProps}>
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+        </svg>
+      );
+    case 'html-embed':
+      return (
+        <svg {...iconProps}>
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+          <line x1="14" x2="10" y1="4" y2="20" />
+        </svg>
+      );
     case 'video':
       return (
         <svg {...iconProps}>

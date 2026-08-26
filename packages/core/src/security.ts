@@ -402,3 +402,35 @@ export function checkZipBomb(
   }
   return false;
 }
+
+/**
+ * Sanitizes an HTML string by stripping unsafe tags (<script>, <object>, <embed>, <applet>, <base>, <link rel="import">),
+ * removing inline event handlers (on* attributes like onclick, onerror, onload, etc.),
+ * and disarming javascript:/vbscript:/data:text/html URLs in attributes.
+ */
+export function sanitizeHtml(rawHtml: unknown): string {
+  if (typeof rawHtml !== 'string') return '';
+  let html = rawHtml;
+
+  // 1. Remove script tags and their content
+  html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+
+  // 2. Remove object, embed, applet, base, and link tags
+  html = html.replace(/<\/?(object|embed|applet|base|link)\b[^>]*>/gi, '');
+
+  // 3. Remove on* event handler attributes (e.g. onload=, onclick=, onerror=, onfocus=)
+  html = html.replace(/\s+on[a-z0-9_-]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
+
+  // 4. Disarm javascript:, vbscript:, and data:text/html protocol attributes in href/src/data/action
+  html = html.replace(
+    /\b(href|src|data|action)\s*=\s*(['"])\s*(?:javascript:|vbscript:|data:text\/html)[^'"]*\2/gi,
+    '$1="#"'
+  );
+  html = html.replace(
+    /\b(href|src|data|action)\s*=\s*(?:javascript:|vbscript:|data:text\/html)[^\s>]+/gi,
+    '$1="#"'
+  );
+
+  return html;
+}
+

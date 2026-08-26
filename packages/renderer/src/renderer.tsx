@@ -11,10 +11,43 @@ import {
   dispatchAction,
   Diagnostic,
 } from './render-context';
-import { resolveBinding, sanitizeUrl } from '@kubuild/core';
+import { resolveBinding, sanitizeUrl, sanitizeHtml } from '@kubuild/core';
+import { icons as lucideIcons } from 'lucide-react';
 import { resolveNodeStyles } from './styles';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
+
+function toPascalCase(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/[-_](\w)/g, (_, c) => c.toUpperCase())
+    .replace(/^\w/, (c) => c.toUpperCase());
+}
+
+function getYouTubeId(url: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const match = url.match(
+    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i,
+  );
+  return match ? match[1] : null;
+}
+
+function getVimeoId(url: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const match = url.match(
+    /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|))(\d+)/i,
+  );
+  return match ? match[3] : null;
+}
+
+function aspectRatioToCss(ratio: unknown): string | undefined {
+  if (ratio === '16:9') return '16 / 9';
+  if (ratio === '4:3') return '4 / 3';
+  if (ratio === '1:1') return '1 / 1';
+  if (ratio === '9:16') return '9 / 16';
+  if (typeof ratio === 'string' && ratio !== 'auto') return ratio.replace(':', ' / ');
+  return undefined;
+}
 
 export interface EditableTextProps {
   as?: string;
@@ -683,6 +716,172 @@ export function NodeRenderer({
             style={styles}
             onClick={handleClick}
             data-kubuild-node={node.id}
+          />
+        );
+      }
+      case 'video': {
+        const rawSrc = typeof resolvedProps.src === 'string' ? resolvedProps.src : typeof props.src === 'string' ? props.src : '';
+        const provider = typeof resolvedProps.provider === 'string' ? resolvedProps.provider : typeof props.provider === 'string' ? props.provider : 'auto';
+        const rawPoster = typeof resolvedProps.poster === 'string' ? resolvedProps.poster : typeof props.poster === 'string' ? props.poster : undefined;
+        const poster = rawPoster ? sanitizeUrl(rawPoster) : undefined;
+        const controls = resolvedProps.controls !== false && props.controls !== false;
+        const autoplay = resolvedProps.autoplay === true || props.autoplay === true;
+        const loop = resolvedProps.loop === true || props.loop === true;
+        const muted = resolvedProps.muted === true || props.muted === true;
+        const aspectRatio = aspectRatioToCss(resolvedProps.aspectRatio ?? props.aspectRatio ?? '16:9');
+
+        const ytId = provider === 'youtube' ? (getYouTubeId(rawSrc) || rawSrc) : (provider === 'auto' ? getYouTubeId(rawSrc) : null);
+        const vimeoId = provider === 'vimeo' ? (getVimeoId(rawSrc) || rawSrc) : (provider === 'auto' ? getVimeoId(rawSrc) : null);
+
+        const videoStyles: React.CSSProperties = {
+          width: '100%',
+          maxWidth: '100%',
+          display: 'block',
+          ...(aspectRatio ? { aspectRatio } : {}),
+          ...styles,
+        };
+
+        if (ytId) {
+          const autoplayParam = autoplay ? '1' : '0';
+          const loopParam = loop ? `1&playlist=${ytId}` : '0';
+          const muteParam = muted ? '1' : '0';
+          const controlsParam = controls ? '1' : '0';
+          const embedUrl = `https://www.youtube.com/embed/${ytId}?autoplay=${autoplayParam}&loop=${loopParam}&mute=${muteParam}&controls=${controlsParam}`;
+
+          return (
+            <div
+              id={domId}
+              style={{ ...videoStyles, position: 'relative', overflow: 'hidden' }}
+              onClick={handleClick}
+              data-kubuild-node={node.id}
+              data-video-provider="youtube"
+              role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+            >
+              <iframe
+                src={embedUrl}
+                title="YouTube video"
+                style={{ width: '100%', height: '100%', border: 'none', minHeight: '240px' }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          );
+        }
+
+        if (vimeoId) {
+          const autoplayParam = autoplay ? '1' : '0';
+          const loopParam = loop ? '1' : '0';
+          const muteParam = muted ? '1' : '0';
+          const embedUrl = `https://player.vimeo.com/video/${vimeoId}?autoplay=${autoplayParam}&loop=${loopParam}&muted=${muteParam}`;
+
+          return (
+            <div
+              id={domId}
+              style={{ ...videoStyles, position: 'relative', overflow: 'hidden' }}
+              onClick={handleClick}
+              data-kubuild-node={node.id}
+              data-video-provider="vimeo"
+              role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+            >
+              <iframe
+                src={embedUrl}
+                title="Vimeo video"
+                style={{ width: '100%', height: '100%', border: 'none', minHeight: '240px' }}
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          );
+        }
+
+        const safeSrc = sanitizeUrl(rawSrc);
+
+        return (
+          <video
+            id={domId}
+            src={safeSrc || undefined}
+            poster={poster || undefined}
+            controls={controls}
+            autoPlay={autoplay}
+            loop={loop}
+            muted={muted}
+            style={videoStyles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            data-video-provider="html5"
+            playsInline
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
+          />
+        );
+      }
+      case 'icon': {
+        const name = typeof resolvedProps.name === 'string' && resolvedProps.name.trim().length > 0
+          ? resolvedProps.name.trim()
+          : typeof props.name === 'string' && props.name.trim().length > 0
+          ? props.name.trim()
+          : 'star';
+        const size = typeof resolvedProps.size === 'number' ? resolvedProps.size : typeof props.size === 'number' ? props.size : 24;
+        const color = typeof resolvedProps.color === 'string' ? resolvedProps.color : typeof props.color === 'string' ? props.color : 'currentColor';
+        const strokeWidth = typeof resolvedProps.strokeWidth === 'number' ? resolvedProps.strokeWidth : typeof props.strokeWidth === 'number' ? props.strokeWidth : 2;
+        const pascalName = toPascalCase(name);
+        const IconComponent = (lucideIcons as Record<string, React.ComponentType<{ size?: number; color?: string; strokeWidth?: number; className?: string; style?: React.CSSProperties }>>)[pascalName];
+
+        return (
+          <span
+            id={domId}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color, ...styles }}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            data-icon-name={name}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : 'img'}
+            aria-label={typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : name}
+          >
+            {IconComponent ? (
+              <IconComponent size={size} color={color} strokeWidth={strokeWidth} />
+            ) : (
+              <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+            )}
+          </span>
+        );
+      }
+      case 'html-embed': {
+        const rawHtml = typeof resolvedProps.html === 'string' ? resolvedProps.html : typeof props.html === 'string' ? props.html : '';
+        const sanitized = sanitizeHtml(rawHtml);
+
+        if (mode === 'editor' && !rawHtml.trim()) {
+          return (
+            <div
+              id={domId}
+              style={{
+                padding: '16px',
+                border: '2px dashed #94a3b8',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                color: '#64748b',
+                textAlign: 'center',
+                fontSize: '13px',
+                fontFamily: 'sans-serif',
+                ...styles,
+              }}
+              onClick={handleClick}
+              data-kubuild-node={node.id}
+            >
+              <span style={{ fontWeight: 600 }}>&lt;/&gt; HTML Embed</span>
+              <div style={{ fontSize: '11px', marginTop: '4px' }}>Click to configure HTML code in Inspector Panel</div>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            id={domId}
+            style={styles}
+            onClick={handleClick}
+            data-kubuild-node={node.id}
+            dangerouslySetInnerHTML={{ __html: sanitized }}
+            role={typeof resolvedProps.role === 'string' ? resolvedProps.role : undefined}
           />
         );
       }

@@ -26,7 +26,8 @@
   "dependencies": {
     "@kubuild/components": "workspace:*",
     "@kubuild/core": "workspace:*",
-    "@kubuild/schema": "workspace:*"
+    "@kubuild/schema": "workspace:*",
+    "lucide-react": "^1.33.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
