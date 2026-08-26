@@ -1223,5 +1223,42 @@ describe('STORA-052: Collection rendering', () => {
       expect(editorHtml).toContain('HTML Embed');
       expect(editorHtml).toContain('Click to configure HTML code in Inspector Panel');
     });
+
+    it('isolates custom HTML embed styles and scopes body selectors to prevent leaking into editor', () => {
+      const doc = createBlankDocument('HTML Embed Style Isolation');
+      doc.document.children = [
+        {
+          id: 'embed-hero',
+          type: 'html-embed',
+          props: {
+            html: `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Inter; background: #0a0a0a; color: #fff; }
+    .badge { border-radius: 999px; }
+    .btn { padding: 14px 22px; }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <div class="badge">Build something</div>
+    <h1>Turn your ideas into reality</h1>
+  </section>
+</body>
+</html>`,
+          },
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      // Verify Declarative Shadow DOM root template exists
+      expect(html).toContain('shadowrootmode="open"');
+      expect(html).toContain(':host { display: block; }');
+      expect(html).toContain(':host, body { font-family: Inter; background: #0a0a0a; color: #fff; }');
+      expect(html).toContain('Turn your ideas into reality');
+    });
   });
 });
+
