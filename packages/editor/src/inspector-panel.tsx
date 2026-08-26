@@ -520,6 +520,16 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     setError(errorKey, result.success ? null : result.error ?? 'Invalid value.');
   };
 
+  const handleResetStyles = (properties?: string[]) => {
+    if (!node) return;
+    const targetProps = properties && properties.length > 0 ? properties : Object.keys(activeLayer);
+    const resetMap = targetProps.reduce<Record<string, string>>((acc, p) => {
+      acc[p] = '';
+      return acc;
+    }, {});
+    updateNodeStyle(node.id, resetMap, activeBreakpoint);
+  };
+
   const handleAddListItem = (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
     const result = insertComponent('list-item', registry, node.id);

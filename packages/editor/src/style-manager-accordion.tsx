@@ -134,6 +134,7 @@ export function saveAccordionState(state: Record<StyleSectorId, boolean>): void 
 export interface StyleManagerAccordionProps {
   styles?: Record<string, unknown>;
   onCommitStyle: (property: string, value: string) => void;
+  onResetStyles?: (properties?: string[]) => void;
   errors?: Record<string, string | null>;
   breakpoint?: 'base' | 'tablet' | 'mobile';
   className?: string;
@@ -143,6 +144,7 @@ export interface StyleManagerAccordionProps {
 export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
   styles = {},
   onCommitStyle,
+  onResetStyles,
   errors = {},
   breakpoint = 'base',
   className = '',
@@ -185,6 +187,34 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
     saveAccordionState(next);
   }, []);
 
+  const handleResetSector = useCallback(
+    (e: React.MouseEvent, properties: string[]) => {
+      e.stopPropagation();
+      if (onResetStyles) {
+        onResetStyles(properties);
+      } else {
+        properties.forEach((prop) => {
+          if (styles[prop] !== undefined && styles[prop] !== null && styles[prop] !== '') {
+            onCommitStyle(prop, '');
+          }
+        });
+      }
+    },
+    [onResetStyles, onCommitStyle, styles],
+  );
+
+  const handleResetAll = useCallback(() => {
+    if (onResetStyles) {
+      onResetStyles();
+    } else {
+      Object.keys(styles).forEach((prop) => {
+        if (styles[prop] !== undefined && styles[prop] !== null && styles[prop] !== '') {
+          onCommitStyle(prop, '');
+        }
+      });
+    }
+  }, [onResetStyles, onCommitStyle, styles]);
+
   // Compute number of active custom properties per sector
   const getActivePropertyCount = (properties: string[]): number => {
     return properties.filter((prop) => {
@@ -192,6 +222,10 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
       return val !== undefined && val !== null && val !== '';
     }).length;
   };
+
+  const totalActiveStyles = Object.values(styles).filter(
+    (val) => val !== undefined && val !== null && val !== '',
+  ).length;
 
   return (
     <div className={`flex flex-col gap-2 w-full select-none ${className}`} data-testid="style-manager-accordion">
@@ -221,6 +255,21 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
           >
             Collapse All
           </button>
+          {totalActiveStyles > 0 && (
+            <>
+              <span className="text-slate-300 text-xs">|</span>
+              <button
+                type="button"
+                data-testid="style-manager-reset-all"
+                onClick={handleResetAll}
+                title="Reset all styles on active node"
+                className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition"
+              >
+                <ComponentIcon iconOrType="reset" size={11} />
+                <span>Reset CSS</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -263,6 +312,17 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  {activeCount > 0 && (
+                    <button
+                      type="button"
+                      data-testid={`sector-reset-${sector.id}`}
+                      title={`Reset ${sector.label} styles`}
+                      onClick={(e) => handleResetSector(e, sector.properties)}
+                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                    >
+                      <ComponentIcon iconOrType="reset" size={11} />
+                    </button>
+                  )}
                   <span
                     className={`text-slate-400 transform transition-transform duration-200 ${
                       isOpen ? 'rotate-180' : 'rotate-0'
