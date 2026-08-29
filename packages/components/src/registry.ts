@@ -38,6 +38,14 @@ export interface ComponentDefinition<TRenderer = unknown> {
    */
   propFields?: ComponentFieldDefinition[];
   /**
+   * Trait metadata (STORA-210): functional props separated from styling.
+   * Traits carry semantic/behavioral attributes (href, target, alt, placeholder,
+   * aria-label, id, etc.) that map to HTML attributes at render time.
+   * Distinct from `propFields` which may include visual styling knobs;
+   * traits are purely functional.
+   */
+  traits?: import('./traits').ComponentTraits;
+  /**
    * Prop schema slot: validates a node's props for this component type.
    * Returns `true`/`[]` (valid), `false` (generic failure), or an array of
    * human-readable error messages.

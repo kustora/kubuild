@@ -1,5 +1,38 @@
 import { isActionBinding, isAssetReference, isVariableBinding } from '@kubuild/schema';
 import { ComponentDefinition, ComponentRegistry } from './registry';
+import {
+  idTrait,
+  titleTrait,
+  hrefTrait,
+  targetTrait,
+  relTrait,
+  srcTrait,
+  altTrait,
+  posterTrait,
+  controlsTrait,
+  autoplayTrait,
+  loopTrait,
+  mutedTrait,
+  ariaLabelTrait,
+  fieldNameTrait,
+  placeholderTrait,
+  requiredTrait,
+  disabledTrait,
+  readOnlyTrait,
+  valueTrait,
+  defaultValueTrait,
+  defaultCheckedTrait,
+  rowsTrait,
+  actionTrait,
+  methodTrait,
+  autoCompleteTrait,
+  buttonTypeTrait,
+  citeTrait,
+  colSpanTrait,
+  rowSpanTrait,
+  tagTrait,
+  inputTypeTrait,
+} from './traits';
 
 /**
  * Layout nesting policy (STORA-021): page > section > container/columns > content.
@@ -43,6 +76,10 @@ export const pageDefinition: ComponentDefinition = {
   allowedChildren: ['section', 'custom'],
   disallowedParents: [...LAYOUT_PARENTS, ...CONTENT_CHILD_TYPES, 'list-item', 'table-row', 'table-cell'],
   defaultProps: { title: 'New Page' },
+  traits: [
+    titleTrait({ defaultValue: 'New Page', description: 'The document title shown in the browser tab and search results.' }),
+    idTrait(),
+  ],
   defaultStyles: { base: { minHeight: '100vh', backgroundColor: '#ffffff' } },
 };
 
@@ -54,6 +91,10 @@ export const sectionDefinition: ComponentDefinition = {
   acceptsChildren: true,
   allowedChildren: ['container', 'columns', ...CONTENT_CHILD_TYPES],
   defaultProps: {},
+  traits: [
+    idTrait(),
+    ariaLabelTrait({ description: 'Accessible name for the section landmark.' }),
+  ],
   defaultStyles: {
     base: {
       paddingTop: '48px',
@@ -82,6 +123,9 @@ export const containerDefinition: ComponentDefinition = {
   acceptsChildren: true,
   allowedChildren: ['columns', ...CONTENT_CHILD_TYPES],
   defaultProps: { maxWidth: '1200px' },
+  traits: [
+    idTrait(),
+  ],
   defaultStyles: {
     base: {
       maxWidth: '1200px',
@@ -107,6 +151,9 @@ export const columnsDefinition: ComponentDefinition = {
   acceptsChildren: true,
   allowedChildren: ['container', ...CONTENT_CHILD_TYPES],
   defaultProps: { columns: 2, gap: '16px' },
+  traits: [
+    idTrait(),
+  ],
   defaultStyles: {
     base: {
       display: 'grid',
@@ -141,6 +188,11 @@ export const headingDefinition: ComponentDefinition = {
       options: [1, 2, 3, 4, 5, 6].map((level) => ({ label: `H${level}`, value: level })),
     },
   ],
+  traits: [
+    idTrait(),
+    titleTrait({ description: 'Advisory title shown when hovering the heading.' }),
+    ariaLabelTrait(),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (!isVariableBinding(props.text) && (typeof props.text !== 'string' || props.text.trim().length === 0)) {
@@ -170,6 +222,11 @@ export const textDefinition: ComponentDefinition = {
   defaultProps: { content: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.' },
   propFields: [
     { name: 'content', label: 'Content', type: 'string', defaultValue: 'Lorem ipsum dolor sit amet.' },
+  ],
+  traits: [
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait(),
   ],
   validateProps: (props) => {
     if (!isVariableBinding(props.content) && (typeof props.content !== 'string' || props.content.trim().length === 0)) {
@@ -205,6 +262,13 @@ export const imageDefinition: ComponentDefinition = {
     { name: 'alt', label: 'Alt Text', type: 'string', defaultValue: 'Default image' },
     { name: 'width', label: 'Width', type: 'number' },
     { name: 'height', label: 'Height', type: 'number' },
+  ],
+  traits: [
+    srcTrait(),
+    altTrait({ defaultValue: 'Default image' }),
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait({ description: 'Override the alt text for assistive technology (rarely needed).' }),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -266,6 +330,16 @@ export const buttonDefinition: ComponentDefinition = {
       ],
     },
   ],
+  traits: [
+    buttonTypeTrait(),
+    disabledTrait(),
+    hrefTrait({ description: 'Optional URL — when set, the button renders as an anchor styled like a button.' }),
+    targetTrait({ description: 'Where to open the href URL (only used when href is set).' }),
+    relTrait({ description: 'Relationship tokens (only used when href is set).' }),
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait(),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     const hasLabel =
@@ -320,6 +394,10 @@ export const collectionDefinition: ComponentDefinition = {
     { name: 'sourceKey', label: 'Source Variable', type: 'string', defaultValue: 'items' },
     { name: 'itemAlias', label: 'Item Alias', type: 'string', defaultValue: 'item' },
   ],
+  traits: [
+    idTrait(),
+    ariaLabelTrait({ description: 'Accessible name summarizing the repeated collection (e.g. "Product list").' }),
+  ],
 };
 
 export const listDefinition: ComponentDefinition = {
@@ -363,6 +441,10 @@ export const listDefinition: ComponentDefinition = {
         { label: 'Custom Icon', value: 'custom-icon' },
       ],
     },
+  ],
+  traits: [
+    idTrait(),
+    ariaLabelTrait({ description: 'Accessible name for the list (e.g. "Navigation menu", "Features").' }),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -420,6 +502,11 @@ export const listItemDefinition: ComponentDefinition = {
       defaultValue: 'List item',
     },
   ],
+  traits: [
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait(),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (props.text !== undefined && typeof props.text !== 'string' && !isVariableBinding(props.text)) {
@@ -453,6 +540,11 @@ export const paragraphDefinition: ComponentDefinition = {
       type: 'string',
       defaultValue: 'A paragraph of text with clean semantic typography.',
     },
+  ],
+  traits: [
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait(),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -504,6 +596,14 @@ export const linkDefinition: ComponentDefinition = {
       ],
     },
     { name: 'rel', label: 'Relationship (rel)', type: 'string', defaultValue: '' },
+  ],
+  traits: [
+    hrefTrait(),
+    targetTrait(),
+    relTrait(),
+    idTrait(),
+    titleTrait({ description: 'Advisory title shown when hovering the link.' }),
+    ariaLabelTrait(),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -568,6 +668,12 @@ export const blockquoteDefinition: ComponentDefinition = {
     },
     { name: 'cite', label: 'Citation URL (cite)', type: 'string' },
   ],
+  traits: [
+    citeTrait(),
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait(),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (props.text !== undefined && typeof props.text !== 'string' && !isVariableBinding(props.text)) {
@@ -620,6 +726,11 @@ export const badgeDefinition: ComponentDefinition = {
         { label: 'Info', value: 'info' },
       ],
     },
+  ],
+  traits: [
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait(),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -676,6 +787,11 @@ export const codeBlockDefinition: ComponentDefinition = {
       type: 'string',
       defaultValue: 'javascript',
     },
+  ],
+  traits: [
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait({ description: 'Accessible label describing what the code example shows.' }),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -757,6 +873,17 @@ export const videoDefinition: ComponentDefinition = {
       ],
     },
   ],
+  traits: [
+    srcTrait(),
+    posterTrait(),
+    controlsTrait(),
+    autoplayTrait(),
+    loopTrait(),
+    mutedTrait(),
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait({ description: 'Accessible name summarizing the video content.' }),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (props.src !== undefined && typeof props.src !== 'string' && !isVariableBinding(props.src)) {
@@ -812,6 +939,11 @@ export const iconDefinition: ComponentDefinition = {
     { name: 'color', label: 'Color', type: 'color', defaultValue: '#2563eb' },
     { name: 'strokeWidth', label: 'Stroke Width', type: 'number', defaultValue: 2 },
   ],
+  traits: [
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait({ required: true, description: 'Required: describes what the icon represents for screen readers.' }),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (
@@ -858,6 +990,10 @@ export const htmlEmbedDefinition: ComponentDefinition = {
       type: 'textarea',
       defaultValue: '<div style="padding: 16px; background: #f1f5f9; border-radius: 8px; text-align: center; font-family: sans-serif; color: #475569;">Custom HTML Embed Content</div>',
     },
+  ],
+  traits: [
+    idTrait(),
+    ariaLabelTrait(),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -907,6 +1043,10 @@ export const tableDefinition: ComponentDefinition = {
     { name: 'bordered', label: 'Bordered', type: 'boolean', defaultValue: true },
     { name: 'compact', label: 'Compact Spacing', type: 'boolean', defaultValue: false },
   ],
+  traits: [
+    idTrait(),
+    ariaLabelTrait({ description: 'Required: provides a caption summary for the table when no visible caption exists.' }),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (props.striped !== undefined && typeof props.striped !== 'boolean' && !isVariableBinding(props.striped)) {
@@ -940,6 +1080,10 @@ export const tableRowDefinition: ComponentDefinition = {
   defaultProps: {},
   defaultChildren: [
     { type: 'table-cell', props: { tag: 'td', text: 'Data' } },
+  ],
+  traits: [
+    idTrait(),
+    ariaLabelTrait(),
   ],
   defaultStyles: {
     base: {},
@@ -989,6 +1133,12 @@ export const tableCellDefinition: ComponentDefinition = {
     { name: 'text', label: 'Text', type: 'string', defaultValue: 'Cell' },
     { name: 'colSpan', label: 'Column Span (colSpan)', type: 'number', defaultValue: 1 },
     { name: 'rowSpan', label: 'Row Span (rowSpan)', type: 'number', defaultValue: 1 },
+  ],
+  traits: [
+    colSpanTrait(),
+    rowSpanTrait(),
+    idTrait(),
+    ariaLabelTrait(),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -1084,6 +1234,20 @@ export const formDefinition: ComponentDefinition = {
       ],
     },
   ],
+  traits: [
+    fieldNameTrait({ defaultValue: 'contact_form', required: false }),
+    actionTrait(),
+    methodTrait(),
+    targetTrait({ options: [
+      { label: 'Same Window (_self)', value: '_self' },
+      { label: 'New Tab (_blank)', value: '_blank' },
+      { label: 'Parent (_parent)', value: '_parent' },
+      { label: 'Top (_top)', value: '_top' },
+    ]}),
+    autoCompleteTrait(),
+    idTrait(),
+    ariaLabelTrait({ description: 'Accessible name for the form landmark.' }),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
@@ -1159,6 +1323,27 @@ export const inputDefinition: ComponentDefinition = {
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
     { name: 'readOnly', label: 'Read Only', type: 'boolean', defaultValue: false },
   ],
+  traits: [
+    inputTypeTrait({ options: [
+      { label: 'Text', value: 'text' },
+      { label: 'Email', value: 'email' },
+      { label: 'Number', value: 'number' },
+      { label: 'Password', value: 'password' },
+      { label: 'Phone (tel)', value: 'tel' },
+      { label: 'URL', value: 'url' },
+      { label: 'Search', value: 'search' },
+      { label: 'Date', value: 'date' },
+      { label: 'Hidden', value: 'hidden' },
+    ]}),
+    fieldNameTrait({ defaultValue: 'input_field' }),
+    placeholderTrait({ defaultValue: 'Enter text...' }),
+    defaultValueTrait(),
+    requiredTrait(),
+    disabledTrait(),
+    readOnlyTrait(),
+    idTrait(),
+    ariaLabelTrait(),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
@@ -1227,6 +1412,17 @@ export const textareaDefinition: ComponentDefinition = {
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
     { name: 'readOnly', label: 'Read Only', type: 'boolean', defaultValue: false },
+  ],
+  traits: [
+    fieldNameTrait({ defaultValue: 'message' }),
+    placeholderTrait({ defaultValue: 'Enter your message...' }),
+    defaultValueTrait(),
+    rowsTrait(),
+    requiredTrait(),
+    disabledTrait(),
+    readOnlyTrait(),
+    idTrait(),
+    ariaLabelTrait(),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
@@ -1307,6 +1503,15 @@ export const selectDefinition: ComponentDefinition = {
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
   ],
+  traits: [
+    fieldNameTrait({ defaultValue: 'select_field' }),
+    placeholderTrait({ defaultValue: 'Select an option...' }),
+    defaultValueTrait({ description: 'The initially selected option value (must match one of the option values).' }),
+    requiredTrait(),
+    disabledTrait(),
+    idTrait(),
+    ariaLabelTrait(),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
@@ -1367,6 +1572,15 @@ export const checkboxDefinition: ComponentDefinition = {
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
   ],
+  traits: [
+    fieldNameTrait({ defaultValue: 'checkbox_field' }),
+    valueTrait({ defaultValue: 'yes' }),
+    defaultCheckedTrait(),
+    requiredTrait(),
+    disabledTrait(),
+    idTrait(),
+    ariaLabelTrait(),
+  ],
   validateProps: (props) => {
     const errors: string[] = [];
     if (props.label !== undefined && typeof props.label !== 'string' && !isVariableBinding(props.label)) {
@@ -1424,6 +1638,15 @@ export const radioDefinition: ComponentDefinition = {
     { name: 'defaultChecked', label: 'Default Selected', type: 'boolean', defaultValue: false },
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+  ],
+  traits: [
+    fieldNameTrait({ defaultValue: 'radio_group', label: 'Group Name' }),
+    valueTrait({ defaultValue: 'option1' }),
+    defaultCheckedTrait(),
+    requiredTrait(),
+    disabledTrait(),
+    idTrait(),
+    ariaLabelTrait(),
   ],
   validateProps: (props) => {
     const errors: string[] = [];
