@@ -7,6 +7,7 @@ import { VariableBindingControl, toBindingValue } from './variable-picker';
 import { TableSpreadsheetEditor } from './table-spreadsheet-editor';
 import { BoxModelEditor } from './box-model-editor';
 import { StyleManagerAccordion } from './style-manager-accordion';
+import { TraitsPanel } from './traits-panel';
 import { ComponentIcon } from './icons';
 
 export interface InspectorPanelProps {
@@ -374,6 +375,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     setTableSpreadsheetMode,
   } = storeState;
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
+  const [activeTab, setActiveTab] = useState<'style' | 'traits'>('style');
 
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const definition = node ? registry.get(node.type) : undefined;
@@ -544,8 +546,40 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     }
   };
 
+  const handleCommitTrait = (traitName: string, value: unknown) => {
+    const result = updateNodeProps(node.id, { [traitName]: value }, registry);
+    setError(`trait:${traitName}`, result.success ? null : result.error ?? 'Invalid value.');
+  };
+
   return (
-    <div className={`flex flex-col gap-4 p-3 overflow-y-auto text-sm text-slate-900 ${className || ''}`}>
+    <div className={`flex flex-col overflow-hidden text-sm text-slate-900 ${className || ''}`}>
+      {/* Tab bar: Style (🎨) / Traits (⚙️) — STORA-211 */}
+      <div className="flex shrink-0 border-b border-slate-200 bg-slate-50">
+        <button
+          type="button"
+          onClick={() => setActiveTab('style')}
+          className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 ${
+            activeTab === 'style'
+              ? 'text-blue-600 border-blue-600 bg-white'
+              : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          🎨 Style
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('traits')}
+          className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 ${
+            activeTab === 'traits'
+              ? 'text-blue-600 border-blue-600 bg-white'
+              : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          ⚙️ Traits
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-3">
       {node.type === 'list' && (
         <div className="pb-3 border-b border-slate-200">
           <div className="flex items-center justify-between mb-2">
@@ -751,6 +785,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         </div>
       )}
 
+      {activeTab === 'style' && (
+        <>
       <div>
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
           {definition.label} Props
@@ -787,6 +823,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           errors={fieldErrors}
           breakpoint={activeBreakpoint}
         />
+      </div>
+        </>
+      )}
+
+      {activeTab === 'traits' && (
+        <TraitsPanel
+          registry={registry}
+          document={document}
+          selectedNodeId={node.id}
+          onCommitTrait={handleCommitTrait}
+        />
+      )}
       </div>
     </div>
   );

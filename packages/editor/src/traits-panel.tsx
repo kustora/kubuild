@@ -1,0 +1,273 @@
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  ComponentRegistry,
+  ComponentTraitDefinition,
+  TRAIT_GROUP_ORDER,
+  TRAIT_GROUP_LABELS,
+  TraitGroup,
+} from '@kubuild/components';
+import { findNodeById } from '@kubuild/core';
+import { PageDocument } from '@kubuild/schema';
+
+export interface TraitsPanelProps {
+  registry: ComponentRegistry;
+  document: PageDocument;
+  selectedNodeId: string | null;
+  /** Commit a single trait value to the node's props. */
+  onCommitTrait: (traitName: string, value: unknown) => void;
+  className?: string;
+}
+
+function ErrorText({ message }: { message: string | null | undefined }) {
+  if (!message) return null;
+  return (
+    <div
+      role="alert"
+      className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1 mt-1"
+    >
+      {message}
+    </div>
+  );
+}
+
+interface TraitStringControlProps {
+  trait: ComponentTraitDefinition;
+  value: unknown;
+  onCommit: (value: string) => void;
+}
+
+const TraitStringControl: React.FC<TraitStringControlProps> = ({ trait, value, onCommit }) => {
+  const valueStr = typeof value === 'string' ? value : '';
+  const [text, setText] = useState(valueStr);
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setText(typeof value === 'string' ? value : '');
+    }
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      value={text}
+      onFocus={() => {
+        isFocusedRef.current = true;
+      }}
+      onChange={(e) => {
+        setText(e.target.value);
+        onCommit(e.target.value);
+      }}
+      onBlur={() => {
+        isFocusedRef.current = false;
+        onCommit(text);
+      }}
+      placeholder={trait.defaultValue !== undefined ? String(trait.defaultValue) : ''}
+      className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+    />
+  );
+};
+
+interface TraitNumberControlProps {
+  trait: ComponentTraitDefinition;
+  value: unknown;
+  onCommit: (value: number | undefined) => void;
+}
+
+const TraitNumberControl: React.FC<TraitNumberControlProps> = ({ trait, value, onCommit }) => {
+  const valueNum = typeof value === 'number' ? value : undefined;
+  const [text, setText] = useState(valueNum !== undefined ? String(valueNum) : '');
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setText(valueNum !== undefined ? String(valueNum) : '');
+    }
+  }, [value]);
+
+  const commit = (raw: string) => {
+    if (raw.trim() === '') {
+      onCommit(undefined);
+      return;
+    }
+    const parsed = Number(raw);
+    if (!Number.isNaN(parsed)) {
+      onCommit(parsed);
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      value={text}
+      onFocus={() => {
+        isFocusedRef.current = true;
+      }}
+      onChange={(e) => {
+        setText(e.target.value);
+        commit(e.target.value);
+      }}
+      onBlur={() => {
+        isFocusedRef.current = false;
+        commit(text);
+      }}
+      placeholder={trait.defaultValue !== undefined ? String(trait.defaultValue) : ''}
+      className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+    />
+  );
+};
+
+interface TraitBooleanControlProps {
+  trait: ComponentTraitDefinition;
+  value: unknown;
+  onCommit: (value: boolean) => void;
+}
+
+const TraitBooleanControl: React.FC<TraitBooleanControlProps> = ({ trait, value, onCommit }) => {
+  const checked = Boolean(value);
+  return (
+    <label className="flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onCommit(e.target.checked)}
+        className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+      />
+      <span className="text-xs text-slate-600">{checked ? 'Enabled' : 'Disabled'}</span>
+    </label>
+  );
+};
+
+interface TraitSelectControlProps {
+  trait: ComponentTraitDefinition;
+  value: unknown;
+  onCommit: (value: unknown) => void;
+}
+
+const TraitSelectControl: React.FC<TraitSelectControlProps> = ({ trait, value, onCommit }) => {
+  const options = trait.options ?? [];
+  const currentStr = value !== undefined && value !== null ? String(value) : '';
+
+  return (
+    <select
+      value={currentStr}
+      onChange={(e) => {
+        const option = options.find((o) => String(o.value) === e.target.value);
+        onCommit(option ? option.value : e.target.value);
+      }}
+      className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+    >
+      {trait.defaultValue === undefined && <option value="">— none —</option>}
+      {options.map((opt) => (
+        <option key={String(opt.value)} value={String(opt.value)}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+};
+
+function renderTraitControl(
+  trait: ComponentTraitDefinition,
+  value: unknown,
+  onCommit: (value: unknown) => void,
+): React.ReactNode {
+  switch (trait.type) {
+    case 'number':
+      return <TraitNumberControl trait={trait} value={value} onCommit={onCommit} />;
+    case 'boolean':
+      return <TraitBooleanControl trait={trait} value={value} onCommit={onCommit} />;
+    case 'select':
+      return <TraitSelectControl trait={trait} value={value} onCommit={onCommit} />;
+    case 'string':
+    default:
+      return <TraitStringControl trait={trait} value={value} onCommit={onCommit} />;
+  }
+}
+
+/**
+ * Traits tab content (STORA-211): renders the functional/HTML attribute
+ * metadata declared on the selected component's definition, grouped by
+ * trait group (identity, link, media, form, behavior, semantic, accessibility).
+ */
+export const TraitsPanel: React.FC<TraitsPanelProps> = ({
+  registry,
+  document,
+  selectedNodeId,
+  onCommitTrait,
+  className,
+}) => {
+  const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
+  const definition = node ? registry.get(node.type) : undefined;
+
+  if (!node || !definition) {
+    return (
+      <div className={`p-3 text-xs text-slate-500 ${className || ''}`}>No element selected.</div>
+    );
+  }
+
+  const traits = definition.traits ?? [];
+
+  if (traits.length === 0) {
+    return (
+      <div className={`p-3 text-xs text-slate-500 ${className || ''}`}>
+        <div className="mb-1 font-medium text-slate-600">{definition.label}</div>
+        This component has no configurable HTML attributes.
+      </div>
+    );
+  }
+
+  // Group traits by their declared group, preserving TRAIT_GROUP_ORDER.
+  const grouped = new Map<TraitGroup | undefined, ComponentTraitDefinition[]>();
+  for (const trait of traits) {
+    const key = trait.group;
+    const list = grouped.get(key) ?? [];
+    list.push(trait);
+    grouped.set(key, list);
+  }
+
+  const orderedGroups = [
+    ...TRAIT_GROUP_ORDER.filter((g) => grouped.has(g)),
+    ...(grouped.has(undefined) ? [undefined as TraitGroup | undefined] : []),
+  ];
+
+  return (
+    <div className={`flex flex-col gap-4 p-3 text-sm text-slate-900 ${className || ''}`}>
+      {orderedGroups.map((group) => {
+        const groupTraits = grouped.get(group) ?? [];
+        return (
+          <div key={group ?? 'ungrouped'}>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              {group ? TRAIT_GROUP_LABELS[group] : 'Other'}
+            </div>
+            <div className="flex flex-col gap-3">
+              {groupTraits.map((trait) => {
+                const value = node.props?.[trait.name];
+                return (
+                  <div key={trait.name}>
+                    <label className="flex items-center gap-1 text-xs font-medium text-slate-600 mb-1">
+                      {trait.label}
+                      {trait.required && <span className="text-red-500">*</span>}
+                      {trait.attribute && trait.attribute !== trait.name && (
+                        <span
+                          className="ml-auto text-[10px] font-mono text-slate-400"
+                          title={`HTML attribute: ${trait.attribute}`}
+                        >
+                          {trait.attribute}
+                        </span>
+                      )}
+                    </label>
+                    {renderTraitControl(trait, value, (v) => onCommitTrait(trait.name, v))}
+                    {trait.description && (
+                      <div className="text-[10px] text-slate-400 mt-0.5">{trait.description}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
