@@ -13,7 +13,7 @@ import {
 } from './render-context';
 import { resolveBinding, sanitizeUrl, sanitizeHtml } from '@kubuild/core';
 import { icons as lucideIcons } from 'lucide-react';
-import { resolveNodeStyles } from './styles';
+import { resolveNodeStyles, collectStateStylesCss } from './styles';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
 
@@ -1475,6 +1475,11 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
   return (
     <RenderContextProvider value={context}>
       <div className={`kubuild-canvas-root ${className || ''}`}>
+        {/* Compiled pseudo-state CSS (:hover/:active/:focus) — STORA-222 */}
+        {(() => {
+          const css = collectStateStylesCss(document);
+          return css ? <style data-kubuild-state-styles>{css}</style> : null;
+        })()}
         <NodeRenderer
           node={document.document}
           document={document}
