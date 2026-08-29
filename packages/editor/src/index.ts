@@ -7,6 +7,7 @@ export * from './inspector-panel';
 export * from './layers-panel';
 export * from './variable-picker';
 export * from './import-modal';
+export * from './asset-manager-modal';
 export * from './export-utils';
 export * from './icons';
 export * from './table-spreadsheet-editor';

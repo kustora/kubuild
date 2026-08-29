@@ -68,6 +68,117 @@ const TraitStringControl: React.FC<TraitStringControlProps> = ({ trait, value, o
   );
 };
 
+const TraitMediaSrcControl: React.FC<TraitStringControlProps> = ({ trait, value, onCommit }) => {
+  const valueStr = typeof value === 'string' ? value : '';
+  const [text, setText] = useState(valueStr);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setText(typeof value === 'string' ? value : '');
+    }
+  }, [value]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setText(dataUrl);
+      onCommit(dataUrl);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const isDataUrl = text.startsWith('data:image/');
+  const hasPreview = text.trim().length > 0 && (isDataUrl || text.startsWith('http://') || text.startsWith('https://') || text.startsWith('blob:'));
+  const isLocalFilePath = text.trim().startsWith('file:') || /^[a-zA-Z]:\\/.test(text.trim());
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml, image/gif, image/avif"
+        className="hidden"
+      />
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          value={text}
+          onFocus={() => {
+            isFocusedRef.current = true;
+          }}
+          onChange={(e) => {
+            setText(e.target.value);
+            onCommit(e.target.value);
+          }}
+          onBlur={() => {
+            isFocusedRef.current = false;
+            onCommit(text);
+          }}
+          placeholder={trait.defaultValue !== undefined ? String(trait.defaultValue) : 'https://... or upload local image'}
+          className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+        />
+        <button
+          type="button"
+          title="Upload local image from device"
+          aria-label="Upload local image from device"
+          onClick={() => fileInputRef.current?.click()}
+          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span className="text-[11px]">Upload</span>
+        </button>
+      </div>
+
+      {hasPreview && (
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded p-1.5">
+          <img
+            src={text}
+            alt="Preview"
+            className="w-8 h-8 object-cover rounded border border-slate-300 bg-white"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+          <div className="flex-1 min-w-0 flex flex-col">
+            <span className="text-[11px] font-medium text-slate-700 truncate">
+              {isDataUrl ? 'Local Image (Embedded)' : text}
+            </span>
+            <span className="text-[10px] text-slate-400">
+              {isDataUrl ? 'Base64 image data' : 'URL / Asset'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setText('');
+              onCommit('');
+            }}
+            title="Clear image"
+            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {isLocalFilePath && (
+        <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 leading-tight">
+          Browsers cannot open direct local paths (<code className="font-mono">file://</code>). Click <strong>Upload</strong> above to select and load the local image directly.
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface TraitNumberControlProps {
   trait: ComponentTraitDefinition;
   value: unknown;
@@ -181,6 +292,9 @@ function renderTraitControl(
       return <TraitSelectControl trait={trait} value={value} onCommit={onCommit} />;
     case 'string':
     default:
+      if (trait.name === 'src') {
+        return <TraitMediaSrcControl trait={trait} value={value} onCommit={onCommit} />;
+      }
       return <TraitStringControl trait={trait} value={value} onCommit={onCommit} />;
   }
 }

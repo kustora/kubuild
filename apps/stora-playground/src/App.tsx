@@ -588,6 +588,7 @@ export function App() {
             initialDocument={activePage.document}
             onChange={handleDocChange}
             registry={registry}
+            context={renderContext}
             className="h-full"
           />
         )}

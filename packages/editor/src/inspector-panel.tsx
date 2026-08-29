@@ -4,6 +4,7 @@ import { findNodeById, findNodeLocation } from '@kubuild/core';
 import { isVariableBinding, PageDocument } from '@kubuild/schema';
 import { useEditorStore, Viewport } from './store';
 import { VariableBindingControl, toBindingValue } from './variable-picker';
+import { AssetManagerModal } from './asset-manager-modal';
 import { TableSpreadsheetEditor } from './table-spreadsheet-editor';
 import { BoxModelEditor } from './box-model-editor';
 import { StyleManagerAccordion } from './style-manager-accordion';
@@ -122,6 +123,153 @@ const StringPropControl: React.FC<StringPropControlProps> = ({
     />
   );
 };
+
+interface MediaSrcPropControlProps {
+  nodeId: string;
+  field: ComponentFieldDefinition;
+  value: unknown;
+  onCommit: (field: ComponentFieldDefinition, value: unknown, isBlur: boolean) => void;
+  onOpenAssetPicker: () => void;
+}
+
+const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
+  nodeId,
+  field,
+  value,
+  onCommit,
+  onOpenAssetPicker,
+}) => {
+  const valueStr = typeof value === 'string' ? value : '';
+  const [text, setText] = useState(valueStr);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setText(typeof value === 'string' ? value : '');
+    }
+  }, [value, nodeId, field.name]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value;
+    setText(nextVal);
+    onCommit(field, nextVal, false);
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    onCommit(field, text, true);
+  };
+
+  const handleFocus = () => {
+    isFocusedRef.current = true;
+    onCommit(field, text, false);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setText(dataUrl);
+      onCommit(field, dataUrl, true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleClear = () => {
+    setText('');
+    onCommit(field, '', true);
+  };
+
+  const isLocalFilePath = text.trim().startsWith('file:') || /^[a-zA-Z]:\\/.test(text.trim());
+  const isDataUrl = text.startsWith('data:image/');
+  const hasPreview = text.trim().length > 0 && (isDataUrl || text.startsWith('http://') || text.startsWith('https://') || text.startsWith('blob:'));
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml, image/gif, image/avif"
+        className="hidden"
+      />
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          value={text}
+          onFocus={handleFocus}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          placeholder="https://... or upload local image"
+          className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono text-[11px]"
+        />
+        <button
+          type="button"
+          title="Upload local image from device"
+          aria-label="Upload local image from device"
+          onClick={() => fileInputRef.current?.click()}
+          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span className="text-[11px]">Upload</span>
+        </button>
+        <button
+          type="button"
+          title="Browse Asset Gallery"
+          aria-label="Browse Asset Gallery"
+          onClick={onOpenAssetPicker}
+          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </button>
+      </div>
+
+      {hasPreview && (
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded p-1.5">
+          <img
+            src={text}
+            alt="Preview"
+            className="w-8 h-8 object-cover rounded border border-slate-300 bg-white"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+          <div className="flex-1 min-w-0 flex flex-col">
+            <span className="text-[11px] font-medium text-slate-700 truncate">
+              {isDataUrl ? 'Local Image (Embedded)' : text}
+            </span>
+            <span className="text-[10px] text-slate-400">
+              {isDataUrl ? 'Base64 image data' : 'URL / Asset'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleClear}
+            title="Clear image"
+            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {isLocalFilePath && (
+        <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 leading-tight">
+          Browsers cannot open direct local paths (<code className="font-mono">file://</code>). Click <strong>Upload</strong> above to select and load the local image directly.
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 interface TextAreaPropControlProps {
   nodeId: string;
@@ -391,6 +539,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   } = storeState;
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
   const [activeTab, setActiveTab] = useState<'style' | 'traits'>('style');
+  // STORA-250 — asset manager modal state (open + which prop field it targets).
+  const [assetPickerField, setAssetPickerField] = useState<string | null>(null);
   // Active pseudo-state layer for the style manager — STORA-221.
   const [activeState, setActiveState] = useState<string>('default');
 
@@ -509,7 +659,19 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           />
         );
       case 'string':
-      default:
+      default: {
+        const isMediaSrcField = field.name === 'src' || field.name === 'poster';
+        if (isMediaSrcField) {
+          return (
+            <MediaSrcPropControl
+              nodeId={node.id}
+              field={field}
+              value={currentValue}
+              onCommit={commitProp}
+              onOpenAssetPicker={() => setAssetPickerField(field.name)}
+            />
+          );
+        }
         return (
           <StringPropControl
             nodeId={node.id}
@@ -527,6 +689,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             }}
           />
         );
+      }
     }
   };
 
@@ -580,6 +743,17 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
   return (
     <div className={`flex flex-col h-full min-h-0 overflow-hidden text-sm text-slate-900 ${className || ''}`}>
+      {/* STORA-250 — Asset Manager Modal: picking an asset updates the target prop instantly. */}
+      {assetPickerField && (
+        <AssetManagerModal
+          isOpen
+          onClose={() => setAssetPickerField(null)}
+          onSelect={(url) => {
+            const result = updateNodeProps(node.id, { [assetPickerField]: url }, registry);
+            setError(`prop:${assetPickerField}`, result.success ? null : result.error ?? 'Invalid value.');
+          }}
+        />
+      )}
       {/* Tab bar: Style (🎨) / Traits (⚙️) — STORA-211 */}
       <div className="flex shrink-0 border-b border-slate-200 bg-slate-50">
         <button

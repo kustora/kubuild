@@ -781,7 +781,8 @@ export function NodeRenderer({
             : undefined;
         const fallbackSrc = asset?.fallbackUrl;
         const rawUrl = directSrc || resolvedSrc || fallbackSrc;
-        const safeSrc = rawUrl ? sanitizeUrl(rawUrl) : undefined;
+        // blob: allowed for media — runtime-only in-memory uploads (STORA-250).
+        const safeSrc = rawUrl ? sanitizeUrl(rawUrl, '', { allowBlobMedia: true }) : undefined;
         const alt = typeof resolvedProps.alt === 'string' ? resolvedProps.alt : '';
         const loading = resolvedProps.loading === 'eager' ? 'eager' : 'lazy';
 
@@ -875,7 +876,7 @@ export function NodeRenderer({
           );
         }
 
-        const safeSrc = sanitizeUrl(rawSrc);
+        const safeSrc = sanitizeUrl(rawSrc, '', { allowBlobMedia: true });
 
         return (
           <video

@@ -124,6 +124,8 @@ export function isSafeUrl(
   options?: {
     allowedSchemes?: string[];
     allowDataImage?: boolean;
+    /** Allow `blob:` URLs (runtime-only, e.g. in-memory uploaded media previews). */
+    allowBlobMedia?: boolean;
   }
 ): boolean {
   if (typeof url !== 'string') return false;
@@ -159,6 +161,12 @@ export function isSafeUrl(
   // Explicitly block dangerous protocols
   const dangerousSchemes = ['javascript:', 'vbscript:', 'file:', 'data:'];
   if (scheme !== 'data:' && dangerousSchemes.includes(scheme)) {
+    // `blob:` URLs are runtime-only references to in-memory media (e.g. files
+    // uploaded in the current editor session). They never originate from
+    // imported documents, so they are safe to allow for media previews.
+    if (scheme === 'blob:' && options?.allowBlobMedia) {
+      return true;
+    }
     return false;
   }
 
@@ -189,9 +197,13 @@ export function isSafeUrl(
 /**
  * Sanitizes a URL, returning a safe URL or a fallback (default empty string or '#').
  */
-export function sanitizeUrl(url: unknown, fallback: string = ''): string {
+export function sanitizeUrl(
+  url: unknown,
+  fallback: string = '',
+  options?: Parameters<typeof isSafeUrl>[1]
+): string {
   if (typeof url !== 'string') return fallback;
-  return isSafeUrl(url) ? url : fallback;
+  return isSafeUrl(url, options) ? url : fallback;
 }
 
 /**
