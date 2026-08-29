@@ -971,6 +971,9 @@ export function NodeRenderer({
         const disabled = resolvedProps.disabled === true;
         const rawHref = typeof resolvedProps.href === 'string' ? resolvedProps.href : undefined;
         const href = rawHref ? sanitizeUrl(rawHref, '#') : undefined;
+        const rawTarget = typeof resolvedProps.target === 'string' ? resolvedProps.target : undefined;
+        const rawRel = typeof resolvedProps.rel === 'string' ? resolvedProps.rel : undefined;
+        const rel = rawTarget === '_blank' && !rawRel ? 'noopener noreferrer' : rawRel;
         const action = isActionBinding(props.action) ? props.action : undefined;
         const actionResolved = action ? isActionRegistered(context?.actionRegistry, action.type) : undefined;
         const actionAttrs = action
@@ -990,6 +993,8 @@ export function NodeRenderer({
                 as="a"
                 id={domId}
                 href={mode === 'editor' ? undefined : href}
+                target={rawTarget}
+                rel={rel}
                 style={styles}
                 value={label}
                 isEditable={isEditable}
@@ -1006,6 +1011,8 @@ export function NodeRenderer({
             <a
               id={domId}
               href={href}
+              target={rawTarget}
+              rel={rel}
               style={styles}
               onClick={handleClick}
               data-kubuild-node={node.id}

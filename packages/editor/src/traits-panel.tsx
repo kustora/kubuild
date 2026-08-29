@@ -186,6 +186,97 @@ function renderTraitControl(
 }
 
 /**
+ * Composite link control (STORA-212): URL input + "Open in new tab" toggle +
+ * rel attribute select, rendered as one card in place of the separate
+ * href/target/rel traits. Values are committed per-trait via `onCommitTrait`.
+ */
+interface LinkTraitControlProps {
+  traits: ComponentTraitDefinition[];
+  props: Record<string, unknown> | undefined;
+  onCommitTrait: (traitName: string, value: unknown) => void;
+}
+
+const LinkTraitControl: React.FC<LinkTraitControlProps> = ({ traits, props, onCommitTrait }) => {
+  const hrefTrait = traits.find((t) => t.name === 'href');
+  const targetTrait = traits.find((t) => t.name === 'target');
+  const relTrait = traits.find((t) => t.name === 'rel');
+
+  const href = typeof props?.href === 'string' ? props.href : '';
+  const target = typeof props?.target === 'string' ? props.target : '';
+  const rel = typeof props?.rel === 'string' ? props.rel : '';
+  const openInNewTab = target === '_blank';
+
+  const handleToggleNewTab = (checked: boolean) => {
+    onCommitTrait('target', checked ? '_blank' : '');
+    // Reset rel when disabling so stale `noopener noreferrer` doesn't linger.
+    if (!checked && rel) {
+      onCommitTrait('rel', '');
+    }
+  };
+
+  return (
+    <div className="rounded border border-slate-200 bg-slate-50/60 p-2.5 flex flex-col gap-3">
+      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Link</div>
+
+      {hrefTrait && (
+        <div>
+          <label className="flex items-center gap-1 text-xs font-medium text-slate-600 mb-1">
+            {hrefTrait.label}
+            {hrefTrait.required && <span className="text-red-500">*</span>}
+          </label>
+          <TraitStringControl
+            trait={hrefTrait}
+            value={href}
+            onCommit={(v) => onCommitTrait('href', v)}
+          />
+          {hrefTrait.description && (
+            <div className="text-[10px] text-slate-400 mt-0.5">{hrefTrait.description}</div>
+          )}
+        </div>
+      )}
+
+      {targetTrait && (
+        <div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={openInNewTab}
+              onChange={(e) => handleToggleNewTab(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <span className="text-xs font-medium text-slate-600">Open in new tab</span>
+            {openInNewTab && (
+              <span className="ml-auto text-[10px] font-mono text-slate-400">target="_blank"</span>
+            )}
+          </label>
+        </div>
+      )}
+
+      {relTrait && (
+        <div>
+          <label className="flex items-center gap-1 text-xs font-medium text-slate-600 mb-1">
+            {relTrait.label}
+            {openInNewTab && !rel && (
+              <span className="ml-auto text-[10px] text-slate-400 italic">
+                auto: noopener noreferrer
+              </span>
+            )}
+          </label>
+          <TraitSelectControl
+            trait={relTrait}
+            value={rel}
+            onCommit={(v) => onCommitTrait('rel', v)}
+          />
+          {relTrait.description && (
+            <div className="text-[10px] text-slate-400 mt-0.5">{relTrait.description}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
  * Traits tab content (STORA-211): renders the functional/HTML attribute
  * metadata declared on the selected component's definition, grouped by
  * trait group (identity, link, media, form, behavior, semantic, accessibility).
@@ -235,11 +326,22 @@ export const TraitsPanel: React.FC<TraitsPanelProps> = ({
     <div className={`flex flex-col gap-4 p-3 text-sm text-slate-900 ${className || ''}`}>
       {orderedGroups.map((group) => {
         const groupTraits = grouped.get(group) ?? [];
+        // Composite link control (STORA-212): when the group holds href/target/rel,
+        // render one unified Link card instead of three separate fields.
+        const traitNames = new Set(groupTraits.map((t) => t.name));
+        const isLinkGroup = group === 'link' && traitNames.has('href');
         return (
           <div key={group ?? 'ungrouped'}>
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
               {group ? TRAIT_GROUP_LABELS[group] : 'Other'}
             </div>
+            {isLinkGroup ? (
+              <LinkTraitControl
+                traits={groupTraits}
+                props={node.props}
+                onCommitTrait={onCommitTrait}
+              />
+            ) : (
             <div className="flex flex-col gap-3">
               {groupTraits.map((trait) => {
                 const value = node.props?.[trait.name];
@@ -265,6 +367,7 @@ export const TraitsPanel: React.FC<TraitsPanelProps> = ({
                 );
               })}
             </div>
+            )}
           </div>
         );
       })}
