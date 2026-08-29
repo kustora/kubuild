@@ -156,6 +156,16 @@ export interface EditorState {
     breakpoint: 'base' | 'desktop' | 'tablet' | 'mobile',
     merge?: boolean,
   ) => UpdateStyleResult;
+  /**
+   * Update a pseudo-state style layer (e.g. ':hover') on a node — STORA-221.
+   * Writes to node.styles.states[state] without touching default values.
+   */
+  updateNodeStateStyle: (
+    nodeId: string,
+    styles: StyleDefinition,
+    state: string,
+    merge?: boolean,
+  ) => UpdateStyleResult;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
@@ -404,6 +414,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateNodeStyle: (nodeId, styles, breakpoint, merge = true) => {
     try {
       get().dispatch((doc) => updateStyle(doc, { nodeId, styles, breakpoint, merge }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
+  updateNodeStateStyle: (nodeId, styles, state, merge = true) => {
+    try {
+      get().dispatch((doc) => updateStyle(doc, { nodeId, styles, state, merge }));
     } catch (err) {
       return { success: false, error: formatCommandError(err) };
     }

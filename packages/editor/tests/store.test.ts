@@ -640,6 +640,68 @@ describe('Editor Store', () => {
     });
   });
 
+  describe('updateNodeStateStyle (STORA-221)', () => {
+    function docWithStyledChild(): PageDocument {
+      const doc = createBlankDocument('State Style Test');
+      doc.document.children = [
+        {
+          id: 'child-node',
+          type: 'heading',
+          props: { text: 'Hello' },
+          styles: { base: { backgroundColor: '#2563eb', padding: '8px' } },
+        },
+      ];
+      return doc;
+    }
+
+    it('writes :hover background color into states key without touching default values', () => {
+      useEditorStore.getState().setDocument(docWithStyledChild());
+
+      const result = useEditorStore
+        .getState()
+        .updateNodeStateStyle('child-node', { backgroundColor: '#1d4ed8' }, ':hover');
+
+      expect(result.success).toBe(true);
+      const styles = useEditorStore.getState().document.document.children?.[0].styles;
+      expect(styles?.states?.[':hover']).toEqual({ backgroundColor: '#1d4ed8' });
+      // Default values untouched
+      expect(styles?.base).toEqual({ backgroundColor: '#2563eb', padding: '8px' });
+    });
+
+    it('merges into an existing state layer without clobbering sibling keys', () => {
+      useEditorStore.getState().setDocument(docWithStyledChild());
+
+      useEditorStore.getState().updateNodeStateStyle('child-node', { cursor: 'pointer' }, ':hover');
+      useEditorStore.getState().updateNodeStateStyle('child-node', { opacity: 0.8 }, ':hover');
+
+      const hover = useEditorStore.getState().document.document.children?.[0].styles?.states?.[':hover'];
+      expect(hover).toEqual({ cursor: 'pointer', opacity: 0.8 });
+    });
+
+    it('keeps state layers isolated per state', () => {
+      useEditorStore.getState().setDocument(docWithStyledChild());
+
+      useEditorStore.getState().updateNodeStateStyle('child-node', { backgroundColor: '#111' }, ':hover');
+      useEditorStore.getState().updateNodeStateStyle('child-node', { backgroundColor: '#222' }, ':active');
+
+      const states = useEditorStore.getState().document.document.children?.[0].styles?.states;
+      expect(states?.[':hover']).toEqual({ backgroundColor: '#111' });
+      expect(states?.[':active']).toEqual({ backgroundColor: '#222' });
+    });
+
+    it('rejects an unsafe style value in a state layer and leaves the document unchanged', () => {
+      useEditorStore.getState().setDocument(docWithStyledChild());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore
+        .getState()
+        .updateNodeStateStyle('child-node', { background: 'url(javascript:alert(1))' }, ':hover');
+
+      expect(result.success).toBe(false);
+      expect(useEditorStore.getState().document).toBe(before);
+    });
+  });
+
   describe('setViewport', () => {
     it('switching viewport never mutates the draft document', () => {
       useEditorStore.getState().setDocument(docWithChild());

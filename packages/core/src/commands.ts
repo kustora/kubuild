@@ -68,6 +68,12 @@ export interface UpdateStyleParams {
    */
   breakpoint?: 'base' | 'desktop' | 'tablet' | 'mobile';
   /**
+   * Target pseudo-state layer (e.g. ':hover', ':active', ':focus') — STORA-221.
+   * When set, `styles` is written to `node.styles.states[state]` instead of a
+   * breakpoint layer, leaving default (breakpoint) values untouched.
+   */
+  state?: string;
+  /**
    * If true (default), shallow merges style definitions at target breakpoint.
    * If false, replaces the style definition object.
    */
@@ -265,7 +271,7 @@ export function updateStyle(
   document: PageDocument,
   params: UpdateStyleParams,
 ): CommandResult {
-  const { nodeId, styles, breakpoint, merge = true } = params;
+  const { nodeId, styles, breakpoint, state, merge = true } = params;
 
   if (!styles || typeof styles !== 'object' || Array.isArray(styles)) {
     throw new Error('Styles must be an object.');
@@ -280,6 +286,38 @@ export function updateStyle(
   const targetNode = loc.node;
   const currentStyles: ResponsiveStyles = targetNode.styles ? deepClone(targetNode.styles) : {};
   const previousStyles = deepClone(currentStyles);
+
+  if (state) {
+    // Pseudo-state layer update (STORA-221): writes into styles.states[state]
+    // without touching default breakpoint values. Parsed through
+    // StyleDefinitionSchema so unsafe values are rejected here too.
+    const newBreakpointStyles = StyleDefinitionSchema.parse(styles);
+    const states = { ...(currentStyles.states ?? {}) };
+    const currentStateStyles = states[state] ?? {};
+
+    if (merge) {
+      states[state] = { ...currentStateStyles, ...deepClone(newBreakpointStyles) };
+    } else {
+      states[state] = deepClone(newBreakpointStyles);
+    }
+
+    targetNode.styles = { ...currentStyles, states } as ResponsiveStyles;
+
+    return {
+      document: newDoc,
+      event: {
+        type: 'STYLE_UPDATED',
+        timestamp: new Date().toISOString(),
+        nodeId,
+        parentId: loc.parent ? loc.parent.id : undefined,
+        payload: {
+          styles: targetNode.styles,
+          previousStyles,
+          state,
+        },
+      },
+    };
+  }
 
   if (breakpoint) {
     // Updating a single breakpoint style definition. Parsed through

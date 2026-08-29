@@ -367,6 +367,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     viewport,
     updateNodeProps,
     updateNodeStyle,
+    updateNodeStateStyle,
     variableCatalog,
     insertComponent,
     deleteComponent,
@@ -376,6 +377,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   } = storeState;
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
   const [activeTab, setActiveTab] = useState<'style' | 'traits'>('style');
+  // Active pseudo-state layer for the style manager — STORA-221.
+  const [activeState, setActiveState] = useState<string>('default');
 
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const definition = node ? registry.get(node.type) : undefined;
@@ -514,11 +517,17 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   };
 
   const activeBreakpoint = styleBreakpointFor(viewport);
-  const activeLayer = (node.styles?.[activeBreakpoint] as Record<string, unknown> | undefined) ?? {};
+  const activeLayer =
+    activeState === 'default'
+      ? ((node.styles?.[activeBreakpoint] as Record<string, unknown> | undefined) ?? {})
+      : ((node.styles?.states?.[activeState] as Record<string, unknown> | undefined) ?? {});
 
   const handleCommitSpacing = (fieldName: string, value: string) => {
     const errorKey = `style:${fieldName}`;
-    const result = updateNodeStyle(node.id, { [fieldName]: value }, activeBreakpoint);
+    const result =
+      activeState === 'default'
+        ? updateNodeStyle(node.id, { [fieldName]: value }, activeBreakpoint)
+        : updateNodeStateStyle(node.id, { [fieldName]: value }, activeState);
     setError(errorKey, result.success ? null : result.error ?? 'Invalid value.');
   };
 
@@ -529,7 +538,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       acc[p] = '';
       return acc;
     }, {});
-    updateNodeStyle(node.id, resetMap, activeBreakpoint);
+    if (activeState === 'default') {
+      updateNodeStyle(node.id, resetMap, activeBreakpoint);
+    } else {
+      updateNodeStateStyle(node.id, resetMap, activeState);
+    }
   };
 
   const handleAddListItem = (e?: React.SyntheticEvent) => {
@@ -816,8 +829,28 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       </div>
 
       <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full">
+        {/* Pseudo-state selector — STORA-221 */}
+        <div className="flex items-center gap-2 mb-2">
+          <label
+            htmlFor="style-state-selector"
+            className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0"
+          >
+            State
+          </label>
+          <select
+            id="style-state-selector"
+            value={activeState}
+            onChange={(e) => setActiveState(e.target.value)}
+            className="flex-1 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="default">Default</option>
+            <option value=":hover">:hover</option>
+            <option value=":active">:active</option>
+            <option value=":focus">:focus</option>
+          </select>
+        </div>
         <StyleManagerAccordion
-          key={`${node.id}-${activeBreakpoint}`}
+          key={`${node.id}-${activeBreakpoint}-${activeState}`}
           styles={activeLayer}
           onCommitStyle={handleCommitSpacing}
           errors={fieldErrors}
