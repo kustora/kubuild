@@ -104,6 +104,50 @@ export function getAncestorChain(root: Node, targetId: string): string[] {
 }
 
 /**
+ * STORA-232: Find the direct parent node of `targetId` in a single O(N) traversal.
+ * Returns null when the target is the root or is not found in the tree.
+ */
+export function getParentNodeId(root: Node, targetId: string): string | null {
+  if (root.id === targetId) return null;
+
+  const stack: Node[] = [root];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    const children = current.children;
+    if (!children) continue;
+    for (const child of children) {
+      if (child.id === targetId) return current.id;
+      stack.push(child);
+    }
+  }
+  return null;
+}
+
+/**
+ * STORA-232: Return the full ancestor path of `targetId` as an array of nodes,
+ * ordered from the root down to (and including) the target node itself.
+ * Single O(N) traversal: the path is tracked during descent, so no re-walks.
+ * Returns [] when the target is not found.
+ */
+export function getNodeAncestors(root: Node, targetId: string): Node[] {
+  const path: Node[] = [];
+
+  function walk(node: Node): boolean {
+    path.push(node);
+    if (node.id === targetId) return true;
+    if (node.children) {
+      for (const child of node.children) {
+        if (walk(child)) return true;
+      }
+    }
+    path.pop();
+    return false;
+  }
+
+  return walk(root) ? path : [];
+}
+
+/**
  * Check whether `targetId` is a descendant of `ancestorNode` (or equal to ancestorNode.id).
  */
 export function isDescendantOf(ancestorNode: Node, targetId: string): boolean {

@@ -12,7 +12,7 @@ import {
   STORAGE_KEY_ACCORDION,
   DEFAULT_ACCORDION_STATE,
 } from '../src/style-manager-accordion';
-import { InspectorPanel } from '../src/inspector-panel';
+import { InspectorPanel, StateEditingBadge } from '../src/inspector-panel';
 import { useEditorStore } from '../src/store';
 
 describe('Sector-Based Style Manager & Visual Box Model (STORA-202)', () => {
@@ -149,5 +149,66 @@ describe('Sector-Based Style Manager & Visual Box Model (STORA-202)', () => {
     expect(html).toContain('Typography');
     expect(html).toContain('Decorations');
     expect(html).toContain('Flex / Alignment');
+  });
+});
+
+describe('Active state visual indicator (STORA-223)', () => {
+  const registry = createDefaultComponentRegistry();
+
+  function docWithNode(): ReturnType<typeof createBlankDocument> {
+    const doc = createBlankDocument('State Badge Test');
+    doc.document.children = [
+      {
+        id: 'hero-box',
+        type: 'container',
+        props: { tag: 'div' },
+        styles: { base: { backgroundColor: '#2563eb' } },
+      },
+    ];
+    return doc;
+  }
+
+  it('shows no warning badge when editing in Default state', () => {
+    const doc = docWithNode();
+    useEditorStore.getState().setDocument(doc);
+    useEditorStore.getState().selectNode('hero-box');
+
+    const html = renderToString(
+      <InspectorPanel registry={registry} document={doc} selectedNodeId="hero-box" />,
+    );
+
+    expect(html).not.toContain('data-testid="state-editing-badge"');
+    expect(html).not.toContain('Editing :hover State');
+  });
+
+  it('renders the amber badge with the state name for :hover', () => {
+    const html = renderToString(<StateEditingBadge state=":hover" />);
+
+    expect(html).toContain('data-testid="state-editing-badge"');
+    // renderToString injects <!-- --> between interpolated text segments
+    expect(html).toContain('Editing');
+    expect(html).toContain(':hover');
+    expect(html).toContain('State');
+    expect(html).toContain('bg-amber-50');
+    expect(html).toContain('border-amber-300');
+  });
+
+  it('renders the badge for :active and :focus too', () => {
+    expect(renderToString(<StateEditingBadge state=":active" />)).toContain(':active');
+    expect(renderToString(<StateEditingBadge state=":focus" />)).toContain(':focus');
+  });
+
+  it('shows the badge inside InspectorPanel when a non-default state is selected', () => {
+    const doc = docWithNode();
+    useEditorStore.getState().setDocument(doc);
+    useEditorStore.getState().selectNode('hero-box');
+
+    // Default render: selector present with Default option, badge absent
+    const html = renderToString(
+      <InspectorPanel registry={registry} document={doc} selectedNodeId="hero-box" />,
+    );
+    expect(html).toContain('style-state-selector');
+    expect(html).toContain(':hover');
+    expect(html).not.toContain('data-testid="state-editing-badge"');
   });
 });

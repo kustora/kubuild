@@ -353,6 +353,20 @@ const SpacingControl: React.FC<SpacingControlProps> = ({
   );
 };
 
+/**
+ * Amber warning badge shown above the style manager while editing a
+ * non-default pseudo-state layer (e.g. `:hover`) — STORA-223.
+ */
+export const StateEditingBadge: React.FC<{ state: string }> = ({ state }) => (
+  <div
+    data-testid="state-editing-badge"
+    className="flex items-center gap-1.5 mb-2 px-2 py-1.5 rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs font-medium"
+  >
+    <span aria-hidden="true">⚠️</span>
+    <span>Editing {state} State</span>
+  </div>
+);
+
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   registry,
   className,
@@ -829,6 +843,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       </div>
 
       <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full">
+        {/* Active state warning badge — STORA-223 */}
+        {activeState !== 'default' && <StateEditingBadge state={activeState} />}
         {/* Pseudo-state selector — STORA-221 */}
         <div className="flex items-center gap-2 mb-2">
           <label
@@ -841,7 +857,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             id="style-state-selector"
             value={activeState}
             onChange={(e) => setActiveState(e.target.value)}
-            className="flex-1 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            className={`flex-1 text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:border-blue-500 ${
+              activeState !== 'default'
+                ? 'bg-amber-50 text-amber-900 border-amber-400 focus:ring-amber-400'
+                : 'bg-white text-slate-900 border-slate-300 focus:ring-blue-500'
+            }`}
           >
             <option value="default">Default</option>
             <option value=":hover">:hover</option>

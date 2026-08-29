@@ -13,6 +13,8 @@ import {
   isDescendantOf,
   getNavigationTarget,
   getAncestorChain,
+  getParentNodeId,
+  getNodeAncestors,
   HistoryEngine,
   DocumentHistoryManager,
   DEFAULT_MAX_HISTORY,
@@ -442,6 +444,82 @@ describe('STORA-011: Document Validator and Error Diagnostics', () => {
         },
       ];
       expect(getAncestorChain(doc.document, 'btn-1')).toEqual([doc.document.id, 'section-1', 'container-1']);
+    });
+  });
+
+  describe('STORA-232: getParentNodeId and getNodeAncestors', () => {
+    function nestedDoc(): PageDocument {
+      const doc = createBlankDocument('Ancestor Test');
+      doc.document.children = [
+        {
+          id: 'section-1',
+          type: 'section',
+          children: [
+            {
+              id: 'container-1',
+              type: 'container',
+              children: [{ id: 'btn-1', type: 'button', props: { label: 'Go' } }],
+            },
+            { id: 'heading-1', type: 'heading', props: { text: 'Hi' } },
+          ],
+        },
+      ];
+      return doc;
+    }
+
+    it('getParentNodeId returns the direct parent id', () => {
+      const doc = nestedDoc();
+      expect(getParentNodeId(doc.document, 'btn-1')).toBe('container-1');
+      expect(getParentNodeId(doc.document, 'container-1')).toBe('section-1');
+      expect(getParentNodeId(doc.document, 'section-1')).toBe(doc.document.id);
+    });
+
+    it('getParentNodeId returns null for the root and unknown ids', () => {
+      const doc = nestedDoc();
+      expect(getParentNodeId(doc.document, doc.document.id)).toBeNull();
+      expect(getParentNodeId(doc.document, 'non-existent')).toBeNull();
+    });
+
+    it('getNodeAncestors returns nodes ordered root → target, including the target', () => {
+      const doc = nestedDoc();
+      const path = getNodeAncestors(doc.document, 'btn-1');
+      expect(path.map((n) => n.id)).toEqual([doc.document.id, 'section-1', 'container-1', 'btn-1']);
+      // Returns actual node references, not just ids
+      expect(path[path.length - 1].type).toBe('button');
+      expect(path[0].type).toBe('page');
+    });
+
+    it('getNodeAncestors returns just the root for the root itself', () => {
+      const doc = nestedDoc();
+      const path = getNodeAncestors(doc.document, doc.document.id);
+      expect(path).toHaveLength(1);
+      expect(path[0].id).toBe(doc.document.id);
+    });
+
+    it('getNodeAncestors returns [] for unknown ids', () => {
+      const doc = nestedDoc();
+      expect(getNodeAncestors(doc.document, 'non-existent')).toEqual([]);
+    });
+
+    it('both helpers run in a single O(N) traversal on a wide tree', () => {
+      // Build a tree with 1000 leaf nodes under 10 sections
+      const doc = createBlankDocument('Perf Test');
+      doc.document.children = Array.from({ length: 10 }, (_, s) => ({
+        id: `section-${s}`,
+        type: 'section',
+        children: Array.from({ length: 100 }, (_, i) => ({
+          id: `leaf-${s}-${i}`,
+          type: 'button',
+          props: { label: `L${i}` },
+        })),
+      }));
+
+      const target = 'leaf-9-99';
+      const parent = getParentNodeId(doc.document, target);
+      expect(parent).toBe('section-9');
+
+      const path = getNodeAncestors(doc.document, target);
+      expect(path.map((n) => n.id)).toEqual([doc.document.id, 'section-9', target]);
     });
   });
 });
