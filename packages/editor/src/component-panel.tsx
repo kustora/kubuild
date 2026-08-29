@@ -35,7 +35,7 @@ export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, classN
   };
 
   return (
-    <div className={`flex flex-col gap-4 p-3 overflow-y-auto ${className || ''}`}>
+    <div className={`flex flex-col gap-4 p-3 overflow-y-auto h-full min-h-0 ${className || ''}`}>
       {error && (
         <div
           role="alert"

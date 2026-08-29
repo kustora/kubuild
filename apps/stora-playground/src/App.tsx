@@ -581,7 +581,7 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden min-h-0">
         {activeTab === 'editor' && (
           <KubuildEditor
             key={activePage.id}

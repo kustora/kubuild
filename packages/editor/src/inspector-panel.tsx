@@ -552,7 +552,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   };
 
   return (
-    <div className={`flex flex-col overflow-hidden text-sm text-slate-900 ${className || ''}`}>
+    <div className={`flex flex-col h-full min-h-0 overflow-hidden text-sm text-slate-900 ${className || ''}`}>
       {/* Tab bar: Style (🎨) / Traits (⚙️) — STORA-211 */}
       <div className="flex shrink-0 border-b border-slate-200 bg-slate-50">
         <button
@@ -579,7 +579,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-3">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 p-3 min-w-0">
       {node.type === 'list' && (
         <div className="pb-3 border-b border-slate-200">
           <div className="flex items-center justify-between mb-2">
@@ -815,7 +815,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         </div>
       </div>
 
-      <div className="pt-2 border-t border-slate-200">
+      <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full">
         <StyleManagerAccordion
           key={`${node.id}-${activeBreakpoint}`}
           styles={activeLayer}
@@ -833,6 +833,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           document={document}
           selectedNodeId={node.id}
           onCommitTrait={handleCommitTrait}
+          className="p-0"
         />
       )}
       </div>

@@ -323,7 +323,7 @@ export const TraitsPanel: React.FC<TraitsPanelProps> = ({
   ];
 
   return (
-    <div className={`flex flex-col gap-4 p-3 text-sm text-slate-900 ${className || ''}`}>
+    <div className={`flex flex-col gap-4 ${className ?? 'p-3'} text-sm text-slate-900`}>
       {orderedGroups.map((group) => {
         const groupTraits = grouped.get(group) ?? [];
         // Composite link control (STORA-212): when the group holds href/target/rel,

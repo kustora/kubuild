@@ -228,21 +228,22 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
   ).length;
 
   return (
-    <div className={`flex flex-col gap-2 w-full select-none ${className}`} data-testid="style-manager-accordion">
-      {/* Top Header Controls */}
-      <div className="flex items-center justify-between px-1 py-0.5">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-          <span>Style Manager</span>
-          <span className="px-1.5 py-0.2 text-[10px] font-medium bg-slate-100 text-slate-600 rounded border border-slate-200">
+    <div className={`flex flex-col gap-2 w-full min-w-0 max-w-full ${className}`} data-testid="style-manager-accordion">
+      {/* Top Header Controls — stacked in two rows so the narrow inspector
+          panel (w-72) never overflows: title+badge on top, actions below. */}
+      <div className="flex flex-col gap-1 px-1 py-0.5 min-w-0">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide min-w-0">
+          <span className="truncate">Style Manager</span>
+          <span className="shrink-0 px-1.5 py-0.2 text-[10px] font-medium bg-slate-100 text-slate-600 rounded border border-slate-200">
             {breakpoint === 'base' ? 'base' : `${breakpoint} override`}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           <button
             type="button"
             onClick={expandAll}
             title="Expand All Sectors"
-            className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition"
+            className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition whitespace-nowrap"
           >
             Expand All
           </button>
@@ -251,7 +252,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
             type="button"
             onClick={collapseAll}
             title="Collapse All Sectors"
-            className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition"
+            className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition whitespace-nowrap"
           >
             Collapse All
           </button>
@@ -263,7 +264,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                 data-testid="style-manager-reset-all"
                 onClick={handleResetAll}
                 title="Reset all styles on active node"
-                className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition"
+                className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition whitespace-nowrap"
               >
                 <ComponentIcon iconOrType="reset" size={11} />
                 <span>Reset CSS</span>
