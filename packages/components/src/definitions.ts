@@ -8,6 +8,7 @@ import {
   relTrait,
   srcTrait,
   altTrait,
+  loadingTrait,
   posterTrait,
   controlsTrait,
   autoplayTrait,
@@ -266,6 +267,7 @@ export const imageDefinition: ComponentDefinition = {
   traits: [
     srcTrait(),
     altTrait({ defaultValue: 'Default image' }),
+    loadingTrait(),
     idTrait(),
     titleTrait(),
     ariaLabelTrait({ description: 'Override the alt text for assistive technology (rarely needed).' }),

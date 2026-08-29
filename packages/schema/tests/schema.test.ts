@@ -266,6 +266,44 @@ describe('STORA-023: Style Token and Responsive Style Schema Hardening', () => {
       expect(result.success).toBe(true);
     });
   });
+
+  describe('STORA-220: Pseudo-state style layers on ResponsiveStyles', () => {
+    it('validates a document with a :hover state layer', () => {
+      const result = ResponsiveStylesSchema.safeParse({
+        base: { backgroundColor: '#2563eb' },
+        states: {
+          ':hover': { backgroundColor: '#1d4ed8', cursor: 'pointer' },
+        },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.states?.[':hover']).toEqual({
+          backgroundColor: '#1d4ed8',
+          cursor: 'pointer',
+        });
+      }
+    });
+
+    it('is backward-compatible: documents without states still parse', () => {
+      const result = ResponsiveStylesSchema.safeParse({
+        base: { fontSize: '16px' },
+        desktop: { fontSize: '48px' },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.states).toBeUndefined();
+      }
+    });
+
+    it('rejects unsafe style values inside state layers', () => {
+      const result = ResponsiveStylesSchema.safeParse({
+        states: {
+          ':hover': { background: 'url(javascript:alert(1))' },
+        },
+      });
+      expect(result.success).toBe(false);
+    });
+  });
 });
 
 describe('STORA-060: Package Manifest v1 Schema Specification', () => {

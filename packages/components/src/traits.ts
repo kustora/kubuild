@@ -406,6 +406,26 @@ export function citeTrait(overrides?: Partial<ComponentTraitDefinition>): Compon
   );
 }
 
+/** `loading` — native lazy/eager loading hint for images (STORA-213). */
+export function loadingTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'loading',
+      label: 'Loading Mode',
+      type: 'select',
+      defaultValue: 'lazy',
+      attribute: 'loading',
+      group: 'media',
+      options: [
+        { label: 'Lazy (load when near viewport)', value: 'lazy' },
+        { label: 'Eager (load immediately)', value: 'eager' },
+      ],
+      description: 'Native loading hint: lazy defers offscreen images, eager loads immediately.',
+    },
+    overrides,
+  );
+}
+
 /** `action` — the URL a form submits to. */
 export function actionTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
   return withOverrides(

@@ -64,8 +64,17 @@ export const StyleDefinitionSchema = z.record(z.string(), StyleValueSchema);
 export type StyleDefinition = Record<string, string | number | boolean | null | undefined>;
 
 /**
+ * Pseudo-state style definitions keyed by CSS pseudo-class selector
+ * (e.g. `:hover`, `:focus`, `:active`). Each entry is a style layer applied
+ * on top of the resolved breakpoint styles when the state is active.
+ */
+export const PseudoStateStylesSchema = z.record(z.string(), StyleDefinitionSchema);
+export type PseudoStateStyles = Record<string, StyleDefinition>;
+
+/**
  * Responsive Styles Schema
  * Breakpoint-specific style definitions: base (all viewports), desktop, tablet, and mobile.
+ * Optionally carries `states` — pseudo-class style layers (e.g. `:hover`).
  */
 export const ResponsiveStylesSchema = z
   .object({
@@ -73,6 +82,7 @@ export const ResponsiveStylesSchema = z
     desktop: StyleDefinitionSchema.optional(),
     tablet: StyleDefinitionSchema.optional(),
     mobile: StyleDefinitionSchema.optional(),
+    states: PseudoStateStylesSchema.optional(),
   })
   .catchall(StyleDefinitionSchema)
   .default({});
