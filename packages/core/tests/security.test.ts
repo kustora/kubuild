@@ -27,7 +27,7 @@ describe('STORA-083: Security Audit & Safety Controls Suite', () => {
     it('allows legitimate safe web URLs and media', () => {
       expect(isSafeUrl('https://example.com/page')).toBe(true);
       expect(isSafeUrl('http://example.com')).toBe(true);
-      expect(isSafeUrl('mailto:support@kustora.com')).toBe(true);
+      expect(isSafeUrl('mailto:support@kubuild.com')).toBe(true);
       expect(isSafeUrl('tel:+1234567890')).toBe(true);
       expect(isSafeUrl('#hero-section')).toBe(true);
       expect(isSafeUrl('/about-us')).toBe(true);
