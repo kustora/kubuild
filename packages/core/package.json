@@ -1,6 +1,6 @@
 {
   "name": "@kubuild/core",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Framework-agnostic engine for KUBUILD: document utilities, command engine, history, migration, and validation",
   "type": "module",
   "main": "./dist/index.cjs",
