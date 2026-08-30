@@ -153,6 +153,8 @@ export interface StyleManagerAccordionProps {
   breakpoint?: 'base' | 'tablet' | 'mobile';
   className?: string;
   initialState?: Partial<Record<StyleSectorId, boolean>>;
+  /** Optional filter for allowed style sectors. If omitted, all sectors are displayed. */
+  allowedSectors?: StyleSectorId[];
 }
 
 export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
@@ -167,7 +169,13 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
   breakpoint = 'base',
   className = '',
   initialState,
+  allowedSectors,
 }) => {
+  const visibleSectors = React.useMemo(() => {
+    if (!allowedSectors || allowedSectors.length === 0) return STYLE_SECTORS;
+    return STYLE_SECTORS.filter((sector) => allowedSectors.includes(sector.id));
+  }, [allowedSectors]);
+
   const [openState, setOpenState] = useState<Record<StyleSectorId, boolean>>(() => ({
     ...loadAccordionState(),
     ...initialState,
@@ -326,7 +334,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
 
       {/* Accordion Sectors List */}
       <div className="flex flex-col gap-1.5">
-        {STYLE_SECTORS.map((sector) => {
+        {visibleSectors.map((sector) => {
           const isOpen = Boolean(openState[sector.id]);
           const activeCount = getActivePropertyCount(sector);
 

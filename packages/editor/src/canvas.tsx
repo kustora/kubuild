@@ -13,6 +13,7 @@ import {
 } from '@kubuild/core';
 import { useEditorStore, Viewport } from './store';
 import { FloatingActionBadges } from './floating-badges';
+import { EditorCanvasConfig } from './config';
 
 export interface EditorCanvasProps {
   document?: PageDocument;
@@ -20,6 +21,7 @@ export interface EditorCanvasProps {
   context?: RuntimeContext;
   viewport: Viewport;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
+  config?: EditorCanvasConfig;
 }
 
 interface Rect {
@@ -62,9 +64,17 @@ function rectFor(container: HTMLElement, nodeId: string | null): Rect | null {
   };
 }
 
-export const EditorCanvas: React.FC<EditorCanvasProps> = ({ document: propDoc, registry, context, viewport, onDiagnostic }) => {
+export const EditorCanvas: React.FC<EditorCanvasProps> = ({
+  document: propDoc,
+  registry,
+  context,
+  viewport,
+  onDiagnostic,
+  config,
+}) => {
   const { document: storeDoc, selectedNodeId, hoveredNodeId, selectNode, hoverNode, updateNodeProps } = useEditorStore();
   const document = propDoc ?? storeDoc;
+  const showFloatingBadges = config?.showFloatingBadges !== false;
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [hoveredRect, setHoveredRect] = useState<Rect | null>(null);
@@ -327,7 +337,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ document: propDoc, r
           }}
         />
       )}
-      {selectedRect && selectedNodeId && (
+      {showFloatingBadges && selectedRect && selectedNodeId && (
         <FloatingActionBadges
           selectedNodeId={selectedNodeId}
           document={document}

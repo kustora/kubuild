@@ -22,4 +22,4 @@ export * from './left-sidebar';
 export * from './code-viewer-modal';
 export * from './code-highlighter';
 export * from './motion-sector-controls';
-
+export * from './config';

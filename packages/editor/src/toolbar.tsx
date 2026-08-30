@@ -13,10 +13,13 @@ import {
   Redo2,
 } from 'lucide-react';
 
+import { EditorToolbarConfig } from './config';
+
 export interface EditorToolbarProps {
   registry: ComponentRegistry;
   className?: string;
   showExportImport?: boolean;
+  config?: EditorToolbarConfig;
 }
 
 interface ToolbarIconButtonProps {
@@ -74,7 +77,8 @@ const ToolbarIconButton: React.FC<ToolbarIconButtonProps> = ({
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   registry,
   className,
-  showExportImport = true,
+  showExportImport: propShowExportImport = true,
+  config,
 }) => {
   const {
     document,
@@ -96,6 +100,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isCodeViewerModalOpen, setIsCodeViewerModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+
+  const showNavigatorToggle = config?.showNavigatorToggle !== false;
+  const showHistory = config?.showHistory !== false;
+  const showClipboard = config?.showClipboard !== false;
+  const showCodeViewer = config?.showCodeViewer !== false;
+  const showExportImport = propShowExportImport && (config?.showExportImport !== false);
+  const customActions = config?.customActions;
 
   const rootId = document.document.id;
   const hasSelection = !!selectedNodeId && selectedNodeId !== rootId;
@@ -167,96 +178,115 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </div>
         )}
 
-        <button
-          type="button"
-          title={`Navigator / Element Tree (${navigatorMode !== 'hidden' ? 'Open' : 'Hidden'})`}
-          onClick={toggleNavigator}
-          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
-            navigatorMode !== 'hidden'
-              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
-              : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
-          }`}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
-          <span>Navigator</span>
-        </button>
+        {showNavigatorToggle && (
+          <button
+            type="button"
+            title={`Navigator / Element Tree (${navigatorMode !== 'hidden' ? 'Open' : 'Hidden'})`}
+            onClick={toggleNavigator}
+            className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
+              navigatorMode !== 'hidden'
+                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
+                : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+            }`}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+            <span>Navigator</span>
+          </button>
+        )}
 
-        <div className="h-4 w-px bg-slate-200 mx-1" />
+        {showNavigatorToggle && (showClipboard || showHistory || showCodeViewer || showExportImport) && (
+          <div className="h-4 w-px bg-slate-200 mx-1" />
+        )}
 
-        <div className="flex items-center gap-1">
-          <ToolbarIconButton
-            icon={<Copy className="w-3.5 h-3.5" aria-hidden="true" />}
-            label="Copy"
-            shortcut="Ctrl/Cmd+C"
-            disabled={!hasSelection}
-            onClick={handleCopy}
-            data-testid="toolbar-copy"
-          />
-          <ToolbarIconButton
-            icon={<ClipboardPaste className="w-3.5 h-3.5" aria-hidden="true" />}
-            label="Paste"
-            shortcut="Ctrl/Cmd+V"
-            disabled={!canPaste}
-            onClick={handlePaste}
-            data-testid="toolbar-paste"
-          />
-          <ToolbarIconButton
-            icon={<CopyPlus className="w-3.5 h-3.5" aria-hidden="true" />}
-            label="Duplicate"
-            shortcut="Ctrl/Cmd+D"
-            disabled={!hasSelection}
-            onClick={handleDuplicate}
-            data-testid="toolbar-duplicate"
-          />
-          <ToolbarIconButton
-            icon={<Trash2 className="w-3.5 h-3.5" aria-hidden="true" />}
-            label="Delete"
-            shortcut="Del"
-            disabled={!hasSelection}
-            onClick={handleDelete}
-            danger
-            data-testid="toolbar-delete"
-          />
-          <ToolbarIconButton
-            icon={<Undo2 className="w-3.5 h-3.5" aria-hidden="true" />}
-            label="Undo"
-            shortcut="Ctrl/Cmd+Z"
-            disabled={!canUndo}
-            onClick={undo}
-            data-testid="toolbar-undo"
-          />
-          <ToolbarIconButton
-            icon={<Redo2 className="w-3.5 h-3.5" aria-hidden="true" />}
-            label="Redo"
-            shortcut="Ctrl/Cmd+Shift+Z"
-            disabled={!canRedo}
-            onClick={redo}
-            data-testid="toolbar-redo"
-          />
-        </div>
+        {(showClipboard || showHistory) && (
+          <div className="flex items-center gap-1">
+            {showClipboard && (
+              <>
+                <ToolbarIconButton
+                  icon={<Copy className="w-3.5 h-3.5" aria-hidden="true" />}
+                  label="Copy"
+                  shortcut="Ctrl/Cmd+C"
+                  disabled={!hasSelection}
+                  onClick={handleCopy}
+                  data-testid="toolbar-copy"
+                />
+                <ToolbarIconButton
+                  icon={<ClipboardPaste className="w-3.5 h-3.5" aria-hidden="true" />}
+                  label="Paste"
+                  shortcut="Ctrl/Cmd+V"
+                  disabled={!canPaste}
+                  onClick={handlePaste}
+                  data-testid="toolbar-paste"
+                />
+                <ToolbarIconButton
+                  icon={<CopyPlus className="w-3.5 h-3.5" aria-hidden="true" />}
+                  label="Duplicate"
+                  shortcut="Ctrl/Cmd+D"
+                  disabled={!hasSelection}
+                  onClick={handleDuplicate}
+                  data-testid="toolbar-duplicate"
+                />
+                <ToolbarIconButton
+                  icon={<Trash2 className="w-3.5 h-3.5" aria-hidden="true" />}
+                  label="Delete"
+                  shortcut="Del"
+                  disabled={!hasSelection}
+                  onClick={handleDelete}
+                  danger
+                  data-testid="toolbar-delete"
+                />
+              </>
+            )}
+            {showClipboard && showHistory && <div className="h-3.5 w-px bg-slate-200 mx-0.5" />}
+            {showHistory && (
+              <>
+                <ToolbarIconButton
+                  icon={<Undo2 className="w-3.5 h-3.5" aria-hidden="true" />}
+                  label="Undo"
+                  shortcut="Ctrl/Cmd+Z"
+                  disabled={!canUndo}
+                  onClick={undo}
+                  data-testid="toolbar-undo"
+                />
+                <ToolbarIconButton
+                  icon={<Redo2 className="w-3.5 h-3.5" aria-hidden="true" />}
+                  label="Redo"
+                  shortcut="Ctrl/Cmd+Shift+Z"
+                  disabled={!canRedo}
+                  onClick={redo}
+                  data-testid="toolbar-redo"
+                />
+              </>
+            )}
+          </div>
+        )}
 
-        <div className="h-4 w-px bg-slate-200 mx-1" />
+        {(showClipboard || showHistory) && (showCodeViewer || showExportImport) && (
+          <div className="h-4 w-px bg-slate-200 mx-1" />
+        )}
 
-        <button
-          type="button"
-          title="View Semantic HTML & CSS (< >)"
-          onClick={() => setIsCodeViewerModalOpen(true)}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition"
-        >
-          <span className="font-mono text-[11px] font-bold text-blue-600">&lt;&gt;</span>
-          <span>View Code</span>
-        </button>
+        {showCodeViewer && (
+          <button
+            type="button"
+            title="View Semantic HTML & CSS (< >)"
+            onClick={() => setIsCodeViewerModalOpen(true)}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition"
+          >
+            <span className="font-mono text-[11px] font-bold text-blue-600">&lt;&gt;</span>
+            <span>View Code</span>
+          </button>
+        )}
 
         {showExportImport && (
           <>
-            <div className="h-4 w-px bg-slate-200 mx-1" />
+            {showCodeViewer && <div className="h-4 w-px bg-slate-200 mx-1" />}
             <button
               type="button"
               title="Import .stora Package"
@@ -282,6 +312,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             >
               JSON
             </button>
+          </>
+        )}
+
+        {customActions && (
+          <>
+            <div className="h-4 w-px bg-slate-200 mx-1" />
+            <div className="flex items-center gap-1">{customActions}</div>
           </>
         )}
       </div>

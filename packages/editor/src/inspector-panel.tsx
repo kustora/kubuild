@@ -13,11 +13,15 @@ import { ComponentIcon } from './icons';
 import { replayNodeAnimation } from '@kubuild/renderer';
 import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X } from 'lucide-react';
 
+import { StyleSectorId } from './style-manager-accordion';
+import { EditorInspectorConfig } from './config';
+
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
   className?: string;
   document?: PageDocument;
   selectedNodeId?: string | null;
+  config?: EditorInspectorConfig;
 }
 
 const SPACING_FIELDS: Array<{ name: string; label: string }> = [
@@ -522,6 +526,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   className,
   document: propDocument,
   selectedNodeId: propSelectedNodeId,
+  config,
 }) => {
   const storeState = useEditorStore((s) => s);
   const document = propDocument ?? storeState.document;
@@ -540,12 +545,29 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     tableSpreadsheetMode,
     setTableSpreadsheetMode,
   } = storeState;
+
+  const showProps = config?.showProps !== false;
+  const showTraits = config?.showTraits !== false;
+  const showStyles = config?.showStyles !== false;
+  const showStateSelector = config?.showStateSelector !== false;
+  const allowedStyleSectors = config?.allowedStyleSectors;
+
+  const initialTab = !showStyles && showTraits ? 'traits' : 'style';
+
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
-  const [activeTab, setActiveTab] = useState<'style' | 'traits'>('style');
+  const [activeTab, setActiveTab] = useState<'style' | 'traits'>(initialTab);
   // STORA-250 — asset manager modal state (open + which prop field it targets).
   const [assetPickerField, setAssetPickerField] = useState<string | null>(null);
   // Active pseudo-state layer for the style manager — STORA-221.
   const [activeState, setActiveState] = useState<string>('default');
+
+  useEffect(() => {
+    if (!showStyles && showTraits && activeTab !== 'traits') {
+      setActiveTab('traits');
+    } else if (!showTraits && showStyles && activeTab !== 'style') {
+      setActiveTab('style');
+    }
+  }, [showStyles, showTraits, activeTab]);
 
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const definition = node ? registry.get(node.type) : undefined;
@@ -758,32 +780,34 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         />
       )}
       {/* Tab bar: Style / Traits — STORA-211 */}
-      <div className="flex shrink-0 border-b border-slate-200 bg-slate-50">
-        <button
-          type="button"
-          onClick={() => setActiveTab('style')}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
-            activeTab === 'style'
-              ? 'text-blue-600 border-blue-600 bg-white'
-              : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Palette className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Style</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('traits')}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
-            activeTab === 'traits'
-              ? 'text-blue-600 border-blue-600 bg-white'
-              : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Settings className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Traits</span>
-        </button>
-      </div>
+      {showStyles && showTraits && (
+        <div className="flex shrink-0 border-b border-slate-200 bg-slate-50">
+          <button
+            type="button"
+            onClick={() => setActiveTab('style')}
+            className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
+              activeTab === 'style'
+                ? 'text-blue-600 border-blue-600 bg-white'
+                : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Palette className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Style</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('traits')}
+            className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
+              activeTab === 'traits'
+                ? 'text-blue-600 border-blue-600 bg-white'
+                : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Settings className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Traits</span>
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 p-3 min-w-0">
       {node.type === 'list' && (
@@ -993,88 +1017,95 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
       {activeTab === 'style' && (
         <>
-      <div>
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-          {definition.label} Props
-        </div>
-        <div className="flex flex-col gap-3">
-          {(definition.propFields ?? []).map((field) => {
-            const currentValue = node.props?.[field.name];
-            const bound = isVariableBinding(currentValue);
-            return (
-              <div key={field.name}>
-                <label className="block text-xs font-medium text-slate-600 mb-1">{field.label}</label>
-                {!bound && renderPropControl(field)}
-                {isBindableField(field) && (
-                  <VariableBindingControl
-                    field={field}
-                    currentValue={currentValue}
-                    catalog={variableCatalog}
-                    onBind={(key) => commitProp(field, toBindingValue(key), true)}
-                    onRevert={() => commitProp(field, field.defaultValue ?? '', true)}
-                  />
-                )}
-                <ErrorText message={fieldErrors[`prop:${field.name}`]} />
+          {showProps && (
+            <div>
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                {definition.label} Props
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <div className="flex flex-col gap-3">
+                {(definition.propFields ?? []).map((field) => {
+                  const currentValue = node.props?.[field.name];
+                  const bound = isVariableBinding(currentValue);
+                  return (
+                    <div key={field.name}>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{field.label}</label>
+                      {!bound && renderPropControl(field)}
+                      {isBindableField(field) && (
+                        <VariableBindingControl
+                          field={field}
+                          currentValue={currentValue}
+                          catalog={variableCatalog}
+                          onBind={(key) => commitProp(field, toBindingValue(key), true)}
+                          onRevert={() => commitProp(field, field.defaultValue ?? '', true)}
+                        />
+                      )}
+                      <ErrorText message={fieldErrors[`prop:${field.name}`]} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-      <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full">
-        {/* Active state warning badge — STORA-223 */}
-        {activeState !== 'default' && <StateEditingBadge state={activeState} />}
-        {/* Pseudo-state selector — STORA-221 */}
-        <div className="flex items-center gap-2 mb-2">
-          <label
-            htmlFor="style-state-selector"
-            className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0"
-          >
-            State
-          </label>
-          <select
-            id="style-state-selector"
-            value={activeState}
-            onChange={(e) => setActiveState(e.target.value)}
-            className={`flex-1 text-xs rounded px-2 py-1.5 border focus:outline-none focus:ring-1 transition cursor-pointer ${
-              activeState !== 'default'
-                ? 'bg-amber-50 text-amber-900 border-amber-400 focus:ring-amber-400 focus:border-amber-400'
-                : 'bg-white text-slate-900 border-slate-300 hover:border-slate-400 focus:ring-blue-500 focus:border-blue-500 shadow-xs'
-            }`}
-          >
-            <option value="default">Default</option>
-            <option value=":hover">:hover</option>
-            <option value=":active">:active</option>
-            <option value=":focus">:focus</option>
-          </select>
-        </div>
-        <StyleManagerAccordion
-          key={`${node.id}-${activeBreakpoint}-${activeState}`}
-          styles={activeLayer}
-          animation={node.animation}
-          onCommitStyle={handleCommitSpacing}
-          onCommitAnimation={(anim) => {
-            const result = updateNodeAnimation(node.id, anim);
-            if (!result.success && result.error) {
-              setError('animation', result.error);
-            }
-          }}
-          onResetAnimation={() => {
-            updateNodeAnimation(node.id, null);
-          }}
-          onReplayAnimation={() => {
-            if (node?.id) {
-              replayNodeAnimation(node.id);
-            }
-          }}
-          errors={fieldErrors}
-          breakpoint={activeBreakpoint}
-        />
-      </div>
+          {showStyles && (
+            <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full">
+              {/* Active state warning badge — STORA-223 */}
+              {activeState !== 'default' && <StateEditingBadge state={activeState} />}
+              {/* Pseudo-state selector — STORA-221 */}
+              {showStateSelector && (
+                <div className="flex items-center gap-2 mb-2">
+                  <label
+                    htmlFor="style-state-selector"
+                    className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0"
+                  >
+                    State
+                  </label>
+                  <select
+                    id="style-state-selector"
+                    value={activeState}
+                    onChange={(e) => setActiveState(e.target.value)}
+                    className={`flex-1 text-xs rounded px-2 py-1.5 border focus:outline-none focus:ring-1 transition cursor-pointer ${
+                      activeState !== 'default'
+                        ? 'bg-amber-50 text-amber-900 border-amber-400 focus:ring-amber-400 focus:border-amber-400'
+                        : 'bg-white text-slate-900 border-slate-300 hover:border-slate-400 focus:ring-blue-500 focus:border-blue-500 shadow-xs'
+                    }`}
+                  >
+                    <option value="default">Default</option>
+                    <option value=":hover">:hover</option>
+                    <option value=":active">:active</option>
+                    <option value=":focus">:focus</option>
+                  </select>
+                </div>
+              )}
+              <StyleManagerAccordion
+                key={`${node.id}-${activeBreakpoint}-${activeState}`}
+                styles={activeLayer}
+                animation={node.animation}
+                allowedSectors={allowedStyleSectors}
+                onCommitStyle={handleCommitSpacing}
+                onCommitAnimation={(anim) => {
+                  const result = updateNodeAnimation(node.id, anim);
+                  if (!result.success && result.error) {
+                    setError('animation', result.error);
+                  }
+                }}
+                onResetAnimation={() => {
+                  updateNodeAnimation(node.id, null);
+                }}
+                onReplayAnimation={() => {
+                  if (node?.id) {
+                    replayNodeAnimation(node.id);
+                  }
+                }}
+                errors={fieldErrors}
+                breakpoint={activeBreakpoint}
+              />
+            </div>
+          )}
         </>
       )}
 
-      {activeTab === 'traits' && (
+      {activeTab === 'traits' && showTraits && (
         <TraitsPanel
           registry={registry}
           document={document}
