@@ -1,6 +1,6 @@
 {
   "name": "@kubuild/react",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Unified React entrypoint for KUBUILD: editor, renderer, and document utilities",
   "type": "module",
   "main": "./dist/index.cjs",
