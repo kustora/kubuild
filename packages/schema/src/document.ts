@@ -90,6 +90,57 @@ export const ResponsiveStylesSchema = z
 export type ResponsiveStyles = z.infer<typeof ResponsiveStylesSchema>;
 
 /**
+ * Animation Configuration Schema
+ * Defines scroll entrance animations (AOS), duration, delay, easing curve,
+ * trigger behavior (once), hover micro-interactions, and continuous loop effects.
+ */
+export const AnimationConfigSchema = z.object({
+  type: z
+    .string()
+    .refine((value) => !DANGEROUS_STYLE_VALUE_PATTERN.test(value), {
+      message: 'Animation type contains a disallowed or unsafe pattern',
+    })
+    .optional()
+    .default('none'),
+  duration: z.number().min(0, 'Duration must be non-negative').optional().default(600),
+  delay: z.number().min(0, 'Delay must be non-negative').optional().default(0),
+  easing: z
+    .string()
+    .refine((value) => !DANGEROUS_STYLE_VALUE_PATTERN.test(value), {
+      message: 'Animation easing contains a disallowed or unsafe pattern',
+    })
+    .optional()
+    .default('ease-out'),
+  once: z.boolean().optional().default(true),
+  hoverEffect: z
+    .string()
+    .refine((value) => !DANGEROUS_STYLE_VALUE_PATTERN.test(value), {
+      message: 'Hover effect contains a disallowed or unsafe pattern',
+    })
+    .optional()
+    .default('none'),
+  loopEffect: z
+    .string()
+    .refine((value) => !DANGEROUS_STYLE_VALUE_PATTERN.test(value), {
+      message: 'Loop effect contains a disallowed or unsafe pattern',
+    })
+    .optional()
+    .default('none'),
+});
+
+export type AnimationConfig = z.infer<typeof AnimationConfigSchema>;
+
+export const DEFAULT_ANIMATION_CONFIG: AnimationConfig = {
+  type: 'none',
+  duration: 600,
+  delay: 0,
+  easing: 'ease-out',
+  once: true,
+  hoverEffect: 'none',
+  loopEffect: 'none',
+};
+
+/**
  * Recursive Node Type Definition
  */
 export type Node = {
@@ -97,6 +148,7 @@ export type Node = {
   type: string;
   props?: Record<string, unknown>;
   styles?: ResponsiveStyles;
+  animation?: AnimationConfig;
   children?: Node[];
 };
 
@@ -111,6 +163,7 @@ export const NodeSchema: z.ZodType<Node> = z.lazy(() =>
     type: z.string().min(1, 'Node type must be a non-empty string'),
     props: z.record(z.string(), z.unknown()).optional().default({}),
     styles: ResponsiveStylesSchema.optional().default({}),
+    animation: AnimationConfigSchema.optional(),
     children: z.array(NodeSchema).optional().default([]),
   }),
 );
@@ -180,6 +233,10 @@ export function isVariableBinding(value: unknown): value is VariableBinding {
 
 export function isActionBinding(value: unknown): value is ActionBinding {
   return ActionBindingSchema.safeParse(value).success;
+}
+
+export function isAnimationConfig(value: unknown): value is AnimationConfig {
+  return AnimationConfigSchema.safeParse(value).success;
 }
 
 /**

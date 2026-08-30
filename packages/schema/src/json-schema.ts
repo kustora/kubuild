@@ -108,6 +108,49 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
       },
       additionalProperties: false,
     },
+    animationConfig: {
+      type: 'object',
+      properties: {
+        type: {
+          type: 'string',
+          default: 'none',
+          description: 'Scroll entrance animation type (e.g. fade, fade-up, zoom-in, slide-left)',
+        },
+        duration: {
+          type: 'number',
+          minimum: 0,
+          default: 600,
+          description: 'Animation duration in milliseconds',
+        },
+        delay: {
+          type: 'number',
+          minimum: 0,
+          default: 0,
+          description: 'Animation delay in milliseconds',
+        },
+        easing: {
+          type: 'string',
+          default: 'ease-out',
+          description: 'CSS animation easing / transition timing function',
+        },
+        once: {
+          type: 'boolean',
+          default: true,
+          description: 'Whether scroll animation plays only once when entering viewport',
+        },
+        hoverEffect: {
+          type: 'string',
+          default: 'none',
+          description: 'Hover micro-interaction effect (e.g. lift, scale, glow, tilt)',
+        },
+        loopEffect: {
+          type: 'string',
+          default: 'none',
+          description: 'Continuous loop animation effect (e.g. pulse, bounce, spin, float)',
+        },
+      },
+      additionalProperties: false,
+    },
     node: {
       type: 'object',
       required: ['id', 'type'],
@@ -129,6 +172,9 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
         },
         styles: {
           $ref: '#/definitions/responsiveStyles',
+        },
+        animation: {
+          $ref: '#/definitions/animationConfig',
         },
         children: {
           type: 'array',

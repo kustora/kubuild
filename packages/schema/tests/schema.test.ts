@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
   PageDocumentSchema,
+  NodeSchema,
   SCHEMA_NAME,
   CURRENT_SCHEMA_VERSION,
   AssetReferenceSchema,
   VariableBindingSchema,
   ActionBindingSchema,
+  AnimationConfigSchema,
+  AnimationConfig,
+  DEFAULT_ANIMATION_CONFIG,
+  isAnimationConfig,
   generateDeterministicNodeId,
   validateNodeIdUniqueness,
   collectNodeIds,
@@ -52,6 +57,7 @@ describe('STORA-010: Page Document v1 Schema Specification', () => {
       expect(jsonSchema.definitions.variableBinding).toBeDefined();
       expect(jsonSchema.definitions.actionBinding).toBeDefined();
       expect(jsonSchema.definitions.responsiveStyles).toBeDefined();
+      expect(jsonSchema.definitions.animationConfig).toBeDefined();
     });
   });
 
@@ -547,5 +553,178 @@ describe('STORA-070: Reusable Page Template Record and Metadata v1', () => {
     });
   });
 });
+
+describe('STORA-260: AnimationConfig Schema Specification', () => {
+  describe('Acceptance Criteria: Skema memvalidasi properti animasi dengan default yang aman dan serializable', () => {
+    it('applies safe defaults when parsing an empty animation config object', () => {
+      const parsed = AnimationConfigSchema.parse({});
+      expect(parsed).toEqual({
+        type: 'none',
+        duration: 600,
+        delay: 0,
+        easing: 'ease-out',
+        once: true,
+        hoverEffect: 'none',
+        loopEffect: 'none',
+      });
+    });
+
+    it('matches the DEFAULT_ANIMATION_CONFIG constant', () => {
+      expect(DEFAULT_ANIMATION_CONFIG).toEqual({
+        type: 'none',
+        duration: 600,
+        delay: 0,
+        easing: 'ease-out',
+        once: true,
+        hoverEffect: 'none',
+        loopEffect: 'none',
+      });
+      expect(AnimationConfigSchema.parse({})).toEqual(DEFAULT_ANIMATION_CONFIG);
+    });
+
+    it('accepts valid custom animation configuration', () => {
+      const customConfig: AnimationConfig = {
+        type: 'fade-up',
+        duration: 800,
+        delay: 200,
+        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        once: false,
+        hoverEffect: 'lift',
+        loopEffect: 'pulse',
+      };
+
+      const result = AnimationConfigSchema.safeParse(customConfig);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual(customConfig);
+      }
+    });
+
+    it('validates partial configs and fills default values for omitted fields', () => {
+      const partialConfig = {
+        type: 'zoom-in',
+        hoverEffect: 'scale',
+      };
+
+      const parsed = AnimationConfigSchema.parse(partialConfig);
+      expect(parsed).toEqual({
+        type: 'zoom-in',
+        duration: 600,
+        delay: 0,
+        easing: 'ease-out',
+        once: true,
+        hoverEffect: 'scale',
+        loopEffect: 'none',
+      });
+    });
+
+    it('rejects negative numbers for duration or delay', () => {
+      const negativeDuration = { duration: -100 };
+      const res1 = AnimationConfigSchema.safeParse(negativeDuration);
+      expect(res1.success).toBe(false);
+
+      const negativeDelay = { delay: -50 };
+      const res2 = AnimationConfigSchema.safeParse(negativeDelay);
+      expect(res2.success).toBe(false);
+    });
+
+    it.each([
+      'javascript:alert(1)',
+      'expression(alert(1))',
+      '@import url("hack.css")',
+      '<script>alert(1)</script>',
+      'vbscript:msgbox(1)',
+      'data:text/html,<script>alert(1)</script>',
+    ])('rejects dangerous injection strings in animation properties: "%s"', (unsafeValue) => {
+      expect(AnimationConfigSchema.safeParse({ type: unsafeValue }).success).toBe(false);
+      expect(AnimationConfigSchema.safeParse({ easing: unsafeValue }).success).toBe(false);
+      expect(AnimationConfigSchema.safeParse({ hoverEffect: unsafeValue }).success).toBe(false);
+      expect(AnimationConfigSchema.safeParse({ loopEffect: unsafeValue }).success).toBe(false);
+    });
+
+    it('validates animation field when attached to a Node in NodeSchema', () => {
+      const nodeWithAnimation: Node = {
+        id: 'hero-title',
+        type: 'heading',
+        props: { text: 'Welcome' },
+        animation: {
+          type: 'fade-up',
+          duration: 700,
+          delay: 150,
+          easing: 'ease-out',
+          once: true,
+          hoverEffect: 'glow',
+          loopEffect: 'none',
+        },
+      };
+
+      const parsedNode = NodeSchema.parse(nodeWithAnimation);
+      expect(parsedNode.animation).toBeDefined();
+      expect(parsedNode.animation?.type).toBe('fade-up');
+      expect(parsedNode.animation?.duration).toBe(700);
+      expect(parsedNode.animation?.delay).toBe(150);
+      expect(parsedNode.animation?.hoverEffect).toBe('glow');
+    });
+
+    it('validates entire PageDocument with animated nodes and serializes cleanly', () => {
+      const doc = {
+        schema: 'stora.page',
+        version: '1.0.0',
+        metadata: {
+          title: 'Animated Landing Page',
+        },
+        document: {
+          id: 'root-page',
+          type: 'page',
+          children: [
+            {
+              id: 'hero-btn',
+              type: 'button',
+              props: { label: 'Get Started' },
+              animation: {
+                type: 'slide-up',
+                duration: 500,
+                delay: 100,
+                once: true,
+                hoverEffect: 'lift',
+                loopEffect: 'none',
+              },
+            },
+            {
+              id: 'badge',
+              type: 'badge',
+              animation: {
+                type: 'none',
+                loopEffect: 'pulse',
+              },
+            },
+          ],
+        },
+      };
+
+      const parsedDoc = PageDocumentSchema.parse(doc);
+      expect(parsedDoc.document.children?.[0]?.animation?.type).toBe('slide-up');
+      expect(parsedDoc.document.children?.[0]?.animation?.hoverEffect).toBe('lift');
+      expect(parsedDoc.document.children?.[1]?.animation?.loopEffect).toBe('pulse');
+      expect(parsedDoc.document.children?.[1]?.animation?.duration).toBe(600);
+
+      // Verify serializability
+      const json = JSON.stringify(parsedDoc);
+      const restored = JSON.parse(json);
+      expect(restored.document.children[0].animation.type).toBe('slide-up');
+    });
+
+    it('isAnimationConfig type guard correctly identifies valid animation configs', () => {
+      expect(isAnimationConfig({})).toBe(true);
+      expect(isAnimationConfig({ type: 'fade-up', duration: 1000 })).toBe(true);
+      expect(isAnimationConfig(DEFAULT_ANIMATION_CONFIG)).toBe(true);
+      expect(isAnimationConfig({ duration: -1 })).toBe(false);
+      expect(isAnimationConfig({ type: 'javascript:alert(1)' })).toBe(false);
+      expect(isAnimationConfig(null)).toBe(false);
+      expect(isAnimationConfig('not-an-object')).toBe(false);
+    });
+  });
+});
+
 
 

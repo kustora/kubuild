@@ -436,7 +436,7 @@
 - **Summary:** Definisikan AnimationConfig Schema di `@kubuild/schema`
 - **Description:** Tambahkan field `animation` opsional pada dokumen untuk menyimpan konfigurasi: `type`, `duration`, `delay`, `easing`, `once`, `hoverEffect`, dan `loopEffect`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Skema memvalidasi properti animasi dengan default yang aman dan serializable.
