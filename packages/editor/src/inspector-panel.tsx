@@ -1034,10 +1034,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             id="style-state-selector"
             value={activeState}
             onChange={(e) => setActiveState(e.target.value)}
-            className={`flex-1 text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:border-blue-500 ${
+            className={`flex-1 text-xs rounded px-2 py-1.5 border focus:outline-none focus:ring-1 transition cursor-pointer ${
               activeState !== 'default'
-                ? 'bg-amber-50 text-amber-900 border-amber-400 focus:ring-amber-400'
-                : 'bg-white text-slate-900 border-slate-300 focus:ring-blue-500'
+                ? 'bg-amber-50 text-amber-900 border-amber-400 focus:ring-amber-400 focus:border-amber-400'
+                : 'bg-white text-slate-900 border-slate-300 hover:border-slate-400 focus:ring-blue-500 focus:border-blue-500 shadow-xs'
             }`}
           >
             <option value="default">Default</option>

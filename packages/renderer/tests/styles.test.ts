@@ -64,8 +64,8 @@ describe('STORA-222: Dynamic hover style compilation', () => {
 
     const css = collectStateStylesCss(doc);
     expect(css).toContain('[data-kubuild-node="btn-1"]:hover');
-    expect(css).toContain('background-color: #1d4ed8;');
-    expect(css).toContain('cursor: pointer;');
+    expect(css).toContain('background-color: #1d4ed8 !important;');
+    expect(css).toContain('cursor: pointer !important;');
   });
 
   it('produces rules for multiple states and multiple nodes', () => {

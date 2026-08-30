@@ -32,13 +32,15 @@ function escapeCssIdent(value: string): string {
  */
 export function styleDefinitionToCssDeclarations(
   styleDefinition: Record<string, unknown> | undefined,
+  options?: { important?: boolean },
 ): string {
   if (!styleDefinition || typeof styleDefinition !== 'object') return '';
   const declarations: string[] = [];
+  const suffix = options?.important ? ' !important' : '';
   for (const [key, value] of Object.entries(styleDefinition)) {
     if (value === null || value === undefined || value === '') continue;
     const property = key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
-    declarations.push(`${property}: ${escapeCssValue(value)};`);
+    declarations.push(`${property}: ${escapeCssValue(value)}${suffix};`);
   }
   return declarations.join(' ');
 }
@@ -47,12 +49,16 @@ export function styleDefinitionToCssDeclarations(
  * Walk the document tree and produce scoped CSS rules for pseudo-state
  * style layers (STORA-222). Each node with `styles.states` gets rules like:
  *
- *   [data-kubuild-node="node-1"]:hover { background-color: #1d4ed8; }
+ *   [data-kubuild-node="node-1"]:hover { background-color: #1d4ed8 !important; }
  *
  * Scoped via the canonical `data-kubuild-node` attribute so styles never leak
  * between nodes and work identically in editor canvas and runtime preview.
+ * Uses `!important` to reliably override the component's inline base style attributes.
  */
-export function collectStateStylesCss(document: PageDocument | undefined | null): string {
+export function collectStateStylesCss(
+  document: PageDocument | undefined | null,
+  options: { important?: boolean } = { important: true },
+): string {
   if (!document?.document) return '';
   const rules: string[] = [];
 
@@ -62,6 +68,7 @@ export function collectStateStylesCss(document: PageDocument | undefined | null)
       for (const [state, styleDefinition] of Object.entries(states)) {
         const declarations = styleDefinitionToCssDeclarations(
           styleDefinition as Record<string, unknown>,
+          { important: options.important !== false },
         );
         if (!declarations) continue;
         // Only accept pseudo-class-looking selectors to avoid selector injection.
