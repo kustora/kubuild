@@ -5,10 +5,12 @@ import { ComponentIcon } from './icons';
 export interface MotionSectorControlsProps {
   animation?: Partial<AnimationConfig>;
   onChange: (animation: Partial<AnimationConfig>) => void;
+  onReplay?: () => void;
   disabled?: boolean;
 }
 
 export const ANIMATION_TYPES = [
+
   { value: 'none', label: 'None' },
   {
     group: 'Fade Effects',
@@ -73,6 +75,7 @@ export const LOOP_EFFECTS = [
 export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
   animation,
   onChange,
+  onReplay,
   disabled = false,
 }) => {
   const currentConfig: AnimationConfig = {
@@ -85,13 +88,11 @@ export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
   };
 
   const handleDurationChange = (val: number) => {
-    const safeVal = Math.max(0, isNaN(val) ? 0 : val);
-    onChange({ duration: safeVal });
+    onChange({ duration: Math.max(0, val) });
   };
 
   const handleDelayChange = (val: number) => {
-    const safeVal = Math.max(0, isNaN(val) ? 0 : val);
-    onChange({ delay: safeVal });
+    onChange({ delay: Math.max(0, val) });
   };
 
   const handleEasingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -117,6 +118,20 @@ export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
 
   return (
     <div className="flex flex-col gap-4 text-xs text-slate-700" data-testid="motion-sector-controls">
+      {/* Live Replay Button (STORA-262) */}
+      {isAnimated && onReplay && (
+        <button
+          type="button"
+          data-testid="motion-replay-button"
+          onClick={onReplay}
+          disabled={disabled}
+          className="flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-medium transition shadow-2xs cursor-pointer"
+        >
+          <ComponentIcon iconOrType="play" size={13} className="text-blue-600" />
+          <span>Play / Replay Animation</span>
+        </button>
+      )}
+
       {/* 1. Scroll / Entrance Animation Type */}
       <div className="flex flex-col gap-1">
         <label htmlFor="motion-animation-type" className="font-semibold text-slate-600 flex items-center justify-between">

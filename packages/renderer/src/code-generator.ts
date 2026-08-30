@@ -1,5 +1,6 @@
 import { PageDocument, Node } from '@kubuild/schema';
 import { DEFAULT_CSS_RESET, styleDefinitionToCssDeclarations } from './styles';
+import { collectAnimationStylesCss } from './animation';
 
 export interface GenerateHtmlOptions {
   /**
@@ -563,6 +564,15 @@ export function generateDocumentCss(
   // Mobile Media Query
   if (mobileRules.length > 0) {
     sections.push(`/* ==========================================================================\n   Mobile Breakpoint (max-width: 640px)\n   ========================================================================== */\n@media (max-width: 640px) {\n${mobileRules.join('\n\n')}\n}`);
+  }
+
+  // Animation & Motion Styles (STORA-264)
+  const pageDoc: PageDocument = 'document' in docOrNode
+    ? docOrNode
+    : { schema: 'stora.page', version: '1.0.0', document: rootNode as any };
+  const animStyles = collectAnimationStylesCss(pageDoc);
+  if (animStyles) {
+    sections.push(`/* ==========================================================================\n   Animations & Motion Keyframes\n   ========================================================================== */\n${animStyles}`);
   }
 
   return sections.join('\n\n');

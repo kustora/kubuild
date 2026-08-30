@@ -14,6 +14,7 @@ import {
 import { resolveBinding, sanitizeUrl, sanitizeHtml } from '@kubuild/core';
 import { icons as lucideIcons, Package, Puzzle, AlertTriangle } from 'lucide-react';
 import { resolveNodeStyles, collectStateStylesCss } from './styles';
+import { collectAnimationStylesCss } from './animation';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
 
@@ -1483,6 +1484,11 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
         {(() => {
           const css = collectStateStylesCss(document);
           return css ? <style data-kubuild-state-styles>{css}</style> : null;
+        })()}
+        {/* Compiled animation & hover micro-interactions CSS — STORA-264 */}
+        {(() => {
+          const animCss = collectAnimationStylesCss(document);
+          return animCss ? <style data-kubuild-animation-styles>{animCss}</style> : null;
         })()}
         <NodeRenderer
           node={document.document}

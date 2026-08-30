@@ -93,6 +93,28 @@ describe('Motion & Animation Sector Controls (STORA-261)', () => {
     expect(html).toContain('pulse');
   });
 
+  it('renders Play / Replay Animation button when animations are active and onReplay is provided (STORA-262)', () => {
+    const onReplaySpy = vi.fn();
+    const html = renderToString(
+      <MotionSectorControls
+        animation={{
+          type: 'fade-up',
+          duration: 600,
+          delay: 0,
+          easing: 'ease-out',
+          once: true,
+          hoverEffect: 'lift',
+          loopEffect: 'none',
+        }}
+        onChange={() => {}}
+        onReplay={onReplaySpy}
+      />,
+    );
+
+    expect(html).toContain('data-testid="motion-replay-button"');
+    expect(html).toContain('Play / Replay Animation');
+  });
+
   it('renders Motion sector inside StyleManagerAccordion when open', () => {
     const html = renderToString(
       <StyleManagerAccordion

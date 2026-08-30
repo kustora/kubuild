@@ -148,6 +148,7 @@ export interface StyleManagerAccordionProps {
   onCommitAnimation?: (animation: Partial<AnimationConfig>) => void;
   onResetStyles?: (properties?: string[]) => void;
   onResetAnimation?: () => void;
+  onReplayAnimation?: () => void;
   errors?: Record<string, string | null>;
   breakpoint?: 'base' | 'tablet' | 'mobile';
   className?: string;
@@ -161,6 +162,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
   onCommitAnimation,
   onResetStyles,
   onResetAnimation,
+  onReplayAnimation,
   errors = {},
   breakpoint = 'base',
   className = '',
@@ -589,6 +591,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                     <MotionSectorControls
                       animation={animation}
                       onChange={onCommitAnimation ?? (() => {})}
+                      onReplay={onReplayAnimation}
                     />
                   )}
                 </div>

@@ -10,6 +10,7 @@ import { BoxModelEditor } from './box-model-editor';
 import { StyleManagerAccordion } from './style-manager-accordion';
 import { TraitsPanel } from './traits-panel';
 import { ComponentIcon } from './icons';
+import { replayNodeAnimation } from '@kubuild/renderer';
 import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X } from 'lucide-react';
 
 export interface InspectorPanelProps {
@@ -1060,6 +1061,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           }}
           onResetAnimation={() => {
             updateNodeAnimation(node.id, null);
+          }}
+          onReplayAnimation={() => {
+            if (node?.id) {
+              replayNodeAnimation(node.id);
+            }
           }}
           errors={fieldErrors}
           breakpoint={activeBreakpoint}

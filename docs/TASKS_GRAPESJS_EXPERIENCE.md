@@ -460,7 +460,7 @@
 - **Summary:** Tombol "Live Replay Animation" di Inspector
 - **Description:** Tambahkan tombol **▶️ Play / Replay Animation** di inspector untuk memutar ulang animasi pada elemen terpilih di kanvas.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-261
 - **Acceptance Criteria:**
   - Mengklik tombol Play langsung menjalankan ulang animasi elemen di kanvas tanpa reload page.
@@ -484,7 +484,7 @@
 - **Summary:** Hover Micro-Interactions CSS Generator
 - **Description:** Compile efek hover (`lift`, `scale`, `glow`, `tilt`) menjadi kelas utility transisi CSS GPU-accelerated yang mulus.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-260
 - **Acceptance Criteria:**
   - Tombol atau kartu dengan hover `lift` naik secara mulus sebesar 4px saat kursor diarahkan ke elemen.
