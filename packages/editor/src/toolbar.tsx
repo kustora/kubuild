@@ -4,12 +4,72 @@ import { useEditorStore } from './store';
 import { ImportModal } from './import-modal';
 import { CodeViewerModal } from './code-viewer-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from './export-utils';
+import {
+  Copy,
+  ClipboardPaste,
+  CopyPlus,
+  Trash2,
+  Undo2,
+  Redo2,
+} from 'lucide-react';
 
 export interface EditorToolbarProps {
   registry: ComponentRegistry;
   className?: string;
   showExportImport?: boolean;
 }
+
+interface ToolbarIconButtonProps {
+  icon: React.ReactNode;
+  label: string;
+  shortcut?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+  'data-testid'?: string;
+}
+
+const ToolbarIconButton: React.FC<ToolbarIconButtonProps> = ({
+  icon,
+  label,
+  shortcut,
+  onClick,
+  disabled = false,
+  danger = false,
+  'data-testid': testId,
+}) => {
+  return (
+    <div className="relative group flex items-center justify-center">
+      <button
+        type="button"
+        data-testid={testId}
+        disabled={disabled}
+        onClick={onClick}
+        aria-label={`${label}${shortcut ? ` (${shortcut})` : ''}`}
+        title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
+        className={`p-1.5 rounded border border-slate-200 bg-white transition flex items-center justify-center cursor-pointer ${
+          danger
+            ? 'text-slate-700 hover:border-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-slate-700 disabled:hover:border-slate-200'
+            : 'text-slate-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-slate-700 disabled:hover:border-slate-200'
+        }`}
+      >
+        {icon}
+      </button>
+
+      {/* Floating tooltip on hover */}
+      <div
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 animate-fadeIn select-none"
+      >
+        <div className="bg-slate-900 text-white text-[11px] font-medium px-2 py-0.5 rounded shadow-md whitespace-nowrap flex items-center gap-1.5">
+          <span>{label}</span>
+          {shortcut && <span className="text-slate-400 text-[10px] font-mono">{shortcut}</span>}
+        </div>
+        <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mt-1" />
+      </div>
+    </div>
+  );
+};
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   registry,
@@ -111,7 +171,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           type="button"
           title={`Navigator / Element Tree (${navigatorMode !== 'hidden' ? 'Open' : 'Hidden'})`}
           onClick={toggleNavigator}
-          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium ${
+          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
             navigatorMode !== 'hidden'
               ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
               : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
@@ -130,60 +190,57 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
         <div className="h-4 w-px bg-slate-200 mx-1" />
 
-        <button
-          type="button"
-          title="Copy (Ctrl/Cmd+C)"
-          disabled={!hasSelection}
-          onClick={handleCopy}
-          className="text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-400 hover:text-blue-600 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-        >
-          Copy
-        </button>
-        <button
-          type="button"
-          title="Paste (Ctrl/Cmd+V)"
-          disabled={!canPaste}
-          onClick={handlePaste}
-          className="text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-400 hover:text-blue-600 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-        >
-          Paste
-        </button>
-        <button
-          type="button"
-          title="Duplicate (Ctrl/Cmd+D)"
-          disabled={!hasSelection}
-          onClick={handleDuplicate}
-          className="text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-400 hover:text-blue-600 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-        >
-          Duplicate
-        </button>
-        <button
-          type="button"
-          title="Delete (Del/Backspace)"
-          disabled={!hasSelection}
-          onClick={handleDelete}
-          className="text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-red-400 hover:text-red-600 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-        >
-          Delete
-        </button>
-        <button
-          type="button"
-          title="Undo (Ctrl/Cmd+Z)"
-          disabled={!canUndo}
-          onClick={undo}
-          className="text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-400 hover:text-blue-600 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-        >
-          Undo
-        </button>
-        <button
-          type="button"
-          title="Redo (Ctrl/Cmd+Shift+Z)"
-          disabled={!canRedo}
-          onClick={redo}
-          className="text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-blue-400 hover:text-blue-600 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-        >
-          Redo
-        </button>
+        <div className="flex items-center gap-1">
+          <ToolbarIconButton
+            icon={<Copy className="w-3.5 h-3.5" aria-hidden="true" />}
+            label="Copy"
+            shortcut="Ctrl/Cmd+C"
+            disabled={!hasSelection}
+            onClick={handleCopy}
+            data-testid="toolbar-copy"
+          />
+          <ToolbarIconButton
+            icon={<ClipboardPaste className="w-3.5 h-3.5" aria-hidden="true" />}
+            label="Paste"
+            shortcut="Ctrl/Cmd+V"
+            disabled={!canPaste}
+            onClick={handlePaste}
+            data-testid="toolbar-paste"
+          />
+          <ToolbarIconButton
+            icon={<CopyPlus className="w-3.5 h-3.5" aria-hidden="true" />}
+            label="Duplicate"
+            shortcut="Ctrl/Cmd+D"
+            disabled={!hasSelection}
+            onClick={handleDuplicate}
+            data-testid="toolbar-duplicate"
+          />
+          <ToolbarIconButton
+            icon={<Trash2 className="w-3.5 h-3.5" aria-hidden="true" />}
+            label="Delete"
+            shortcut="Del"
+            disabled={!hasSelection}
+            onClick={handleDelete}
+            danger
+            data-testid="toolbar-delete"
+          />
+          <ToolbarIconButton
+            icon={<Undo2 className="w-3.5 h-3.5" aria-hidden="true" />}
+            label="Undo"
+            shortcut="Ctrl/Cmd+Z"
+            disabled={!canUndo}
+            onClick={undo}
+            data-testid="toolbar-undo"
+          />
+          <ToolbarIconButton
+            icon={<Redo2 className="w-3.5 h-3.5" aria-hidden="true" />}
+            label="Redo"
+            shortcut="Ctrl/Cmd+Shift+Z"
+            disabled={!canRedo}
+            onClick={redo}
+            data-testid="toolbar-redo"
+          />
+        </div>
 
         <div className="h-4 w-px bg-slate-200 mx-1" />
 
