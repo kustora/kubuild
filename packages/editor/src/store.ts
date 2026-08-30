@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PageDocument, Node, StyleDefinition, TemplateRecord } from '@kubuild/schema';
+import { PageDocument, Node, StyleDefinition, TemplateRecord, AnimationConfig } from '@kubuild/schema';
 import {
   createBlankDocument,
   findNodeById,
@@ -12,6 +12,7 @@ import {
   removeNode,
   updateProps,
   updateStyle,
+  updateAnimation,
   DocumentHistoryManager,
   CommandResult,
   deepClone,
@@ -63,6 +64,11 @@ export interface UpdatePropsResult {
 }
 
 export interface UpdateStyleResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface UpdateAnimationResult {
   success: boolean;
   error?: string;
 }
@@ -167,6 +173,11 @@ export interface EditorState {
     state: string,
     merge?: boolean,
   ) => UpdateStyleResult;
+  updateNodeAnimation: (
+    nodeId: string,
+    animation: Partial<AnimationConfig> | null,
+    merge?: boolean,
+  ) => UpdateAnimationResult;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
@@ -426,6 +437,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateNodeStateStyle: (nodeId, styles, state, merge = true) => {
     try {
       get().dispatch((doc) => updateStyle(doc, { nodeId, styles, state, merge }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
+  updateNodeAnimation: (nodeId, animation, merge = true) => {
+    try {
+      get().dispatch((doc) => updateAnimation(doc, { nodeId, animation, merge }));
     } catch (err) {
       return { success: false, error: formatCommandError(err) };
     }

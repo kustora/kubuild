@@ -5,6 +5,8 @@ import {
   StyleDefinition,
   StyleDefinitionSchema,
   ResponsiveStylesSchema,
+  AnimationConfig,
+  AnimationConfigSchema,
 } from '@kubuild/schema';
 import {
   deepClone,
@@ -19,6 +21,7 @@ export type DocumentChangeType =
   | 'NODE_MOVED'
   | 'PROPS_UPDATED'
   | 'STYLE_UPDATED'
+  | 'ANIMATION_UPDATED'
   | 'NODE_REMOVED'
   | 'NODE_DUPLICATED';
 
@@ -488,3 +491,59 @@ export function duplicateNode(
     },
   };
 }
+
+export interface UpdateAnimationParams {
+  nodeId: string;
+  animation: Partial<AnimationConfig> | null;
+  /**
+   * If true (default), shallow merges new animation properties with existing animation config.
+   * If false, replaces the animation config with the provided object.
+   * If animation is null, removes the animation configuration from the node.
+   */
+  merge?: boolean;
+}
+
+/**
+ * 7. Update the animation configuration of an existing node.
+ * Returns a new PageDocument and an ANIMATION_UPDATED event.
+ */
+export function updateAnimation(
+  document: PageDocument,
+  params: UpdateAnimationParams,
+): CommandResult {
+  const { nodeId, animation, merge = true } = params;
+
+  const newDoc = deepClone(document);
+  const loc = findNodeLocation(newDoc.document, nodeId);
+  if (!loc) {
+    throw new Error(`Cannot update animation: Node with ID "${nodeId}" not found in document.`);
+  }
+
+  const targetNode = loc.node;
+  const previousAnimation = targetNode.animation ? deepClone(targetNode.animation) : undefined;
+
+  if (animation === null) {
+    delete targetNode.animation;
+  } else {
+    const currentAnimation = targetNode.animation ? deepClone(targetNode.animation) : {};
+    const candidate = merge
+      ? { ...currentAnimation, ...deepClone(animation) }
+      : deepClone(animation);
+    targetNode.animation = AnimationConfigSchema.parse(candidate);
+  }
+
+  return {
+    document: newDoc,
+    event: {
+      type: 'ANIMATION_UPDATED',
+      timestamp: new Date().toISOString(),
+      nodeId,
+      parentId: loc.parent ? loc.parent.id : undefined,
+      payload: {
+        animation: targetNode.animation,
+        previousAnimation,
+      },
+    },
+  };
+}
+

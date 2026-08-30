@@ -25,9 +25,9 @@ describe('Sector-Based Style Manager & Visual Box Model (STORA-202)', () => {
     }
   });
 
-  it('defines the 5 required sectors: Dimension, Spacing, Typography, Decorations, Flex', () => {
+  it('defines the required sectors: Dimension, Spacing, Typography, Decorations, Flex, Motion', () => {
     const sectorIds = STYLE_SECTORS.map((s) => s.id);
-    expect(sectorIds).toEqual(['dimension', 'spacing', 'typography', 'decorations', 'flex']);
+    expect(sectorIds).toEqual(['dimension', 'spacing', 'typography', 'decorations', 'flex', 'motion']);
 
     const sectorLabels = STYLE_SECTORS.map((s) => s.label);
     expect(sectorLabels).toContain('Dimension');
@@ -35,6 +35,7 @@ describe('Sector-Based Style Manager & Visual Box Model (STORA-202)', () => {
     expect(sectorLabels).toContain('Typography');
     expect(sectorLabels).toContain('Decorations');
     expect(sectorLabels).toContain('Flex / Alignment');
+    expect(sectorLabels).toContain('Motion / Animation');
   });
 
   it('loads and saves accordion state to localStorage', () => {
@@ -46,13 +47,14 @@ describe('Sector-Based Style Manager & Visual Box Model (STORA-202)', () => {
       typography: true,
       decorations: true,
       flex: false,
+      motion: true,
     };
     saveAccordionState(customState);
 
     expect(loadAccordionState()).toEqual(customState);
   });
 
-  it('renders all 5 accordion sector headers', () => {
+  it('renders all accordion sector headers', () => {
     const html = renderToString(
       <StyleManagerAccordion
         styles={{}}
@@ -66,6 +68,7 @@ describe('Sector-Based Style Manager & Visual Box Model (STORA-202)', () => {
     expect(html).toContain('Typography');
     expect(html).toContain('Decorations');
     expect(html).toContain('Flex / Alignment');
+    expect(html).toContain('Motion / Animation');
     expect(html).toContain('Expand All');
     expect(html).toContain('Collapse All');
   });

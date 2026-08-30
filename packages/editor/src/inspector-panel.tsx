@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
 import { findNodeById, findNodeLocation } from '@kubuild/core';
-import { isVariableBinding, PageDocument } from '@kubuild/schema';
+import { isVariableBinding, PageDocument, AnimationConfig } from '@kubuild/schema';
 import { useEditorStore, Viewport } from './store';
 import { VariableBindingControl, toBindingValue } from './variable-picker';
 import { AssetManagerModal } from './asset-manager-modal';
@@ -531,6 +531,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     updateNodeProps,
     updateNodeStyle,
     updateNodeStateStyle,
+    updateNodeAnimation,
     variableCatalog,
     insertComponent,
     deleteComponent,
@@ -1049,7 +1050,17 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         <StyleManagerAccordion
           key={`${node.id}-${activeBreakpoint}-${activeState}`}
           styles={activeLayer}
+          animation={node.animation}
           onCommitStyle={handleCommitSpacing}
+          onCommitAnimation={(anim) => {
+            const result = updateNodeAnimation(node.id, anim);
+            if (!result.success && result.error) {
+              setError('animation', result.error);
+            }
+          }}
+          onResetAnimation={() => {
+            updateNodeAnimation(node.id, null);
+          }}
           errors={fieldErrors}
           breakpoint={activeBreakpoint}
         />

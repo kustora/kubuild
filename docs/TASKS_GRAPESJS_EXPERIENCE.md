@@ -448,7 +448,7 @@
 - **Summary:** Animation & Motion Sector di Inspector Panel
 - **Description:** Buat sektor **Motion / Animation** di panel inspector editor dengan dropdown tipe animasi, slider duration/delay, dan hover/loop segmented buttons.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-260
 - **Acceptance Criteria:**
   - Mengubah tipe animasi atau delay menyimpan nilai ke node yang aktif secara realtime.

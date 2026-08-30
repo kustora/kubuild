@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { AnimationConfig, DEFAULT_ANIMATION_CONFIG } from '@kubuild/schema';
 import { ComponentIcon } from './icons';
 import { BoxModelEditor } from './box-model-editor';
 import { DimensionSectorControls } from './dimension-sector-controls';
 import { TypographySectorControls } from './typography-sector-controls';
+import { MotionSectorControls } from './motion-sector-controls';
 
-export type StyleSectorId = 'dimension' | 'spacing' | 'typography' | 'decorations' | 'flex';
+export type StyleSectorId = 'dimension' | 'spacing' | 'typography' | 'decorations' | 'flex' | 'motion';
 
 export interface StyleSectorDefinition {
   id: StyleSectorId;
@@ -63,6 +65,13 @@ export const STYLE_SECTORS: StyleSectorDefinition[] = [
     description: 'Flex direction, alignment, wrapping & gap',
     properties: ['flexDirection', 'justifyContent', 'alignItems', 'flexWrap', 'gap', 'alignContent', 'flexGrow', 'flexShrink'],
   },
+  {
+    id: 'motion',
+    label: 'Motion / Animation',
+    icon: 'motion',
+    description: 'Scroll entrance effects, duration, delay, hover & loop animations',
+    properties: ['type', 'duration', 'delay', 'easing', 'once', 'hoverEffect', 'loopEffect'],
+  },
 ];
 
 export const STORAGE_KEY_ACCORDION = 'kubuild:style-manager-accordion';
@@ -73,6 +82,7 @@ export const DEFAULT_ACCORDION_STATE: Record<StyleSectorId, boolean> = {
   typography: false,
   decorations: false,
   flex: false,
+  motion: false,
 };
 
 let memoryStorage: Record<string, string> = {};
@@ -133,8 +143,11 @@ export function saveAccordionState(state: Record<StyleSectorId, boolean>): void 
 
 export interface StyleManagerAccordionProps {
   styles?: Record<string, unknown>;
+  animation?: Partial<AnimationConfig>;
   onCommitStyle: (property: string, value: string) => void;
+  onCommitAnimation?: (animation: Partial<AnimationConfig>) => void;
   onResetStyles?: (properties?: string[]) => void;
+  onResetAnimation?: () => void;
   errors?: Record<string, string | null>;
   breakpoint?: 'base' | 'tablet' | 'mobile';
   className?: string;
@@ -143,8 +156,11 @@ export interface StyleManagerAccordionProps {
 
 export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
   styles = {},
+  animation,
   onCommitStyle,
+  onCommitAnimation,
   onResetStyles,
+  onResetAnimation,
   errors = {},
   breakpoint = 'base',
   className = '',
@@ -170,6 +186,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
       typography: true,
       decorations: true,
       flex: true,
+      motion: true,
     };
     setOpenState(next);
     saveAccordionState(next);
@@ -182,25 +199,35 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
       typography: false,
       decorations: false,
       flex: false,
+      motion: false,
     };
     setOpenState(next);
     saveAccordionState(next);
   }, []);
 
   const handleResetSector = useCallback(
-    (e: React.MouseEvent, properties: string[]) => {
+    (e: React.MouseEvent, sector: StyleSectorDefinition) => {
       e.stopPropagation();
+      if (sector.id === 'motion') {
+        if (onResetAnimation) {
+          onResetAnimation();
+        } else if (onCommitAnimation) {
+          onCommitAnimation(DEFAULT_ANIMATION_CONFIG);
+        }
+        return;
+      }
+
       if (onResetStyles) {
-        onResetStyles(properties);
+        onResetStyles(sector.properties);
       } else {
-        properties.forEach((prop) => {
+        sector.properties.forEach((prop) => {
           if (styles[prop] !== undefined && styles[prop] !== null && styles[prop] !== '') {
             onCommitStyle(prop, '');
           }
         });
       }
     },
-    [onResetStyles, onCommitStyle, styles],
+    [onResetStyles, onCommitStyle, onResetAnimation, onCommitAnimation, styles],
   );
 
   const handleResetAll = useCallback(() => {
@@ -213,19 +240,40 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
         }
       });
     }
-  }, [onResetStyles, onCommitStyle, styles]);
+    if (onResetAnimation) {
+      onResetAnimation();
+    } else if (onCommitAnimation) {
+      onCommitAnimation(DEFAULT_ANIMATION_CONFIG);
+    }
+  }, [onResetStyles, onCommitStyle, onResetAnimation, onCommitAnimation, styles]);
 
   // Compute number of active custom properties per sector
-  const getActivePropertyCount = (properties: string[]): number => {
-    return properties.filter((prop) => {
+  const getActivePropertyCount = (sector: StyleSectorDefinition): number => {
+    if (sector.id === 'motion') {
+      let count = 0;
+      if (animation?.type && animation.type !== 'none') count++;
+      if (animation?.delay !== undefined && animation.delay > 0) count++;
+      if (animation?.hoverEffect && animation.hoverEffect !== 'none') count++;
+      if (animation?.loopEffect && animation.loopEffect !== 'none') count++;
+      return count;
+    }
+
+    return sector.properties.filter((prop) => {
       const val = styles[prop];
       return val !== undefined && val !== null && val !== '';
     }).length;
   };
 
-  const totalActiveStyles = Object.values(styles).filter(
-    (val) => val !== undefined && val !== null && val !== '',
-  ).length;
+  const isMotionActive =
+    Boolean(animation?.type && animation.type !== 'none') ||
+    Boolean(animation?.hoverEffect && animation.hoverEffect !== 'none') ||
+    Boolean(animation?.loopEffect && animation.loopEffect !== 'none') ||
+    Boolean(animation?.delay !== undefined && animation.delay > 0);
+
+  const totalActiveStyles =
+    Object.values(styles).filter(
+      (val) => val !== undefined && val !== null && val !== '',
+    ).length + (isMotionActive ? 1 : 0);
 
   return (
     <div className={`flex flex-col gap-2 w-full min-w-0 max-w-full ${className}`} data-testid="style-manager-accordion">
@@ -278,7 +326,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
       <div className="flex flex-col gap-1.5">
         {STYLE_SECTORS.map((sector) => {
           const isOpen = Boolean(openState[sector.id]);
-          const activeCount = getActivePropertyCount(sector.properties);
+          const activeCount = getActivePropertyCount(sector);
 
           return (
             <div
@@ -318,7 +366,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                       type="button"
                       data-testid={`sector-reset-${sector.id}`}
                       title={`Reset ${sector.label} styles`}
-                      onClick={(e) => handleResetSector(e, sector.properties)}
+                      onClick={(e) => handleResetSector(e, sector)}
                       className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
                     >
                       <ComponentIcon iconOrType="reset" size={11} />
@@ -535,6 +583,13 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                         />
                       </div>
                     </div>
+                  )}
+
+                  {sector.id === 'motion' && (
+                    <MotionSectorControls
+                      animation={animation}
+                      onChange={onCommitAnimation ?? (() => {})}
+                    />
                   )}
                 </div>
               )}

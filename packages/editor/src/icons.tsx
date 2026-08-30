@@ -282,6 +282,23 @@ export const ComponentIcon: React.FC<ComponentIconProps> = ({
           <rect width="6" height="10" x="14" y="7" rx="1" />
         </svg>
       );
+    case 'motion':
+    case 'animation':
+      return (
+        <svg {...iconProps}>
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+          <path d="M5 3v4" />
+          <path d="M19 17v4" />
+          <path d="M3 5h4" />
+          <path d="M17 19h4" />
+        </svg>
+      );
+    case 'play':
+      return (
+        <svg {...iconProps}>
+          <polygon points="6 3 20 12 6 21 6 3" fill="currentColor" />
+        </svg>
+      );
     case 'chevron-down':
       return (
         <svg {...iconProps}>
