@@ -1,87 +1,134 @@
 ---
 title: '@kubuild/renderer API'
-description: 'API reference for DocumentRenderer, preview adapters, style resolution, and context in @kubuild/renderer.'
+description: 'Pure recursive React rendering engine, style compiler, runtime context provider, and HTML generator in @kubuild/renderer.'
 ---
 
 # `@kubuild/renderer` API Reference
 
-Package `@kubuild/renderer` provides the production runtime and interactive preview renderer for converting KUBUILD AST documents into performant, accessible React virtual DOM trees or static HTML.
+Package `@kubuild/renderer` is the lightweight, recursive React rendering engine for KUBUILD. It converts a `PageDocument` tree into high-performance React elements with zero editor chrome, full design token resolution, CSS pseudo-state compilation, and animation execution.
 
-## Components
+---
 
-### `<DocumentRenderer />`
+## Primary Component
 
-The primary renderer component for displaying a `PageDocument` in production applications or inside preview frames.
+### `<KubuildRenderer />`
+
+The top-level recursive renderer component.
 
 ```tsx
-import { DocumentRenderer } from '@kubuild/renderer';
+import { KubuildRenderer } from '@kubuild/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 
-export function PublishedPageView({ document, userData }) {
-  return (
-    <DocumentRenderer
-      document={document}
-      registry={createDefaultComponentRegistry()}
-      context={{
-        variables: {
-          user: userData,
-          currentYear: new Date().getFullYear(),
-        },
-        onAction: (actionType, payload) => {
-          console.log('User triggered action:', actionType, payload);
-        },
-      }}
-      breakpoint="desktop" // 'desktop' | 'tablet' | 'mobile'
-      mode="render"       // 'render' | 'preview' | 'edit'
-    />
-  );
-}
+<KubuildRenderer
+  document={document}
+  registry={createDefaultComponentRegistry()}
+  context={{
+    variables: { username: 'Jane Doe' },
+    actions: { onSubscribe: (payload) => handleSubscribe(payload) },
+  }}
+  viewport="desktop" // 'desktop' | 'tablet' | 'mobile'
+  mode="runtime"     // 'runtime' | 'editor' | 'preview'
+  className="landing-page"
+  onNodeClick={(nodeId, e) => console.log('Clicked node:', nodeId)}
+  onDiagnostic={(diag) => console.warn(diag)}
+/>
 ```
 
 #### Props
 
-| Prop | Type | Description |
-| :--- | :--- | :--- |
-| `document` | `PageDocument` | The AST document to render. |
-| `registry` | `ComponentRegistry` *(optional)* | Custom or default component registry. |
-| `context` | `RenderContext` *(optional)* | Dynamic variable mapping and action handlers. |
-| `breakpoint` | `'desktop' \| 'tablet' \| 'mobile'` *(optional)* | Active viewport for responsive style computation. Defaults to `'desktop'`. |
-| `mode` | `'render' \| 'preview' \| 'edit'` *(optional)* | Render mode. `'edit'` enables inline text editing and node selection identifiers. |
-| `onNodeClick` | `(nodeId: string, e: MouseEvent) => void` *(optional)* | Callback when an element is clicked in preview/edit mode. |
-| `onDiagnostic` | `(diagnostic: Diagnostic) => void` *(optional)* | Diagnostic error/warning handler. |
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `document` | `PageDocument` | **required** | The document AST tree to render. |
+| `registry` | `ComponentRegistry` | `createDefaultComponentRegistry()` | Component registry mapping node types to definitions and renderers. |
+| `context` | `RenderContext` | `undefined` | Host runtime context (variables, actions, asset resolver). |
+| `viewport` | `'desktop' \| 'tablet' \| 'mobile'` | `'desktop'` | Target viewport for responsive style computation. |
+| `mode` | `'runtime' \| 'editor' \| 'preview'` | `'runtime'` | Execution mode. In `editor` mode, error boundaries render inline diagnostic boxes; in `runtime` mode, errors fail gracefully. |
+| `className` | `string` | `undefined` | CSS class for the root wrapper div. |
+| `onNodeClick` | `(nodeId: string, event: React.MouseEvent) => void` | `undefined` | Node selection click handler. |
+| `onNodePropChange` | `(nodeId: string, prop: string, value: unknown) => void` | `undefined` | Direct inline text editing handler. |
+| `onActionDispatch` | `(action: ActionBinding) => void` | `undefined` | Custom action dispatcher handler. |
+| `onDiagnostic` | `(diag: Diagnostic) => void` | `undefined` | Error and warning diagnostic listener. |
 
 ---
 
-### `<PreviewAdapter />`
+## Context Provider
 
-Wraps the renderer inside an isolated `<iframe>` or viewport simulation container with automatic CSS scoping and event bridging.
+### `<RenderContextProvider />`
+
+Supplies ambient runtime variables and asset resolution functions down the React component tree.
 
 ```tsx
-import { PreviewAdapter } from '@kubuild/renderer';
+import { RenderContextProvider } from '@kubuild/renderer';
 
-<PreviewAdapter
-  document={document}
-  viewport="tablet"
-  zoom={1.0}
-/>
+<RenderContextProvider
+  value={{
+    variables: { siteTitle: 'Acme SaaS' },
+    assetProvider: {
+      resolveUrl: (assetId) => `https://cdn.example.com/assets/${assetId}`,
+    },
+  }}
+>
+  <KubuildRenderer document={doc} />
+</RenderContextProvider>
 ```
 
 ---
 
-### `<ComponentErrorBoundary />`
+## Styling & Animation Compilers
 
-Isolates rendering failures in individual custom components, rendering a graceful fallback badge instead of crashing the entire page.
+### 1. `resolveNodeStyles(node, viewport, state?)`
+Resolves cascading responsive styles for a specific node and viewport (`base` -> `tablet` -> `mobile`), returning a clean React CSS `style` object.
+
+```typescript
+import { resolveNodeStyles } from '@kubuild/renderer';
+
+const cssStyles = resolveNodeStyles(buttonNode, 'mobile', ':hover');
+```
+
+### 2. `collectStateStylesCss(document)`
+Compiles all pseudo-state overrides (`:hover`, `:active`, `:focus`) across the document into scoped CSS rules.
+
+```typescript
+import { collectStateStylesCss } from '@kubuild/renderer';
+
+const styleSheetCss = collectStateStylesCss(document);
+```
+
+### 3. `collectAnimationStylesCss(document)`
+Compiles keyframe animations and scroll entrance effects defined in `node.animation` into CSS classes.
+
+```typescript
+import { collectAnimationStylesCss, replayNodeAnimation } from '@kubuild/renderer';
+
+const animCss = collectAnimationStylesCss(document);
+
+// Trigger programmatic replay of an element's entrance animation
+replayNodeAnimation('card-1');
+```
 
 ---
 
-## Utilities & Helpers
+## Error Boundaries
 
-### `resolveNodeStyles(styles, breakpoint)`
+### `<ComponentErrorBoundary />`
 
-Computes the final flattened CSS properties for a node by layering `base` styles with the specified active breakpoint overrides.
+Wraps individual node rendering. In editor mode, displays an informative red alert card containing the component type and error message instead of crashing the application.
 
-```ts
-import { resolveNodeStyles } from '@kubuild/renderer';
+---
 
-const css = resolveNodeStyles(node.styles, 'mobile');
+## HTML Code Generation
+
+### `generateHtmlFromDocument(doc, options?)`
+
+Renders the entire `PageDocument` to clean, standalone, semantic HTML & CSS string without running React in a browser:
+
+```typescript
+import { generateHtmlFromDocument } from '@kubuild/renderer';
+import { createDefaultComponentRegistry } from '@kubuild/components';
+
+const htmlString = generateHtmlFromDocument(document, {
+  registry: createDefaultComponentRegistry(),
+  minify: true,
+  includeStyles: true,
+});
 ```

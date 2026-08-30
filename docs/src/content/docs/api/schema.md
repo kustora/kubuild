@@ -1,116 +1,177 @@
 ---
 title: '@kubuild/schema API'
-description: 'JSON schemas, Zod definitions, AST node types, and validator guards in @kubuild/schema.'
+description: 'Zod schemas, inferred TypeScript types, JSON Schema generation, and portable document definitions in @kubuild/schema.'
 ---
 
 # `@kubuild/schema` API Reference
 
-Package `@kubuild/schema` defines the portable `.stora` document specification, node tree structure, responsive style representations, and Zod validation schemas.
+Package `@kubuild/schema` defines the single source of truth for the portable `.stora` web document format. It provides runtime Zod schemas, inferred TypeScript interfaces, and JSON Schema generation utilities.
 
-## Data Types
+---
 
-### `PageDocument`
+## Core Constants
 
-The top-level container representing an entire builder page.
+```typescript
+import { SCHEMA_NAME, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
 
-```ts
-interface PageDocument {
+console.log(SCHEMA_NAME);            // "stora.page"
+console.log(CURRENT_SCHEMA_VERSION); // "1.0.0"
+```
+
+---
+
+## Primary Document Schemas
+
+### `PageDocumentSchema`
+
+Defines the root container structure for a serialized page.
+
+```typescript
+import { PageDocumentSchema, type PageDocument } from '@kubuild/schema';
+
+// Parse or validate untrusted JSON input
+const pageDoc: PageDocument = PageDocumentSchema.parse(rawJsonData);
+```
+
+#### Document Structure
+
+```typescript
+export interface PageDocument {
   schema: 'stora.page';
-  version: '1.0.0';
-  metadata?: DocumentMetadata;
-  document: RootPageNode;
+  version: string;
+  metadata: {
+    title: string;
+    description?: string;
+    author?: string;
+    tags?: string[];
+    category?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    thumbnail?: string;
+  };
+  document: Node;
 }
 ```
 
-### `Node` (AST Element)
+---
 
-The recursive node object representing every layout container, widget, typography block, or semantic element.
+### `NodeSchema`
 
-```ts
-interface Node {
-  id: string;                         // Unique, deterministic element identifier
-  type: string;                       // Registered component name ('Box', 'Button', 'Text', etc.)
-  props?: Record<string, unknown>;    // Component properties
-  styles?: ResponsiveStyles;          // Base and breakpoint-specific styles
-  children?: Node[];                  // Child nodes for layout containers
+Recursive node tree representing UI elements, nested children, properties, styles, and animation configurations.
+
+```typescript
+export interface Node {
+  id: string;
+  type: string;
+  props?: Record<string, unknown>;
+  styles?: ResponsiveStyles;
+  children?: Node[];
+  animation?: AnimationConfig;
 }
 ```
+
+---
+
+## Styling & Responsive Schemas
 
 ### `ResponsiveStyles`
 
-Responsive CSS style definitions organized by viewport breakpoint.
+Stores breakpoint-specific styling layers:
 
-```ts
-interface ResponsiveStyles {
-  base?: Record<string, string | number>;
-  desktop?: Record<string, string | number>;
-  tablet?: Record<string, string | number>;
-  mobile?: Record<string, string | number>;
+```typescript
+export interface ResponsiveStyles {
+  base?: StyleDefinition;
+  desktop?: StyleDefinition;
+  tablet?: StyleDefinition;
+  mobile?: StyleDefinition;
+  states?: {
+    ':hover'?: StyleDefinition;
+    ':active'?: StyleDefinition;
+    ':focus'?: StyleDefinition;
+    [customState: string]: StyleDefinition | undefined;
+  };
 }
 ```
 
-### `DocumentMetadata`
+### `StyleDefinition`
 
-```ts
-interface DocumentMetadata {
-  title: string;
-  description?: string;
-  author?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  tags?: string[];
-  category?: string;
-  version?: string;
-  custom?: Record<string, unknown>;
+A safe, sanitized key-value dictionary mapping CSS properties to primitive values. String values are verified against CSS/HTML injection attacks (e.g., `javascript:`, `@import`, `<script>`).
+
+---
+
+## Animation Schema (`AnimationConfig`)
+
+```typescript
+export interface AnimationConfig {
+  type: 'none' | 'fadeIn' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'zoomIn' | 'bounce';
+  duration?: number;   // Milliseconds (e.g. 500)
+  delay?: number;      // Milliseconds (e.g. 100)
+  easing?: 'ease' | 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+  once?: boolean;      // Replay on every scroll entry or once only
+  hoverEffect?: 'none' | 'lift' | 'scale' | 'glow' | 'pulse';
+  loopEffect?: 'none' | 'float' | 'pulse' | 'spin';
 }
 ```
 
 ---
 
-## Zod Schemas
+## Dynamic Bindings & Asset References
 
-All types are paired with matching Zod schemas for runtime schema validation:
+### 1. `VariableBindingSchema`
+Represents runtime dynamic variables (e.g. `{{ site.title }}`):
+```typescript
+export interface VariableBinding {
+  type: 'variable';
+  key: string;
+  fallback?: unknown;
+}
+```
 
-- `PageDocumentSchema`
-- `NodeSchema`
-- `ResponsiveStylesSchema`
-- `DocumentMetadataSchema`
-- `AssetReferenceSchema`
-- `VariableBindingSchema`
+### 2. `AssetReferenceSchema`
+Represents assets bundled inside the `.stora` package or hosted via external CDN:
+```typescript
+export interface AssetReference {
+  type: 'asset';
+  assetId: string;
+  filename?: string;
+  mimeType?: string;
+  fallbackUrl?: string;
+}
+```
 
-```ts
-import { PageDocumentSchema } from '@kubuild/schema';
-
-const parseResult = PageDocumentSchema.safeParse(untrustedJson);
-if (!parseResult.success) {
-  console.error(parseResult.error.format());
+### 3. `ActionBindingSchema`
+Represents interactive triggers (navigation, modal open, form submit):
+```typescript
+export interface ActionBinding {
+  type: string;
+  payload?: Record<string, unknown>;
 }
 ```
 
 ---
 
-## Type Guards & Helpers
+## Type Guards
 
-### `collectNodeIds(node)`
+```typescript
+import {
+  isVariableBinding,
+  isAssetReference,
+  isActionBinding,
+} from '@kubuild/schema';
 
-Returns an array of all node IDs in a subtree.
-
-```ts
-import { collectNodeIds } from '@kubuild/schema';
-
-const ids = collectNodeIds(rootNode);
+if (isVariableBinding(propValue)) {
+  console.log('Dynamic variable key:', propValue.key);
+}
 ```
 
-### `validateNodeIdUniqueness(node)`
+---
 
-Checks that every node in the document has a unique ID, returning any duplicates.
+## JSON Schema Generation
 
-```ts
-import { validateNodeIdUniqueness } from '@kubuild/schema';
+Export the Zod schemas directly to JSON Schema standard (draft-07) for cross-language validation in Go, Rust, or Python:
 
-const { valid, duplicateIds } = validateNodeIdUniqueness(rootNode);
+```typescript
+import { getPageDocumentJsonSchema } from '@kubuild/schema';
+
+const jsonSchema = getPageDocumentJsonSchema();
 ```
-
-### `generateDeterministicNodeId(prefix, indexOrKey)`
-
-Generates stable IDs for generated or duplicated nodes (e.g. `button_1`, `hero_header_0`).

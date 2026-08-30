@@ -1,146 +1,152 @@
 ---
 title: '@kubuild/core API'
-description: 'API reference for the command engine, validation, serialization, security, and template utilities in @kubuild/core.'
+description: 'Framework-agnostic engine for document tree manipulation, immutable command pipeline, history engine, schema validation, and migration.'
 ---
 
 # `@kubuild/core` API Reference
 
-The `@kubuild/core` package provides the headless engine powering document transformations, history stacks, validations, security sanitization, and import/export utilities.
+Package `@kubuild/core` is the pure TypeScript, zero-DOM engine driving KUBUILD. It manages the document model, executes immutable state mutations, enforces undo/redo history, performs structural validation, and provides portable import/export sanitization.
 
-## Document & Tree Utilities
+---
 
-### `createBlankDocument(options?)`
+## Document Factory & Helpers
 
-Creates a valid initial `PageDocument` with metadata and empty root container.
+### `createBlankDocument(title?)`
 
-```ts
+Creates a valid, pristine `PageDocument` compliant with the current schema specification.
+
+```typescript
 import { createBlankDocument } from '@kubuild/core';
 
-const doc = createBlankDocument({
-  title: 'My Landing Page',
-  description: 'Marketing campaign page',
+const doc = createBlankDocument('Home Page');
+```
+
+### Tree Utilities
+
+| Utility Function | Parameters | Returns | Description |
+| :--- | :--- | :--- | :--- |
+| `findNodeById(rootNode, targetId)` | `Node, string` | `Node \| null` | Recursively searches the node tree by ID. |
+| `findNodeLocation(rootNode, targetId)` | `Node, string` | `{ parent: Node \| null; index: number; node: Node } \| null` | Finds a node along with its parent reference and child array index. |
+| `isDescendantOf(rootNode, candidateDescendantId)` | `Node, string` | `boolean` | Checks if a given node is inside another node's descendant subtree. |
+| `collectNodeIdSet(rootNode)` | `Node` | `Set<string>` | Collects all unique node IDs across the entire tree. |
+| `cloneTreeWithNewIds(node, prefix?, existingIds?)` | `Node, string?, Set<string>?` | `{ clonedNode: Node; idMap: Map<string, string> }` | Deep-clones a node subtree while generating fresh non-colliding UUIDs. |
+
+---
+
+## Command Engine & Mutators
+
+KUBUILD forbids direct in-place node mutation. All changes flow through pure immutable command functions returning a modified copy of the `PageDocument`.
+
+```typescript
+import {
+  insertNode,
+  moveNode,
+  updateProps,
+  updateStyle,
+  deleteNode,
+  duplicateNode,
+} from '@kubuild/core';
+
+// Insert node
+const docAfterInsert = insertNode(doc, {
+  parentId: 'section-1',
+  node: { id: 'btn-1', type: 'button', props: { label: 'Click Me' } },
+  index: 0,
 });
-```
 
-### `findNodeById(doc, nodeId)`
+// Update props
+const docAfterProps = updateProps(doc, {
+  nodeId: 'btn-1',
+  props: { label: 'Submit Form' },
+  merge: true,
+});
 
-Recursively searches the document node tree for a node matching the specified ID.
+// Update style breakpoint
+const docAfterStyle = updateStyle(doc, {
+  nodeId: 'btn-1',
+  styles: { backgroundColor: '#3b82f6', color: '#ffffff' },
+  breakpoint: 'base',
+});
 
-```ts
-import { findNodeById } from '@kubuild/core';
-
-const node = findNodeById(doc, 'node-123');
-```
-
----
-
-## Command Engine & History
-
-### `HistoryManager`
-
-Manages undo/redo history stacks using immutable delta commands.
-
-```ts
-import { HistoryManager, InsertNodeCommand } from '@kubuild/core';
-
-const history = new HistoryManager(initialDocument);
-
-// Execute a command
-const newDoc = history.execute(
-  new InsertNodeCommand({
-    parentId: 'root',
-    index: 0,
-    node: {
-      id: 'button-1',
-      type: 'Button',
-      props: { label: 'Click Me' },
-      styles: {},
-    },
-  })
-);
-
-// Undo / Redo
-const undoneDoc = history.undo();
-const redoneDoc = history.redo();
+// Delete node
+const docAfterDelete = deleteNode(doc, { nodeId: 'btn-1' });
 ```
 
 ---
 
-## Validation & Diagnostics
+## History & Undo/Redo Engine
+
+### `DocumentHistoryManager`
+
+A generic, immutable undo/redo history manager that tracks document states with configurable history size and linear branching.
+
+```typescript
+import { DocumentHistoryManager, createBlankDocument } from '@kubuild/core';
+
+const history = new DocumentHistoryManager(createBlankDocument(), { maxHistory: 50 });
+
+// Execute an action through the history manager
+const result = history.execute((currentDoc) => {
+  return updateProps(currentDoc, { nodeId: 'hero-1', props: { title: 'Updated Title' } });
+});
+
+console.log(history.canUndo); // true
+console.log(history.canRedo); // false
+
+// Undo previous state
+const previousDoc = history.undo();
+
+// Redo undone state
+const restoredDoc = history.redo();
+```
+
+---
+
+## Validation & Cycle Detection
 
 ### `validateDocument(doc, options?)`
 
-Validates a `PageDocument` against the JSON schema and semantic tree constraints.
+Performs deep structural schema validation, duplicate ID detection, hierarchy cycle checks, and component registry policy compliance.
 
-```ts
+```typescript
 import { validateDocument } from '@kubuild/core';
+import { createDefaultComponentRegistry } from '@kubuild/components';
 
-const result = validateDocument(doc);
-if (!result.valid) {
-  console.error('Validation errors:', result.errors);
+const registry = createDefaultComponentRegistry();
+const validation = validateDocument(doc, { registry });
+
+if (!validation.valid) {
+  console.error('Validation failed:');
+  for (const error of validation.errors) {
+    console.error(`- [${error.code}] ${error.message} at node #${error.nodeId}`);
+  }
 }
 ```
 
 ---
 
-## Variable Resolution & Template Engine
+## Migration Engine
 
-### `resolveBindings(templateStr, context)`
+### `migrateDocument(rawDoc, targetVersion?)`
 
-Interpolates mustache variables inside text and attributes safely.
+Safely migrates documents between schema versions with validation and automatic backward-compatibility transformers.
 
-```ts
-import { resolveBindings } from '@kubuild/core';
+```typescript
+import { migrateDocument } from '@kubuild/core';
 
-const output = resolveBindings('Hello, {{user.name}}!', {
-  variables: {
-    user: { name: 'Sarah Connor' },
-  },
-});
-// output: "Hello, Sarah Connor!"
-```
+const migrationResult = migrateDocument(legacyJsonDocument, '1.0.0');
 
-### `buildSampleVariablesFromCatalog(catalog)`
-
-Generates a mock runtime variables object from a `VariableCatalog` for live canvas previews.
-
-```ts
-import { buildSampleVariablesFromCatalog } from '@kubuild/core';
-
-const sampleData = buildSampleVariablesFromCatalog(myCatalog);
+if (migrationResult.success) {
+  console.log('Migrated document:', migrationResult.document);
+} else {
+  console.error('Migration failed:', migrationResult.errors);
+}
 ```
 
 ---
 
-## Security & Sanitization
+## Security & Runtime Resolvers
 
-### `sanitizeHtml(rawHtml, options?)`
-
-Sanitizes user-supplied HTML strings to prevent XSS attacks while preserving allowed formatting.
-
-```ts
-import { sanitizeHtml } from '@kubuild/core';
-
-const safeHtml = sanitizeHtml('<script>alert(1)</script><p>Safe content</p>');
-// Result: "<p>Safe content</p>"
-```
-
----
-
-## Importer & Exporter
-
-### `StoraPackageExporter` & `StoraPackageImporter`
-
-Handles parsing and archiving `.stora` packages.
-
-```ts
-import { StoraPackageExporter, StoraPackageImporter } from '@kubuild/core';
-
-// Export to ZIP Blob
-const exporter = new StoraPackageExporter();
-const zipBlob = await exporter.exportToZip(document);
-
-// Import from ZIP Blob
-const importer = new StoraPackageImporter();
-const importedDoc = await importer.importFromZip(zipBlob);
-```
+- **`sanitizeHtml(rawHtml)`**: Cleans raw HTML inputs against XSS and script injection attacks.
+- **`sanitizeUrl(url)`**: Validates and strips dangerous URL protocols (`javascript:`, `data:text/html`).
+- **`resolveBinding(binding, context)`**: Evaluates variable bindings (`{{ user.name }}`) against the runtime context.
