@@ -142,7 +142,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
 
       {/* Main Body: Component Panel + Canvas */}
       <div className="flex flex-1 overflow-hidden min-h-0">
-        <div className="w-72 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col min-h-0 h-full">
+        <div className="w-80 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col min-h-0 h-full">
           <LeftSidebar registry={registry} />
         </div>
 

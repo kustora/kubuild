@@ -39,13 +39,13 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           aria-controls="tabpanel-components"
           data-testid="tab-components"
           onClick={() => setActiveTab('components')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-t-md transition-all flex items-center justify-center gap-1.5 border-t border-x ${
+          className={`flex-1 py-2 px-2 text-xs font-semibold rounded-t-md transition-all flex items-center justify-center gap-1.5 border-t border-x ${
             activeTab === 'components'
               ? 'bg-white text-blue-600 border-slate-200 border-b-white -mb-px shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
+          <Boxes className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           <span>Components</span>
         </button>
 
@@ -57,13 +57,13 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           aria-controls="tabpanel-blocks"
           data-testid="tab-blocks"
           onClick={() => setActiveTab('blocks')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-t-md transition-all flex items-center justify-center gap-1.5 border-t border-x ${
+          className={`flex-1 py-2 px-2 text-xs font-semibold rounded-t-md transition-all flex items-center justify-center gap-1.5 border-t border-x ${
             activeTab === 'blocks'
               ? 'bg-white text-blue-600 border-slate-200 border-b-white -mb-px shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <Blocks className="w-3.5 h-3.5" aria-hidden="true" />
+          <Blocks className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           <span>Blocks</span>
         </button>
 
@@ -75,13 +75,13 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           aria-controls="tabpanel-layers"
           data-testid="tab-layers"
           onClick={() => setActiveTab('layers')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-t-md transition-all flex items-center justify-center gap-1.5 border-t border-x ${
+          className={`flex-1 py-2 px-2 text-xs font-semibold rounded-t-md transition-all flex items-center justify-center gap-1.5 border-t border-x ${
             activeTab === 'layers'
               ? 'bg-white text-blue-600 border-slate-200 border-b-white -mb-px shadow-xs'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <Layers className="w-3.5 h-3.5" aria-hidden="true" />
+          <Layers className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           <span>Layers</span>
         </button>
       </div>
