@@ -12,7 +12,7 @@ import {
   Diagnostic,
 } from './render-context';
 import { resolveBinding, sanitizeUrl, sanitizeHtml } from '@kubuild/core';
-import { icons as lucideIcons } from 'lucide-react';
+import { icons as lucideIcons, Package, Puzzle, AlertTriangle } from 'lucide-react';
 import { resolveNodeStyles, collectStateStylesCss } from './styles';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
@@ -1324,8 +1324,9 @@ export function NodeRenderer({
                 }}
                 onClick={handleClick}
               >
-                <div style={{ fontWeight: 600, fontSize: '13px' }}>
-                  📦 Collection: expected an array at <code>{sourceKey ?? '(missing sourceKey)'}</code>
+                <div style={{ fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Package size={14} aria-hidden="true" />
+                  <span>Collection: expected an array at <code>{sourceKey ?? '(missing sourceKey)'}</code></span>
                 </div>
               </div>
             );
@@ -1383,8 +1384,9 @@ export function NodeRenderer({
               }}
               onClick={handleClick}
             >
-              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>
-                🧩 Unknown Component: <code>{node.type}</code>
+              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Puzzle size={14} aria-hidden="true" />
+                <span>Unknown Component: <code>{node.type}</code></span>
               </div>
               <div style={{ fontSize: '11px', color: '#b45309', marginBottom: childrenElements ? '8px' : 0 }}>
                 Node ID: <code>{node.id}</code>
@@ -1430,8 +1432,9 @@ export function NodeRenderer({
             lineHeight: '1.4',
           }}
         >
-          <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-            ⚠️ Component Render Error: &lt;{node.type}&gt;
+          <div style={{ fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <AlertTriangle size={14} aria-hidden="true" />
+            <span>Component Render Error: &lt;{node.type}&gt;</span>
           </div>
           <div style={{ fontSize: '11px', color: '#7f1d1d', wordBreak: 'break-all' }}>
             Node ID: <code>{node.id}</code> — {error instanceof Error ? error.message : String(error)}

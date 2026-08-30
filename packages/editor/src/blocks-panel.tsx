@@ -3,6 +3,7 @@ import { STARTER_BLOCKS, BlockDefinition, ComponentRegistry } from '@kubuild/com
 import { insertNode, collectNodeIdSet } from '@kubuild/core';
 import { useEditorStore } from './store';
 import { ComponentIcon } from './icons';
+import { Image as ImageIcon } from 'lucide-react';
 
 export interface BlocksPanelProps {
   registry?: ComponentRegistry;
@@ -96,8 +97,8 @@ export const BlockThumbnail: React.FC<{ block: BlockDefinition }> = ({ block }) 
     case 'media-object':
       return (
         <div className="w-full h-12 bg-white border border-slate-200 rounded flex items-center gap-1.5 p-1.5">
-          <div className="w-7 h-7 bg-indigo-200 border border-indigo-300 rounded shrink-0 flex items-center justify-center text-[10px]">
-            🖼️
+          <div className="w-7 h-7 bg-indigo-50 border border-indigo-200 rounded shrink-0 flex items-center justify-center">
+            <ImageIcon className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="flex-1 flex flex-col gap-1">
             <div className="w-3/4 h-1.5 bg-slate-700 rounded" />

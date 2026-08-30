@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 export interface ComponentErrorBoundaryProps {
   nodeId: string;
@@ -54,8 +55,9 @@ export class ComponentErrorBoundary extends Component<
               lineHeight: '1.4',
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-              ⚠️ Component Render Error: &lt;{componentType}&gt;
+            <div style={{ fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <AlertTriangle size={14} aria-hidden="true" />
+              <span>Component Render Error: &lt;{componentType}&gt;</span>
             </div>
             <div style={{ fontSize: '11px', color: '#7f1d1d', wordBreak: 'break-all' }}>
               Node ID: <code>{nodeId}</code> — {errorMessage}

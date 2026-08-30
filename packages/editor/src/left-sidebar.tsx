@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ComponentRegistry } from '@kubuild/components';
+import { Boxes, Blocks, Layers } from 'lucide-react';
 import { ComponentPanel } from './component-panel';
 import { BlocksPanel } from './blocks-panel';
 import { LayersPanel } from './layers-panel';
@@ -44,7 +45,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <span aria-hidden="true" className="text-sm">🧩</span>
+          <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Components</span>
         </button>
 
@@ -62,7 +63,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <span aria-hidden="true" className="text-sm">🧱</span>
+          <Blocks className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Blocks</span>
         </button>
 
@@ -80,7 +81,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <span aria-hidden="true" className="text-sm">🗂️</span>
+          <Layers className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Layers</span>
         </button>
       </div>

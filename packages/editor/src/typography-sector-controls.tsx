@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DimensionUnitInput } from './dimension-sector-controls';
+import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
 
 export interface FontOption {
   label: string;
@@ -306,10 +307,10 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
           <label className="block text-[11px] font-medium text-slate-600 mb-1">Text Align</label>
           <div className="grid grid-cols-4 rounded border border-slate-300 bg-slate-100 p-0.5 gap-0.5 shadow-2xs">
             {[
-              { id: 'left', label: 'Left', icon: '⫷' },
-              { id: 'center', label: 'Center', icon: '≡' },
-              { id: 'right', label: 'Right', icon: '⫸' },
-              { id: 'justify', label: 'Justify', icon: '▤' },
+              { id: 'left', label: 'Left', icon: <AlignLeft className="w-3.5 h-3.5 mx-auto" /> },
+              { id: 'center', label: 'Center', icon: <AlignCenter className="w-3.5 h-3.5 mx-auto" /> },
+              { id: 'right', label: 'Right', icon: <AlignRight className="w-3.5 h-3.5 mx-auto" /> },
+              { id: 'justify', label: 'Justify', icon: <AlignJustify className="w-3.5 h-3.5 mx-auto" /> },
             ].map((btn) => {
               const isActive = (styles.textAlign ?? 'left') === btn.id;
               return (
@@ -320,7 +321,7 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
                   title={`Align ${btn.label}`}
                   disabled={disabled}
                   onClick={() => onChange('textAlign', btn.id)}
-                  className={`py-1 text-xs font-bold rounded transition cursor-pointer ${
+                  className={`py-1 text-xs font-bold rounded transition cursor-pointer flex items-center justify-center ${
                     isActive
                       ? 'bg-white text-blue-600 shadow-xs'
                       : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'

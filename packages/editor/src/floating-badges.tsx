@@ -2,6 +2,7 @@ import React from 'react';
 import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getParentNodeId } from '@kubuild/core';
+import { ArrowUp, Move, Copy, Trash2 } from 'lucide-react';
 import { useEditorStore } from './store';
 
 export interface FloatingActionBadgesProps {
@@ -21,10 +22,10 @@ export interface FloatingActionBadgesProps {
  * Floating Action Badges rendered above the active bounding box on the canvas — STORA-230.
  * Includes:
  *  - Component Type / Tag Badge
- *  - ⬆️ Select Parent
- *  - 🖐️ Move Handle
- *  - 📑 Duplicate
- *  - 🗑️ Delete
+ *  - Select Parent (ArrowUp)
+ *  - Move Handle (Move)
+ *  - Duplicate (Copy)
+ *  - Delete (Trash2)
  */
 export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
   selectedNodeId,
@@ -67,21 +68,21 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
         {label}
       </span>
 
-      {/* ⬆️ Select Parent Button */}
+      {/* Select Parent Button */}
       {parentId && (
         <button
           type="button"
           data-testid="floating-badge-select-parent"
-          title="Select Parent (⬆)"
+          title="Select Parent"
           aria-label="Select Parent"
           onClick={() => selectNode(parentId)}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
-          <span aria-hidden="true">⬆️</span>
+          <ArrowUp className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       )}
 
-      {/* 🖐️ Move Handle */}
+      {/* Move Handle */}
       {!isRoot && (
         <div
           data-testid="floating-badge-move"
@@ -91,11 +92,11 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           onDragStart={onDragStart}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 cursor-grab active:cursor-grabbing transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
-          <span aria-hidden="true">🖐️</span>
+          <Move className="w-3.5 h-3.5" aria-hidden="true" />
         </div>
       )}
 
-      {/* 📑 Duplicate Button */}
+      {/* Duplicate Button */}
       {!isRoot && (
         <button
           type="button"
@@ -105,11 +106,11 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           onClick={() => duplicateComponent(node.id, registry)}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
-          <span aria-hidden="true">📑</span>
+          <Copy className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       )}
 
-      {/* 🗑️ Delete Button */}
+      {/* Delete Button */}
       {!isRoot && (
         <button
           type="button"
@@ -119,7 +120,7 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           onClick={() => deleteComponent(node.id)}
           className="px-1.5 py-1 hover:bg-red-500 active:bg-red-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
-          <span aria-hidden="true">🗑️</span>
+          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       )}
     </div>

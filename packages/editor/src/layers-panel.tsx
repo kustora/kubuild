@@ -4,6 +4,7 @@ import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, findNodeLocation, isDescendantOf, getAncestorChain } from '@kubuild/core';
 import { useEditorStore } from './store';
 import { ComponentIcon } from './icons';
+import { ChevronDown, ChevronRight, X, GripVertical } from 'lucide-react';
 
 export interface LayersPanelProps {
   registry: ComponentRegistry;
@@ -217,9 +218,13 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ registry, className })
                 toggleExpanded(node.id);
               }}
               aria-label={isExpanded ? 'Collapse' : 'Expand'}
-              className="w-4 shrink-0 text-slate-400 hover:text-slate-700"
+              className="w-4 shrink-0 text-slate-400 hover:text-slate-700 flex items-center justify-center"
             >
-              {isExpanded ? '▾' : '▸'}
+              {isExpanded ? (
+                <ChevronDown className="w-3 h-3" aria-hidden="true" />
+              ) : (
+                <ChevronRight className="w-3 h-3" aria-hidden="true" />
+              )}
             </button>
           ) : (
             <span className="w-4 shrink-0" />
@@ -255,7 +260,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ registry, className })
       }`}
     >
       <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-700">
-        {isFloating && <span className="text-slate-400 font-mono text-[10px] tracking-tighter mr-0.5">⋮⋮</span>}
+        {isFloating && <GripVertical className="w-3 h-3 text-slate-400 mr-0.5" aria-hidden="true" />}
         <ComponentIcon iconOrType="layout" size={13} />
         <span>Navigator</span>
       </div>
@@ -282,9 +287,9 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ registry, className })
           type="button"
           onClick={() => setNavigatorMode('hidden')}
           title="Hide Navigator"
-          className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition text-xs font-semibold"
+          className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-red-50 transition"
         >
-          ✕
+          <X className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       </div>
     </div>

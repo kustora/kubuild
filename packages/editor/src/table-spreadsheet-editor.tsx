@@ -5,6 +5,7 @@ import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getAncestorChain, deepClone } from '@kubuild/core';
 import { useEditorStore } from './store';
 import { ComponentIcon } from './icons';
+import { X, Trash2 } from 'lucide-react';
 
 export interface TableSpreadsheetEditorProps {
   registry: ComponentRegistry;
@@ -384,9 +385,9 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
           <button
             type="button"
             onClick={() => setIsImportModalOpen(false)}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-md text-sm font-bold transition"
+            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-md transition flex items-center justify-center"
           >
-            ✕
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -590,9 +591,9 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
               type="button"
               onClick={onClose}
               title="Close Spreadsheet view"
-              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition text-xs font-bold"
+              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition flex items-center justify-center"
             >
-              ✕
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -658,9 +659,9 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
                         type="button"
                         onClick={() => handleDeleteColumn(colIdx)}
                         title={`Delete Column ${getColumnLabel(colIdx)}`}
-                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 px-0.5 text-[10px] rounded"
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-0.5 rounded flex items-center justify-center"
                       >
-                        ✕
+                        <Trash2 className="w-2.5 h-2.5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -786,9 +787,9 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
                       type="button"
                       onClick={() => deleteComponent(row.id)}
                       title={`Delete Row ${rowIdx + 1}`}
-                      className="text-slate-400 hover:text-red-600 p-0.5 rounded text-xs"
+                      className="text-slate-400 hover:text-red-600 p-1 rounded flex items-center justify-center mx-auto"
                     >
-                      ✕
+                      <Trash2 className="w-3 h-3" aria-hidden="true" />
                     </button>
                   </td>
                 </tr>

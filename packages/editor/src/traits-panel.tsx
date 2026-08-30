@@ -8,6 +8,7 @@ import {
 } from '@kubuild/components';
 import { findNodeById } from '@kubuild/core';
 import { PageDocument } from '@kubuild/schema';
+import { X } from 'lucide-react';
 
 export interface TraitsPanelProps {
   registry: ComponentRegistry;
@@ -165,7 +166,7 @@ const TraitMediaSrcControl: React.FC<TraitStringControlProps> = ({ trait, value,
             title="Clear image"
             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer text-xs"
           >
-            ✕
+            <X className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
       )}

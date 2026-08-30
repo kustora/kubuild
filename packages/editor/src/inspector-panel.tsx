@@ -10,6 +10,7 @@ import { BoxModelEditor } from './box-model-editor';
 import { StyleManagerAccordion } from './style-manager-accordion';
 import { TraitsPanel } from './traits-panel';
 import { ComponentIcon } from './icons';
+import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X } from 'lucide-react';
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
@@ -256,7 +257,7 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
             title="Clear image"
             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer text-xs"
           >
-            ✕
+            <X className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -510,7 +511,7 @@ export const StateEditingBadge: React.FC<{ state: string }> = ({ state }) => (
     data-testid="state-editing-badge"
     className="flex items-center gap-1.5 mb-2 px-2 py-1.5 rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs font-medium"
   >
-    <span aria-hidden="true">⚠️</span>
+    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" aria-hidden="true" />
     <span>Editing {state} State</span>
   </div>
 );
@@ -754,29 +755,31 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           }}
         />
       )}
-      {/* Tab bar: Style (🎨) / Traits (⚙️) — STORA-211 */}
+      {/* Tab bar: Style / Traits — STORA-211 */}
       <div className="flex shrink-0 border-b border-slate-200 bg-slate-50">
         <button
           type="button"
           onClick={() => setActiveTab('style')}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 ${
+          className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
             activeTab === 'style'
               ? 'text-blue-600 border-blue-600 bg-white'
               : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
           }`}
         >
-          🎨 Style
+          <Palette className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>Style</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('traits')}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 ${
+          className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
             activeTab === 'traits'
               ? 'text-blue-600 border-blue-600 bg-white'
               : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
           }`}
         >
-          ⚙️ Traits
+          <Settings className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>Traits</span>
         </button>
       </div>
 
@@ -823,17 +826,17 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   type="button"
                   title="Select Item"
                   onClick={() => selectNode(child.id)}
-                  className="px-1 text-xs text-slate-400 hover:text-blue-600 rounded"
+                  className="p-1 text-slate-400 hover:text-blue-600 rounded flex items-center justify-center"
                 >
-                  🎯
+                  <Crosshair className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
                   title="Delete Item"
                   onClick={() => deleteComponent(child.id)}
-                  className="px-1 text-xs text-slate-400 hover:text-red-600 rounded"
+                  className="p-1 text-slate-400 hover:text-red-600 rounded flex items-center justify-center"
                 >
-                  ✕
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>
             ))}
@@ -950,17 +953,17 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     type="button"
                     title="Select Row"
                     onClick={() => selectNode(row.id)}
-                    className="p-1 text-slate-400 hover:text-blue-600 rounded"
+                    className="p-1 text-slate-400 hover:text-blue-600 rounded flex items-center justify-center"
                   >
-                    🎯
+                    <Crosshair className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                   <button
                     type="button"
                     title="Delete Row"
                     onClick={() => deleteComponent(row.id)}
-                    className="p-1 text-slate-400 hover:text-red-600 rounded"
+                    className="p-1 text-slate-400 hover:text-red-600 rounded flex items-center justify-center"
                   >
-                    ✕
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
