@@ -10,6 +10,7 @@ import { InspectorPanel } from './inspector-panel';
 import { LayersPanel } from './layers-panel';
 import { TableSpreadsheetEditor, findActiveTableNode } from './table-spreadsheet-editor';
 import { HierarchyBreadcrumbs } from './breadcrumbs';
+import { LeftSidebar } from './left-sidebar';
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
@@ -141,8 +142,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
 
       {/* Main Body: Component Panel + Canvas */}
       <div className="flex flex-1 overflow-hidden min-h-0">
-        <div className="w-64 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col min-h-0 h-full">
-          <ComponentPanel registry={registry} />
+        <div className="w-72 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex flex-col min-h-0 h-full">
+          <LeftSidebar registry={registry} />
         </div>
 
         {navigatorMode === 'docked' && (

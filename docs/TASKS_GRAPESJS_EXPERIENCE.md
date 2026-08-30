@@ -368,7 +368,7 @@
 - **Summary:** Desain Tab "Blocks" di Sidebar Kiri Editor
 - **Description:** Tambahkan tab **Blocks** di samping tab Components dan Layers, menampilkan kartu thumbnail blok siap pakai per kategori.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Tab Blocks menampilkan grid kartu dengan nama, kategori, dan ikon/thumbnail blok.

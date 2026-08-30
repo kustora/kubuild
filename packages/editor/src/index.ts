@@ -17,5 +17,8 @@ export * from './dimension-sector-controls';
 export * from './typography-sector-controls';
 export * from './floating-badges';
 export * from './breadcrumbs';
+export * from './blocks-panel';
+export * from './left-sidebar';
+
 
 

@@ -3,3 +3,5 @@ export * from './definitions';
 export * from './requirements';
 export * from './prop-types';
 export * from './traits';
+export * from './blocks';
+
