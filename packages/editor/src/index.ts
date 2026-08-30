@@ -15,4 +15,7 @@ export * from './box-model-editor';
 export * from './style-manager-accordion';
 export * from './dimension-sector-controls';
 export * from './typography-sector-controls';
+export * from './floating-badges';
+export * from './breadcrumbs';
+
 

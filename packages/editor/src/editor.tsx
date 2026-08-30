@@ -9,6 +9,7 @@ import { EditorToolbar } from './toolbar';
 import { InspectorPanel } from './inspector-panel';
 import { LayersPanel } from './layers-panel';
 import { TableSpreadsheetEditor, findActiveTableNode } from './table-spreadsheet-editor';
+import { HierarchyBreadcrumbs } from './breadcrumbs';
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
@@ -150,17 +151,20 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           </div>
         )}
 
-        <div className="flex-1 overflow-auto p-8 flex justify-center items-start min-h-0 h-full">
-          <div
-            className={`${viewportWidthMap[viewport]} bg-white shadow-md rounded-lg overflow-hidden transition-all duration-200 min-h-[600px] border border-slate-200`}
-          >
-            <EditorCanvas
-              registry={registry}
-              context={previewContext}
-              viewport={viewport}
-              onDiagnostic={onDiagnostic}
-            />
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0 h-full">
+          <div className="flex-1 overflow-auto p-8 flex justify-center items-start min-h-0">
+            <div
+              className={`${viewportWidthMap[viewport]} bg-white shadow-md rounded-lg overflow-hidden transition-all duration-200 min-h-[600px] border border-slate-200`}
+            >
+              <EditorCanvas
+                registry={registry}
+                context={previewContext}
+                viewport={viewport}
+                onDiagnostic={onDiagnostic}
+              />
+            </div>
           </div>
+          <HierarchyBreadcrumbs registry={registry} />
         </div>
 
         <div className="w-72 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex flex-col min-h-0 h-full">

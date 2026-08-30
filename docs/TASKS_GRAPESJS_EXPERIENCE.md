@@ -276,7 +276,7 @@
 - **Summary:** Perluas Document Schema untuk Pseudo-States
 - **Description:** Tambahkan field `states` opsional pada `ResponsiveStylesSchema` di `@kubuild/schema`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Dokumen JSON memvalidasi layer style `:hover` dan backward-compatible.
@@ -288,7 +288,7 @@
 - **Summary:** Dropdown State Selector di Header Style Manager
 - **Description:** Buat dropdown pilihan state di atas panel styling (`Default`, `:hover`, `:active`, `:focus`).
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-220
 - **Acceptance Criteria:**
   - Mengubah background color saat di state `:hover` menyimpan warna tersebut ke key hover tanpa merusak nilai default.
@@ -300,7 +300,7 @@
 - **Summary:** Dynamic Hover Style Compilation di `@kubuild/renderer`
 - **Description:** Perbarui renderer agar menghasilkan scoped CSS pseudo-class handler sehingga efek `:hover` dapat diuji langsung di kanvas.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-221
 - **Acceptance Criteria:**
   - Tombol berubah warna saat kursor melayang di atasnya pada mode preview kanvas.
@@ -312,7 +312,7 @@
 - **Summary:** Indikator Visual State Aktif di Style Manager
 - **Description:** Berikan highlight warna oranye/kuning pada header panel saat mengedit dalam mode `:hover`.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-221
 - **Acceptance Criteria:**
   - Badge peringatan *"Editing :hover State"* muncul di atas panel inspector.
@@ -328,7 +328,7 @@
 - **Summary:** Floating Action Badges di Atas Node Terpilih di Kanvas
 - **Description:** Render toolbar kecil melayang di atas bounding box elemen aktif dengan tombol: ⬆️ *Select Parent*, 🖐️ *Move*, 📑 *Duplicate*, 🗑️ *Delete*.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Mengklik tombol ⬆️ langsung memilih parent container node tersebut.
@@ -340,7 +340,7 @@
 - **Summary:** Bottom Hierarchy Breadcrumbs Bar
 - **Description:** Tampilkan bar navigasi hierarki di bagian bawah kanvas editor: `Page > Section > Container > Columns > Button`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Mengklik nama breadcrumb memilih elemen tersebut di kanvas dan inspector.
@@ -352,7 +352,7 @@
 - **Summary:** Command Helper: `getParentNodeId` dan `getNodeAncestors` di `@kubuild/core`
 - **Description:** Sediakan utilitas pencarian jalur leluhur (*ancestor path*) dan parent langsung yang efisien di package `@kubuild/core`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Fungsi mengembalikan array node leluhur dari root hingga node target dalam O(N) traversal.

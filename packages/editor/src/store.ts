@@ -5,6 +5,7 @@ import {
   findNodeById,
   findNodeLocation,
   isDescendantOf,
+  getParentNodeId,
   insertNode,
   moveNode,
   duplicateNode,
@@ -176,6 +177,7 @@ export interface EditorState {
     index?: number,
   ) => PasteComponentResult;
   selectNode: (nodeId: string | null) => void;
+  selectParent: () => void;
   hoverNode: (nodeId: string | null) => void;
   setViewport: (viewport: Viewport) => void;
   getSelectedNode: () => Node | null;
@@ -501,6 +503,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+  selectParent: () => {
+    const { document, selectedNodeId } = get();
+    if (!selectedNodeId) return;
+    const parentId = getParentNodeId(document.document, selectedNodeId);
+    if (parentId) {
+      set({ selectedNodeId: parentId });
+    }
+  },
   hoverNode: (nodeId) => set({ hoveredNodeId: nodeId }),
   setViewport: (viewport) => set({ viewport }),
   getSelectedNode: () => {

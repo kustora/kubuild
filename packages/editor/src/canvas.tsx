@@ -12,6 +12,7 @@ import {
   isDescendantOf,
 } from '@kubuild/core';
 import { useEditorStore, Viewport } from './store';
+import { FloatingActionBadges } from './floating-badges';
 
 export interface EditorCanvasProps {
   document?: PageDocument;
@@ -324,6 +325,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({ document: propDoc, r
             height: selectedRect.height,
             border: '2px solid #3b82f6',
           }}
+        />
+      )}
+      {selectedRect && selectedNodeId && (
+        <FloatingActionBadges
+          selectedNodeId={selectedNodeId}
+          document={document}
+          registry={registry}
+          selectedRect={selectedRect}
+          onDragStart={handleDragStart}
         />
       )}
       {dropTarget &&
