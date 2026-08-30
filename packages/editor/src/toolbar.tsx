@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ComponentRegistry } from '@kubuild/components';
 import { useEditorStore } from './store';
 import { ImportModal } from './import-modal';
+import { CodeViewerModal } from './code-viewer-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from './export-utils';
 
 export interface EditorToolbarProps {
@@ -33,6 +34,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   } = useEditorStore();
   const [error, setError] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
+  const [isCodeViewerModalOpen, setIsCodeViewerModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const rootId = document.document.id;
@@ -183,6 +185,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           Redo
         </button>
 
+        <div className="h-4 w-px bg-slate-200 mx-1" />
+
+        <button
+          type="button"
+          title="View Semantic HTML & CSS (< >)"
+          onClick={() => setIsCodeViewerModalOpen(true)}
+          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition"
+        >
+          <span className="font-mono text-[11px] font-bold text-blue-600">&lt;&gt;</span>
+          <span>View Code</span>
+        </button>
+
         {showExportImport && (
           <>
             <div className="h-4 w-px bg-slate-200 mx-1" />
@@ -222,6 +236,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           setDocument(importedDoc);
         }}
         registry={registry}
+      />
+
+      <CodeViewerModal
+        isOpen={isCodeViewerModalOpen}
+        onClose={() => setIsCodeViewerModalOpen(false)}
       />
     </>
   );

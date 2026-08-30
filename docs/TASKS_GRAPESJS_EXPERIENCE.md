@@ -420,7 +420,7 @@
 - **Summary:** Live Code Viewer Modal (Clean Semantic HTML & CSS)
 - **Description:** Tambahkan tombol `< > View Code` di toolbar atas yang membuka modal popup berisi HTML semantik dan CSS terstruktur dengan tombol Copy to Clipboard.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Modal menampilkan kode HTML & CSS yang bersih dan akurat sesuai status dokumen aktif.

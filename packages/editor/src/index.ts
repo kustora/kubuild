@@ -19,6 +19,8 @@ export * from './floating-badges';
 export * from './breadcrumbs';
 export * from './blocks-panel';
 export * from './left-sidebar';
+export * from './code-viewer-modal';
+
 
 
 

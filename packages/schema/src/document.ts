@@ -84,7 +84,7 @@ export const ResponsiveStylesSchema = z
     mobile: StyleDefinitionSchema.optional(),
     states: PseudoStateStylesSchema.optional(),
   })
-  .catchall(StyleDefinitionSchema)
+  .passthrough()
   .default({});
 
 export type ResponsiveStyles = z.infer<typeof ResponsiveStylesSchema>;
