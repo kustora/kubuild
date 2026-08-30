@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import type { PageDocument } from '@kubuild/schema';
 import {
   generateSemanticHtml,
   generateDocumentCss,
@@ -6,12 +7,13 @@ import {
 } from '@kubuild/renderer';
 import { useEditorStore } from './store';
 import { downloadFile, sanitizeDocumentFilename } from './export-utils';
+import { CodeHighlighter } from './code-highlighter';
 
 export interface CodeViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  document?: import('@kubuild/schema').PageDocument;
+  document?: PageDocument;
 }
 
 export type CodeTab = 'combined' | 'html' | 'css';
@@ -300,10 +302,10 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
             ))}
           </div>
 
-          {/* Code Text Area */}
-          <pre className="flex-1 p-4 overflow-x-auto leading-5 text-[12px] font-mono text-slate-200 whitespace-pre">
-            <code>{activeCode}</code>
-          </pre>
+          {/* Syntax Highlighted Code Area */}
+          <div className="flex-1 p-4 overflow-x-auto">
+            <CodeHighlighter code={activeCode} mode={activeTab} />
+          </div>
         </div>
 
         {/* Footer info bar */}

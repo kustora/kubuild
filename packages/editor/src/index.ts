@@ -20,7 +20,4 @@ export * from './breadcrumbs';
 export * from './blocks-panel';
 export * from './left-sidebar';
 export * from './code-viewer-modal';
-
-
-
-
+export * from './code-highlighter';

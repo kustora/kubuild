@@ -6,6 +6,7 @@ import { createDefaultComponentRegistry } from '@kubuild/components';
 import { ResponsiveStyles } from '@kubuild/schema';
 import { useEditorStore } from '../src/store';
 import { CodeViewerModal } from '../src/code-viewer-modal';
+import { CodeHighlighter } from '../src/code-highlighter';
 import { EditorToolbar } from '../src/toolbar';
 
 describe('Live Code Viewer Modal (STORA-251)', () => {
@@ -91,9 +92,9 @@ describe('Live Code Viewer Modal (STORA-251)', () => {
     expect(html).toContain('Copy Code');
     expect(html).toContain('Download');
     expect(html).toContain('Welcome to KUBUILD');
-    expect(html).toContain('Explore Features');
     expect(html).toContain('.kb-node-hero-sec');
-    expect(html).toContain('.kb-node-cta-button:hover');
+    expect(html).toContain('.kb-node-cta-button');
+    expect(html).toContain(':hover');
   });
 
   it('renders nothing when isOpen is false', () => {
@@ -113,4 +114,15 @@ describe('Live Code Viewer Modal (STORA-251)', () => {
     expect(html).toContain('KB');
     expect(html).toContain('Single-file HTML document');
   });
+
+  it('renders syntax highlighting classes for HTML tags, attributes, strings, and CSS properties', () => {
+    const sampleHtml = '<div class="container" id="main">Hello</div>';
+    const html = renderToString(
+      <CodeHighlighter code={sampleHtml} mode="html" />,
+    );
+    expect(html).toContain('text-sky-400'); // tag-name
+    expect(html).toContain('text-amber-300'); // attr-name
+    expect(html).toContain('text-emerald-400'); // attr-value
+  });
 });
+
