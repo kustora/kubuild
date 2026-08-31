@@ -34,17 +34,20 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ registry, className })
   const [dropCandidate, setDropCandidate] = useState<DropCandidate | null>(null);
 
   // Floating window position state
-  const [pos, setPos] = useState({ x: 280, y: 70 });
+  const [pos, setPos] = useState(() => ({
+    x: typeof window !== 'undefined' ? Math.max(12, Math.min(window.innerWidth - 300, 24)) : 24,
+    y: 70,
+  }));
   const [isDraggingWindow, setIsDraggingWindow] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; posX: number; posY: number }>({
     startX: 0,
     startY: 0,
-    posX: 280,
+    posX: 24,
     posY: 70,
   });
 
-  const handleHeaderMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
+  const handleHeaderPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, select, textarea')) return;
     setIsDraggingWindow(true);
     dragStartRef.current = {
       startX: e.clientX,
@@ -56,22 +59,26 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ registry, className })
 
   useEffect(() => {
     if (!isDraggingWindow) return;
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       const dx = e.clientX - dragStartRef.current.startX;
       const dy = e.clientY - dragStartRef.current.startY;
+      const maxX = Math.max(8, window.innerWidth - 296);
+      const maxY = Math.max(8, window.innerHeight - 100);
       setPos({
-        x: Math.max(10, Math.min(window.innerWidth - 280, dragStartRef.current.posX + dx)),
-        y: Math.max(10, Math.min(window.innerHeight - 120, dragStartRef.current.posY + dy)),
+        x: Math.max(8, Math.min(maxX, dragStartRef.current.posX + dx)),
+        y: Math.max(8, Math.min(maxY, dragStartRef.current.posY + dy)),
       });
     };
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       setIsDraggingWindow(false);
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [isDraggingWindow]);
 
@@ -254,9 +261,10 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ registry, className })
 
   const header = (
     <div
-      onMouseDown={isFloating ? handleHeaderMouseDown : undefined}
+      onPointerDown={isFloating ? handleHeaderPointerDown : undefined}
+      style={{ touchAction: isFloating ? 'none' : 'auto' }}
       className={`flex items-center justify-between px-3 py-2 border-b border-slate-200/90 select-none ${
-        isFloating ? 'cursor-grab active:cursor-grabbing bg-slate-50/90 rounded-t-xl' : 'bg-slate-50'
+        isFloating ? 'cursor-grab active:cursor-grabbing bg-slate-50/90 rounded-t-xl touch-none' : 'bg-slate-50'
       }`}
     >
       <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-700">

@@ -184,17 +184,20 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
     setCsvInputText('');
   };
 
-  // Floating window position
-  const [pos, setPos] = useState({ x: 260, y: 120 });
+  // Floating window position state
+  const [pos, setPos] = useState(() => ({
+    x: typeof window !== 'undefined' ? Math.max(10, Math.min(window.innerWidth - 400, 20)) : 20,
+    y: 120,
+  }));
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; posX: number; posY: number }>({
     startX: 0,
     startY: 0,
-    posX: 260,
+    posX: 20,
     posY: 120,
   });
 
-  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+  const handleHeaderPointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button, input, select, textarea')) return;
     setIsDragging(true);
     dragStartRef.current = {
@@ -207,22 +210,26 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
 
   useEffect(() => {
     if (!isDragging) return;
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       const dx = e.clientX - dragStartRef.current.startX;
       const dy = e.clientY - dragStartRef.current.startY;
+      const maxX = Math.max(8, window.innerWidth - 320);
+      const maxY = Math.max(8, window.innerHeight - 100);
       setPos({
-        x: Math.max(10, Math.min(window.innerWidth - 350, dragStartRef.current.posX + dx)),
-        y: Math.max(10, Math.min(window.innerHeight - 150, dragStartRef.current.posY + dy)),
+        x: Math.max(8, Math.min(maxX, dragStartRef.current.posX + dx)),
+        y: Math.max(8, Math.min(maxY, dragStartRef.current.posY + dy)),
       });
     };
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       setIsDragging(false);
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [isDragging]);
 
@@ -806,9 +813,9 @@ export const TableSpreadsheetEditor: React.FC<TableSpreadsheetEditorProps> = ({
       <>
         {renderedModal}
         <div
-          style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
-          onMouseDown={handleHeaderMouseDown}
-          className={`fixed z-40 min-w-[380px] max-w-[620px] bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-300 flex flex-col max-h-[460px] overflow-hidden ${className}`}
+          style={{ left: `${pos.x}px`, top: `${pos.y}px`, touchAction: 'none' }}
+          onPointerDown={handleHeaderPointerDown}
+          className={`fixed z-40 min-w-[320px] sm:min-w-[380px] max-w-[620px] bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-300 flex flex-col max-h-[460px] overflow-hidden cursor-grab active:cursor-grabbing touch-none ${className}`}
         >
           {content}
         </div>
