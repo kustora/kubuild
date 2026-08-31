@@ -1,5 +1,11 @@
 import { create } from 'zustand';
-import { PageDocument, Node, StyleDefinition, TemplateRecord, AnimationConfig } from '@kubuild/schema';
+import {
+  PageDocument,
+  Node,
+  StyleDefinition,
+  TemplateRecord,
+  AnimationConfig,
+} from '@kubuild/schema';
 import {
   createBlankDocument,
   findNodeById,
@@ -24,11 +30,21 @@ import {
   SaveTemplateMetadata,
   CloneTemplateOptions,
 } from '@kubuild/core';
-import { ComponentRegistry, ComponentDefaultChildSpec } from '@kubuild/components';
+import {
+  ComponentRegistry,
+  ComponentDefaultChildSpec,
+  STARTER_BLOCKS,
+  BlockDefinition,
+} from '@kubuild/components';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 export type NavigatorMode = 'docked' | 'floating' | 'hidden';
 export type TableSpreadsheetMode = 'floating' | 'docked' | 'hidden';
+
+export type DragPayload =
+  | { type: 'component'; componentType: string }
+  | { type: 'block'; blockId: string }
+  | { type: 'node'; nodeId: string };
 
 export interface InsertComponentResult {
   success: boolean;
@@ -77,8 +93,11 @@ export interface UpdateAnimationResult {
 // Error (from updateProps/removeNode/etc) without adding a zod dependency here.
 function formatCommandError(err: unknown): string {
   if (err && typeof err === 'object' && Array.isArray((err as { issues?: unknown }).issues)) {
-    const issues = (err as { issues: Array<{ path: (string | number)[]; message: string }> }).issues;
-    return issues.map((i) => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message)).join('; ');
+    const issues = (err as { issues: Array<{ path: (string | number)[]; message: string }> })
+      .issues;
+    return issues
+      .map((i) => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message))
+      .join('; ');
   }
   return err instanceof Error ? err.message : String(err);
 }
@@ -107,7 +126,11 @@ function buildDefaultChildren(
     const def = registry.get(spec.type);
     const nodeProps = deepClone(spec.props ?? def?.defaultProps ?? {});
     const nodeStyles = spec.styles ?? def?.defaultStyles;
-    const childNodes = buildDefaultChildren(spec.children ?? def?.defaultChildren, existingIds, registry);
+    const childNodes = buildDefaultChildren(
+      spec.children ?? def?.defaultChildren,
+      existingIds,
+      registry,
+    );
     const node: Node = {
       id,
       type: spec.type,
@@ -123,6 +146,7 @@ export interface EditorState {
   document: PageDocument;
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
+  dragPayload: DragPayload | null;
   viewport: Viewport;
   isDirty: boolean;
   canUndo: boolean;
@@ -135,6 +159,7 @@ export interface EditorState {
   tableSpreadsheetMode: TableSpreadsheetMode;
 
   setDocument: (document: PageDocument) => void;
+  setDragPayload: (payload: DragPayload | null) => void;
   setVariableCatalog: (catalog: VariableCatalog) => void;
   setNavigatorMode: (mode: NavigatorMode) => void;
   toggleNavigator: () => void;
@@ -142,7 +167,17 @@ export interface EditorState {
   toggleTableSpreadsheet: () => void;
   setOnChangeHandler: (handler: ((doc: PageDocument) => void) | null) => void;
   dispatch: (executor: (doc: PageDocument) => CommandResult) => void;
-  insertComponent: (type: string, registry: ComponentRegistry, parentId?: string) => InsertComponentResult;
+  insertComponent: (
+    type: string,
+    registry: ComponentRegistry,
+    parentId?: string,
+    index?: number,
+  ) => InsertComponentResult;
+  insertBlock: (
+    blockOrId: BlockDefinition | string,
+    parentId?: string,
+    index?: number,
+  ) => InsertComponentResult;
   moveComponent: (
     nodeId: string,
     targetParentId: string,
@@ -209,6 +244,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   document: historyManager.document,
   selectedNodeId: null,
   hoveredNodeId: null,
+  dragPayload: null,
   viewport: 'desktop',
   isDirty: false,
   canUndo: false,
@@ -219,6 +255,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   navigatorMode: 'floating',
   tableSpreadsheetMode: 'floating',
 
+  setDragPayload: (payload) => set({ dragPayload: payload }),
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
   setNavigatorMode: (mode) => set({ navigatorMode: mode }),
   toggleNavigator: () =>
@@ -228,8 +265,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setTableSpreadsheetMode: (mode) => set({ tableSpreadsheetMode: mode }),
   toggleTableSpreadsheet: () =>
     set((state) => ({
-      tableSpreadsheetMode:
-        state.tableSpreadsheetMode === 'hidden' ? 'floating' : 'hidden',
+      tableSpreadsheetMode: state.tableSpreadsheetMode === 'hidden' ? 'floating' : 'hidden',
     })),
 
   setDocument: (document) => {
@@ -239,6 +275,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       isDirty: false,
       selectedNodeId: null,
       hoveredNodeId: null,
+      dragPayload: null,
       clipboard: null,
       canUndo: false,
       canRedo: false,
@@ -260,12 +297,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     onChangeHandler?.(result.document);
   },
 
-  insertComponent: (type, registry, parentId) => {
+  insertComponent: (type, registry, parentId, index) => {
     const state = get();
     const targetParentId = parentId ?? state.selectedNodeId ?? state.document.document.id;
     const parentNode = findNodeById(state.document.document, targetParentId);
     if (!parentNode) {
-      return { success: false, error: `Insertion target "${targetParentId}" was not found in the document.` };
+      return {
+        success: false,
+        error: `Insertion target "${targetParentId}" was not found in the document.`,
+      };
     }
 
     const definition = registry.get(type);
@@ -285,7 +325,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         return { success: false, error: propResult.join(' ') };
       }
       if (propResult === false) {
-        return { success: false, error: `Default props for "${definition.label}" failed validation.` };
+        return {
+          success: false,
+          error: `Default props for "${definition.label}" failed validation.`,
+        };
       }
     }
 
@@ -301,10 +344,56 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...(children ? { children } : {}),
     };
 
-    get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node }));
+    get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node, index }));
     get().selectNode(nodeId);
 
     return { success: true, nodeId };
+  },
+
+  insertBlock: (blockOrId, parentId, index) => {
+    const state = get();
+    const targetParentId = parentId ?? state.selectedNodeId ?? state.document.document.id;
+
+    let blockDef: BlockDefinition | undefined;
+    if (typeof blockOrId === 'string') {
+      blockDef = STARTER_BLOCKS.find((b) => b.id === blockOrId);
+    } else {
+      blockDef = blockOrId;
+    }
+
+    if (!blockDef) {
+      return { success: false, error: 'Block definition not found.' };
+    }
+
+    const existingIds = collectNodeIdSet(state.document.document);
+    let counter = 1;
+    const generateId = (prefix = 'node') => {
+      let id = `${prefix}-${Date.now().toString(36)}-${counter++}`;
+      while (existingIds.has(id)) {
+        id = `${prefix}-${Date.now().toString(36)}-${counter++}`;
+      }
+      existingIds.add(id);
+      return id;
+    };
+
+    const nodeTree = blockDef.createNodeTree(generateId);
+
+    try {
+      get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node: nodeTree, index }));
+      get().selectNode(nodeTree.id);
+      return { success: true, nodeId: nodeTree.id };
+    } catch {
+      // Fallback: try inserting at root
+      try {
+        get().dispatch((doc) =>
+          insertNode(doc, { parentId: state.document.document.id, node: nodeTree }),
+        );
+        get().selectNode(nodeTree.id);
+        return { success: true, nodeId: nodeTree.id };
+      } catch (err) {
+        return { success: false, error: formatCommandError(err) };
+      }
+    }
   },
 
   moveComponent: (nodeId, targetParentId, registry, index) => {
@@ -321,11 +410,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     const targetParent = findNodeById(state.document.document, targetParentId);
     if (!targetParent) {
-      return { success: false, error: `Move target "${targetParentId}" was not found in the document.` };
+      return {
+        success: false,
+        error: `Move target "${targetParentId}" was not found in the document.`,
+      };
     }
 
     if (isDescendantOf(sourceLocation.node, targetParentId)) {
-      return { success: false, error: 'Cannot move a node into itself or one of its own descendants.' };
+      return {
+        success: false,
+        error: 'Cannot move a node into itself or one of its own descendants.',
+      };
     }
 
     const policy = registry.canInsertChild(targetParent.type, sourceLocation.node.type);
@@ -336,7 +431,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Reordering within the same parent: the source slot is removed before the
     // target index is applied, so any target position after it shifts left by one.
     const adjustedIndex =
-      sourceLocation.parent.id === targetParentId && typeof index === 'number' && index > sourceLocation.index
+      sourceLocation.parent.id === targetParentId &&
+      typeof index === 'number' &&
+      index > sourceLocation.index
         ? index - 1
         : index;
 
@@ -405,7 +502,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
 
     if (definition.validateProps) {
-      const candidate = merge ? { ...deepClone(node.props ?? {}), ...deepClone(props) } : deepClone(props);
+      const candidate = merge
+        ? { ...deepClone(node.props ?? {}), ...deepClone(props) }
+        : deepClone(props);
       const propResult = definition.validateProps(candidate);
       if (Array.isArray(propResult) && propResult.length > 0) {
         return { success: false, error: propResult.join(' ') };
@@ -498,11 +597,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     const targetParent = findNodeById(document.document, targetParentId);
     if (!targetParent) {
-      return { success: false, error: `Paste target "${targetParentId}" was not found in the document.` };
+      return {
+        success: false,
+        error: `Paste target "${targetParentId}" was not found in the document.`,
+      };
     }
 
     if (isDescendantOf(clipboard, targetParentId)) {
-      return { success: false, error: 'Cannot paste a node into itself or one of its own descendants.' };
+      return {
+        success: false,
+        error: 'Cannot paste a node into itself or one of its own descendants.',
+      };
     }
 
     const policy = registry.canInsertChild(targetParent.type, clipboard.type);
@@ -514,7 +619,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { clonedNode } = cloneTreeWithNewIds(clipboard, undefined, existingIds);
 
     try {
-      get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node: clonedNode, index }));
+      get().dispatch((doc) =>
+        insertNode(doc, { parentId: targetParentId, node: clonedNode, index }),
+      );
     } catch (err) {
       return { success: false, error: formatCommandError(err) };
     }
@@ -550,4 +657,3 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().setDocument(clonedDoc);
   },
 }));
-

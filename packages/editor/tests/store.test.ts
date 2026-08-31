@@ -196,7 +196,8 @@ describe('Editor Store', () => {
 
       expect(result.success).toBe(true);
       const state = useEditorStore.getState();
-      const children = state.document.document.children?.find((n) => n.id === 'section-1')?.children ?? [];
+      const children =
+        state.document.document.children?.find((n) => n.id === 'section-1')?.children ?? [];
       expect(children).toHaveLength(2);
       const pasted = children.find((n) => n.id !== 'child-node');
       expect(pasted?.id).not.toBe('child-node');
@@ -456,7 +457,12 @@ describe('Editor Store', () => {
     function docWithSiblings(): PageDocument {
       const doc = createBlankDocument('Move Test');
       doc.document.children = [
-        { id: 'section-a', type: 'section', props: {}, children: [{ id: 'heading-a', type: 'heading', props: { text: 'A' } }] },
+        {
+          id: 'section-a',
+          type: 'section',
+          props: {},
+          children: [{ id: 'heading-a', type: 'heading', props: { text: 'A' } }],
+        },
         { id: 'section-b', type: 'section', props: {}, children: [] },
       ];
       return doc;
@@ -488,7 +494,9 @@ describe('Editor Store', () => {
       expect(state.canUndo).toBe(true);
 
       useEditorStore.getState().undo();
-      const restoredSection = useEditorStore.getState().document.document.children?.find((n) => n.id === 'section-1');
+      const restoredSection = useEditorStore
+        .getState()
+        .document.document.children?.find((n) => n.id === 'section-1');
       expect(restoredSection?.children?.map((n) => n.id)).toEqual(['h1', 'h2', 'h3']);
     });
 
@@ -552,7 +560,9 @@ describe('Editor Store', () => {
       doc.document.children![0].props = { text: 'Hello', level: 2 };
       useEditorStore.getState().setDocument(doc);
 
-      const result = useEditorStore.getState().updateNodeProps('child-node', { text: 'Updated' }, registry);
+      const result = useEditorStore
+        .getState()
+        .updateNodeProps('child-node', { text: 'Updated' }, registry);
 
       expect(result.success).toBe(true);
       const node = useEditorStore.getState().document.document.children?.[0];
@@ -565,7 +575,9 @@ describe('Editor Store', () => {
       useEditorStore.getState().setDocument(docWithChild());
       const before = useEditorStore.getState().document;
 
-      const result = useEditorStore.getState().updateNodeProps('child-node', { text: '' }, registry);
+      const result = useEditorStore
+        .getState()
+        .updateNodeProps('child-node', { text: '' }, registry);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('non-empty');
@@ -576,7 +588,9 @@ describe('Editor Store', () => {
     it('rejects an update for an unknown nodeId without throwing', () => {
       useEditorStore.getState().setDocument(docWithChild());
 
-      const result = useEditorStore.getState().updateNodeProps('does-not-exist', { text: 'x' }, registry);
+      const result = useEditorStore
+        .getState()
+        .updateNodeProps('does-not-exist', { text: 'x' }, registry);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('not found');
@@ -600,7 +614,9 @@ describe('Editor Store', () => {
     it('writes only the active breakpoint, leaving base and other breakpoints untouched', () => {
       useEditorStore.getState().setDocument(docWithStyledChild());
 
-      const result = useEditorStore.getState().updateNodeStyle('child-node', { padding: '2px' }, 'mobile');
+      const result = useEditorStore
+        .getState()
+        .updateNodeStyle('child-node', { padding: '2px' }, 'mobile');
 
       expect(result.success).toBe(true);
       const styles = useEditorStore.getState().document.document.children?.[0].styles;
@@ -633,7 +649,9 @@ describe('Editor Store', () => {
     it('rejects an update for an unknown nodeId without throwing', () => {
       useEditorStore.getState().setDocument(docWithStyledChild());
 
-      const result = useEditorStore.getState().updateNodeStyle('does-not-exist', { padding: '1px' }, 'base');
+      const result = useEditorStore
+        .getState()
+        .updateNodeStyle('does-not-exist', { padding: '1px' }, 'base');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('not found');
@@ -674,15 +692,20 @@ describe('Editor Store', () => {
       useEditorStore.getState().updateNodeStateStyle('child-node', { cursor: 'pointer' }, ':hover');
       useEditorStore.getState().updateNodeStateStyle('child-node', { opacity: 0.8 }, ':hover');
 
-      const hover = useEditorStore.getState().document.document.children?.[0].styles?.states?.[':hover'];
+      const hover =
+        useEditorStore.getState().document.document.children?.[0].styles?.states?.[':hover'];
       expect(hover).toEqual({ cursor: 'pointer', opacity: 0.8 });
     });
 
     it('keeps state layers isolated per state', () => {
       useEditorStore.getState().setDocument(docWithStyledChild());
 
-      useEditorStore.getState().updateNodeStateStyle('child-node', { backgroundColor: '#111' }, ':hover');
-      useEditorStore.getState().updateNodeStateStyle('child-node', { backgroundColor: '#222' }, ':active');
+      useEditorStore
+        .getState()
+        .updateNodeStateStyle('child-node', { backgroundColor: '#111' }, ':hover');
+      useEditorStore
+        .getState()
+        .updateNodeStateStyle('child-node', { backgroundColor: '#222' }, ':active');
 
       const states = useEditorStore.getState().document.document.children?.[0].styles?.states;
       expect(states?.[':hover']).toEqual({ backgroundColor: '#111' });
@@ -733,9 +756,11 @@ describe('Editor Store', () => {
     });
 
     it('setVariableCatalog replaces the catalog', () => {
-      useEditorStore.getState().setVariableCatalog([
-        { key: 'site.name', label: 'Site Name', type: 'string', sampleValue: 'My Website' },
-      ]);
+      useEditorStore
+        .getState()
+        .setVariableCatalog([
+          { key: 'site.name', label: 'Site Name', type: 'string', sampleValue: 'My Website' },
+        ]);
       expect(useEditorStore.getState().variableCatalog).toEqual([
         { key: 'site.name', label: 'Site Name', type: 'string', sampleValue: 'My Website' },
       ]);
@@ -746,9 +771,16 @@ describe('Editor Store', () => {
 
     it('binding a field to a catalog variable never writes sampleValue into the document', () => {
       useEditorStore.getState().setDocument(docWithChild());
-      useEditorStore.getState().setVariableCatalog([
-        { key: 'site.name', label: 'Site Name', type: 'string', sampleValue: 'Secret Sample Value' },
-      ]);
+      useEditorStore
+        .getState()
+        .setVariableCatalog([
+          {
+            key: 'site.name',
+            label: 'Site Name',
+            type: 'string',
+            sampleValue: 'Secret Sample Value',
+          },
+        ]);
       const registry = createDefaultComponentRegistry();
 
       useEditorStore
@@ -800,7 +832,9 @@ describe('Editor Store', () => {
 
       // Edit the clone
       const registry = createDefaultComponentRegistry();
-      useEditorStore.getState().updateNodeProps(childNode!.id, { text: 'Updated Text In Clone' }, registry);
+      useEditorStore
+        .getState()
+        .updateNodeProps(childNode!.id, { text: 'Updated Text In Clone' }, registry);
 
       expect(useEditorStore.getState().isDirty).toBe(true);
       expect(useEditorStore.getState().canUndo).toBe(true);
@@ -809,5 +843,66 @@ describe('Editor Store', () => {
       expect(template.document?.document.children?.[0]?.props?.text).toBe('Hello');
     });
   });
-});
 
+  describe('Sidebar Drag and Drop & Block Insertion', () => {
+    it('manages dragPayload state correctly', () => {
+      expect(useEditorStore.getState().dragPayload).toBeNull();
+
+      useEditorStore.getState().setDragPayload({ type: 'component', componentType: 'button' });
+      expect(useEditorStore.getState().dragPayload).toEqual({
+        type: 'component',
+        componentType: 'button',
+      });
+
+      useEditorStore.getState().setDragPayload({ type: 'block', blockId: 'hero-section' });
+      expect(useEditorStore.getState().dragPayload).toEqual({
+        type: 'block',
+        blockId: 'hero-section',
+      });
+
+      useEditorStore.getState().setDragPayload(null);
+      expect(useEditorStore.getState().dragPayload).toBeNull();
+    });
+
+    it('inserts component at specific index using insertComponent', () => {
+      const doc = createBlankDocument('Test Doc');
+      doc.document.children = [
+        {
+          id: 'section-1',
+          type: 'section',
+          children: [
+            {
+              id: 'container-1',
+              type: 'container',
+              children: [{ id: 'child-1', type: 'text', props: { content: 'one' } }],
+            },
+          ],
+        },
+      ];
+      useEditorStore.getState().setDocument(doc);
+      const registry = createDefaultComponentRegistry();
+
+      const result = useEditorStore
+        .getState()
+        .insertComponent('button', registry, 'container-1', 0);
+      expect(result.success).toBe(true);
+
+      const container = useEditorStore.getState().document.document.children?.[0].children?.[0];
+      expect(container?.children?.[0].type).toBe('button');
+      expect(container?.children?.[1].id).toBe('child-1');
+    });
+
+    it('inserts starter block into document using insertBlock', () => {
+      const doc = createBlankDocument('Block Insert Test');
+      useEditorStore.getState().setDocument(doc);
+
+      const result = useEditorStore.getState().insertBlock('layout-1-col');
+      expect(result.success).toBe(true);
+      expect(result.nodeId).toBeDefined();
+
+      const root = useEditorStore.getState().document.document;
+      expect(root.children?.length).toBe(1);
+      expect(root.children?.[0].type).toBe('section');
+    });
+  });
+});

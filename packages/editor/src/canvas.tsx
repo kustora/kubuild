@@ -72,7 +72,19 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onDiagnostic,
   config,
 }) => {
-  const { document: storeDoc, selectedNodeId, hoveredNodeId, selectNode, hoverNode, updateNodeProps } = useEditorStore();
+  const {
+    document: storeDoc,
+    selectedNodeId,
+    hoveredNodeId,
+    dragPayload,
+    selectNode,
+    hoverNode,
+    updateNodeProps,
+    setDragPayload,
+    insertComponent,
+    insertBlock,
+    moveComponent,
+  } = useEditorStore();
   const document = propDoc ?? storeDoc;
   const showFloatingBadges = config?.showFloatingBadges !== false;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -161,7 +173,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       const direction = ARROW_DIRECTIONS[e.key];
       if (direction) {
         e.preventDefault();
-        const target = getNavigationTarget(state.document.document, state.selectedNodeId, direction);
+        const target = getNavigationTarget(
+          state.document.document,
+          state.selectedNodeId,
+          direction,
+        );
         if (target) state.selectNode(target);
       }
     };
@@ -192,33 +208,96 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     e.stopPropagation();
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', nodeId);
+    e.dataTransfer.setData('application/kubuild-drag-type', 'node');
+    e.dataTransfer.setData('application/kubuild-node-id', nodeId);
     setDraggingId(nodeId);
+    setDragPayload({ type: 'node', nodeId });
     selectNode(nodeId);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    if (!draggingId) return;
-    const container = containerRef.current;
-    const hoveredEl = (e.target as HTMLElement).closest('[data-kubuild-node]') as HTMLElement | null;
-    if (!container || !hoveredEl) return;
+    const activePayload =
+      dragPayload ?? (draggingId ? { type: 'node' as const, nodeId: draggingId } : null);
+    if (!activePayload) return;
 
-    const hoveredId = hoveredEl.getAttribute('data-kubuild-node');
-    const draggedNode = hoveredId ? findNodeById(document.document, draggingId) : null;
-    const hoveredNode = hoveredId ? findNodeById(document.document, hoveredId) : null;
-    if (!hoveredId || !draggedNode || !hoveredNode || isDescendantOf(draggedNode, hoveredId)) {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const hoveredEl = (e.target as HTMLElement).closest(
+      '[data-kubuild-node]',
+    ) as HTMLElement | null;
+
+    let incomingType: string | null = null;
+    if (activePayload.type === 'node') {
+      const draggedNode = findNodeById(document.document, activePayload.nodeId);
+      incomingType = draggedNode?.type ?? null;
+    } else if (activePayload.type === 'component') {
+      incomingType = activePayload.componentType;
+    } else if (activePayload.type === 'block') {
+      incomingType = 'section';
+    }
+
+    if (!incomingType) {
       setDropTarget(null);
       e.dataTransfer.dropEffect = 'none';
       return;
     }
 
+    if (!hoveredEl) {
+      // Hovering directly over empty canvas container: default to dropping inside root page
+      const rootNode = document.document;
+      const policy = registry.canInsertChild(rootNode.type, incomingType);
+      if (!policy.valid) {
+        setDropTarget(null);
+        e.dataTransfer.dropEffect = 'none';
+        return;
+      }
+
+      e.preventDefault();
+      e.dataTransfer.dropEffect = activePayload.type === 'node' ? 'move' : 'copy';
+      setDropTarget({
+        parentId: rootNode.id,
+        index: rootNode.children?.length ?? 0,
+        position: 'inside',
+        rect: {
+          top: 0,
+          left: 0,
+          width: containerRect.width,
+          height: Math.max(containerRect.height, 200),
+        },
+      });
+      return;
+    }
+
+    const hoveredId = hoveredEl.getAttribute('data-kubuild-node');
+    if (!hoveredId) return;
+
+    // If dragging an existing node, prevent dropping into itself or its descendants
+    if (activePayload.type === 'node') {
+      const draggedNode = findNodeById(document.document, activePayload.nodeId);
+      if (!draggedNode || isDescendantOf(draggedNode, hoveredId)) {
+        setDropTarget(null);
+        e.dataTransfer.dropEffect = 'none';
+        return;
+      }
+    }
+
+    const hoveredNode = findNodeById(document.document, hoveredId);
+    if (!hoveredNode) return;
+
     const elRect = hoveredEl.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
     const ratio = elRect.height > 0 ? (e.clientY - elRect.top) / elRect.height : 0.5;
     const hoveredDef = registry.get(hoveredNode.type);
     const canGoInside = !!hoveredDef?.acceptsChildren;
-
     const location = findNodeLocation(document.document, hoveredId);
-    let candidate: { parentId: string; index?: number; position: DropTarget['position']; targetType: string };
+
+    let candidate: {
+      parentId: string;
+      index?: number;
+      position: DropTarget['position'];
+      targetType: string;
+    };
 
     if (canGoInside && (!location?.parent || (ratio > 0.25 && ratio < 0.75))) {
       candidate = {
@@ -235,13 +314,16 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         targetType: location.parent.type,
       };
     } else {
-      // Hovering the root without it accepting children: no valid drop here.
-      setDropTarget(null);
-      e.dataTransfer.dropEffect = 'none';
-      return;
+      // Hovering root directly
+      candidate = {
+        parentId: document.document.id,
+        index: document.document.children?.length ?? 0,
+        position: 'inside',
+        targetType: document.document.type,
+      };
     }
 
-    const policy = registry.canInsertChild(candidate.targetType, draggedNode.type);
+    const policy = registry.canInsertChild(candidate.targetType, incomingType);
     if (!policy.valid) {
       setDropTarget(null);
       e.dataTransfer.dropEffect = 'none';
@@ -249,7 +331,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     }
 
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = activePayload.type === 'node' ? 'move' : 'copy';
     setDropTarget({
       parentId: candidate.parentId,
       index: candidate.index,
@@ -265,18 +347,33 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (draggingId && dropTarget) {
-      useEditorStore
-        .getState()
-        .moveComponent(draggingId, dropTarget.parentId, registry, dropTarget.index);
+    const activePayload =
+      dragPayload ?? (draggingId ? { type: 'node' as const, nodeId: draggingId } : null);
+
+    if (activePayload && dropTarget) {
+      if (activePayload.type === 'node') {
+        moveComponent(activePayload.nodeId, dropTarget.parentId, registry, dropTarget.index);
+      } else if (activePayload.type === 'component') {
+        insertComponent(
+          activePayload.componentType,
+          registry,
+          dropTarget.parentId,
+          dropTarget.index,
+        );
+      } else if (activePayload.type === 'block') {
+        insertBlock(activePayload.blockId, dropTarget.parentId, dropTarget.index);
+      }
     }
+
     setDraggingId(null);
     setDropTarget(null);
+    setDragPayload(null);
   };
 
   const handleDragEnd = () => {
     setDraggingId(null);
     setDropTarget(null);
+    setDragPayload(null);
   };
 
   return (
