@@ -14,6 +14,7 @@ export * from './template-utils';
 export * from './security';
 export * from './interpolator';
 export * from './validation-engine';
+export * from './pipeline-executor';
 
 
 
