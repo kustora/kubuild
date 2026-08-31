@@ -3,9 +3,9 @@ import type {
   ActionStep,
   ActionStepCondition,
   ActionStepType,
-  ConditionOperator,
 } from '@kubuild/schema';
 import { interpolateValue, resolvePropertyPath } from './interpolator';
+import { evaluateCondition } from './conditional-resolver';
 
 /**
  * Execution context shared across action steps in a pipeline.
@@ -124,92 +124,7 @@ export function evaluateActionCondition(
   condition: ActionStepCondition | undefined,
   context: PipelineExecutionContext,
 ): boolean {
-  if (!condition) return true;
-
-  const rawField = condition.field;
-  if (!rawField || typeof rawField !== 'string') return true;
-
-  // Clean expression syntax `{{ path }}` if provided
-  const fieldPath = rawField.replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '').trim();
-  const actualValue = resolvePropertyPath(context, fieldPath, undefined);
-  const operator: ConditionOperator = condition.operator;
-  const expectedValue = condition.value;
-
-  switch (operator) {
-    case 'equals':
-      return actualValue === expectedValue;
-
-    case 'not_equals':
-      return actualValue !== expectedValue;
-
-    case 'is_truthy':
-      return Boolean(actualValue);
-
-    case 'is_falsy':
-      return !actualValue;
-
-    case 'contains': {
-      if (typeof actualValue === 'string') {
-        return actualValue.includes(String(expectedValue ?? ''));
-      }
-      if (Array.isArray(actualValue)) {
-        return actualValue.includes(expectedValue);
-      }
-      if (actualValue && typeof actualValue === 'object') {
-        return expectedValue !== undefined && String(expectedValue) in (actualValue as Record<string, unknown>);
-      }
-      return false;
-    }
-
-    case 'not_contains': {
-      if (typeof actualValue === 'string') {
-        return !actualValue.includes(String(expectedValue ?? ''));
-      }
-      if (Array.isArray(actualValue)) {
-        return !actualValue.includes(expectedValue);
-      }
-      if (actualValue && typeof actualValue === 'object') {
-        return !(expectedValue !== undefined && String(expectedValue) in (actualValue as Record<string, unknown>));
-      }
-      return true;
-    }
-
-    case 'gt': {
-      const actualNum = Number(actualValue);
-      const expectedNum = Number(expectedValue);
-      return !Number.isNaN(actualNum) && !Number.isNaN(expectedNum) && actualNum > expectedNum;
-    }
-
-    case 'gte': {
-      const actualNum = Number(actualValue);
-      const expectedNum = Number(expectedValue);
-      return !Number.isNaN(actualNum) && !Number.isNaN(expectedNum) && actualNum >= expectedNum;
-    }
-
-    case 'lt': {
-      const actualNum = Number(actualValue);
-      const expectedNum = Number(expectedValue);
-      return !Number.isNaN(actualNum) && !Number.isNaN(expectedNum) && actualNum < expectedNum;
-    }
-
-    case 'lte': {
-      const actualNum = Number(actualValue);
-      const expectedNum = Number(expectedValue);
-      return !Number.isNaN(actualNum) && !Number.isNaN(expectedNum) && actualNum <= expectedNum;
-    }
-
-    case 'regex': {
-      try {
-        const pattern = new RegExp(String(expectedValue ?? ''));
-        return pattern.test(String(actualValue ?? ''));
-      } catch {
-        return false;
-      }
-    }
-
-    default:
-      return true;
-  }
+  return evaluateCondition(condition, context);
 }
 
 /**
