@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
-import type { ValidationRule, ValidateOnEvent } from '@kubuild/schema';
+import type { ValidationRule, ValidateOnEvent, ActionPipeline, PageDocument, Node } from '@kubuild/schema';
 import { useFormRuntime } from '../form-context';
 import { EditableText } from './editable-text';
+import { executeNodeActions } from '../action-dispatcher';
+import type { RenderContext, Diagnostic } from '../render-context';
 
 export interface FormContainerNodeProps {
   id?: string;
@@ -14,6 +16,7 @@ export interface FormContainerNodeProps {
   onClick?: (e: React.MouseEvent) => void;
   mode?: 'editor' | 'runtime';
   dataKubuildNode?: string;
+  actions?: ActionPipeline[];
   children?: React.ReactNode;
 }
 
@@ -83,6 +86,12 @@ export interface FormInputNodeProps {
   transform?: 'trim' | 'lowercase' | 'uppercase' | 'number';
   style?: React.CSSProperties;
   onClick?: (e: React.MouseEvent) => void;
+  actions?: ActionPipeline[];
+  nodeId?: string;
+  document?: PageDocument;
+  renderContext?: RenderContext;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   dataKubuildNode?: string;
 }
 
@@ -100,6 +109,12 @@ export const FormInputNode: React.FC<FormInputNodeProps> = ({
   transform,
   style,
   onClick,
+  actions,
+  nodeId,
+  document,
+  renderContext,
+  onDiagnostic,
+  onActionDispatch,
   dataKubuildNode,
 }) => {
   const formRuntime = useFormRuntime();
@@ -167,10 +182,51 @@ export const FormInputNode: React.FC<FormInputNodeProps> = ({
       val = e.target.value === '' ? '' : Number(e.target.value);
     }
     formRuntime.setFieldValue(name, val);
+
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'input', actions },
+        trigger: 'change',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: val },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
   };
 
   const handleBlur = () => {
     formRuntime.setFieldTouched(name, true);
+
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'input', actions },
+        trigger: 'blur',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: formRuntime.values[name] },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
+  };
+
+  const handleFocus = () => {
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'input', actions },
+        trigger: 'focus',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: formRuntime.values[name] },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
   };
 
   return (
@@ -182,6 +238,7 @@ export const FormInputNode: React.FC<FormInputNodeProps> = ({
       value={stringVal}
       onChange={handleChange}
       onBlur={handleBlur}
+      onFocus={handleFocus}
       required={required}
       disabled={disabled}
       readOnly={readOnly}
@@ -210,6 +267,12 @@ export interface FormTextareaNodeProps {
   transform?: 'trim' | 'lowercase' | 'uppercase' | 'number';
   style?: React.CSSProperties;
   onClick?: (e: React.MouseEvent) => void;
+  actions?: ActionPipeline[];
+  nodeId?: string;
+  document?: PageDocument;
+  renderContext?: RenderContext;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   dataKubuildNode?: string;
 }
 
@@ -227,6 +290,12 @@ export const FormTextareaNode: React.FC<FormTextareaNodeProps> = ({
   transform,
   style,
   onClick,
+  actions,
+  nodeId,
+  document,
+  renderContext,
+  onDiagnostic,
+  onActionDispatch,
   dataKubuildNode,
 }) => {
   const formRuntime = useFormRuntime();
@@ -290,10 +359,51 @@ export const FormTextareaNode: React.FC<FormTextareaNodeProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     formRuntime.setFieldValue(name, e.target.value);
+
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'textarea', actions },
+        trigger: 'change',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: e.target.value },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
   };
 
   const handleBlur = () => {
     formRuntime.setFieldTouched(name, true);
+
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'textarea', actions },
+        trigger: 'blur',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: formRuntime.values[name] },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
+  };
+
+  const handleFocus = () => {
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'textarea', actions },
+        trigger: 'focus',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: formRuntime.values[name] },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
   };
 
   return (
@@ -305,6 +415,7 @@ export const FormTextareaNode: React.FC<FormTextareaNodeProps> = ({
       value={stringVal}
       onChange={handleChange}
       onBlur={handleBlur}
+      onFocus={handleFocus}
       required={required}
       disabled={disabled}
       readOnly={readOnly}
@@ -331,6 +442,12 @@ export interface FormSelectNodeProps {
   optionsList: Array<{ label: string; value: string }>;
   style?: React.CSSProperties;
   onClick?: (e: React.MouseEvent) => void;
+  actions?: ActionPipeline[];
+  nodeId?: string;
+  document?: PageDocument;
+  renderContext?: RenderContext;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   dataKubuildNode?: string;
 }
 
@@ -346,6 +463,12 @@ export const FormSelectNode: React.FC<FormSelectNodeProps> = ({
   optionsList,
   style,
   onClick,
+  actions,
+  nodeId,
+  document,
+  renderContext,
+  onDiagnostic,
+  onActionDispatch,
   dataKubuildNode,
 }) => {
   const formRuntime = useFormRuntime();
@@ -381,7 +504,7 @@ export const FormSelectNode: React.FC<FormSelectNodeProps> = ({
       <select
         id={id}
         name={name}
-        defaultValue={defaultValue !== undefined ? String(defaultValue) : undefined}
+        defaultValue={defaultValue !== undefined ? String(defaultValue) : ''}
         required={required}
         disabled={disabled}
         style={style}
@@ -389,12 +512,12 @@ export const FormSelectNode: React.FC<FormSelectNodeProps> = ({
         data-kubuild-node={dataKubuildNode}
       >
         {placeholder && (
-          <option value="" disabled={required}>
+          <option value="" disabled>
             {placeholder}
           </option>
         )}
-        {optionsList.map((opt, idx) => (
-          <option key={`${opt.value}-${idx}`} value={opt.value}>
+        {optionsList.map((opt, i) => (
+          <option key={i} value={opt.value}>
             {opt.label}
           </option>
         ))}
@@ -408,17 +531,58 @@ export const FormSelectNode: React.FC<FormSelectNodeProps> = ({
       ? String(value)
       : defaultValue !== undefined && defaultValue !== null
       ? String(defaultValue)
-      : undefined;
+      : '';
   const error = formRuntime.errors[name];
   const isTouched = Boolean(formRuntime.touched[name]);
   const isInvalid = Boolean(error && isTouched);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     formRuntime.setFieldValue(name, e.target.value);
+
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'select', actions },
+        trigger: 'change',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: e.target.value },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
   };
 
   const handleBlur = () => {
     formRuntime.setFieldTouched(name, true);
+
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'select', actions },
+        trigger: 'blur',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: formRuntime.values[name] },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
+  };
+
+  const handleFocus = () => {
+    if (actions && actions.length > 0) {
+      executeNodeActions({
+        node: { id: nodeId || id || name, type: 'select', actions },
+        trigger: 'focus',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        extraContext: { fieldName: name, fieldValue: formRuntime.values[name] },
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
   };
 
   return (
@@ -426,9 +590,9 @@ export const FormSelectNode: React.FC<FormSelectNodeProps> = ({
       id={id}
       name={name}
       value={stringVal}
-      defaultValue={stringVal === undefined ? (defaultValue !== undefined ? String(defaultValue) : undefined) : undefined}
       onChange={handleChange}
       onBlur={handleBlur}
+      onFocus={handleFocus}
       required={required}
       disabled={disabled}
       style={style}
@@ -440,12 +604,12 @@ export const FormSelectNode: React.FC<FormSelectNodeProps> = ({
       aria-errormessage={error ? `${id}-error` : undefined}
     >
       {placeholder && (
-        <option value="" disabled={required}>
+        <option value="" disabled>
           {placeholder}
         </option>
       )}
-      {optionsList.map((opt, idx) => (
-        <option key={`${opt.value}-${idx}`} value={opt.value}>
+      {optionsList.map((opt, i) => (
+        <option key={i} value={opt.value}>
           {opt.label}
         </option>
       ))}
@@ -456,8 +620,8 @@ export const FormSelectNode: React.FC<FormSelectNodeProps> = ({
 export interface FormCheckboxNodeProps {
   id?: string;
   name?: string;
-  label: string;
-  value: string;
+  label?: string;
+  value?: string;
   defaultChecked?: boolean;
   required?: boolean;
   disabled?: boolean;
@@ -465,6 +629,12 @@ export interface FormCheckboxNodeProps {
   validateOn?: ValidateOnEvent;
   style?: React.CSSProperties;
   onClick?: (e: React.MouseEvent) => void;
+  actions?: ActionPipeline[];
+  nodeId?: string;
+  document?: PageDocument;
+  renderContext?: RenderContext;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   dataKubuildNode?: string;
   isEditable?: boolean;
   onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
@@ -473,8 +643,7 @@ export interface FormCheckboxNodeProps {
 export const FormCheckboxNode: React.FC<FormCheckboxNodeProps> = ({
   id,
   name,
-  label,
-  value,
+  label = '',
   defaultChecked = false,
   required,
   disabled,
@@ -482,6 +651,12 @@ export const FormCheckboxNode: React.FC<FormCheckboxNodeProps> = ({
   validateOn,
   style,
   onClick,
+  actions,
+  nodeId,
+  document,
+  renderContext,
+  onDiagnostic,
+  onActionDispatch,
   dataKubuildNode,
   isEditable,
   onNodePropChange,
@@ -524,12 +699,38 @@ export const FormCheckboxNode: React.FC<FormCheckboxNodeProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (formRuntime && name) {
       formRuntime.setFieldValue(name, e.target.checked);
+
+      if (actions && actions.length > 0) {
+        executeNodeActions({
+          node: { id: nodeId || id || name, type: 'checkbox', actions },
+          trigger: 'change',
+          document,
+          context: renderContext,
+          formContext: formRuntime,
+          extraContext: { fieldName: name, fieldValue: e.target.checked },
+          onDiagnostic,
+          onActionDispatch,
+        });
+      }
     }
   };
 
   const handleBlur = () => {
     if (formRuntime && name) {
       formRuntime.setFieldTouched(name, true);
+
+      if (actions && actions.length > 0) {
+        executeNodeActions({
+          node: { id: nodeId || id || name, type: 'checkbox', actions },
+          trigger: 'blur',
+          document,
+          context: renderContext,
+          formContext: formRuntime,
+          extraContext: { fieldName: name, fieldValue: isChecked },
+          onDiagnostic,
+          onActionDispatch,
+        });
+      }
     }
   };
 
@@ -538,7 +739,6 @@ export const FormCheckboxNode: React.FC<FormCheckboxNodeProps> = ({
       <input
         type="checkbox"
         name={name}
-        value={value}
         checked={isChecked}
         onChange={handleChange}
         onBlur={handleBlur}
@@ -565,8 +765,8 @@ export const FormCheckboxNode: React.FC<FormCheckboxNodeProps> = ({
 export interface FormRadioNodeProps {
   id?: string;
   name?: string;
-  label: string;
-  value: string;
+  label?: string;
+  value?: string;
   defaultChecked?: boolean;
   required?: boolean;
   disabled?: boolean;
@@ -574,6 +774,12 @@ export interface FormRadioNodeProps {
   validateOn?: ValidateOnEvent;
   style?: React.CSSProperties;
   onClick?: (e: React.MouseEvent) => void;
+  actions?: ActionPipeline[];
+  nodeId?: string;
+  document?: PageDocument;
+  renderContext?: RenderContext;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   dataKubuildNode?: string;
   isEditable?: boolean;
   onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
@@ -582,8 +788,8 @@ export interface FormRadioNodeProps {
 export const FormRadioNode: React.FC<FormRadioNodeProps> = ({
   id,
   name,
-  label,
-  value,
+  label = '',
+  value = '',
   defaultChecked = false,
   required,
   disabled,
@@ -591,6 +797,12 @@ export const FormRadioNode: React.FC<FormRadioNodeProps> = ({
   validateOn,
   style,
   onClick,
+  actions,
+  nodeId,
+  document,
+  renderContext,
+  onDiagnostic,
+  onActionDispatch,
   dataKubuildNode,
   isEditable,
   onNodePropChange,
@@ -633,12 +845,38 @@ export const FormRadioNode: React.FC<FormRadioNodeProps> = ({
   const handleChange = () => {
     if (formRuntime && name) {
       formRuntime.setFieldValue(name, value);
+
+      if (actions && actions.length > 0) {
+        executeNodeActions({
+          node: { id: nodeId || id || name, type: 'radio', actions },
+          trigger: 'change',
+          document,
+          context: renderContext,
+          formContext: formRuntime,
+          extraContext: { fieldName: name, fieldValue: value },
+          onDiagnostic,
+          onActionDispatch,
+        });
+      }
     }
   };
 
   const handleBlur = () => {
     if (formRuntime && name) {
       formRuntime.setFieldTouched(name, true);
+
+      if (actions && actions.length > 0) {
+        executeNodeActions({
+          node: { id: nodeId || id || name, type: 'radio', actions },
+          trigger: 'blur',
+          document,
+          context: renderContext,
+          formContext: formRuntime,
+          extraContext: { fieldName: name, fieldValue: value },
+          onDiagnostic,
+          onActionDispatch,
+        });
+      }
     }
   };
 
@@ -678,6 +916,12 @@ export interface FormSubmitButtonNodeProps {
   ariaLabel?: string;
   style?: React.CSSProperties;
   onClick?: (e: React.MouseEvent) => void;
+  actions?: ActionPipeline[];
+  node?: Node;
+  document?: PageDocument;
+  renderContext?: RenderContext;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   dataKubuildNode?: string;
   actionAttrs?: Record<string, unknown>;
   children: React.ReactNode;
@@ -690,6 +934,12 @@ export const FormSubmitButtonNode: React.FC<FormSubmitButtonNodeProps> = ({
   ariaLabel,
   style,
   onClick,
+  actions,
+  node,
+  document,
+  renderContext,
+  onDiagnostic,
+  onActionDispatch,
   dataKubuildNode,
   actionAttrs,
   children,
@@ -697,6 +947,48 @@ export const FormSubmitButtonNode: React.FC<FormSubmitButtonNodeProps> = ({
   const formRuntime = useFormRuntime();
   const isSubmitting = formRuntime?.isSubmitting === true;
   const isEffectivelyDisabled = disabled || (buttonType === 'submit' && isSubmitting);
+
+  const handleClick = async (e: React.MouseEvent) => {
+    if (isEffectivelyDisabled) return;
+
+    // 1. Submit validation & execution
+    if (buttonType === 'submit') {
+      if (formRuntime) {
+        const isValid = await formRuntime.handleFormSubmit(e);
+        if (!isValid) {
+          // Validation failed: do not proceed with click action pipelines
+          return;
+        }
+      }
+    } else if (buttonType === 'reset') {
+      if (formRuntime) {
+        formRuntime.resetForm();
+      }
+    }
+
+    // 2. Execute button node action pipelines if any
+    const targetNode = node || {
+      id: dataKubuildNode || id || 'button',
+      type: 'button',
+      actions,
+    };
+
+    if (targetNode.actions && targetNode.actions.length > 0) {
+      await executeNodeActions({
+        node: targetNode,
+        trigger: 'click',
+        document,
+        context: renderContext,
+        formContext: formRuntime,
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
+
+    if (onClick) {
+      onClick(e);
+    }
+  };
 
   return (
     <button
@@ -708,7 +1000,7 @@ export const FormSubmitButtonNode: React.FC<FormSubmitButtonNodeProps> = ({
       aria-busy={buttonType === 'submit' && isSubmitting ? true : undefined}
       tabIndex={isEffectivelyDisabled ? -1 : 0}
       style={style}
-      onClick={isEffectivelyDisabled ? undefined : onClick}
+      onClick={isEffectivelyDisabled ? undefined : handleClick}
       data-kubuild-node={dataKubuildNode}
       {...actionAttrs}
     >
@@ -716,4 +1008,3 @@ export const FormSubmitButtonNode: React.FC<FormSubmitButtonNodeProps> = ({
     </button>
   );
 };
-

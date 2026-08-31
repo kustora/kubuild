@@ -8,7 +8,7 @@ import {
   ValidateOnEvent,
   FormConfig,
 } from '@kubuild/schema';
-import { ComponentRegistry, ComponentDefinition } from '@kubuild/components';
+import type { ComponentRegistry, ComponentDefinition } from '@kubuild/components';
 import { icons as lucideIcons, Package, Puzzle, AlertTriangle } from 'lucide-react';
 import { resolveBinding, sanitizeUrl, sanitizeHtml } from '@kubuild/core';
 import {
@@ -826,6 +826,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
     mode,
     document,
     onDiagnostic,
+    onActionDispatch,
     handleClick,
     onNodePropChange,
     childrenElements,
@@ -914,6 +915,12 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
           ariaLabel={ariaLabel}
           style={styles}
           onClick={disabled ? undefined : handleClick}
+          actions={node.actions}
+          node={node}
+          document={document}
+          renderContext={context}
+          onDiagnostic={onDiagnostic}
+          onActionDispatch={onActionDispatch}
           dataKubuildNode={node.id}
           actionAttrs={actionAttrs}
         >
@@ -990,6 +997,12 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
           transform={transform}
           style={styles}
           onClick={handleClick}
+          actions={node.actions}
+          nodeId={node.id}
+          document={document}
+          renderContext={context}
+          onDiagnostic={onDiagnostic}
+          onActionDispatch={onActionDispatch}
           dataKubuildNode={node.id}
         />
       );
@@ -1021,6 +1034,12 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
           transform={transform}
           style={styles}
           onClick={handleClick}
+          actions={node.actions}
+          nodeId={node.id}
+          document={document}
+          renderContext={context}
+          onDiagnostic={onDiagnostic}
+          onActionDispatch={onActionDispatch}
           dataKubuildNode={node.id}
         />
       );
@@ -1080,6 +1099,12 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
           optionsList={optionsList}
           style={styles}
           onClick={handleClick}
+          actions={node.actions}
+          nodeId={node.id}
+          document={document}
+          renderContext={context}
+          onDiagnostic={onDiagnostic}
+          onActionDispatch={onActionDispatch}
           dataKubuildNode={node.id}
         />
       );
@@ -1108,6 +1133,12 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
           validateOn={validateOn}
           style={styles}
           onClick={handleClick}
+          actions={node.actions}
+          nodeId={node.id}
+          document={document}
+          renderContext={context}
+          onDiagnostic={onDiagnostic}
+          onActionDispatch={onActionDispatch}
           dataKubuildNode={node.id}
           isEditable={isEditable}
           onNodePropChange={onNodePropChange}
@@ -1138,6 +1169,12 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
           validateOn={validateOn}
           style={styles}
           onClick={handleClick}
+          actions={node.actions}
+          nodeId={node.id}
+          document={document}
+          renderContext={context}
+          onDiagnostic={onDiagnostic}
+          onActionDispatch={onActionDispatch}
           dataKubuildNode={node.id}
           isEditable={isEditable}
           onNodePropChange={onNodePropChange}

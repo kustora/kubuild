@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import type { Diagnostic } from './render-context';
 
 export interface ComponentErrorBoundaryProps {
   nodeId: string;
@@ -7,6 +8,7 @@ export interface ComponentErrorBoundaryProps {
   mode?: 'editor' | 'runtime';
   children: ReactNode;
   onError?: (error: Error, info: ErrorInfo) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
 }
 
 interface ComponentErrorBoundaryState {
@@ -30,6 +32,15 @@ export class ComponentErrorBoundary extends Component<
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
+    }
+    if (this.props.onDiagnostic) {
+      this.props.onDiagnostic({
+        code: 'ACTION_EXECUTION_ERROR',
+        actionType: 'render',
+        nodeId: this.props.nodeId,
+        message: `Render error in <${this.props.componentType}> (ID: ${this.props.nodeId}): ${error.message}`,
+        error,
+      });
     }
   }
 

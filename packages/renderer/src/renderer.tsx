@@ -4,7 +4,7 @@ import {
   Node,
   isActionBinding,
 } from '@kubuild/schema';
-import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
+import { type ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import {
   RenderContext,
   DEFAULT_RENDER_CONTEXT,
@@ -20,6 +20,7 @@ import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
 import { renderNodeContent } from './renderers';
 import { ToastContainer } from './action-runners/toast-container';
+import { executeNodeActions, useNodeLoadActions } from './action-dispatcher';
 
 // Re-export all nodes and media utilities for backward compatibility
 export * from './nodes';
@@ -83,11 +84,34 @@ export function NodeRenderer({
     context?.onDiagnostic?.(diagnostic);
   });
 
-  const handleClick = (e: React.MouseEvent) => {
+  // Execute `load` lifecycle action pipelines on component mount
+  useNodeLoadActions(node, {
+    document,
+    context,
+    onDiagnostic,
+    onActionDispatch,
+    mode,
+  });
+
+  const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onNodeClick) {
       onNodeClick(node.id, e);
     }
+
+    // 1. Execute modern ActionPipeline[] for 'click' trigger
+    if (node.actions && node.actions.length > 0 && !props.disabled) {
+      await executeNodeActions({
+        node,
+        trigger: 'click',
+        document,
+        context,
+        onDiagnostic,
+        onActionDispatch,
+      });
+    }
+
+    // 2. Backward compatibility: dispatch legacy single props.action
     if (props.action && !props.disabled) {
       dispatchAction({
         action: props.action,
@@ -203,7 +227,12 @@ export function NodeRenderer({
   }
 
   return (
-    <ComponentErrorBoundary nodeId={node.id} componentType={node.type} mode={mode}>
+    <ComponentErrorBoundary
+      nodeId={node.id}
+      componentType={node.type}
+      mode={mode}
+      onDiagnostic={onDiagnostic}
+    >
       {content}
     </ComponentErrorBoundary>
   );

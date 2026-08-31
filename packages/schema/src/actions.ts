@@ -122,6 +122,7 @@ export const NavigateStepPayloadSchema = z.object({
   target: z.enum(['_self', '_blank', '_parent', '_top']).optional().default('_self'),
   replace: z.boolean().optional(),
   scroll: z.boolean().optional(),
+  behavior: z.enum(['smooth', 'auto']).optional(),
 });
 
 export type NavigateStepPayload = z.infer<typeof NavigateStepPayloadSchema>;
@@ -190,7 +191,8 @@ export type CloseModalStepPayload = z.infer<typeof CloseModalStepPayloadSchema>;
  * 8. Copy Clipboard Step Payload Schema
  */
 export const CopyClipboardStepPayloadSchema = z.object({
-  text: z.string(),
+  text: z.string().optional(),
+  value: z.unknown().optional(),
   notify: z.boolean().optional(),
   toastMessage: z.string().optional(),
 });

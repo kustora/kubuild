@@ -454,6 +454,15 @@ export const FormRuntimeProvider: React.FC<FormRuntimeProviderProps> = ({
         return true;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
+        const diagnostic: Diagnostic = {
+          code: 'ACTION_EXECUTION_ERROR',
+          actionType: 'submit',
+          nodeId,
+          message: `Form submit execution error: ${errorMsg}`,
+          error: err,
+        };
+        onDiagnostic?.(diagnostic);
+        renderContext?.onDiagnostic?.(diagnostic);
         onError?.({ _form: errorMsg });
         return false;
       } finally {

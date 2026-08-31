@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { PageDocument } from '@kubuild/schema';
-import { ComponentRegistry } from '@kubuild/components';
+import type { ComponentRegistry } from '@kubuild/components';
 import { RenderContext, Diagnostic } from './render-context';
 import { KubuildRenderer } from './renderer';
 
