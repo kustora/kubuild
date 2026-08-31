@@ -4,8 +4,13 @@ import {
   createApiRequestHandler,
   type ApiRequestRunnerOptions,
 } from './api-request';
+import { showToastRunner, openModalRunner, closeModalRunner } from './ui-feedback';
 
 export * from './api-request';
+export * from './toast-manager';
+export * from './toast-container';
+export * from './modal-manager';
+export * from './ui-feedback';
 
 /**
  * Options for configuring built-in action runners.
@@ -27,6 +32,9 @@ export function createDefaultActionRunners(
 
   return {
     api_request: apiHandler,
+    show_toast: showToastRunner,
+    open_modal: openModalRunner,
+    close_modal: closeModalRunner,
     ...(options?.handlers || {}),
   };
 }
@@ -46,4 +54,3 @@ export function registerDefaultActionRunners(
   }
   return executor;
 }
-

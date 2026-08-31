@@ -19,6 +19,7 @@ import { collectAnimationStylesCss } from './animation';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
 import { renderNodeContent } from './renderers';
+import { ToastContainer } from './action-runners/toast-container';
 
 // Re-export all nodes and media utilities for backward compatibility
 export * from './nodes';
@@ -31,6 +32,7 @@ export interface KubuildRendererProps {
   viewport?: 'desktop' | 'tablet' | 'mobile';
   mode?: 'editor' | 'runtime';
   className?: string;
+  showToastContainer?: boolean;
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
@@ -214,6 +216,7 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
   viewport = 'desktop',
   mode = 'runtime',
   className,
+  showToastContainer = true,
   onNodeClick,
   onDiagnostic,
   onActionDispatch,
@@ -248,6 +251,7 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
           onActionDispatch={onActionDispatch}
           onNodePropChange={onNodePropChange}
         />
+        {showToastContainer && <ToastContainer />}
       </div>
     </RenderContextProvider>
   );

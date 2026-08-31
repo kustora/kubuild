@@ -152,8 +152,12 @@ export type ResetFormStepPayload = z.infer<typeof ResetFormStepPayloadSchema>;
 export const ShowToastStepPayloadSchema = z.object({
   message: z.string().min(1, 'Toast message cannot be empty'),
   type: z.enum(['success', 'error', 'warning', 'info']).optional().default('info'),
+  variant: z.enum(['success', 'error', 'warning', 'info']).optional(),
   title: z.string().optional(),
   duration: z.number().nonnegative('Duration must be >= 0 ms').optional(),
+  position: z
+    .enum(['top-right', 'top-left', 'bottom-right', 'bottom-left', 'top-center', 'bottom-center'])
+    .optional(),
 });
 
 export type ShowToastStepPayload = z.infer<typeof ShowToastStepPayloadSchema>;
@@ -161,9 +165,14 @@ export type ShowToastStepPayload = z.infer<typeof ShowToastStepPayloadSchema>;
 /**
  * 6. Open Modal Step Payload Schema
  */
-export const OpenModalStepPayloadSchema = z.object({
-  modalId: z.string().min(1, 'Modal ID cannot be empty'),
-});
+export const OpenModalStepPayloadSchema = z
+  .object({
+    modalId: z.string().optional(),
+    modalNodeId: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.modalId || data.modalNodeId), {
+    message: 'Modal ID or Modal Node ID cannot be empty',
+  });
 
 export type OpenModalStepPayload = z.infer<typeof OpenModalStepPayloadSchema>;
 
@@ -172,6 +181,7 @@ export type OpenModalStepPayload = z.infer<typeof OpenModalStepPayloadSchema>;
  */
 export const CloseModalStepPayloadSchema = z.object({
   modalId: z.string().optional(),
+  modalNodeId: z.string().optional(),
 });
 
 export type CloseModalStepPayload = z.infer<typeof CloseModalStepPayloadSchema>;
