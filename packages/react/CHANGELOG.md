@@ -1,5 +1,26 @@
 # @kubuild/react
 
+## 0.1.0
+
+### Minor Changes
+
+- Release KUBUILD version 0.1.0:
+  - **@kubuild/schema**: Zod schemas and TypeScript types for `.stora` document format, JSON Schema generation, responsive styles, motion, and typography definitions.
+  - **@kubuild/core**: Document utilities, command bus, undo/redo history, schema validation, and fflate compression.
+  - **@kubuild/components**: Component registry and predefined block templates (Navbar, Hero, Features, Pricing, Testimonials, CTA, Footer, etc.).
+  - **@kubuild/renderer**: Pure recursive React renderer, responsive style generation, motion keyframes injection, and HTML/CSS/Tailwind code generator.
+  - **@kubuild/editor**: Visual builder interface with blocks panel, breadcrumbs, code highlighter & export modal, layers, style manager accordion, motion sector controls, and floating badges.
+  - **@kubuild/react**: Unified React entrypoint for KUBUILD.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/components@0.1.0
+  - @kubuild/core@0.1.0
+  - @kubuild/editor@0.1.0
+  - @kubuild/renderer@0.1.0
+  - @kubuild/schema@0.1.0
+
 ## 1.0.0
 
 ### Major Changes
