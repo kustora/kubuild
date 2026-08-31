@@ -33,6 +33,15 @@ import {
   rowSpanTrait,
   tagTrait,
   inputTypeTrait,
+  preventDefaultTrait,
+  scrollToFirstErrorTrait,
+  resetOnSubmitTrait,
+  patternTrait,
+  minLengthTrait,
+  maxLengthTrait,
+  prefixIconTrait,
+  suffixIconTrait,
+  helperTextTrait,
 } from './traits';
 
 /**
@@ -1194,6 +1203,9 @@ export const formDefinition: ComponentDefinition = {
     action: '',
     target: '_self',
     autoComplete: 'on',
+    preventDefault: true,
+    scrollToFirstError: true,
+    resetOnSubmit: false,
   },
   defaultChildren: [
     { type: 'input', props: { name: 'name', type: 'text', placeholder: 'Your Name', required: true } },
@@ -1235,6 +1247,9 @@ export const formDefinition: ComponentDefinition = {
         { label: 'Off', value: 'off' },
       ],
     },
+    { name: 'preventDefault', label: 'Prevent Default', type: 'boolean', defaultValue: true },
+    { name: 'scrollToFirstError', label: 'Scroll to First Error', type: 'boolean', defaultValue: true },
+    { name: 'resetOnSubmit', label: 'Reset on Submit', type: 'boolean', defaultValue: false },
   ],
   traits: [
     fieldNameTrait({ defaultValue: 'contact_form', required: false }),
@@ -1247,6 +1262,9 @@ export const formDefinition: ComponentDefinition = {
       { label: 'Top (_top)', value: '_top' },
     ]}),
     autoCompleteTrait(),
+    preventDefaultTrait(),
+    scrollToFirstErrorTrait(),
+    resetOnSubmitTrait(),
     idTrait(),
     ariaLabelTrait({ description: 'Accessible name for the form landmark.' }),
   ],
@@ -1272,6 +1290,15 @@ export const formDefinition: ComponentDefinition = {
       if (!['on', 'off'].includes(props.autoComplete as string)) {
         errors.push('Form "autoComplete" must be either "on" or "off".');
       }
+    }
+    if (props.preventDefault !== undefined && typeof props.preventDefault !== 'boolean' && !isVariableBinding(props.preventDefault)) {
+      errors.push('Form "preventDefault" must be a boolean when provided.');
+    }
+    if (props.scrollToFirstError !== undefined && typeof props.scrollToFirstError !== 'boolean' && !isVariableBinding(props.scrollToFirstError)) {
+      errors.push('Form "scrollToFirstError" must be a boolean when provided.');
+    }
+    if (props.resetOnSubmit !== undefined && typeof props.resetOnSubmit !== 'boolean' && !isVariableBinding(props.resetOnSubmit)) {
+      errors.push('Form "resetOnSubmit" must be a boolean when provided.');
     }
     return errors.length > 0 ? errors : true;
   },
@@ -1300,6 +1327,12 @@ export const inputDefinition: ComponentDefinition = {
     required: false,
     disabled: false,
     readOnly: false,
+    pattern: '',
+    minLength: undefined,
+    maxLength: undefined,
+    prefixIcon: '',
+    suffixIcon: '',
+    helperText: '',
   },
   propFields: [
     { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'input_field' },
@@ -1324,6 +1357,12 @@ export const inputDefinition: ComponentDefinition = {
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
     { name: 'readOnly', label: 'Read Only', type: 'boolean', defaultValue: false },
+    { name: 'pattern', label: 'Pattern (regex)', type: 'string' },
+    { name: 'minLength', label: 'Min Length', type: 'number' },
+    { name: 'maxLength', label: 'Max Length', type: 'number' },
+    { name: 'prefixIcon', label: 'Prefix Icon', type: 'string' },
+    { name: 'suffixIcon', label: 'Suffix Icon', type: 'string' },
+    { name: 'helperText', label: 'Helper Text', type: 'string' },
   ],
   traits: [
     inputTypeTrait({ options: [
@@ -1341,6 +1380,12 @@ export const inputDefinition: ComponentDefinition = {
     placeholderTrait({ defaultValue: 'Enter text...' }),
     defaultValueTrait(),
     requiredTrait(),
+    patternTrait(),
+    minLengthTrait(),
+    maxLengthTrait(),
+    prefixIconTrait(),
+    suffixIconTrait(),
+    helperTextTrait(),
     disabledTrait(),
     readOnlyTrait(),
     idTrait(),
@@ -1368,6 +1413,28 @@ export const inputDefinition: ComponentDefinition = {
     }
     if (props.readOnly !== undefined && typeof props.readOnly !== 'boolean' && !isVariableBinding(props.readOnly)) {
       errors.push('Input "readOnly" must be a boolean when provided.');
+    }
+    if (props.pattern !== undefined && typeof props.pattern !== 'string' && !isVariableBinding(props.pattern)) {
+      errors.push('Input "pattern" must be a string when provided.');
+    }
+    if (props.minLength !== undefined && !isVariableBinding(props.minLength)) {
+      if (typeof props.minLength !== 'number' || props.minLength < 0 || !Number.isInteger(props.minLength)) {
+        errors.push('Input "minLength" must be a non-negative integer when provided.');
+      }
+    }
+    if (props.maxLength !== undefined && !isVariableBinding(props.maxLength)) {
+      if (typeof props.maxLength !== 'number' || props.maxLength < 0 || !Number.isInteger(props.maxLength)) {
+        errors.push('Input "maxLength" must be a non-negative integer when provided.');
+      }
+    }
+    if (props.prefixIcon !== undefined && typeof props.prefixIcon !== 'string' && !isVariableBinding(props.prefixIcon)) {
+      errors.push('Input "prefixIcon" must be a string when provided.');
+    }
+    if (props.suffixIcon !== undefined && typeof props.suffixIcon !== 'string' && !isVariableBinding(props.suffixIcon)) {
+      errors.push('Input "suffixIcon" must be a string when provided.');
+    }
+    if (props.helperText !== undefined && typeof props.helperText !== 'string' && !isVariableBinding(props.helperText)) {
+      errors.push('Input "helperText" must be a string when provided.');
     }
     return errors.length > 0 ? errors : true;
   },

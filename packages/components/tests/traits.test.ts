@@ -13,6 +13,15 @@ import {
   collectTraitNames,
   TRAIT_GROUP_ORDER,
   TRAIT_GROUP_LABELS,
+  preventDefaultTrait,
+  scrollToFirstErrorTrait,
+  resetOnSubmitTrait,
+  patternTrait,
+  minLengthTrait,
+  maxLengthTrait,
+  prefixIconTrait,
+  suffixIconTrait,
+  helperTextTrait,
 } from '../src/traits';
 import {
   createDefaultComponentRegistry,
@@ -332,6 +341,294 @@ describe('Trait Metadata (STORA-210)', () => {
       const trait = targetTrait();
       expect(trait.type).toBe('select');
       expect(Array.isArray(trait.options)).toBe(true);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// STORA-330 — Form Behavior Trait Factories & Definition
+// ---------------------------------------------------------------------------
+describe('Form Behavior Traits (STORA-330)', () => {
+  describe('Trait Factories', () => {
+    it('creates preventDefaultTrait with boolean type and true default', () => {
+      const trait = preventDefaultTrait();
+      expect(trait.name).toBe('preventDefault');
+      expect(trait.type).toBe('boolean');
+      expect(trait.defaultValue).toBe(true);
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates scrollToFirstErrorTrait with boolean type and true default', () => {
+      const trait = scrollToFirstErrorTrait();
+      expect(trait.name).toBe('scrollToFirstError');
+      expect(trait.type).toBe('boolean');
+      expect(trait.defaultValue).toBe(true);
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates resetOnSubmitTrait with boolean type and false default', () => {
+      const trait = resetOnSubmitTrait();
+      expect(trait.name).toBe('resetOnSubmit');
+      expect(trait.type).toBe('boolean');
+      expect(trait.defaultValue).toBe(false);
+      expect(trait.group).toBe('form');
+    });
+
+    it('allows overrides on form behavior traits', () => {
+      const trait = resetOnSubmitTrait({ defaultValue: true, required: true });
+      expect(trait.defaultValue).toBe(true);
+      expect(trait.required).toBe(true);
+      expect(trait.name).toBe('resetOnSubmit');
+    });
+  });
+
+  describe('Form Definition Exposes Complete Form Trait Group', () => {
+    it('form definition includes all STORA-330 behavior traits', () => {
+      const traits = formDefinition.traits!;
+      expect(traits.find((t) => t.name === 'preventDefault')).toBeDefined();
+      expect(traits.find((t) => t.name === 'scrollToFirstError')).toBeDefined();
+      expect(traits.find((t) => t.name === 'resetOnSubmit')).toBeDefined();
+    });
+
+    it('form definition exposes a complete Form trait group in the registry', () => {
+      const traits = formDefinition.traits!;
+      const formGroupTraits = traits.filter((t) => t.group === 'form');
+
+      // Must include: name, action, method, autoComplete, preventDefault,
+      // scrollToFirstError, resetOnSubmit
+      const expectedNames = [
+        'name',
+        'action',
+        'method',
+        'autoComplete',
+        'preventDefault',
+        'scrollToFirstError',
+        'resetOnSubmit',
+      ];
+      for (const expected of expectedNames) {
+        expect(
+          formGroupTraits.find((t) => t.name === expected),
+          `Form trait group should include "${expected}"`,
+        ).toBeDefined();
+      }
+    });
+
+    it('form defaultProps include behavior trait defaults', () => {
+      expect(formDefinition.defaultProps?.preventDefault).toBe(true);
+      expect(formDefinition.defaultProps?.scrollToFirstError).toBe(true);
+      expect(formDefinition.defaultProps?.resetOnSubmit).toBe(false);
+    });
+
+    it('form propFields include behavior trait entries', () => {
+      const fields = formDefinition.propFields!;
+      expect(fields.find((f) => f.name === 'preventDefault')).toBeDefined();
+      expect(fields.find((f) => f.name === 'scrollToFirstError')).toBeDefined();
+      expect(fields.find((f) => f.name === 'resetOnSubmit')).toBeDefined();
+    });
+
+    it('form validateProps accepts valid behavior booleans', () => {
+      const result = formDefinition.validateProps!({
+        preventDefault: true,
+        scrollToFirstError: false,
+        resetOnSubmit: true,
+      });
+      expect(result).toBe(true);
+    });
+
+    it('form validateProps rejects invalid behavior prop types', () => {
+      const result = formDefinition.validateProps!({
+        preventDefault: 'yes',
+        scrollToFirstError: 42,
+        resetOnSubmit: 'no',
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[]).length).toBe(3);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// STORA-331 — Rich Input Trait Factories & Definition
+// ---------------------------------------------------------------------------
+describe('Rich Input Traits (STORA-331)', () => {
+  describe('Trait Factories', () => {
+    it('creates patternTrait with string type', () => {
+      const trait = patternTrait();
+      expect(trait.name).toBe('pattern');
+      expect(trait.type).toBe('string');
+      expect(trait.attribute).toBe('pattern');
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates minLengthTrait with number type', () => {
+      const trait = minLengthTrait();
+      expect(trait.name).toBe('minLength');
+      expect(trait.type).toBe('number');
+      expect(trait.attribute).toBe('minlength');
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates maxLengthTrait with number type', () => {
+      const trait = maxLengthTrait();
+      expect(trait.name).toBe('maxLength');
+      expect(trait.type).toBe('number');
+      expect(trait.attribute).toBe('maxlength');
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates prefixIconTrait with string type', () => {
+      const trait = prefixIconTrait();
+      expect(trait.name).toBe('prefixIcon');
+      expect(trait.type).toBe('string');
+      expect(trait.group).toBe('form');
+      expect(trait.attribute).toBeUndefined(); // no direct HTML attribute
+    });
+
+    it('creates suffixIconTrait with string type', () => {
+      const trait = suffixIconTrait();
+      expect(trait.name).toBe('suffixIcon');
+      expect(trait.type).toBe('string');
+      expect(trait.group).toBe('form');
+      expect(trait.attribute).toBeUndefined();
+    });
+
+    it('creates helperTextTrait with string type', () => {
+      const trait = helperTextTrait();
+      expect(trait.name).toBe('helperText');
+      expect(trait.type).toBe('string');
+      expect(trait.group).toBe('form');
+    });
+
+    it('allows overrides on input traits', () => {
+      const trait = patternTrait({ defaultValue: '[A-Z]+', required: true });
+      expect(trait.defaultValue).toBe('[A-Z]+');
+      expect(trait.required).toBe(true);
+      expect(trait.name).toBe('pattern');
+    });
+  });
+
+  describe('Input Definition Includes Rich Traits', () => {
+    it('input definition includes all STORA-331 traits', () => {
+      const traits = inputDefinition.traits!;
+      expect(traits.find((t) => t.name === 'pattern')).toBeDefined();
+      expect(traits.find((t) => t.name === 'minLength')).toBeDefined();
+      expect(traits.find((t) => t.name === 'maxLength')).toBeDefined();
+      expect(traits.find((t) => t.name === 'prefixIcon')).toBeDefined();
+      expect(traits.find((t) => t.name === 'suffixIcon')).toBeDefined();
+      expect(traits.find((t) => t.name === 'helperText')).toBeDefined();
+    });
+
+    it('input definition still includes original traits', () => {
+      const traits = inputDefinition.traits!;
+      expect(traits.find((t) => t.name === 'type')).toBeDefined();
+      expect(traits.find((t) => t.name === 'name')).toBeDefined();
+      expect(traits.find((t) => t.name === 'placeholder')).toBeDefined();
+      expect(traits.find((t) => t.name === 'defaultValue')).toBeDefined();
+      expect(traits.find((t) => t.name === 'required')).toBeDefined();
+      expect(traits.find((t) => t.name === 'disabled')).toBeDefined();
+      expect(traits.find((t) => t.name === 'readOnly')).toBeDefined();
+    });
+
+    it('input propFields include rich trait entries', () => {
+      const fields = inputDefinition.propFields!;
+      expect(fields.find((f) => f.name === 'pattern')).toBeDefined();
+      expect(fields.find((f) => f.name === 'minLength')).toBeDefined();
+      expect(fields.find((f) => f.name === 'maxLength')).toBeDefined();
+      expect(fields.find((f) => f.name === 'prefixIcon')).toBeDefined();
+      expect(fields.find((f) => f.name === 'suffixIcon')).toBeDefined();
+      expect(fields.find((f) => f.name === 'helperText')).toBeDefined();
+    });
+
+    it('input validateProps accepts valid rich trait values', () => {
+      const result = inputDefinition.validateProps!({
+        name: 'email',
+        type: 'email',
+        pattern: '^[a-z]+$',
+        minLength: 3,
+        maxLength: 100,
+        prefixIcon: 'mail',
+        suffixIcon: 'check',
+        helperText: 'Enter your email address',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('input validateProps rejects invalid pattern type', () => {
+      const result = inputDefinition.validateProps!({
+        pattern: 123,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('pattern');
+    });
+
+    it('input validateProps rejects invalid minLength (negative)', () => {
+      const result = inputDefinition.validateProps!({
+        minLength: -1,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('minLength');
+    });
+
+    it('input validateProps rejects non-integer maxLength', () => {
+      const result = inputDefinition.validateProps!({
+        maxLength: 3.5,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('maxLength');
+    });
+
+    it('input validateProps rejects invalid prefixIcon type', () => {
+      const result = inputDefinition.validateProps!({
+        prefixIcon: 42,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('prefixIcon');
+    });
+
+    it('input validateProps rejects invalid suffixIcon type', () => {
+      const result = inputDefinition.validateProps!({
+        suffixIcon: true,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('suffixIcon');
+    });
+
+    it('input validateProps rejects invalid helperText type', () => {
+      const result = inputDefinition.validateProps!({
+        helperText: 99,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('helperText');
+    });
+  });
+
+  describe('Input supports configuring type, length constraints, and error messages visually', () => {
+    it('input type can be set to text, number, or password', () => {
+      const traits = inputDefinition.traits!;
+      const typeTrait = traits.find((t) => t.name === 'type');
+      expect(typeTrait).toBeDefined();
+      expect(typeTrait?.type).toBe('select');
+
+      const options = typeTrait?.options?.map((o) => o.value);
+      expect(options).toContain('text');
+      expect(options).toContain('number');
+      expect(options).toContain('password');
+    });
+
+    it('input exposes minLength and maxLength as number traits', () => {
+      const traits = inputDefinition.traits!;
+      const min = traits.find((t) => t.name === 'minLength');
+      const max = traits.find((t) => t.name === 'maxLength');
+      expect(min?.type).toBe('number');
+      expect(max?.type).toBe('number');
+    });
+
+    it('input exposes helperText as a visual error/hint mechanism', () => {
+      const traits = inputDefinition.traits!;
+      const helper = traits.find((t) => t.name === 'helperText');
+      expect(helper).toBeDefined();
+      expect(helper?.type).toBe('string');
+      expect(helper?.group).toBe('form');
     });
   });
 });
