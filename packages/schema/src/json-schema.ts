@@ -642,3 +642,253 @@ export function getTemplateRecordJsonSchema() {
   return TEMPLATE_RECORD_JSON_SCHEMA_V1;
 }
 
+/**
+ * Standard JSON Schema Draft-07 representation of Action Pipeline
+ * Aligned 1:1 with TypeScript ActionPipeline type definition.
+ */
+export const ACTION_PIPELINE_JSON_SCHEMA_V1 = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  $id: 'https://schema.stora.page/v1/action-pipeline.json',
+  title: 'StoraActionPipeline',
+  description: 'Action Pipeline schema definition for KUBUILD event workflows',
+  type: 'object',
+  required: ['id', 'trigger', 'steps'],
+  additionalProperties: false,
+  properties: {
+    id: {
+      type: 'string',
+      minLength: 1,
+      description: 'Unique pipeline identifier',
+    },
+    trigger: {
+      type: 'string',
+      enum: ['click', 'submit', 'change', 'blur', 'focus', 'load'],
+      description: 'DOM or component event that triggers the action pipeline',
+    },
+    label: {
+      type: 'string',
+      description: 'Human readable label for the action pipeline',
+    },
+    debounceMs: {
+      type: 'number',
+      minimum: 0,
+      description: 'Debounce duration in milliseconds',
+    },
+    preventDuplicate: {
+      type: 'boolean',
+      description: 'Prevent concurrent duplicate pipeline executions',
+    },
+    enabled: {
+      type: 'boolean',
+      default: true,
+      description: 'Whether the pipeline is currently active',
+    },
+    steps: {
+      type: 'array',
+      items: { $ref: '#/definitions/actionStep' },
+      minItems: 1,
+      description: 'Ordered sequence of action steps to execute',
+    },
+  },
+  definitions: {
+    actionStep: {
+      type: 'object',
+      required: ['id', 'type'],
+      properties: {
+        id: {
+          type: 'string',
+          minLength: 1,
+        },
+        type: {
+          type: 'string',
+          enum: [
+            'api_request',
+            'navigate',
+            'set_state',
+            'reset_form',
+            'show_toast',
+            'open_modal',
+            'close_modal',
+            'copy_clipboard',
+            'custom_event',
+          ],
+        },
+        label: { type: 'string' },
+        payload: { type: 'object' },
+        condition: {
+          type: 'object',
+          required: ['field', 'operator'],
+          properties: {
+            field: { type: 'string', minLength: 1 },
+            operator: {
+              type: 'string',
+              enum: [
+                'equals',
+                'not_equals',
+                'contains',
+                'not_contains',
+                'is_truthy',
+                'is_falsy',
+                'gt',
+                'gte',
+                'lt',
+                'lte',
+                'regex',
+              ],
+            },
+            value: {},
+          },
+          additionalProperties: false,
+        },
+        timeout: { type: 'number', minimum: 1 },
+        continueOnError: { type: 'boolean' },
+        onSuccess: {
+          type: 'array',
+          items: { $ref: '#/definitions/actionStep' },
+        },
+        onError: {
+          type: 'array',
+          items: { $ref: '#/definitions/actionStep' },
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+} as const;
+
+export function getActionPipelineJsonSchema() {
+  return ACTION_PIPELINE_JSON_SCHEMA_V1;
+}
+
+/**
+ * Standard JSON Schema Draft-07 representation of Form Config
+ * Aligned 1:1 with TypeScript FormConfig type definition.
+ */
+export const FORM_CONFIG_JSON_SCHEMA_V1 = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  $id: 'https://schema.stora.page/v1/form-config.json',
+  title: 'StoraFormConfig',
+  description: 'Form container configuration and behavior definition for KUBUILD',
+  type: 'object',
+  required: ['formId'],
+  additionalProperties: false,
+  properties: {
+    formId: {
+      type: 'string',
+      minLength: 1,
+      description: 'Unique identifier for the form boundary',
+    },
+    resetOnSubmit: {
+      type: 'boolean',
+      default: false,
+      description: 'Whether to reset form field values after successful submission',
+    },
+    scrollToFirstError: {
+      type: 'boolean',
+      default: true,
+      description: 'Auto-scroll viewport to the first invalid input on validation failure',
+    },
+    validateOn: {
+      type: 'string',
+      enum: ['blur', 'change', 'submit'],
+      default: 'blur',
+      description: 'Default trigger event for field validation evaluation',
+    },
+    initialValues: {
+      type: 'object',
+      description: 'Initial state values populated in form fields',
+    },
+  },
+} as const;
+
+export function getFormConfigJsonSchema() {
+  return FORM_CONFIG_JSON_SCHEMA_V1;
+}
+
+/**
+ * Standard JSON Schema Draft-07 representation of Form Field Binding
+ * Aligned 1:1 with TypeScript FormFieldBinding type definition.
+ */
+export const FORM_FIELD_BINDING_JSON_SCHEMA_V1 = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  $id: 'https://schema.stora.page/v1/form-field-binding.json',
+  title: 'StoraFormFieldBinding',
+  description: 'Form field binding definition connecting input elements to form state runtime',
+  type: 'object',
+  required: ['name'],
+  additionalProperties: false,
+  properties: {
+    name: {
+      type: 'string',
+      minLength: 1,
+      description: 'Field state property key',
+    },
+    label: {
+      type: 'string',
+      description: 'Display label for the field',
+    },
+    defaultValue: {
+      description: 'Initial default value if not overridden by form initialValues',
+    },
+    rules: {
+      type: 'array',
+      items: { $ref: '#/definitions/validationRule' },
+      default: [],
+      description: 'Validation rules applied to the field value',
+    },
+    validateOn: {
+      type: 'string',
+      enum: ['blur', 'change', 'submit'],
+      default: 'blur',
+      description: 'Field-specific validation trigger timing',
+    },
+    transform: {
+      type: 'string',
+      enum: ['trim', 'lowercase', 'uppercase', 'number'],
+      description: 'Value transformation applied prior to validation and state storage',
+    },
+    disabled: {
+      type: 'boolean',
+      description: 'Whether the field is disabled',
+    },
+    required: {
+      type: 'boolean',
+      description: 'Whether the field is required (shorthand rule)',
+    },
+  },
+  definitions: {
+    validationRule: {
+      type: 'object',
+      required: ['type', 'message'],
+      properties: {
+        type: {
+          type: 'string',
+          enum: [
+            'required',
+            'email',
+            'url',
+            'min_length',
+            'max_length',
+            'numeric_min',
+            'numeric_max',
+            'pattern',
+            'match_field',
+            'custom_regex',
+          ],
+        },
+        value: {},
+        message: {
+          type: 'string',
+          minLength: 1,
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+} as const;
+
+export function getFormFieldBindingJsonSchema() {
+  return FORM_FIELD_BINDING_JSON_SCHEMA_V1;
+}
+
+

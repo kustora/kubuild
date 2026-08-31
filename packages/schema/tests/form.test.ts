@@ -13,6 +13,10 @@ import {
   type FormFieldBinding,
   type FormConfig,
 } from '../src/form';
+import {
+  getFormConfigJsonSchema,
+  getFormFieldBindingJsonSchema,
+} from '../src/json-schema';
 
 describe('ValidationRuleTypeSchema & Type Guards', () => {
   const supportedTypes = [
@@ -181,3 +185,60 @@ describe('FormConfigSchema', () => {
     expect(isFormConfig({})).toBe(false);
   });
 });
+
+describe('STORA-304: JSON Schema Export & Form Rules Completeness', () => {
+  it('validates all transform options in FormFieldBindingSchema', () => {
+    const transforms = ['trim', 'lowercase', 'uppercase', 'number'] as const;
+    for (const transform of transforms) {
+      const binding = { name: 'test_field', transform };
+      const parsed = FormFieldBindingSchema.safeParse(binding);
+      expect(parsed.success).toBe(true);
+    }
+
+    expect(FormFieldBindingSchema.safeParse({ name: 'test', transform: 'invalid_transform' }).success).toBe(false);
+  });
+
+  it('validates every supported rule type in ValidationRuleSchema', () => {
+    const ruleExamples = [
+      { type: 'required', message: 'Required' },
+      { type: 'email', message: 'Invalid email' },
+      { type: 'url', message: 'Invalid URL' },
+      { type: 'min_length', value: 5, message: 'Min 5' },
+      { type: 'max_length', value: 100, message: 'Max 100' },
+      { type: 'numeric_min', value: 18, message: 'Min 18' },
+      { type: 'numeric_max', value: 99, message: 'Max 99' },
+      { type: 'pattern', value: '^[0-9]+$', message: 'Digits only' },
+      { type: 'match_field', value: 'password', message: 'Must match password' },
+      { type: 'custom_regex', value: '^KU-[A-Z0-9]+$', message: 'Must match format' },
+    ];
+
+    for (const rule of ruleExamples) {
+      expect(ValidationRuleSchema.safeParse(rule).success).toBe(true);
+      expect(isValidationRule(rule)).toBe(true);
+    }
+  });
+
+  it('provides a valid Draft-07 JSON Schema for Form Config', () => {
+    const jsonSchema = getFormConfigJsonSchema();
+    expect(jsonSchema).toBeDefined();
+    expect(jsonSchema.$schema).toBe('http://json-schema.org/draft-07/schema#');
+    expect(jsonSchema.required).toEqual(['formId']);
+    expect(jsonSchema.properties.formId).toBeDefined();
+    expect(jsonSchema.properties.resetOnSubmit).toBeDefined();
+    expect(jsonSchema.properties.scrollToFirstError).toBeDefined();
+    expect(jsonSchema.properties.validateOn).toBeDefined();
+    expect(jsonSchema.properties.initialValues).toBeDefined();
+  });
+
+  it('provides a valid Draft-07 JSON Schema for Form Field Binding', () => {
+    const jsonSchema = getFormFieldBindingJsonSchema();
+    expect(jsonSchema).toBeDefined();
+    expect(jsonSchema.$schema).toBe('http://json-schema.org/draft-07/schema#');
+    expect(jsonSchema.required).toEqual(['name']);
+    expect(jsonSchema.properties.name).toBeDefined();
+    expect(jsonSchema.properties.rules).toBeDefined();
+    expect(jsonSchema.properties.transform).toBeDefined();
+    expect(jsonSchema.definitions.validationRule).toBeDefined();
+  });
+});
+
