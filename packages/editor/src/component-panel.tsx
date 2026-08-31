@@ -8,7 +8,15 @@ export interface ComponentPanelProps {
   className?: string;
 }
 
-const CATEGORY_ORDER: ComponentCategory[] = ['layout', 'typography', 'media', 'form', 'interactive', 'data', 'custom'];
+const CATEGORY_ORDER: ComponentCategory[] = [
+  'layout',
+  'typography',
+  'media',
+  'form',
+  'interactive',
+  'data',
+  'custom',
+];
 
 const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   layout: 'Layout',
@@ -22,6 +30,7 @@ const CATEGORY_LABELS: Record<ComponentCategory, string> = {
 
 export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, className }) => {
   const insertComponent = useEditorStore((s) => s.insertComponent);
+  const setDragPayload = useEditorStore((s) => s.setDragPayload);
   const [error, setError] = useState<string | null>(null);
 
   const groups = CATEGORY_ORDER.map((category) => ({
@@ -31,7 +40,19 @@ export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, classN
 
   const handleInsert = (definition: ComponentDefinition) => {
     const result = insertComponent(definition.type, registry);
-    setError(result.success ? null : result.error ?? `Could not insert "${definition.label}".`);
+    setError(result.success ? null : (result.error ?? `Could not insert "${definition.label}".`));
+  };
+
+  const handleDragStart = (e: React.DragEvent, definition: ComponentDefinition) => {
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('text/plain', `component:${definition.type}`);
+    e.dataTransfer.setData('application/kubuild-drag-type', 'component');
+    e.dataTransfer.setData('application/kubuild-component-type', definition.type);
+    setDragPayload({ type: 'component', componentType: definition.type });
+  };
+
+  const handleDragEnd = () => {
+    setDragPayload(null);
   };
 
   return (
@@ -54,14 +75,20 @@ export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, classN
               <button
                 key={definition.type}
                 type="button"
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, definition)}
+                onDragEnd={handleDragEnd}
                 onClick={() => handleInsert(definition)}
-                title={definition.description || definition.label}
-                className="flex flex-col items-center justify-center p-2.5 min-h-[74px] rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/50 hover:shadow text-slate-700 transition group cursor-pointer text-center"
+                data-testid={`component-item-${definition.type}`}
+                title={
+                  definition.description || `Click to insert or drag to canvas: ${definition.label}`
+                }
+                className="flex flex-col items-center justify-center p-2.5 min-h-[74px] rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/50 hover:shadow text-slate-700 transition group cursor-grab active:cursor-grabbing text-center select-none"
               >
-                <span className="mb-1.5 text-slate-500 group-hover:text-blue-600 transition-colors">
+                <span className="mb-1.5 text-slate-500 group-hover:text-blue-600 transition-colors pointer-events-none">
                   <ComponentIcon iconOrType={definition.icon ?? definition.type} size={22} />
                 </span>
-                <span className="text-[11px] font-medium text-slate-700 group-hover:text-blue-600 text-center leading-tight break-words w-full select-none">
+                <span className="text-[11px] font-medium text-slate-700 group-hover:text-blue-600 text-center leading-tight break-words w-full pointer-events-none">
                   {definition.label}
                 </span>
               </button>

@@ -193,6 +193,20 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
     }
   };
 
+  const setDragPayload = useEditorStore((s) => s.setDragPayload);
+
+  const handleDragStart = (e: React.DragEvent, block: BlockDefinition) => {
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('text/plain', `block:${block.id}`);
+    e.dataTransfer.setData('application/kubuild-drag-type', 'block');
+    e.dataTransfer.setData('application/kubuild-block-id', block.id);
+    setDragPayload({ type: 'block', blockId: block.id });
+  };
+
+  const handleDragEnd = () => {
+    setDragPayload(null);
+  };
+
   return (
     <div
       data-testid="blocks-panel"
@@ -237,18 +251,22 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
               <button
                 key={block.id}
                 type="button"
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, block)}
+                onDragEnd={handleDragEnd}
                 data-testid="block-card"
                 data-block-id={block.id}
                 onClick={() => handleInsert(block)}
-                className="flex flex-col justify-between p-2 rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:shadow-md hover:bg-blue-50/20 transition-all text-left group cursor-pointer"
+                title={block.description || `Click to insert or drag to canvas: ${block.name}`}
+                className="flex flex-col justify-between p-2 rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:shadow-md hover:bg-blue-50/20 transition-all text-left group cursor-grab active:cursor-grabbing select-none"
               >
                 {/* Thumbnail Illustration */}
-                <div className="mb-2 w-full">
+                <div className="mb-2 w-full pointer-events-none">
                   <BlockThumbnail block={block} />
                 </div>
 
                 {/* Card Title & Info */}
-                <div className="w-full">
+                <div className="w-full pointer-events-none">
                   <div className="flex items-center justify-between gap-1 mb-0.5">
                     <span className="text-[11px] font-semibold text-slate-800 group-hover:text-blue-600 truncate">
                       {block.name}

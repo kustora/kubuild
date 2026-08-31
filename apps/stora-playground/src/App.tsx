@@ -1,6 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { KubuildEditor, ImportModal, downloadDocumentAsStora, downloadDocumentAsJson } from '@kubuild/editor';
-import { KubuildRenderer, PreviewViewportAdapter, ViewportDevice, createMinimalRenderContext } from '@kubuild/renderer';
+import {
+  KubuildEditor,
+  ImportModal,
+  downloadDocumentAsStora,
+  downloadDocumentAsJson,
+} from '@kubuild/editor';
+import {
+  PreviewViewportAdapter,
+  ViewportDevice,
+  createMinimalRenderContext,
+} from '@kubuild/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
 import { PageDocument, starterPageFixture } from '@kubuild/schema';
@@ -132,6 +141,7 @@ export function App() {
   const [previewViewport, setPreviewViewport] = useState<ViewportDevice>('desktop');
   const [isImportOpen, setIsImportOpen] = useState<boolean>(false);
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState<boolean>(false);
+  const [isMobileActionsOpen, setIsMobileActionsOpen] = useState<boolean>(false);
   const [isAddPageModalOpen, setIsAddPageModalOpen] = useState<boolean>(false);
   const [newPageName, setNewPageName] = useState<string>('');
   const [newPageSlug, setNewPageSlug] = useState<string>('');
@@ -139,6 +149,7 @@ export function App() {
   const [editingPageName, setEditingPageName] = useState<string>('');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const registry = useMemo(() => createDefaultComponentRegistry(), []);
 
   const activePage = useMemo(() => {
@@ -157,6 +168,12 @@ export function App() {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as HTMLElement)) {
         setIsPageDropdownOpen(false);
+      }
+      if (
+        actionsDropdownRef.current &&
+        !actionsDropdownRef.current.contains(e.target as HTMLElement)
+      ) {
+        setIsMobileActionsOpen(false);
       }
     };
     window.addEventListener('mousedown', handleClickOutside);
@@ -218,9 +235,7 @@ export function App() {
       setEditingPageId(null);
       return;
     }
-    setPages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, name: editingPageName.trim() } : p)),
-    );
+    setPages((prev) => prev.map((p) => (p.id === id ? { ...p, name: editingPageName.trim() } : p)));
     setEditingPageId(null);
   };
 
@@ -248,40 +263,46 @@ export function App() {
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-slate-100">
       {/* Top Header */}
-      <header className="flex items-center justify-between px-6 py-3 bg-slate-950 border-b border-slate-800">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 font-bold text-white shadow-lg shadow-blue-500/30">
-              <Sparkles className="w-4 h-4" />
+      <header className="flex items-center justify-between px-3 py-2 sm:px-6 sm:py-3 bg-slate-950 border-b border-slate-800 gap-2">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 font-bold text-white shadow-lg shadow-blue-500/30 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
-            <div>
+            <div className="hidden sm:block">
               <h1 className="font-bold text-sm text-slate-100 flex items-center gap-2">
-                KUBUILD <span className="text-xs px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-700/50">BUILDER-01</span>
+                KUBUILD{' '}
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-700/50">
+                  BUILDER-01
+                </span>
               </h1>
-              <p className="text-xs text-slate-400">Stora Multi-Page Studio</p>
+              <p className="text-[11px] text-slate-400">Stora Multi-Page Studio</p>
             </div>
           </div>
 
-          <div className="h-5 w-px bg-slate-800" />
+          <div className="hidden sm:block h-5 w-px bg-slate-800 shrink-0" />
 
           {/* Multi-Page Selector Dropdown */}
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative shrink-0" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setIsPageDropdownOpen(!isPageDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-xs font-medium text-slate-200 hover:border-blue-500 transition shadow-xs"
+              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-xs font-medium text-slate-200 hover:border-blue-500 transition shadow-xs max-w-[130px] sm:max-w-[200px]"
               title="Switch or manage pages"
             >
-              <FileText className="w-3.5 h-3.5 text-blue-400" />
-              <span className="font-semibold text-slate-100">{activePage.name}</span>
-              <span className="text-slate-400 font-mono text-[11px]">{activePage.slug}</span>
-              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isPageDropdownOpen ? 'rotate-180' : ''}`} />
+              <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="font-semibold text-slate-100 truncate">{activePage.name}</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isPageDropdownOpen ? 'rotate-180' : ''}`}
+              />
             </button>
 
             {isPageDropdownOpen && (
               <div className="absolute left-0 mt-1.5 w-72 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl p-1.5 z-50 animate-in fade-in slide-in-from-top-1">
                 <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-slate-800/80 mb-1">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Pages ({pages.length})</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Pages ({pages.length})
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
@@ -316,7 +337,9 @@ export function App() {
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                          <FileText
+                            className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-slate-500'}`}
+                          />
                           {isEditing ? (
                             <input
                               type="text"
@@ -334,7 +357,9 @@ export function App() {
                           ) : (
                             <div className="flex flex-col min-w-0">
                               <span className="font-medium truncate">{p.name}</span>
-                              <span className="text-[10px] text-slate-400 font-mono truncate">{p.slug}</span>
+                              <span className="text-[10px] text-slate-400 font-mono truncate">
+                                {p.slug}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -413,9 +438,9 @@ export function App() {
         </div>
 
         {/* Actions & View mode switcher */}
-        <div className="flex items-center gap-3">
-          {/* Quick Package Actions */}
-          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-lg">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          {/* Desktop Quick Package Actions */}
+          <div className="hidden lg:flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-lg">
             <button
               type="button"
               onClick={() => setIsAddPageModalOpen(true)}
@@ -438,7 +463,9 @@ export function App() {
               type="button"
               onClick={async () => {
                 try {
-                  await downloadDocumentAsStora(activePage.document, undefined, { componentRegistry: registry });
+                  await downloadDocumentAsStora(activePage.document, undefined, {
+                    componentRegistry: registry,
+                  });
                 } catch (e: unknown) {
                   alert(e instanceof Error ? e.message : String(e));
                 }
@@ -459,43 +486,116 @@ export function App() {
             </button>
           </div>
 
+          {/* Mobile Actions Dropdown Trigger */}
+          <div className="relative lg:hidden" ref={actionsDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsMobileActionsOpen(!isMobileActionsOpen)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200 transition"
+              title="Page and package actions"
+            >
+              <span>Actions</span>
+              <ChevronDown
+                className={`w-3 h-3 text-slate-400 transition-transform ${isMobileActionsOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {isMobileActionsOpen && (
+              <div className="absolute right-0 mt-1.5 w-48 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl p-1.5 z-50 flex flex-col gap-1 animate-in fade-in slide-in-from-top-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileActionsOpen(false);
+                    setIsAddPageModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                >
+                  <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                  Add New Page
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileActionsOpen(false);
+                    setIsImportOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                >
+                  <Upload className="w-3.5 h-3.5 text-blue-400" />
+                  Import .stora
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsMobileActionsOpen(false);
+                    try {
+                      await downloadDocumentAsStora(activePage.document, undefined, {
+                        componentRegistry: registry,
+                      });
+                    } catch (e: unknown) {
+                      alert(e instanceof Error ? e.message : String(e));
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-400" />
+                  Export .stora
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileActionsOpen(false);
+                    downloadDocumentAsJson(activePage.document);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                >
+                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+                  Download JSON
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* View mode switcher */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-lg">
+          <div className="flex items-center bg-slate-900 border border-slate-800 p-0.5 sm:p-1 rounded-lg">
             <button
               type="button"
               onClick={() => setActiveTab('editor')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+              title="Visual Editor"
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-medium transition ${
                 activeTab === 'editor'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Layout className="w-3.5 h-3.5" />
-              Visual Editor
+              <span className="hidden sm:inline">Editor</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('preview')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+              title="Live Preview"
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-medium transition ${
                 activeTab === 'preview'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Eye className="w-3.5 h-3.5" />
-              Live Preview
+              <span className="hidden sm:inline">Preview</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('json')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+              title="Document Tree"
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-medium transition ${
                 activeTab === 'json'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Code2 className="w-3.5 h-3.5" />
-              Document Tree
+              <span className="hidden sm:inline">JSON</span>
             </button>
           </div>
         </div>
@@ -504,7 +604,7 @@ export function App() {
       {/* Add Page Modal */}
       {isAddPageModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-blue-400" />
@@ -521,7 +621,9 @@ export function App() {
 
             <form onSubmit={handleCreatePage} className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-200 mb-1.5">Page Name</label>
+                <label className="block text-xs font-semibold text-slate-200 mb-1.5">
+                  Page Name
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. Services, Pricing, Contact"
@@ -529,7 +631,10 @@ export function App() {
                   autoFocus
                   onChange={(e) => {
                     setNewPageName(e.target.value);
-                    if (!newPageSlug || newPageSlug === `/${newPageName.toLowerCase().replace(/\s+/g, '-')}`) {
+                    if (
+                      !newPageSlug ||
+                      newPageSlug === `/${newPageName.toLowerCase().replace(/\s+/g, '-')}`
+                    ) {
                       setNewPageSlug(`/${e.target.value.toLowerCase().replace(/\s+/g, '-')}`);
                     }
                   }}
@@ -540,7 +645,9 @@ export function App() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-200 mb-1.5">URL Path / Slug</label>
+                <label className="block text-xs font-semibold text-slate-200 mb-1.5">
+                  URL Path / Slug
+                </label>
                 <input
                   type="text"
                   placeholder="/pricing"

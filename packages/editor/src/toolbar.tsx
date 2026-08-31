@@ -4,14 +4,7 @@ import { useEditorStore } from './store';
 import { ImportModal } from './import-modal';
 import { CodeViewerModal } from './code-viewer-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from './export-utils';
-import {
-  Copy,
-  ClipboardPaste,
-  CopyPlus,
-  Trash2,
-  Undo2,
-  Redo2,
-} from 'lucide-react';
+import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2 } from 'lucide-react';
 
 import { EditorToolbarConfig } from './config';
 
@@ -105,7 +98,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const showHistory = config?.showHistory !== false;
   const showClipboard = config?.showClipboard !== false;
   const showCodeViewer = config?.showCodeViewer !== false;
-  const showExportImport = propShowExportImport && (config?.showExportImport !== false);
+  const showExportImport = propShowExportImport && config?.showExportImport !== false;
   const customActions = config?.customActions;
 
   const rootId = document.document.id;
@@ -121,19 +114,19 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const handlePaste = () => {
     if (!selectedNodeId) return;
     const result = pasteNode(selectedNodeId, registry);
-    setError(result.success ? null : result.error ?? 'Could not paste here.');
+    setError(result.success ? null : (result.error ?? 'Could not paste here.'));
   };
 
   const handleDuplicate = () => {
     if (!selectedNodeId) return;
     const result = duplicateComponent(selectedNodeId, registry);
-    setError(result.success ? null : result.error ?? 'Could not duplicate.');
+    setError(result.success ? null : (result.error ?? 'Could not duplicate.'));
   };
 
   const handleDelete = () => {
     if (!selectedNodeId) return;
     const result = deleteComponent(selectedNodeId);
-    setError(result.success ? null : result.error ?? 'Could not delete.');
+    setError(result.success ? null : (result.error ?? 'Could not delete.'));
   };
 
   const handleExportStora = async () => {
@@ -183,13 +176,20 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             type="button"
             title={`Navigator / Element Tree (${navigatorMode !== 'hidden' ? 'Open' : 'Hidden'})`}
             onClick={toggleNavigator}
-            className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
+            className={`hidden sm:flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
               navigatorMode !== 'hidden'
                 ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
                 : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
             }`}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <line x1="8" y1="6" x2="21" y2="6" />
               <line x1="8" y1="12" x2="21" y2="12" />
               <line x1="8" y1="18" x2="21" y2="18" />
@@ -201,9 +201,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </button>
         )}
 
-        {showNavigatorToggle && (showClipboard || showHistory || showCodeViewer || showExportImport) && (
-          <div className="h-4 w-px bg-slate-200 mx-1" />
-        )}
+        {showNavigatorToggle &&
+          (showClipboard || showHistory || showCodeViewer || showExportImport) && (
+            <div className="hidden sm:block h-4 w-px bg-slate-200 mx-1" />
+          )}
 
         {(showClipboard || showHistory) && (
           <div className="flex items-center gap-1">
@@ -269,7 +270,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         )}
 
         {(showClipboard || showHistory) && (showCodeViewer || showExportImport) && (
-          <div className="h-4 w-px bg-slate-200 mx-1" />
+          <div className="hidden sm:block h-4 w-px bg-slate-200 mx-1" />
         )}
 
         {showCodeViewer && (
@@ -277,21 +278,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             type="button"
             title="View Semantic HTML & CSS (< >)"
             onClick={() => setIsCodeViewerModalOpen(true)}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition"
+            className="flex items-center gap-1.5 text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition"
           >
             <span className="font-mono text-[11px] font-bold text-blue-600">&lt;&gt;</span>
-            <span>View Code</span>
+            <span className="hidden sm:inline">View Code</span>
           </button>
         )}
 
         {showExportImport && (
-          <>
+          <div className="flex items-center gap-1">
             {showCodeViewer && <div className="h-4 w-px bg-slate-200 mx-1" />}
             <button
               type="button"
               title="Import .stora Package"
               onClick={() => setIsImportModalOpen(true)}
-              className="text-xs px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition"
+              className="text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition"
             >
               Import
             </button>
@@ -300,19 +301,19 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               title="Export .stora Archive"
               disabled={isExporting}
               onClick={handleExportStora}
-              className="text-xs px-2.5 py-1 rounded border border-blue-600 bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50 transition shadow-sm"
+              className="text-xs px-2 sm:px-2.5 py-1 rounded border border-blue-600 bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50 transition shadow-xs"
             >
-              {isExporting ? 'Exporting...' : 'Export .stora'}
+              {isExporting ? '...' : 'Export'}
             </button>
             <button
               type="button"
               title="Download page.json"
               onClick={handleExportJson}
-              className="text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-slate-400 text-slate-600 transition"
+              className="hidden md:inline-block text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-slate-400 text-slate-600 transition"
             >
               JSON
             </button>
-          </>
+          </div>
         )}
 
         {customActions && (
@@ -339,4 +340,3 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     </>
   );
 };
-
