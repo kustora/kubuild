@@ -1,6 +1,6 @@
 # @kubuild/editor
 
-## 0.1.2
+## 0.1.3
 
 ### Patch Changes
 
@@ -8,6 +8,7 @@
 - feat: implement mobile bottom navigation bar for quick access to Add, Layers, Inspect, and Undo/Redo
 - feat: add drag-and-drop support for components and starter blocks from side panels onto canvas with real-time drop targets and validation
 - feat: make top toolbar and viewport switcher compact and responsive for mobile screens
+- feat: add pointer events and touch drag support for floating navigator and table spreadsheet modals on mobile devices
 
 ## 0.1.0
 
