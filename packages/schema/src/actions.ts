@@ -102,10 +102,12 @@ const SafeEventNameSchema = z
  */
 export const ApiRequestStepPayloadSchema = z.object({
   url: SafeUrlStringSchema,
-  method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD']).default('GET'),
+  method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']).default('GET'),
   headers: z.record(z.string(), z.string()).optional(),
   queryParams: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   body: z.union([z.string(), z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
+  bodyFormat: z.enum(['json', 'form-data', 'formData', 'urlencoded', 'url-encoded', 'raw', 'text']).optional(),
+  bodyType: z.enum(['json', 'form-data', 'formData', 'urlencoded', 'url-encoded', 'raw', 'text']).optional(),
   timeout: z.number().positive('Timeout must be greater than 0 ms').optional(),
   responseMapping: z.record(z.string(), z.string()).optional(),
 });

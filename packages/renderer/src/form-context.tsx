@@ -22,6 +22,7 @@ import {
   ActionPipelineExecutor,
   type Diagnostic,
 } from '@kubuild/core';
+import { registerDefaultActionRunners } from './action-runners';
 import { useRenderContext } from './render-context';
 
 /**
@@ -400,6 +401,7 @@ export const FormRuntimeProvider: React.FC<FormRuntimeProviderProps> = ({
           const submitPipelines = actions.filter((p) => p.trigger === 'submit' && p.enabled !== false);
           if (submitPipelines.length > 0) {
             const executor = new ActionPipelineExecutor();
+            registerDefaultActionRunners(executor);
             for (const pipeline of submitPipelines) {
               const execResult = await executor.execute(pipeline, {
                 context: {
