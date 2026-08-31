@@ -72,10 +72,11 @@ export function extractTemplateVariables(text: string): string[] {
 export function resolvePropertyPath(
   source: unknown,
   path: string,
-  fallback: unknown = '',
+  fallback?: unknown,
 ): unknown {
+  const defaultFallback = arguments.length < 3 ? '' : fallback;
   if (!path || typeof path !== 'string' || source === null || source === undefined) {
-    return fallback;
+    return defaultFallback;
   }
 
   // Normalize bracket notations: `items[0]` -> `items.0`
@@ -83,37 +84,37 @@ export function resolvePropertyPath(
   const segments = normalizedPath.split('.').map((s) => s.trim()).filter(Boolean);
 
   if (segments.length === 0) {
-    return fallback;
+    return defaultFallback;
   }
 
   let current: unknown = source;
 
   for (const segment of segments) {
     if (FORBIDDEN_KEY_SEGMENTS.has(segment)) {
-      return fallback;
+      return defaultFallback;
     }
     if (current === null || current === undefined) {
-      return fallback;
+      return defaultFallback;
     }
     if (typeof current !== 'object') {
-      return fallback;
+      return defaultFallback;
     }
 
     if (Array.isArray(current)) {
       const index = Number(segment);
       if (!Number.isInteger(index) || index < 0 || index >= current.length) {
-        return fallback;
+        return defaultFallback;
       }
       current = current[index];
     } else if (Object.prototype.hasOwnProperty.call(current, segment)) {
       current = (current as Record<string, unknown>)[segment];
     } else {
-      return fallback;
+      return defaultFallback;
     }
   }
 
   if (current === undefined || typeof current === 'function') {
-    return fallback;
+    return defaultFallback;
   }
 
   return current;

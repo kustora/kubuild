@@ -16,6 +16,7 @@ export * from './interpolator';
 export * from './validation-engine';
 export * from './pipeline-executor';
 export * from './conditional-resolver';
+export * from './state-store';
 
 
 
