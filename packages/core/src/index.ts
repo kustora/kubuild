@@ -13,6 +13,8 @@ export * from './round-trip-comparator';
 export * from './template-utils';
 export * from './security';
 export * from './interpolator';
+export * from './validation-engine';
+
 
 
 
