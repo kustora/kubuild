@@ -151,6 +151,111 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
       },
       additionalProperties: false,
     },
+    actionStep: {
+      type: 'object',
+      required: ['id', 'type'],
+      properties: {
+        id: {
+          type: 'string',
+          minLength: 1,
+        },
+        type: {
+          type: 'string',
+          enum: [
+            'api_request',
+            'navigate',
+            'set_state',
+            'reset_form',
+            'show_toast',
+            'open_modal',
+            'close_modal',
+            'copy_clipboard',
+            'custom_event',
+          ],
+        },
+        label: { type: 'string' },
+        payload: { type: 'object' },
+        condition: {
+          type: 'object',
+          required: ['field', 'operator'],
+          properties: {
+            field: { type: 'string', minLength: 1 },
+            operator: {
+              type: 'string',
+              enum: [
+                'equals',
+                'not_equals',
+                'contains',
+                'not_contains',
+                'is_truthy',
+                'is_falsy',
+                'gt',
+                'gte',
+                'lt',
+                'lte',
+                'regex',
+              ],
+            },
+            value: {},
+          },
+          additionalProperties: false,
+        },
+        timeout: { type: 'number', minimum: 1 },
+        continueOnError: { type: 'boolean' },
+        onSuccess: {
+          type: 'array',
+          items: { $ref: '#/definitions/actionStep' },
+        },
+        onError: {
+          type: 'array',
+          items: { $ref: '#/definitions/actionStep' },
+        },
+      },
+      additionalProperties: false,
+    },
+    actionPipeline: {
+      type: 'object',
+      required: ['id', 'trigger', 'steps'],
+      properties: {
+        id: {
+          type: 'string',
+          minLength: 1,
+        },
+        trigger: {
+          type: 'string',
+          enum: ['click', 'submit', 'change', 'blur', 'focus', 'load'],
+        },
+        label: { type: 'string' },
+        debounceMs: { type: 'number', minimum: 0 },
+        preventDuplicate: { type: 'boolean' },
+        enabled: { type: 'boolean', default: true },
+        steps: {
+          type: 'array',
+          items: { $ref: '#/definitions/actionStep' },
+          minItems: 1,
+        },
+      },
+      additionalProperties: false,
+    },
+    formConfig: {
+      type: 'object',
+      required: ['formId'],
+      properties: {
+        formId: {
+          type: 'string',
+          minLength: 1,
+        },
+        resetOnSubmit: { type: 'boolean', default: false },
+        scrollToFirstError: { type: 'boolean', default: true },
+        validateOn: {
+          type: 'string',
+          enum: ['blur', 'change', 'submit'],
+          default: 'blur',
+        },
+        initialValues: { type: 'object' },
+      },
+      additionalProperties: false,
+    },
     node: {
       type: 'object',
       required: ['id', 'type'],
@@ -175,6 +280,17 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
         },
         animation: {
           $ref: '#/definitions/animationConfig',
+        },
+        actions: {
+          type: 'array',
+          items: {
+            $ref: '#/definitions/actionPipeline',
+          },
+          description: 'Multi-step action pipelines bound to component events',
+        },
+        formConfig: {
+          $ref: '#/definitions/formConfig',
+          description: 'Form container configuration and behavior',
         },
         children: {
           type: 'array',

@@ -58,6 +58,9 @@ describe('STORA-010: Page Document v1 Schema Specification', () => {
       expect(jsonSchema.definitions.actionBinding).toBeDefined();
       expect(jsonSchema.definitions.responsiveStyles).toBeDefined();
       expect(jsonSchema.definitions.animationConfig).toBeDefined();
+      expect(jsonSchema.definitions.actionPipeline).toBeDefined();
+      expect(jsonSchema.definitions.actionStep).toBeDefined();
+      expect(jsonSchema.definitions.formConfig).toBeDefined();
     });
   });
 
@@ -725,6 +728,321 @@ describe('STORA-260: AnimationConfig Schema Specification', () => {
     });
   });
 });
+
+describe('STORA-302: NodeSchema Action Pipeline & Form Config Integration', () => {
+  describe('Acceptance Criteria 1: NodeSchema validates nodes with actions & formConfig', () => {
+    it('validates a node with multi-step actions pipeline', () => {
+      const nodeWithActions: Node = {
+        id: 'submit-btn',
+        type: 'button',
+        props: { label: 'Send Message' },
+        actions: [
+          {
+            id: 'pipeline-click',
+            trigger: 'click',
+            label: 'Submit Form Pipeline',
+            debounceMs: 250,
+            preventDuplicate: true,
+            enabled: true,
+            steps: [
+              {
+                id: 'step-api',
+                type: 'api_request',
+                payload: {
+                  url: 'https://api.example.com/contact',
+                  method: 'POST',
+                  body: { message: 'Hello' },
+                },
+                timeout: 5000,
+                onSuccess: [
+                  {
+                    id: 'step-toast-success',
+                    type: 'show_toast',
+                    payload: { message: 'Message sent!', type: 'success' },
+                  },
+                  {
+                    id: 'step-nav',
+                    type: 'navigate',
+                    payload: { url: '/thank-you' },
+                  },
+                ],
+                onError: [
+                  {
+                    id: 'step-toast-error',
+                    type: 'show_toast',
+                    payload: { message: 'Failed to send message', type: 'error' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const parsed = NodeSchema.safeParse(nodeWithActions);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.actions).toBeDefined();
+        expect(parsed.data.actions).toHaveLength(1);
+        expect(parsed.data.actions?.[0].trigger).toBe('click');
+        expect(parsed.data.actions?.[0].steps[0].type).toBe('api_request');
+        expect(parsed.data.actions?.[0].steps[0].onSuccess).toHaveLength(2);
+      }
+    });
+
+    it('validates a node with formConfig', () => {
+      const formNode: Node = {
+        id: 'contact-form-container',
+        type: 'form',
+        props: {},
+        formConfig: {
+          formId: 'contact_form_01',
+          resetOnSubmit: true,
+          scrollToFirstError: true,
+          validateOn: 'submit',
+          initialValues: {
+            name: '',
+            email: 'user@example.com',
+          },
+        },
+        children: [
+          {
+            id: 'input-name',
+            type: 'input',
+            props: { name: 'name', label: 'Your Name' },
+          },
+        ],
+      };
+
+      const parsed = NodeSchema.safeParse(formNode);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.formConfig).toBeDefined();
+        expect(parsed.data.formConfig?.formId).toBe('contact_form_01');
+        expect(parsed.data.formConfig?.resetOnSubmit).toBe(true);
+        expect(parsed.data.formConfig?.validateOn).toBe('submit');
+        expect(parsed.data.children).toHaveLength(1);
+      }
+    });
+
+    it('validates a node having both actions and formConfig alongside styles and animation', () => {
+      const complexNode: Node = {
+        id: 'newsletter-form',
+        type: 'form',
+        styles: {
+          base: { padding: '24px', backgroundColor: '#f9fafb' },
+        },
+        animation: {
+          type: 'fade-up',
+          duration: 400,
+        },
+        formConfig: {
+          formId: 'newsletter_form',
+          validateOn: 'blur',
+        },
+        actions: [
+          {
+            id: 'submit-pipeline',
+            trigger: 'submit',
+            steps: [
+              {
+                id: 'api-sub',
+                type: 'api_request',
+                payload: { url: '/api/subscribe', method: 'POST' },
+              },
+            ],
+          },
+        ],
+      };
+
+      const parsed = NodeSchema.safeParse(complexNode);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.formConfig?.formId).toBe('newsletter_form');
+        expect(parsed.data.actions?.[0].trigger).toBe('submit');
+        expect(parsed.data.animation?.type).toBe('fade-up');
+        expect(parsed.data.styles?.base?.padding).toBe('24px');
+      }
+    });
+
+    it('validates an entire PageDocument containing nodes with actions and formConfig', () => {
+      const pageDoc = {
+        schema: 'stora.page',
+        version: '1.0.0',
+        metadata: {
+          title: 'Interactive Form Page',
+        },
+        document: {
+          id: 'root-page',
+          type: 'page',
+          children: [
+            {
+              id: 'form-node',
+              type: 'form',
+              formConfig: {
+                formId: 'lead_form',
+                resetOnSubmit: false,
+              },
+              children: [
+                {
+                  id: 'btn-submit',
+                  type: 'button',
+                  actions: [
+                    {
+                      id: 'pipe-submit',
+                      trigger: 'click',
+                      steps: [
+                        {
+                          id: 'step-1',
+                          type: 'show_toast',
+                          payload: { message: 'Submitting...' },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      };
+
+      const parsed = PageDocumentSchema.safeParse(pageDoc);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        const formChild = parsed.data.document.children?.[0];
+        expect(formChild?.formConfig?.formId).toBe('lead_form');
+        expect(formChild?.children?.[0]?.actions?.[0]?.steps[0].type).toBe('show_toast');
+      }
+    });
+
+    it('preserves complete action pipelines and form config through JSON serialization roundtrip', () => {
+      const doc = {
+        schema: 'stora.page',
+        version: '1.0.0',
+        document: {
+          id: 'root-page',
+          type: 'page',
+          children: [
+            {
+              id: 'form-1',
+              type: 'form',
+              formConfig: {
+                formId: 'form_123',
+                initialValues: { email: 'test@example.com' },
+              },
+              actions: [
+                {
+                  id: 'pipe_1',
+                  trigger: 'submit',
+                  steps: [
+                    {
+                      id: 'step_api',
+                      type: 'api_request',
+                      payload: { url: 'https://api.example.com/v1/save' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      };
+
+      const json = JSON.stringify(doc);
+      const restored = JSON.parse(json);
+      const parsed = PageDocumentSchema.safeParse(restored);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.document.children?.[0].formConfig?.formId).toBe('form_123');
+        expect(parsed.data.document.children?.[0].actions?.[0].id).toBe('pipe_1');
+      }
+    });
+
+    it('rejects invalid action pipelines on a Node', () => {
+      const nodeWithEmptySteps = {
+        id: 'btn-invalid',
+        type: 'button',
+        actions: [
+          {
+            id: 'pipe-empty',
+            trigger: 'click',
+            steps: [],
+          },
+        ],
+      };
+      expect(NodeSchema.safeParse(nodeWithEmptySteps).success).toBe(false);
+
+      const nodeWithInvalidTrigger = {
+        id: 'btn-invalid-trigger',
+        type: 'button',
+        actions: [
+          {
+            id: 'pipe-bad-trigger',
+            trigger: 'invalid_trigger',
+            steps: [{ id: 's1', type: 'show_toast', payload: { message: 'hi' } }],
+          },
+        ],
+      };
+      expect(NodeSchema.safeParse(nodeWithInvalidTrigger).success).toBe(false);
+    });
+
+    it('rejects invalid formConfig on a Node', () => {
+      const nodeWithInvalidFormConfig = {
+        id: 'form-bad',
+        type: 'form',
+        formConfig: {
+          formId: '',
+        },
+      };
+      expect(NodeSchema.safeParse(nodeWithInvalidFormConfig).success).toBe(false);
+    });
+  });
+
+  describe('Acceptance Criteria 2: Backward compatibility with legacy v1.0.0 documents & ActionBindingSchema', () => {
+    it('successfully parses legacy starterPage fixture without actions or formConfig', () => {
+      const result = PageDocumentSchema.safeParse(starterPage);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.document.actions).toBeUndefined();
+        expect(result.data.document.formConfig).toBeUndefined();
+      }
+    });
+
+    it('parses legacy node without actions or formConfig fields cleanly', () => {
+      const legacyNode = {
+        id: 'legacy-box',
+        type: 'container',
+        props: { layout: 'flex' },
+        styles: { base: { display: 'flex' } },
+        children: [],
+      };
+
+      const parsed = NodeSchema.safeParse(legacyNode);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.actions).toBeUndefined();
+        expect(parsed.data.formConfig).toBeUndefined();
+      }
+    });
+
+    it('maintains full backward compatibility with ActionBindingSchema and isActionBinding', () => {
+      const legacyActionBinding = {
+        type: 'navigate',
+        payload: { url: '/features' },
+      };
+
+      const result = ActionBindingSchema.safeParse(legacyActionBinding);
+      expect(result.success).toBe(true);
+      expect(isActionBinding(legacyActionBinding)).toBe(true);
+      if (result.success) {
+        expect(result.data.type).toBe('navigate');
+        expect(result.data.payload).toEqual({ url: '/features' });
+      }
+    });
+  });
+});
+
 
 
 

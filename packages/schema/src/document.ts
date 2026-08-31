@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { ActionPipeline, ActionPipelineSchema } from './actions';
+import { FormConfig, FormConfigSchema } from './form';
 
 export const SCHEMA_NAME = 'stora.page' as const;
 export const CURRENT_SCHEMA_VERSION = '1.0.0' as const;
@@ -149,6 +151,8 @@ export type Node = {
   props?: Record<string, unknown>;
   styles?: ResponsiveStyles;
   animation?: AnimationConfig;
+  actions?: ActionPipeline[];
+  formConfig?: FormConfig;
   children?: Node[];
 };
 
@@ -164,6 +168,8 @@ export const NodeSchema: z.ZodType<Node> = z.lazy(() =>
     props: z.record(z.string(), z.unknown()).optional().default({}),
     styles: ResponsiveStylesSchema.optional().default({}),
     animation: AnimationConfigSchema.optional(),
+    actions: z.array(ActionPipelineSchema).optional(),
+    formConfig: FormConfigSchema.optional(),
     children: z.array(NodeSchema).optional().default([]),
   }),
 );
