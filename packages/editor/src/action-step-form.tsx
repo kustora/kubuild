@@ -1,30 +1,20 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ActionStep,
-  ActionStepType,
   PageDocument,
   Node,
 } from '@kubuild/schema';
 import {
-  Globe,
-  Bell,
-  Navigation,
-  Maximize2,
-  Minimize2,
-  Database,
-  RotateCcw,
-  Copy,
-  Zap,
   Plus,
   Trash2,
   Check,
   AlertCircle,
-  ExternalLink,
-  Sliders,
-  Sparkles,
-  GitBranch,
 } from 'lucide-react';
 import { ActionBranchEditor } from './action-branch-editor';
+import {
+  VariableAutocompleteInput,
+  VariableAutocompleteTextarea,
+} from './variable-autocomplete-input';
 
 export interface ActionStepFormProps {
   step: ActionStep;
@@ -100,6 +90,7 @@ export interface KeyValueEditorProps {
   title: string;
   entries: Record<string, unknown> | undefined;
   onChange: (updated: Record<string, string>) => void;
+  document?: PageDocument;
   keyPlaceholder?: string;
   valuePlaceholder?: string;
   emptyLabel?: string;
@@ -109,6 +100,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   title,
   entries = {},
   onChange,
+  document,
   keyPlaceholder = 'Key',
   valuePlaceholder = 'Value (e.g. {{form.email}})',
   emptyLabel = 'No entries configured',
@@ -193,18 +185,20 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
                 placeholder={keyPlaceholder}
                 className="w-1/3 text-xs bg-slate-900 text-slate-200 border border-slate-700/80 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
               />
-              <input
-                type="text"
-                value={row.value}
-                onChange={(e) => handleUpdateRow(row.id, 'value', e.target.value)}
-                placeholder={valuePlaceholder}
-                className="flex-1 text-xs bg-slate-900 text-slate-200 border border-slate-700/80 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
-              />
+              <div className="flex-1 min-w-0">
+                <VariableAutocompleteInput
+                  value={row.value}
+                  document={document}
+                  onChange={(val) => handleUpdateRow(row.id, 'value', val)}
+                  placeholder={valuePlaceholder}
+                  className="py-1.5"
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => handleRemoveRow(row.id)}
                 title="Remove entry"
-                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition cursor-pointer shrink-0"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -222,8 +216,9 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
 
 export const ApiRequestStepForm: React.FC<{
   payload: Record<string, unknown>;
+  document?: PageDocument;
   onChange: (payload: Record<string, unknown>) => void;
-}> = ({ payload, onChange }) => {
+}> = ({ payload, document, onChange }) => {
   const method = (payload.method as string) || 'GET';
   const url = (payload.url as string) || '';
   const bodyFormat = (payload.bodyFormat as string) || (payload.bodyType as string) || 'json';
@@ -311,13 +306,12 @@ export const ApiRequestStepForm: React.FC<{
             <option value="OPTIONS">OPTIONS</option>
           </select>
 
-          <div className="relative flex-1">
-            <input
-              type="text"
+          <div className="relative flex-1 min-w-0">
+            <VariableAutocompleteInput
               value={url}
-              onChange={(e) => handleUrlChange(e.target.value)}
+              document={document}
+              onChange={handleUrlChange}
               placeholder="https://api.example.com/endpoint or {{form.webhookUrl}}"
-              className="w-full text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs"
             />
           </div>
         </div>
@@ -330,6 +324,7 @@ export const ApiRequestStepForm: React.FC<{
       <KeyValueEditor
         title="HTTP Headers"
         entries={headers}
+        document={document}
         onChange={(hdrs) => onChange({ ...payload, headers: hdrs })}
         keyPlaceholder="Header (e.g. Authorization)"
         valuePlaceholder="Value (e.g. Bearer {{variables.token}})"
@@ -340,6 +335,7 @@ export const ApiRequestStepForm: React.FC<{
       <KeyValueEditor
         title="Query Parameters"
         entries={queryParams}
+        document={document}
         onChange={(qp) => onChange({ ...payload, queryParams: qp })}
         keyPlaceholder="Param Name"
         valuePlaceholder="Value"
@@ -366,16 +362,16 @@ export const ApiRequestStepForm: React.FC<{
             </div>
           </div>
 
-          <textarea
+          <VariableAutocompleteTextarea
             value={rawBody}
-            onChange={(e) => handleBodyChange(e.target.value)}
+            document={document}
+            onChange={handleBodyChange}
             rows={5}
             placeholder={
               bodyFormat === 'json'
                 ? '{\n  "email": "{{form.email}}",\n  "name": "{{form.name}}"\n}'
                 : 'key1=value1&key2=value2'
             }
-            className="w-full text-xs font-mono bg-slate-900 text-slate-200 border border-slate-700/90 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-relaxed"
           />
 
           {jsonError && (
@@ -414,8 +410,9 @@ export const ApiRequestStepForm: React.FC<{
 
 export const ShowToastStepForm: React.FC<{
   payload: Record<string, unknown>;
+  document?: PageDocument;
   onChange: (payload: Record<string, unknown>) => void;
-}> = ({ payload, onChange }) => {
+}> = ({ payload, document, onChange }) => {
   const type = (payload.type as string) || (payload.variant as string) || 'success';
   const message = (payload.message as string) || '';
   const title = (payload.title as string) || '';
@@ -461,24 +458,23 @@ export const ShowToastStepForm: React.FC<{
         <label className="block text-xs font-semibold text-slate-300 mb-1">
           Toast Message <span className="text-red-400">*</span>
         </label>
-        <textarea
+        <VariableAutocompleteTextarea
           rows={2}
           value={message}
-          onChange={(e) => onChange({ ...payload, message: e.target.value })}
+          document={document}
+          onChange={(val) => onChange({ ...payload, message: val })}
           placeholder="e.g. Your submission was received successfully!"
-          className="w-full text-xs bg-slate-900 text-slate-100 border border-slate-700 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
       {/* Optional Title input */}
       <div>
         <label className="block text-xs font-semibold text-slate-300 mb-1">Title (Optional)</label>
-        <input
-          type="text"
+        <VariableAutocompleteInput
           value={title}
-          onChange={(e) => onChange({ ...payload, title: e.target.value || undefined })}
+          document={document}
+          onChange={(val) => onChange({ ...payload, title: val || undefined })}
           placeholder="e.g. Success"
-          className="w-full text-xs bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -547,12 +543,11 @@ export const NavigateStepForm: React.FC<{
           Target Destination URL or Route <span className="text-red-400">*</span>
         </label>
         <div className="flex items-center gap-2">
-          <input
-            type="text"
+          <VariableAutocompleteInput
             value={url}
-            onChange={(e) => onChange({ ...payload, url: e.target.value })}
+            document={document}
+            onChange={(val) => onChange({ ...payload, url: val })}
             placeholder="https://example.com, /dashboard, or #section-id"
-            className="flex-1 text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
       </div>
@@ -678,8 +673,9 @@ export const ModalStepForm: React.FC<{
 
 export const SetStateStepForm: React.FC<{
   payload: Record<string, unknown>;
+  document?: PageDocument;
   onChange: (payload: Record<string, unknown>) => void;
-}> = ({ payload, onChange }) => {
+}> = ({ payload, document, onChange }) => {
   const key = (payload.key as string) || '';
   const value = payload.value !== undefined ? String(payload.value) : '';
   const scope = (payload.scope as string) || 'runtime';
@@ -701,12 +697,11 @@ export const SetStateStepForm: React.FC<{
 
       <div>
         <label className="block text-xs font-semibold text-slate-300 mb-1">Value Expression</label>
-        <input
-          type="text"
+        <VariableAutocompleteInput
           value={value}
-          onChange={(e) => onChange({ ...payload, value: e.target.value })}
+          document={document}
+          onChange={(val) => onChange({ ...payload, value: val })}
           placeholder="e.g. true, 42, {{form.name}}, active"
-          className="w-full text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -780,8 +775,9 @@ export const ResetFormStepForm: React.FC<{
 
 export const CopyClipboardStepForm: React.FC<{
   payload: Record<string, unknown>;
+  document?: PageDocument;
   onChange: (payload: Record<string, unknown>) => void;
-}> = ({ payload, onChange }) => {
+}> = ({ payload, document, onChange }) => {
   const text = (payload.text as string) || '';
   const notify = payload.notify !== false;
   const toastMessage = (payload.toastMessage as string) || 'Copied to clipboard!';
@@ -792,12 +788,12 @@ export const CopyClipboardStepForm: React.FC<{
         <label className="block text-xs font-semibold text-slate-300 mb-1">
           Text / Value to Copy <span className="text-red-400">*</span>
         </label>
-        <textarea
+        <VariableAutocompleteTextarea
           rows={2}
           value={text}
-          onChange={(e) => onChange({ ...payload, text: e.target.value })}
+          document={document}
+          onChange={(val) => onChange({ ...payload, text: val })}
           placeholder="Static text or {{variables.discountCode}} or {{form.referral}}"
-          className="w-full text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -835,8 +831,9 @@ export const CopyClipboardStepForm: React.FC<{
 
 export const CustomEventStepForm: React.FC<{
   payload: Record<string, unknown>;
+  document?: PageDocument;
   onChange: (payload: Record<string, unknown>) => void;
-}> = ({ payload, onChange }) => {
+}> = ({ payload, document, onChange }) => {
   const eventName = (payload.eventName as string) || '';
   const bubbles = payload.bubbles !== false;
   const cancelable = payload.cancelable !== false;
@@ -863,6 +860,7 @@ export const CustomEventStepForm: React.FC<{
       <KeyValueEditor
         title="Event Detail Payload"
         entries={detail}
+        document={document}
         onChange={(det) => onChange({ ...payload, detail: det })}
         keyPlaceholder="Key"
         valuePlaceholder="Value (e.g. {{form.email}})"
@@ -929,9 +927,9 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
     const payload = step.payload || {};
     switch (step.type) {
       case 'api_request':
-        return <ApiRequestStepForm payload={payload} onChange={onUpdatePayload} />;
+        return <ApiRequestStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'show_toast':
-        return <ShowToastStepForm payload={payload} onChange={onUpdatePayload} />;
+        return <ShowToastStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'navigate':
         return <NavigateStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'open_modal':
@@ -953,13 +951,13 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
           />
         );
       case 'set_state':
-        return <SetStateStepForm payload={payload} onChange={onUpdatePayload} />;
+        return <SetStateStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'reset_form':
         return <ResetFormStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'copy_clipboard':
-        return <CopyClipboardStepForm payload={payload} onChange={onUpdatePayload} />;
+        return <CopyClipboardStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'custom_event':
-        return <CustomEventStepForm payload={payload} onChange={onUpdatePayload} />;
+        return <CustomEventStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       default:
         return (
           <div className="text-xs text-slate-400 italic p-3 bg-slate-950 rounded">

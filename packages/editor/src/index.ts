@@ -26,3 +26,4 @@ export * from './config';
 export * from './action-builder-modal';
 export * from './action-step-form';
 export * from './action-branch-editor';
+export * from './variable-autocomplete-input';
