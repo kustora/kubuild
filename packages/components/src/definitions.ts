@@ -2114,6 +2114,7 @@ export const buttonSubmitDefinition: ComponentDefinition = {
   icon: 'send',
   acceptsChildren: false,
   capabilities: ['actionRegistry'],
+  disallowedParents: ['page'],
   defaultProps: {
     label: 'Submit',
     loadingText: 'Submitting...',
