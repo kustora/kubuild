@@ -5,6 +5,7 @@ import {
   StyleDefinition,
   TemplateRecord,
   AnimationConfig,
+  ActionPipeline,
 } from '@kubuild/schema';
 import {
   createBlankDocument,
@@ -19,6 +20,7 @@ import {
   updateProps,
   updateStyle,
   updateAnimation,
+  updateActions,
   DocumentHistoryManager,
   CommandResult,
   deepClone,
@@ -85,6 +87,11 @@ export interface UpdateStyleResult {
 }
 
 export interface UpdateAnimationResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface UpdateActionsResult {
   success: boolean;
   error?: string;
 }
@@ -213,6 +220,10 @@ export interface EditorState {
     animation: Partial<AnimationConfig> | null,
     merge?: boolean,
   ) => UpdateAnimationResult;
+  updateNodeActions: (
+    nodeId: string,
+    actions: ActionPipeline[] | null,
+  ) => UpdateActionsResult;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
@@ -546,6 +557,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateNodeAnimation: (nodeId, animation, merge = true) => {
     try {
       get().dispatch((doc) => updateAnimation(doc, { nodeId, animation, merge }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
+  updateNodeActions: (nodeId, actions) => {
+    try {
+      get().dispatch((doc) => updateActions(doc, { nodeId, actions }));
     } catch (err) {
       return { success: false, error: formatCommandError(err) };
     }

@@ -7,6 +7,7 @@ import {
   moveNode,
   updateProps,
   updateStyle,
+  updateActions,
   removeNode,
   duplicateNode,
   findNodeLocation,
@@ -1496,5 +1497,74 @@ describe('STORA-041: navigation target resolution', () => {
 
   it('returns null for an unknown nodeId', () => {
     expect(getNavigationTarget(tree, 'does-not-exist', 'parent')).toBeNull();
+  });
+});
+
+describe('STORA-302 / STORA-340: updateActions Command', () => {
+  it('updates action pipelines on a target node and emits ACTIONS_UPDATED event', () => {
+    const doc = createBlankDocument('Actions Test');
+    doc.document.children = [
+      {
+        id: 'btn-1',
+        type: 'button',
+        props: { label: 'Click Me' },
+      },
+    ];
+
+    const pipelines = [
+      {
+        id: 'pipe-1',
+        trigger: 'click' as const,
+        enabled: true,
+        steps: [
+          {
+            id: 'step-1',
+            type: 'show_toast' as const,
+            payload: { message: 'Hello!', type: 'success' },
+          },
+        ],
+      },
+    ];
+
+    const result = updateActions(doc, { nodeId: 'btn-1', actions: pipelines });
+    expect(result.event.type).toBe('ACTIONS_UPDATED');
+    expect(result.event.nodeId).toBe('btn-1');
+
+    const updatedNode = result.document.document.children?.[0];
+    expect(updatedNode?.actions).toEqual(pipelines);
+
+    // Ensure input document was not mutated
+    expect(doc.document.children?.[0].actions).toBeUndefined();
+  });
+
+  it('removes actions when actions is set to null or empty array', () => {
+    const doc = createBlankDocument('Actions Clear Test');
+    doc.document.children = [
+      {
+        id: 'btn-1',
+        type: 'button',
+        props: { label: 'Click Me' },
+        actions: [
+          {
+            id: 'pipe-1',
+            trigger: 'click' as const,
+            steps: [{ id: 'step-1', type: 'reset_form' as const }],
+          },
+        ],
+      },
+    ];
+
+    const nullResult = updateActions(doc, { nodeId: 'btn-1', actions: null });
+    expect(nullResult.document.document.children?.[0].actions).toBeUndefined();
+
+    const emptyResult = updateActions(doc, { nodeId: 'btn-1', actions: [] });
+    expect(emptyResult.document.document.children?.[0].actions).toBeUndefined();
+  });
+
+  it('throws error when target nodeId is not found', () => {
+    const doc = createBlankDocument('Not Found Test');
+    expect(() =>
+      updateActions(doc, { nodeId: 'unknown-node', actions: [] }),
+    ).toThrow('Cannot update actions: Node with ID "unknown-node" not found in document.');
   });
 });

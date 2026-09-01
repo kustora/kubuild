@@ -7,6 +7,8 @@ import {
   ResponsiveStylesSchema,
   AnimationConfig,
   AnimationConfigSchema,
+  ActionPipeline,
+  ActionPipelineSchema,
 } from '@kubuild/schema';
 import {
   deepClone,
@@ -22,6 +24,7 @@ export type DocumentChangeType =
   | 'PROPS_UPDATED'
   | 'STYLE_UPDATED'
   | 'ANIMATION_UPDATED'
+  | 'ACTIONS_UPDATED'
   | 'NODE_REMOVED'
   | 'NODE_DUPLICATED';
 
@@ -542,6 +545,51 @@ export function updateAnimation(
       payload: {
         animation: targetNode.animation,
         previousAnimation,
+      },
+    },
+  };
+}
+
+export interface UpdateActionsParams {
+  nodeId: string;
+  actions: ActionPipeline[] | null;
+}
+
+/**
+ * 8. Update the action pipelines of an existing node.
+ * Returns a new PageDocument and an ACTIONS_UPDATED event.
+ */
+export function updateActions(
+  document: PageDocument,
+  params: UpdateActionsParams,
+): CommandResult {
+  const { nodeId, actions } = params;
+
+  const newDoc = deepClone(document);
+  const loc = findNodeLocation(newDoc.document, nodeId);
+  if (!loc) {
+    throw new Error(`Cannot update actions: Node with ID "${nodeId}" not found in document.`);
+  }
+
+  const targetNode = loc.node;
+  const previousActions = targetNode.actions ? deepClone(targetNode.actions) : undefined;
+
+  if (actions === null || (Array.isArray(actions) && actions.length === 0)) {
+    delete targetNode.actions;
+  } else {
+    targetNode.actions = ActionPipelineSchema.array().parse(actions);
+  }
+
+  return {
+    document: newDoc,
+    event: {
+      type: 'ACTIONS_UPDATED',
+      timestamp: new Date().toISOString(),
+      nodeId,
+      parentId: loc.parent ? loc.parent.id : undefined,
+      payload: {
+        actions: targetNode.actions,
+        previousActions,
       },
     },
   };
