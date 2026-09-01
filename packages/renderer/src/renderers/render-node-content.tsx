@@ -978,7 +978,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
       const required = resolvedProps.required === true;
       const disabled = resolvedProps.disabled === true;
       const readOnly = resolvedProps.readOnly === true;
-      const rules = (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
+      const rules = (node.formConfig?.rules as ValidationRule[]) || (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
       const validateOn = (resolvedProps.validateOn as ValidateOnEvent) || (props.validateOn as ValidateOnEvent);
       const transform = (resolvedProps.transform as 'trim' | 'lowercase' | 'uppercase' | 'number') || (props.transform as 'trim' | 'lowercase' | 'uppercase' | 'number');
 
@@ -1015,7 +1015,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
       const required = resolvedProps.required === true;
       const disabled = resolvedProps.disabled === true;
       const readOnly = resolvedProps.readOnly === true;
-      const rules = (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
+      const rules = (node.formConfig?.rules as ValidationRule[]) || (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
       const validateOn = (resolvedProps.validateOn as ValidateOnEvent) || (props.validateOn as ValidateOnEvent);
       const transform = (resolvedProps.transform as 'trim' | 'lowercase' | 'uppercase' | 'number') || (props.transform as 'trim' | 'lowercase' | 'uppercase' | 'number');
 
@@ -1050,7 +1050,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
       const defaultValue = resolvedProps.defaultValue !== undefined ? resolvedProps.defaultValue : undefined;
       const required = resolvedProps.required === true;
       const disabled = resolvedProps.disabled === true;
-      const rules = (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
+      const rules = (node.formConfig?.rules as ValidationRule[]) || (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
       const validateOn = (resolvedProps.validateOn as ValidateOnEvent) || (props.validateOn as ValidateOnEvent);
 
       let optionsList: Array<{ label: string; value: string }> = [];
@@ -1116,7 +1116,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
       const defaultChecked = resolvedProps.defaultChecked === true;
       const required = resolvedProps.required === true;
       const disabled = resolvedProps.disabled === true;
-      const rules = (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
+      const rules = (node.formConfig?.rules as ValidationRule[]) || (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
       const validateOn = (resolvedProps.validateOn as ValidateOnEvent) || (props.validateOn as ValidateOnEvent);
       const isEditable = mode === 'editor' && !isVariableBinding(props.label);
 

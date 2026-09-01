@@ -9,6 +9,8 @@ import {
   AnimationConfigSchema,
   ActionPipeline,
   ActionPipelineSchema,
+  FormConfig,
+  FormConfigSchema,
 } from '@kubuild/schema';
 import {
   deepClone,
@@ -25,6 +27,7 @@ export type DocumentChangeType =
   | 'STYLE_UPDATED'
   | 'ANIMATION_UPDATED'
   | 'ACTIONS_UPDATED'
+  | 'FORM_CONFIG_UPDATED'
   | 'NODE_REMOVED'
   | 'NODE_DUPLICATED';
 
@@ -590,6 +593,64 @@ export function updateActions(
       payload: {
         actions: targetNode.actions,
         previousActions,
+      },
+    },
+  };
+}
+
+export interface UpdateFormConfigParams {
+  nodeId: string;
+  formConfig: Partial<FormConfig> | null;
+  /**
+   * If true (default), shallow merges new formConfig properties with existing config.
+   * If false, replaces the formConfig with the provided object.
+   * If formConfig is null, removes the form configuration from the node.
+   */
+  merge?: boolean;
+}
+
+/**
+ * 9. Update the form configuration of an existing node.
+ * Returns a new PageDocument and a FORM_CONFIG_UPDATED event.
+ */
+export function updateFormConfig(
+  document: PageDocument,
+  params: UpdateFormConfigParams,
+): CommandResult {
+  const { nodeId, formConfig, merge = true } = params;
+
+  const newDoc = deepClone(document);
+  const loc = findNodeLocation(newDoc.document, nodeId);
+  if (!loc) {
+    throw new Error(`Cannot update formConfig: Node with ID "${nodeId}" not found in document.`);
+  }
+
+  const targetNode = loc.node;
+  const previousFormConfig = targetNode.formConfig ? deepClone(targetNode.formConfig) : undefined;
+
+  if (formConfig === null) {
+    delete targetNode.formConfig;
+  } else {
+    const currentFormConfig = targetNode.formConfig ? deepClone(targetNode.formConfig) : { formId: nodeId };
+    const candidate = merge
+      ? { ...currentFormConfig, ...deepClone(formConfig) }
+      : deepClone(formConfig);
+    if (!candidate.formId) {
+      candidate.formId = nodeId;
+    }
+    targetNode.formConfig = FormConfigSchema.parse(candidate);
+  }
+
+  return {
+    document: newDoc,
+    event: {
+      type: 'FORM_CONFIG_UPDATED',
+      timestamp: new Date().toISOString(),
+      nodeId,
+      parentId: loc.parent ? loc.parent.id : undefined,
+      payload: {
+        formConfig: targetNode.formConfig,
+        previousFormConfig,
       },
     },
   };

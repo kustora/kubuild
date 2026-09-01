@@ -15,6 +15,7 @@ import { LayersPanel } from './layers-panel';
 import { TableSpreadsheetEditor, findActiveTableNode } from './table-spreadsheet-editor';
 import { HierarchyBreadcrumbs } from './breadcrumbs';
 import { LeftSidebar } from './left-sidebar';
+import { ActionDebuggerPanel } from './action-debugger-panel';
 import { EditorConfig, resolveEditorConfig } from './config';
 import {
   Monitor,
@@ -66,6 +67,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     redo,
     canUndo,
     canRedo,
+    previewMode,
+    actionDebuggerOpen,
   } = useEditorStore();
   const lastLoadedDocRef = React.useRef<PageDocument | undefined>(undefined);
 
@@ -326,6 +329,13 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           )}
 
           {resolvedConfig.canvas.showBreadcrumbs && <HierarchyBreadcrumbs registry={registry} />}
+
+          {/* STORA-345: Live Form Testing & Action Debugger in Preview Mode */}
+          {previewMode && actionDebuggerOpen && (
+            <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-3 duration-200">
+              <ActionDebuggerPanel />
+            </div>
+          )}
         </div>
 
         {/* Desktop Right Inspector */}

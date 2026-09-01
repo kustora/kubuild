@@ -259,4 +259,56 @@ describe('Visual Action Builder Modal & Flyout (STORA-340)', () => {
     const clearedNode = clearedDoc.document.children?.find((c) => c.id === targetNodeId);
     expect(clearedNode?.actions).toBeUndefined();
   });
+
+  it('renders status badges for execution mode, branches, and conditions (STORA-346)', () => {
+    const doc = createBlankDocument('Action Builder Test');
+    doc.document.children = [
+      {
+        id: 'checkout-btn',
+        type: 'button',
+        props: { label: 'Checkout' },
+        actions: [
+          {
+            id: 'pipeline-click',
+            trigger: 'click',
+            enabled: true,
+            steps: [
+              {
+                id: 'step-api',
+                type: 'api_request',
+                label: 'Payment API',
+                continueOnError: true,
+                timeout: 5000,
+                condition: '{{state.cartTotal > 0}}',
+                onSuccess: [
+                  {
+                    id: 'sub-toast',
+                    type: 'show_toast',
+                    payload: { message: 'Paid!' },
+                  },
+                ],
+                payload: { url: 'https://api.stripe.com/charge', method: 'POST' },
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const html = renderToString(
+      <ActionBuilderModal
+        isOpen={true}
+        onClose={() => {}}
+        nodeId="checkout-btn"
+        initialTrigger="click"
+        document={doc}
+      />,
+    );
+
+    expect(html).toContain('Payment API');
+    expect(html).toContain('Continues on Error');
+    expect(html).toContain('Branches (1)');
+    expect(html).toContain('Conditional');
+    expect(html).toContain('5000ms');
+  });
 });

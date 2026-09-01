@@ -4,7 +4,7 @@ import { useEditorStore } from './store';
 import { ImportModal } from './import-modal';
 import { CodeViewerModal } from './code-viewer-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from './export-utils';
-import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2 } from 'lucide-react';
+import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal } from 'lucide-react';
 
 import { EditorToolbarConfig } from './config';
 
@@ -88,6 +88,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     pasteNode,
     undo,
     redo,
+    previewMode,
+    togglePreviewMode,
+    actionDebuggerOpen,
+    toggleActionDebugger,
   } = useEditorStore();
   const [error, setError] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
@@ -99,6 +103,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const showClipboard = config?.showClipboard !== false;
   const showCodeViewer = config?.showCodeViewer !== false;
   const showExportImport = propShowExportImport && config?.showExportImport !== false;
+  const showPreviewToggle = config?.showPreviewToggle !== false;
+  const showActionDebugger = config?.showActionDebugger !== false;
   const customActions = config?.customActions;
 
   const rootId = document.document.id;
@@ -292,7 +298,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               type="button"
               title="Import .stora Package"
               onClick={() => setIsImportModalOpen(true)}
-              className="text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition"
+              className="text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition cursor-pointer"
             >
               Import
             </button>
@@ -301,7 +307,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               title="Export .stora Archive"
               disabled={isExporting}
               onClick={handleExportStora}
-              className="text-xs px-2 sm:px-2.5 py-1 rounded border border-blue-600 bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50 transition shadow-xs"
+              className="text-xs px-2 sm:px-2.5 py-1 rounded border border-blue-600 bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50 transition shadow-xs cursor-pointer"
             >
               {isExporting ? '...' : 'Export'}
             </button>
@@ -309,11 +315,59 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               type="button"
               title="Download page.json"
               onClick={handleExportJson}
-              className="hidden md:inline-block text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-slate-400 text-slate-600 transition"
+              className="hidden md:inline-block text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-slate-400 text-slate-600 transition cursor-pointer"
             >
               JSON
             </button>
           </div>
+        )}
+
+        {showPreviewToggle && (
+          <>
+            <div className="h-4 w-px bg-slate-200 mx-1" />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                data-testid="toolbar-preview-toggle"
+                title={previewMode ? 'Exit Preview (Switch to Edit mode)' : 'Interactive Preview Mode'}
+                onClick={togglePreviewMode}
+                className={`text-xs px-2.5 py-1 rounded border transition font-medium flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                  previewMode
+                    ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 font-semibold'
+                    : 'border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 text-slate-700'
+                }`}
+              >
+                {previewMode ? (
+                  <>
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                    <span>Editing</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current text-emerald-600" />
+                    <span>Preview</span>
+                  </>
+                )}
+              </button>
+
+              {previewMode && showActionDebugger && (
+                <button
+                  type="button"
+                  data-testid="toolbar-debugger-toggle"
+                  title={actionDebuggerOpen ? 'Hide Form & Action Debugger' : 'Show Form & Action Debugger'}
+                  onClick={toggleActionDebugger}
+                  className={`text-xs px-2 py-1 rounded border transition font-medium flex items-center gap-1.5 cursor-pointer ${
+                    actionDebuggerOpen
+                      ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
+                      : 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+                  }`}
+                >
+                  <Terminal className="w-3.5 h-3.5" />
+                  <span>Debugger</span>
+                </button>
+              )}
+            </div>
+          </>
         )}
 
         {customActions && (

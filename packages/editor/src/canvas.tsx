@@ -84,9 +84,12 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     insertComponent,
     insertBlock,
     moveComponent,
+    previewMode,
+    addActionLog,
+    setLiveFormState,
   } = useEditorStore();
   const document = propDoc ?? storeDoc;
-  const showFloatingBadges = config?.showFloatingBadges !== false;
+  const showFloatingBadges = config?.showFloatingBadges !== false && !previewMode;
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [hoveredRect, setHoveredRect] = useState<Rect | null>(null);
@@ -380,29 +383,69 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     <div
       ref={containerRef}
       style={{ position: 'relative' }}
-      onMouseOver={handleMouseOver}
-      onMouseLeave={handleMouseLeave}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      onDragEnd={handleDragEnd}
+      onMouseOver={previewMode ? undefined : handleMouseOver}
+      onMouseLeave={previewMode ? undefined : handleMouseLeave}
+      onDragStart={previewMode ? undefined : handleDragStart}
+      onDragOver={previewMode ? undefined : handleDragOver}
+      onDrop={previewMode ? undefined : handleDrop}
+      onDragEnd={previewMode ? undefined : handleDragEnd}
     >
       <KubuildRenderer
         document={document}
         registry={registry}
         context={context}
         viewport={viewport}
-        mode="editor"
-        onNodeClick={(id: string) => selectNode(id)}
+        mode={previewMode ? 'runtime' : 'editor'}
+        onNodeClick={(id: string) => {
+          if (!previewMode) {
+            selectNode(id);
+          }
+        }}
         onNodePropChange={(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => {
+          if (previewMode) {
+            return;
+          }
           if (!isBlur && typeof value === 'string' && value.trim() === '') {
             return;
           }
           updateNodeProps(nodeId, { [propName]: value }, registry);
         }}
-        onDiagnostic={onDiagnostic}
+        onActionDispatch={(actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => {
+          if (previewMode) {
+            addActionLog({
+              actionType,
+              trigger: 'dispatch',
+              nodeId,
+              status: 'success',
+              payload,
+            });
+            if (actionType === 'submit' && payload) {
+              setLiveFormState({
+                formId: nodeId,
+                values: payload,
+                errors: {},
+                touched: {},
+                isSubmitting: false,
+                isValid: true,
+                dirty: true,
+              });
+            }
+          }
+        }}
+        onDiagnostic={(diag) => {
+          if (previewMode && diag.code === 'ACTION_EXECUTION_ERROR') {
+            addActionLog({
+              actionType: diag.actionType || 'action_error',
+              trigger: 'error',
+              nodeId: diag.nodeId,
+              status: 'error',
+              error: diag.message,
+            });
+          }
+          onDiagnostic?.(diag);
+        }}
       />
-      {hoveredRect && hoveredNodeId !== selectedNodeId && (
+      {!previewMode && hoveredRect && hoveredNodeId !== selectedNodeId && (
         <div
           aria-hidden="true"
           role="presentation"
@@ -418,7 +461,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           }}
         />
       )}
-      {selectedRect && (
+      {!previewMode && selectedRect && (
         <div
           aria-hidden="true"
           role="presentation"
@@ -434,7 +477,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           }}
         />
       )}
-      {showFloatingBadges && selectedRect && selectedNodeId && (
+      {!previewMode && showFloatingBadges && selectedRect && selectedNodeId && (
         <FloatingActionBadges
           selectedNodeId={selectedNodeId}
           document={document}

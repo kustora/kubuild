@@ -65,6 +65,7 @@ export const FormConfigSchema = z.object({
   scrollToFirstError: z.boolean().optional().default(true),
   validateOn: ValidateOnEventSchema.optional().default('blur'),
   initialValues: z.record(z.string(), z.unknown()).optional(),
+  rules: z.array(ValidationRuleSchema).optional(),
 });
 
 export type FormConfig = z.infer<typeof FormConfigSchema>;

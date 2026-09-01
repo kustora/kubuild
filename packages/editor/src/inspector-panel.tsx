@@ -539,6 +539,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     updateNodeStyle,
     updateNodeStateStyle,
     updateNodeAnimation,
+    updateNodeFormConfig,
     variableCatalog,
     insertComponent,
     deleteComponent,
@@ -1154,6 +1155,12 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           document={document}
           selectedNodeId={node.id}
           onCommitTrait={handleCommitTrait}
+          onUpdateFormConfig={(cfg) => {
+            const result = updateNodeFormConfig(node.id, cfg);
+            if (!result.success && result.error) {
+              setError('formConfig', result.error);
+            }
+          }}
           className="p-0"
         />
       )}

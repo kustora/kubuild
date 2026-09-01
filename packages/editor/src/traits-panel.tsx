@@ -7,8 +7,10 @@ import {
   TraitGroup,
 } from '@kubuild/components';
 import { findNodeById } from '@kubuild/core';
-import { PageDocument } from '@kubuild/schema';
+import { PageDocument, FormConfig } from '@kubuild/schema';
 import { X } from 'lucide-react';
+import { FormValidationRulesPanel, isFormFieldNode } from './form-validation-rules-panel';
+import { useEditorStore } from './store';
 
 export interface TraitsPanelProps {
   registry: ComponentRegistry;
@@ -16,6 +18,8 @@ export interface TraitsPanelProps {
   selectedNodeId: string | null;
   /** Commit a single trait value to the node's props. */
   onCommitTrait: (traitName: string, value: unknown) => void;
+  /** Commit form configuration updates (including validation rules) to the node. */
+  onUpdateFormConfig?: (formConfig: Partial<FormConfig> | null) => void;
   className?: string;
 }
 
@@ -401,10 +405,12 @@ export const TraitsPanel: React.FC<TraitsPanelProps> = ({
   document,
   selectedNodeId,
   onCommitTrait,
+  onUpdateFormConfig,
   className,
 }) => {
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const definition = node ? registry.get(node.type) : undefined;
+  const storeUpdateFormConfig = useEditorStore((s) => s.updateNodeFormConfig);
 
   if (!node || !definition) {
     return (
@@ -412,9 +418,18 @@ export const TraitsPanel: React.FC<TraitsPanelProps> = ({
     );
   }
 
+  const handleUpdateFormConfig = (cfg: Partial<FormConfig> | null) => {
+    if (onUpdateFormConfig) {
+      onUpdateFormConfig(cfg);
+    } else {
+      storeUpdateFormConfig(node.id, cfg);
+    }
+  };
+
+  const isForm = isFormFieldNode(node);
   const traits = definition.traits ?? [];
 
-  if (traits.length === 0) {
+  if (traits.length === 0 && !isForm) {
     return (
       <div className={`p-3 text-xs text-slate-500 ${className || ''}`}>
         <div className="mb-1 font-medium text-slate-600">{definition.label}</div>
@@ -439,6 +454,15 @@ export const TraitsPanel: React.FC<TraitsPanelProps> = ({
 
   return (
     <div className={`flex flex-col gap-4 ${className ?? 'p-3'} text-sm text-slate-900`}>
+      {/* STORA-344: Form Validation Rules Inspector Panel */}
+      {isForm && (
+        <FormValidationRulesPanel
+          node={node}
+          onUpdateFormConfig={handleUpdateFormConfig}
+          onCommitProp={onCommitTrait}
+        />
+      )}
+
       {orderedGroups.map((group) => {
         const groupTraits = grouped.get(group) ?? [];
         // Composite link control (STORA-212): when the group holds href/target/rel,

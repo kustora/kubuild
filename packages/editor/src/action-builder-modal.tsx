@@ -28,6 +28,10 @@ import {
   Sparkles,
   ChevronRight,
   Sliders,
+  Search,
+  CopyPlus,
+  GitBranch,
+  AlertOctagon,
 } from 'lucide-react';
 
 export interface ActionBuilderModalProps {
@@ -206,6 +210,22 @@ export function getStepTypeMeta(type: ActionStepType): StepTypeMeta {
   };
 }
 
+export function getCategoryBadgeClass(category: 'network' | 'ui' | 'navigation' | 'state' | 'utility'): string {
+  switch (category) {
+    case 'network':
+      return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+    case 'ui':
+      return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+    case 'navigation':
+      return 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+    case 'state':
+      return 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30';
+    case 'utility':
+    default:
+      return 'bg-slate-800 text-slate-300 border-slate-700';
+  }
+}
+
 export function formatStepSummary(step: ActionStep): string {
   const payload = step.payload || {};
   switch (step.type) {
@@ -270,6 +290,19 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
   const [selectedTrigger, setSelectedTrigger] = useState<ActionTriggerType>(initialTrigger);
   const [isAddStepMenuOpen, setIsAddStepMenuOpen] = useState<boolean>(false);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
+  const [stepSearchQuery, setStepSearchQuery] = useState<string>('');
+
+  const filteredStepTypes = useMemo(() => {
+    if (!stepSearchQuery.trim()) return STEP_TYPE_OPTIONS;
+    const q = stepSearchQuery.toLowerCase();
+    return STEP_TYPE_OPTIONS.filter(
+      (opt) =>
+        opt.label.toLowerCase().includes(q) ||
+        opt.description.toLowerCase().includes(q) ||
+        opt.type.toLowerCase().includes(q) ||
+        opt.category.toLowerCase().includes(q),
+    );
+  }, [stepSearchQuery]);
 
   // Synchronize initial trigger
   useEffect(() => {
@@ -702,15 +735,38 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <div
                               onClick={() => setEditingStepId(isExpanded ? null : step.id)}
-                              className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
+                              className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 flex-wrap"
                             >
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border shrink-0 ${getCategoryBadgeClass(typeMeta.category)}`}>
                                 <Icon className="w-3 h-3" />
                                 <span>{typeMeta.label}</span>
                               </span>
                               {step.label && (
                                 <span className="text-xs font-medium text-slate-200 truncate">
                                   {step.label}
+                                </span>
+                              )}
+
+                              {/* Status Badges */}
+                              {step.continueOnError && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                  Continues on Error
+                                </span>
+                              )}
+                              {(Boolean(step.onSuccess?.length) || Boolean(step.onError?.length)) && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                  <GitBranch className="w-2.5 h-2.5" />
+                                  <span>{`Branches (${(step.onSuccess?.length || 0) + (step.onError?.length || 0)})`}</span>
+                                </span>
+                              )}
+                              {step.condition && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                                  Conditional
+                                </span>
+                              )}
+                              {step.timeout && step.timeout > 0 && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                                  {`${step.timeout}ms`}
                                 </span>
                               )}
                             </div>
@@ -814,43 +870,65 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
               <button
                 type="button"
                 data-testid="add-action-step-btn"
-                onClick={() => setIsAddStepMenuOpen(!isAddStepMenuOpen)}
+                onClick={() => {
+                  setIsAddStepMenuOpen(!isAddStepMenuOpen);
+                  setStepSearchQuery('');
+                }}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-blue-500/40 hover:border-blue-500 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400 font-medium text-xs transition cursor-pointer shadow-xs active:scale-[0.99]"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Action Step</span>
               </button>
 
-              {/* Step Type Dropdown Menu */}
+              {/* Step Type Dropdown Menu with Search */}
               {isAddStepMenuOpen && (
                 <div
                   data-testid="step-type-menu"
-                  className="absolute left-0 right-0 top-full mt-2 z-20 grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute left-0 right-0 top-full mt-2 z-20 flex flex-col p-2 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 gap-2 max-h-80 overflow-y-auto"
                 >
-                  {STEP_TYPE_OPTIONS.map((option) => {
-                    const Icon = option.icon;
-                    return (
-                      <button
-                        key={option.type}
-                        type="button"
-                        data-testid={`add-step-option-${option.type}`}
-                        onClick={() => handleAddStep(option.type)}
-                        className="flex items-start gap-3 p-2.5 rounded-lg text-left hover:bg-slate-800/90 transition text-slate-200 hover:text-white cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 group-hover:bg-blue-500 group-hover:text-white flex items-center justify-center shrink-0 transition">
-                          <Icon className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-slate-100 group-hover:text-blue-300 flex items-center gap-1.5">
-                            <span>{option.label}</span>
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-950 rounded-lg border border-slate-800 text-xs">
+                    <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      data-testid="step-type-search-input"
+                      value={stepSearchQuery}
+                      onChange={(e) => setStepSearchQuery(e.target.value)}
+                      placeholder="Search action types (e.g. toast, api, modal)..."
+                      className="w-full bg-transparent text-slate-200 placeholder-slate-500 focus:outline-none text-xs"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {filteredStepTypes.map((option) => {
+                      const Icon = option.icon;
+                      const catBadge = getCategoryBadgeClass(option.category);
+                      return (
+                        <button
+                          key={option.type}
+                          type="button"
+                          data-testid={`add-step-option-${option.type}`}
+                          onClick={() => {
+                            handleAddStep(option.type);
+                            setStepSearchQuery('');
+                          }}
+                          className="flex items-start gap-3 p-2.5 rounded-lg text-left hover:bg-slate-800/90 transition text-slate-200 hover:text-white cursor-pointer group border border-slate-800 hover:border-slate-700"
+                        >
+                          <div className={`w-7 h-7 rounded border flex items-center justify-center shrink-0 transition ${catBadge}`}>
+                            <Icon className="w-3.5 h-3.5" />
                           </div>
-                          <div className="text-[11px] text-slate-400 leading-tight truncate">
-                            {option.description}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-slate-100 group-hover:text-blue-300 flex items-center gap-1.5">
+                              <span>{option.label}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 leading-tight truncate">
+                              {option.description}
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>

@@ -6,6 +6,7 @@ import {
   TemplateRecord,
   AnimationConfig,
   ActionPipeline,
+  FormConfig,
 } from '@kubuild/schema';
 import {
   createBlankDocument,
@@ -21,6 +22,7 @@ import {
   updateStyle,
   updateAnimation,
   updateActions,
+  updateFormConfig,
   DocumentHistoryManager,
   CommandResult,
   deepClone,
@@ -42,6 +44,34 @@ import {
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 export type NavigatorMode = 'docked' | 'floating' | 'hidden';
 export type TableSpreadsheetMode = 'floating' | 'docked' | 'hidden';
+
+export interface ActionLogEntry {
+  id: string;
+  timestamp: string;
+  trigger: string;
+  actionType: string;
+  nodeId?: string;
+  status: 'pending' | 'success' | 'error';
+  payload?: Record<string, unknown>;
+  output?: unknown;
+  error?: string;
+  durationMs?: number;
+}
+
+export interface LiveFormState {
+  formId?: string;
+  values: Record<string, unknown>;
+  errors: Record<string, string>;
+  touched: Record<string, boolean>;
+  isSubmitting: boolean;
+  isValid: boolean;
+  dirty: boolean;
+}
+
+export interface UpdateFormConfigResult {
+  success: boolean;
+  error?: string;
+}
 
 export type DragPayload =
   | { type: 'component'; componentType: string }
@@ -164,6 +194,10 @@ export interface EditorState {
   variableCatalog: VariableCatalog;
   navigatorMode: NavigatorMode;
   tableSpreadsheetMode: TableSpreadsheetMode;
+  previewMode: boolean;
+  actionDebuggerOpen: boolean;
+  actionLogs: ActionLogEntry[];
+  liveFormState: LiveFormState | null;
 
   setDocument: (document: PageDocument) => void;
   setDragPayload: (payload: DragPayload | null) => void;
@@ -172,6 +206,13 @@ export interface EditorState {
   toggleNavigator: () => void;
   setTableSpreadsheetMode: (mode: TableSpreadsheetMode) => void;
   toggleTableSpreadsheet: () => void;
+  setPreviewMode: (enabled: boolean) => void;
+  togglePreviewMode: () => void;
+  setActionDebuggerOpen: (open: boolean) => void;
+  toggleActionDebugger: () => void;
+  addActionLog: (entry: Omit<ActionLogEntry, 'id' | 'timestamp'> & { id?: string; timestamp?: string }) => void;
+  clearActionLogs: () => void;
+  setLiveFormState: (state: LiveFormState | null) => void;
   setOnChangeHandler: (handler: ((doc: PageDocument) => void) | null) => void;
   dispatch: (executor: (doc: PageDocument) => CommandResult) => void;
   insertComponent: (
@@ -224,6 +265,11 @@ export interface EditorState {
     nodeId: string,
     actions: ActionPipeline[] | null,
   ) => UpdateActionsResult;
+  updateNodeFormConfig: (
+    nodeId: string,
+    formConfig: Partial<FormConfig> | null,
+    merge?: boolean,
+  ) => UpdateFormConfigResult;
   undo: () => void;
   redo: () => void;
   markSaved: () => void;
@@ -265,6 +311,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   variableCatalog: [],
   navigatorMode: 'floating',
   tableSpreadsheetMode: 'floating',
+  previewMode: false,
+  actionDebuggerOpen: false,
+  actionLogs: [],
+  liveFormState: null,
 
   setDragPayload: (payload) => set({ dragPayload: payload }),
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
@@ -278,6 +328,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({
       tableSpreadsheetMode: state.tableSpreadsheetMode === 'hidden' ? 'floating' : 'hidden',
     })),
+  setPreviewMode: (enabled) =>
+    set((state) => ({
+      previewMode: enabled,
+      actionDebuggerOpen: enabled ? state.actionDebuggerOpen : false,
+      selectedNodeId: enabled ? null : state.selectedNodeId,
+      hoveredNodeId: null,
+    })),
+  togglePreviewMode: () =>
+    set((state) => {
+      const next = !state.previewMode;
+      return {
+        previewMode: next,
+        actionDebuggerOpen: next ? state.actionDebuggerOpen : false,
+        selectedNodeId: next ? null : state.selectedNodeId,
+        hoveredNodeId: null,
+      };
+    }),
+  setActionDebuggerOpen: (open) => set({ actionDebuggerOpen: open }),
+  toggleActionDebugger: () => set((state) => ({ actionDebuggerOpen: !state.actionDebuggerOpen })),
+  addActionLog: (entry) =>
+    set((state) => ({
+      actionLogs: [
+        {
+          id: entry.id || `act-log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: entry.timestamp || new Date().toISOString(),
+          ...entry,
+        },
+        ...state.actionLogs,
+      ].slice(0, 100),
+    })),
+  clearActionLogs: () => set({ actionLogs: [] }),
+  setLiveFormState: (formState) => set({ liveFormState: formState }),
 
   setDocument: (document) => {
     historyManager = new DocumentHistoryManager(document);
@@ -567,6 +649,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateNodeActions: (nodeId, actions) => {
     try {
       get().dispatch((doc) => updateActions(doc, { nodeId, actions }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
+  updateNodeFormConfig: (nodeId, formConfig, merge = true) => {
+    try {
+      get().dispatch((doc) => updateFormConfig(doc, { nodeId, formConfig, merge }));
     } catch (err) {
       return { success: false, error: formatCommandError(err) };
     }

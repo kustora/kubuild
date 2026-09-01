@@ -18,6 +18,10 @@ export interface EditorToolbarConfig {
   showExportImport?: boolean;
   /** Display Viewport breakpoint switcher (desktop/tablet/mobile). Default: true */
   showViewportSwitcher?: boolean;
+  /** Display Preview / Edit mode toggle button. Default: true */
+  showPreviewToggle?: boolean;
+  /** Display Action Debugger toggle button in preview mode. Default: true */
+  showActionDebugger?: boolean;
   /** Display selected element ID badge on right side. Default: true */
   showSelectionStatus?: boolean;
   /** Custom extra actions or buttons rendered in the toolbar */
@@ -79,6 +83,8 @@ export interface ResolvedEditorConfig {
     showCodeViewer: boolean;
     showExportImport: boolean;
     showViewportSwitcher: boolean;
+    showPreviewToggle: boolean;
+    showActionDebugger: boolean;
     showSelectionStatus: boolean;
     customActions?: React.ReactNode;
   };
@@ -134,6 +140,8 @@ export function resolveEditorConfig(config?: EditorConfig): ResolvedEditorConfig
       showCodeViewer: toolbarCfg.showCodeViewer ?? true,
       showExportImport: toolbarCfg.showExportImport ?? true,
       showViewportSwitcher: toolbarCfg.showViewportSwitcher ?? true,
+      showPreviewToggle: toolbarCfg.showPreviewToggle ?? true,
+      showActionDebugger: toolbarCfg.showActionDebugger ?? true,
       showSelectionStatus: toolbarCfg.showSelectionStatus ?? true,
       customActions: toolbarCfg.customActions,
     },
