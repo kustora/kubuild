@@ -627,6 +627,411 @@ export function buttonTypeTrait(overrides?: Partial<ComponentTraitDefinition>): 
   );
 }
 
+// ---------------------------------------------------------------------------
+// STORA-330 — Form Behavior Traits
+// ---------------------------------------------------------------------------
+
+/** `preventDefault` — whether the form intercepts the native submit and handles it in JS. */
+export function preventDefaultTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'preventDefault',
+      label: 'Prevent Default',
+      type: 'boolean',
+      defaultValue: true,
+      group: 'form',
+      description: 'Intercept the native browser submit and handle it via the KUBUILD action pipeline instead.',
+    },
+    overrides,
+  );
+}
+
+/** `scrollToFirstError` — whether the form auto-scrolls to the first invalid field on submit. */
+export function scrollToFirstErrorTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'scrollToFirstError',
+      label: 'Scroll to First Error',
+      type: 'boolean',
+      defaultValue: true,
+      group: 'form',
+      description: 'Automatically scroll to and focus the first invalid field when submission fails validation.',
+    },
+    overrides,
+  );
+}
+
+/** `resetOnSubmit` — whether the form resets all fields to their initial values after a successful submit. */
+export function resetOnSubmitTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'resetOnSubmit',
+      label: 'Reset on Submit',
+      type: 'boolean',
+      defaultValue: false,
+      group: 'form',
+      description: 'Reset all fields to their initial values after a successful form submission.',
+    },
+    overrides,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// STORA-331 — Rich Input Traits
+// ---------------------------------------------------------------------------
+
+/** `pattern` — a regex the field value must match for the input to be valid. */
+export function patternTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'pattern',
+      label: 'Pattern (regex)',
+      type: 'string',
+      attribute: 'pattern',
+      group: 'form',
+      description: 'A regular expression the input value must match to pass validation.',
+    },
+    overrides,
+  );
+}
+
+/** `minLength` — the minimum number of characters required. */
+export function minLengthTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'minLength',
+      label: 'Min Length',
+      type: 'number',
+      attribute: 'minlength',
+      group: 'form',
+      description: 'The minimum number of characters the user must enter.',
+    },
+    overrides,
+  );
+}
+
+/** `maxLength` — the maximum number of characters allowed. */
+export function maxLengthTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'maxLength',
+      label: 'Max Length',
+      type: 'number',
+      attribute: 'maxlength',
+      group: 'form',
+      description: 'The maximum number of characters the user is allowed to enter.',
+    },
+    overrides,
+  );
+}
+
+/** `prefixIcon` — an icon name displayed before the input content (e.g. Lucide icon name). */
+export function prefixIconTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'prefixIcon',
+      label: 'Prefix Icon',
+      type: 'string',
+      group: 'form',
+      description: 'Lucide icon name displayed before the input value (e.g. "mail", "search").',
+    },
+    overrides,
+  );
+}
+
+/** `suffixIcon` — an icon name displayed after the input content (e.g. Lucide icon name). */
+export function suffixIconTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'suffixIcon',
+      label: 'Suffix Icon',
+      type: 'string',
+      group: 'form',
+      description: 'Lucide icon name displayed after the input value (e.g. "eye", "check").',
+    },
+    overrides,
+  );
+}
+
+/** `helperText` — a short hint displayed below the input describing its expected value. */
+export function helperTextTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'helperText',
+      label: 'Helper Text',
+      type: 'string',
+      group: 'form',
+      description: 'A short message displayed below the input to guide the user (e.g. "Must be at least 8 characters").',
+    },
+    overrides,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// STORA-332 — Textarea & Select Traits
+// ---------------------------------------------------------------------------
+
+/** `resize` — the CSS resize behavior of a textarea. */
+export function resizeTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'resize',
+      label: 'Resize',
+      type: 'select',
+      defaultValue: 'vertical',
+      group: 'form',
+      options: [
+        { label: 'Vertical only', value: 'vertical' },
+        { label: 'Horizontal only', value: 'horizontal' },
+        { label: 'Both', value: 'both' },
+        { label: 'None', value: 'none' },
+      ],
+      description: 'Controls whether and how the user can resize the textarea.',
+    },
+    overrides,
+  );
+}
+
+/** `autoGrow` — whether the textarea automatically grows in height as the user types. */
+export function autoGrowTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'autoGrow',
+      label: 'Auto Grow',
+      type: 'boolean',
+      defaultValue: false,
+      group: 'form',
+      description: 'Automatically expand the textarea height to fit the content without scrolling.',
+    },
+    overrides,
+  );
+}
+
+/** `maxCharCount` — the maximum character count with a visible counter shown below the textarea. */
+export function maxCharCountTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'maxCharCount',
+      label: 'Max Character Count',
+      type: 'number',
+      group: 'form',
+      description: 'Maximum character limit displayed as a counter below the textarea (e.g. "120 / 500").',
+    },
+    overrides,
+  );
+}
+
+/** `optionsList` — the list of options for a select dropdown, each with a label and value. */
+export function optionsListTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'options',
+      label: 'Options',
+      type: 'string',
+      group: 'form',
+      description: 'The list of dropdown options, each with a label and value. Editable via the inspector trait panel.',
+    },
+    overrides,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// STORA-333 — Checkbox, Switch & Radio-Group Traits
+// ---------------------------------------------------------------------------
+
+/** `labelText` — the visible label text displayed next to a boolean control. */
+export function labelTextTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'label',
+      label: 'Label Text',
+      type: 'string',
+      group: 'form',
+      description: 'The visible text label displayed alongside the control.',
+    },
+    overrides,
+  );
+}
+
+/** `indeterminate` — whether the checkbox renders in the indeterminate (mixed) visual state. */
+export function indeterminateTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'indeterminate',
+      label: 'Indeterminate',
+      type: 'boolean',
+      defaultValue: false,
+      group: 'form',
+      description: 'Renders the checkbox in a mixed/indeterminate visual state (neither checked nor unchecked).',
+    },
+    overrides,
+  );
+}
+
+/** `switchSize` — the visual size of a switch control. */
+export function switchSizeTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'switchSize',
+      label: 'Size',
+      type: 'select',
+      defaultValue: 'md',
+      group: 'form',
+      options: [
+        { label: 'Small', value: 'sm' },
+        { label: 'Medium', value: 'md' },
+        { label: 'Large', value: 'lg' },
+      ],
+      description: 'The visual size of the switch toggle.',
+    },
+    overrides,
+  );
+}
+
+/** `orientation` — the layout direction for a group of controls (horizontal or vertical). */
+export function orientationTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'orientation',
+      label: 'Orientation',
+      type: 'select',
+      defaultValue: 'vertical',
+      group: 'form',
+      options: [
+        { label: 'Vertical', value: 'vertical' },
+        { label: 'Horizontal', value: 'horizontal' },
+      ],
+      description: 'The layout direction of the child controls (vertical stack or horizontal row).',
+    },
+    overrides,
+  );
+}
+
+/** `defaultSelected` — the initially selected value in a radio group. */
+export function defaultSelectedTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'defaultSelected',
+      label: 'Default Selected',
+      type: 'string',
+      group: 'form',
+      description: 'The value of the radio item that is selected by default.',
+    },
+    overrides,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// STORA-334 — File Upload & Submit Button Traits
+// ---------------------------------------------------------------------------
+
+/** `accept` — the allowed file MIME types or extensions (e.g. "image/*,.pdf"). */
+export function acceptTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'accept',
+      label: 'Accepted File Types',
+      type: 'string',
+      attribute: 'accept',
+      defaultValue: '*/*',
+      group: 'form',
+      description: 'Comma-separated list of MIME types or file extensions accepted (e.g. "image/*,.pdf,.docx").',
+    },
+    overrides,
+  );
+}
+
+/** `maxFileSize` — the maximum permitted file size in megabytes (MB). */
+export function maxFileSizeTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'maxFileSize',
+      label: 'Max File Size (MB)',
+      type: 'number',
+      defaultValue: 10,
+      group: 'form',
+      description: 'The maximum allowable file size in megabytes (MB).',
+    },
+    overrides,
+  );
+}
+
+/** `multiple` — whether the user may select multiple files simultaneously. */
+export function multipleTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'multiple',
+      label: 'Allow Multiple Files',
+      type: 'boolean',
+      attribute: 'multiple',
+      defaultValue: false,
+      group: 'form',
+      description: 'Allow multiple files to be selected and uploaded at once.',
+    },
+    overrides,
+  );
+}
+
+/** `showPreview` — whether to render a thumbnail or list preview for selected files. */
+export function showPreviewTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'showPreview',
+      label: 'Show Preview',
+      type: 'boolean',
+      defaultValue: true,
+      group: 'form',
+      description: 'Display an interactive preview (image thumbnail or file list with badges) for selected files.',
+    },
+    overrides,
+  );
+}
+
+/** `loadingText` — alternative label displayed while form is submitting. */
+export function loadingTextTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'loadingText',
+      label: 'Loading Text',
+      type: 'string',
+      defaultValue: 'Submitting...',
+      group: 'behavior',
+      description: 'Text displayed on the button while the form submission is in progress.',
+    },
+    overrides,
+  );
+}
+
+/** `showSpinner` — whether an animated loading spinner is displayed during submission. */
+export function showSpinnerTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'showSpinner',
+      label: 'Show Loading Spinner',
+      type: 'boolean',
+      defaultValue: true,
+      group: 'behavior',
+      description: 'Automatically show an animated loading spinner icon while form is submitting.',
+    },
+    overrides,
+  );
+}
+
+/** `autoDisableOnSubmit` — whether the submit button is automatically disabled during submission. */
+export function autoDisableOnSubmitTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {
+  return withOverrides(
+    {
+      name: 'autoDisableOnSubmit',
+      label: 'Auto Disable on Submit',
+      type: 'boolean',
+      defaultValue: true,
+      group: 'behavior',
+      description: 'Automatically disable the button to prevent duplicate submissions while the form is submitting.',
+    },
+    overrides,
+  );
+}
+
 /**
  * Sort a component's traits into a stable, inspector-friendly order:
  * identity first, then the remaining groups in `TRAIT_GROUP_ORDER`, with

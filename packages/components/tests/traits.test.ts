@@ -22,6 +22,22 @@ import {
   prefixIconTrait,
   suffixIconTrait,
   helperTextTrait,
+  resizeTrait,
+  autoGrowTrait,
+  maxCharCountTrait,
+  optionsListTrait,
+  labelTextTrait,
+  indeterminateTrait,
+  switchSizeTrait,
+  orientationTrait,
+  defaultSelectedTrait,
+  acceptTrait,
+  maxFileSizeTrait,
+  multipleTrait,
+  showPreviewTrait,
+  loadingTextTrait,
+  showSpinnerTrait,
+  autoDisableOnSubmitTrait,
 } from '../src/traits';
 import {
   createDefaultComponentRegistry,
@@ -29,7 +45,16 @@ import {
   linkDefinition,
   inputDefinition,
   buttonDefinition,
+  buttonSubmitDefinition,
   formDefinition,
+  textareaDefinition,
+  selectDefinition,
+  checkboxDefinition,
+  switchDefinition,
+  radioGroupDefinition,
+  radioDefinition,
+  radioItemDefinition,
+  fileUploadDefinition,
 } from '../src/index';
 
 describe('Trait Metadata (STORA-210)', () => {
@@ -198,11 +223,16 @@ describe('Trait Metadata (STORA-210)', () => {
         'image',
         'video',
         'button',
+        'button-submit',
         'input',
         'textarea',
         'select',
         'checkbox',
+        'switch',
+        'radio-group',
         'radio',
+        'radio-item',
+        'file-upload',
         'form',
       ];
 
@@ -632,3 +662,635 @@ describe('Rich Input Traits (STORA-331)', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// STORA-332 — Textarea & Select Trait Factories & Definitions
+// ---------------------------------------------------------------------------
+describe('Textarea & Select Traits (STORA-332)', () => {
+  describe('Trait Factories', () => {
+    it('creates resizeTrait with select type and vertical default', () => {
+      const trait = resizeTrait();
+      expect(trait.name).toBe('resize');
+      expect(trait.type).toBe('select');
+      expect(trait.defaultValue).toBe('vertical');
+      expect(trait.group).toBe('form');
+      expect(trait.options?.map((o) => o.value)).toEqual(['vertical', 'horizontal', 'both', 'none']);
+    });
+
+    it('creates autoGrowTrait with boolean type and false default', () => {
+      const trait = autoGrowTrait();
+      expect(trait.name).toBe('autoGrow');
+      expect(trait.type).toBe('boolean');
+      expect(trait.defaultValue).toBe(false);
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates maxCharCountTrait with number type', () => {
+      const trait = maxCharCountTrait();
+      expect(trait.name).toBe('maxCharCount');
+      expect(trait.type).toBe('number');
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates optionsListTrait with string type', () => {
+      const trait = optionsListTrait();
+      expect(trait.name).toBe('options');
+      expect(trait.type).toBe('string');
+      expect(trait.group).toBe('form');
+    });
+
+    it('allows overrides on textarea traits', () => {
+      const trait = resizeTrait({ defaultValue: 'none' });
+      expect(trait.defaultValue).toBe('none');
+      expect(trait.name).toBe('resize');
+    });
+
+    it('allows overrides on select traits', () => {
+      const trait = optionsListTrait({ required: true });
+      expect(trait.required).toBe(true);
+      expect(trait.name).toBe('options');
+    });
+  });
+
+  describe('Textarea Definition', () => {
+    it('textarea includes all STORA-332 traits', () => {
+      const traits = textareaDefinition.traits!;
+      expect(traits.find((t) => t.name === 'resize')).toBeDefined();
+      expect(traits.find((t) => t.name === 'autoGrow')).toBeDefined();
+      expect(traits.find((t) => t.name === 'maxCharCount')).toBeDefined();
+      expect(traits.find((t) => t.name === 'helperText')).toBeDefined();
+    });
+
+    it('textarea still includes original traits (rows, name, placeholder, etc.)', () => {
+      const traits = textareaDefinition.traits!;
+      expect(traits.find((t) => t.name === 'rows')).toBeDefined();
+      expect(traits.find((t) => t.name === 'name')).toBeDefined();
+      expect(traits.find((t) => t.name === 'placeholder')).toBeDefined();
+      expect(traits.find((t) => t.name === 'defaultValue')).toBeDefined();
+      expect(traits.find((t) => t.name === 'required')).toBeDefined();
+      expect(traits.find((t) => t.name === 'disabled')).toBeDefined();
+      expect(traits.find((t) => t.name === 'readOnly')).toBeDefined();
+    });
+
+    it('textarea defaultProps include new trait defaults', () => {
+      expect(textareaDefinition.defaultProps?.resize).toBe('vertical');
+      expect(textareaDefinition.defaultProps?.autoGrow).toBe(false);
+      expect(textareaDefinition.defaultProps?.helperText).toBe('');
+    });
+
+    it('textarea propFields include new trait entries', () => {
+      const fields = textareaDefinition.propFields!;
+      expect(fields.find((f) => f.name === 'resize')).toBeDefined();
+      expect(fields.find((f) => f.name === 'autoGrow')).toBeDefined();
+      expect(fields.find((f) => f.name === 'maxCharCount')).toBeDefined();
+      expect(fields.find((f) => f.name === 'helperText')).toBeDefined();
+    });
+
+    it('textarea validateProps accepts valid new trait values', () => {
+      const result = textareaDefinition.validateProps!({
+        resize: 'both',
+        autoGrow: true,
+        maxCharCount: 500,
+        helperText: 'Max 500 characters',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('textarea validateProps rejects invalid resize value', () => {
+      const result = textareaDefinition.validateProps!({
+        resize: 'diagonal',
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('resize');
+    });
+
+    it('textarea validateProps rejects non-boolean autoGrow', () => {
+      const result = textareaDefinition.validateProps!({
+        autoGrow: 'yes',
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('autoGrow');
+    });
+
+    it('textarea validateProps rejects invalid maxCharCount (non-positive)', () => {
+      const result = textareaDefinition.validateProps!({
+        maxCharCount: 0,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('maxCharCount');
+    });
+
+    it('textarea validateProps rejects non-integer maxCharCount', () => {
+      const result = textareaDefinition.validateProps!({
+        maxCharCount: 2.5,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('maxCharCount');
+    });
+
+    it('textarea validateProps rejects non-string helperText', () => {
+      const result = textareaDefinition.validateProps!({
+        helperText: 42,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('helperText');
+    });
+  });
+
+  describe('Select Definition', () => {
+    it('select includes optionsList trait for inspector editing', () => {
+      const traits = selectDefinition.traits!;
+      const optionsTrait = traits.find((t) => t.name === 'options');
+      expect(optionsTrait).toBeDefined();
+      expect(optionsTrait?.group).toBe('form');
+      expect(optionsTrait?.description).toContain('inspector');
+    });
+
+    it('select includes helperText trait', () => {
+      const traits = selectDefinition.traits!;
+      expect(traits.find((t) => t.name === 'helperText')).toBeDefined();
+    });
+
+    it('select still includes original traits (name, placeholder, defaultValue, etc.)', () => {
+      const traits = selectDefinition.traits!;
+      expect(traits.find((t) => t.name === 'name')).toBeDefined();
+      expect(traits.find((t) => t.name === 'placeholder')).toBeDefined();
+      expect(traits.find((t) => t.name === 'defaultValue')).toBeDefined();
+      expect(traits.find((t) => t.name === 'required')).toBeDefined();
+      expect(traits.find((t) => t.name === 'disabled')).toBeDefined();
+    });
+
+    it('select defaultProps include helperText', () => {
+      expect(selectDefinition.defaultProps?.helperText).toBe('');
+    });
+
+    it('select propFields include helperText entry', () => {
+      const fields = selectDefinition.propFields!;
+      expect(fields.find((f) => f.name === 'helperText')).toBeDefined();
+    });
+
+    it('select validateProps accepts valid helperText', () => {
+      const result = selectDefinition.validateProps!({
+        helperText: 'Choose one option',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('select validateProps rejects non-string helperText', () => {
+      const result = selectDefinition.validateProps!({
+        helperText: false,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('helperText');
+    });
+
+    it('select options trait is editable via inspector trait list (acceptance criteria)', () => {
+      const traits = selectDefinition.traits!;
+      const optionsTrait = traits.find((t) => t.name === 'options');
+      // The options trait must exist in the trait list so the inspector
+      // can render an editable control for it
+      expect(optionsTrait).toBeDefined();
+      expect(optionsTrait?.group).toBe('form');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// STORA-333 — Checkbox, Switch & Radio-Group Traits & Definitions
+// ---------------------------------------------------------------------------
+describe('Checkbox, Switch & Radio-Group Traits (STORA-333)', () => {
+  describe('Trait Factories', () => {
+    it('creates labelTextTrait with string type and form group', () => {
+      const trait = labelTextTrait();
+      expect(trait.name).toBe('label');
+      expect(trait.type).toBe('string');
+      expect(trait.group).toBe('form');
+      expect(trait.label).toBe('Label Text');
+    });
+
+    it('creates indeterminateTrait with boolean type and false default', () => {
+      const trait = indeterminateTrait();
+      expect(trait.name).toBe('indeterminate');
+      expect(trait.type).toBe('boolean');
+      expect(trait.defaultValue).toBe(false);
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates switchSizeTrait with select type and md default', () => {
+      const trait = switchSizeTrait();
+      expect(trait.name).toBe('switchSize');
+      expect(trait.type).toBe('select');
+      expect(trait.defaultValue).toBe('md');
+      expect(trait.group).toBe('form');
+      expect(trait.options?.map((o) => o.value)).toEqual(['sm', 'md', 'lg']);
+    });
+
+    it('creates orientationTrait with select type and vertical default', () => {
+      const trait = orientationTrait();
+      expect(trait.name).toBe('orientation');
+      expect(trait.type).toBe('select');
+      expect(trait.defaultValue).toBe('vertical');
+      expect(trait.group).toBe('form');
+      expect(trait.options?.map((o) => o.value)).toEqual(['vertical', 'horizontal']);
+    });
+
+    it('creates defaultSelectedTrait with string type and form group', () => {
+      const trait = defaultSelectedTrait();
+      expect(trait.name).toBe('defaultSelected');
+      expect(trait.type).toBe('string');
+      expect(trait.group).toBe('form');
+    });
+
+    it('allows trait overrides on new factories', () => {
+      const trait = orientationTrait({ defaultValue: 'horizontal', required: true });
+      expect(trait.defaultValue).toBe('horizontal');
+      expect(trait.required).toBe(true);
+    });
+  });
+
+  describe('Checkbox Definition (STORA-333 Enhancements)', () => {
+    it('checkbox includes label, indeterminate, and helperText traits', () => {
+      const traits = checkboxDefinition.traits!;
+      expect(traits.find((t) => t.name === 'label')).toBeDefined();
+      expect(traits.find((t) => t.name === 'indeterminate')).toBeDefined();
+      expect(traits.find((t) => t.name === 'helperText')).toBeDefined();
+      expect(traits.find((t) => t.name === 'defaultChecked')).toBeDefined();
+      expect(traits.find((t) => t.name === 'value')).toBeDefined();
+    });
+
+    it('checkbox defaultProps include new trait defaults', () => {
+      expect(checkboxDefinition.defaultProps?.indeterminate).toBe(false);
+      expect(checkboxDefinition.defaultProps?.helperText).toBe('');
+      expect(checkboxDefinition.defaultProps?.defaultChecked).toBe(false);
+    });
+
+    it('checkbox propFields include new trait fields', () => {
+      const fields = checkboxDefinition.propFields!;
+      expect(fields.find((f) => f.name === 'indeterminate')).toBeDefined();
+      expect(fields.find((f) => f.name === 'helperText')).toBeDefined();
+    });
+
+    it('checkbox validateProps accepts valid props', () => {
+      const result = checkboxDefinition.validateProps!({
+        name: 'terms',
+        label: 'Accept terms',
+        value: 'agreed',
+        defaultChecked: true,
+        indeterminate: false,
+        required: true,
+        disabled: false,
+        helperText: 'You must accept terms to proceed',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('checkbox validateProps rejects invalid indeterminate type', () => {
+      const result = checkboxDefinition.validateProps!({
+        indeterminate: 'yes',
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('indeterminate');
+    });
+
+    it('checkbox validateProps rejects invalid helperText type', () => {
+      const result = checkboxDefinition.validateProps!({
+        helperText: 123,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('helperText');
+    });
+  });
+
+  describe('Switch Definition (STORA-333)', () => {
+    it('switch is defined with form category and no children', () => {
+      expect(switchDefinition.type).toBe('switch');
+      expect(switchDefinition.category).toBe('form');
+      expect(switchDefinition.acceptsChildren).toBe(false);
+    });
+
+    it('switch includes boolean control traits and switchSize trait', () => {
+      const traits = switchDefinition.traits!;
+      expect(traits.find((t) => t.name === 'name')).toBeDefined();
+      expect(traits.find((t) => t.name === 'label')).toBeDefined();
+      expect(traits.find((t) => t.name === 'value')).toBeDefined();
+      expect(traits.find((t) => t.name === 'defaultChecked')).toBeDefined();
+      expect(traits.find((t) => t.name === 'switchSize')).toBeDefined();
+      expect(traits.find((t) => t.name === 'helperText')).toBeDefined();
+      expect(traits.find((t) => t.name === 'required')).toBeDefined();
+      expect(traits.find((t) => t.name === 'disabled')).toBeDefined();
+      expect(traits.find((t) => t.name === 'id')).toBeDefined();
+      expect(traits.find((t) => t.name === 'ariaLabel')).toBeDefined();
+    });
+
+    it('switch defaultProps and propFields are configured correctly', () => {
+      expect(switchDefinition.defaultProps?.switchSize).toBe('md');
+      expect(switchDefinition.defaultProps?.defaultChecked).toBe(false);
+      expect(switchDefinition.propFields?.find((f) => f.name === 'switchSize')).toBeDefined();
+    });
+
+    it('switch validateProps accepts valid props', () => {
+      const result = switchDefinition.validateProps!({
+        name: 'notifications',
+        label: 'Enable push notifications',
+        value: 'enabled',
+        defaultChecked: true,
+        switchSize: 'lg',
+        required: false,
+        disabled: false,
+        helperText: 'Receive real-time updates',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('switch validateProps rejects invalid switchSize', () => {
+      const result = switchDefinition.validateProps!({
+        switchSize: 'xl',
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('switchSize');
+    });
+
+    it('switch validateProps rejects non-boolean defaultChecked', () => {
+      const result = switchDefinition.validateProps!({
+        defaultChecked: 'checked',
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect((result as string[])[0]).toContain('defaultChecked');
+    });
+  });
+
+  describe('Radio Group & Radio Item Definitions (STORA-333)', () => {
+    it('radio-group accepts radio and radio-item children', () => {
+      expect(radioGroupDefinition.type).toBe('radio-group');
+      expect(radioGroupDefinition.category).toBe('form');
+      expect(radioGroupDefinition.acceptsChildren).toBe(true);
+      expect(radioGroupDefinition.allowedChildren).toContain('radio');
+      expect(radioGroupDefinition.allowedChildren).toContain('radio-item');
+    });
+
+    it('radio-group includes orientation and defaultSelected traits', () => {
+      const traits = radioGroupDefinition.traits!;
+      expect(traits.find((t) => t.name === 'name')).toBeDefined();
+      expect(traits.find((t) => t.name === 'defaultSelected')).toBeDefined();
+      expect(traits.find((t) => t.name === 'orientation')).toBeDefined();
+      expect(traits.find((t) => t.name === 'helperText')).toBeDefined();
+      expect(traits.find((t) => t.name === 'required')).toBeDefined();
+      expect(traits.find((t) => t.name === 'disabled')).toBeDefined();
+    });
+
+    it('radio-group defaultProps and propFields are configured correctly', () => {
+      expect(radioGroupDefinition.defaultProps?.orientation).toBe('vertical');
+      expect(radioGroupDefinition.defaultProps?.defaultSelected).toBe('option1');
+      expect(radioGroupDefinition.defaultChildren?.length).toBeGreaterThan(0);
+    });
+
+    it('radio-group validateProps validates orientation and types', () => {
+      const valid = radioGroupDefinition.validateProps!({
+        name: 'plan',
+        defaultSelected: 'pro',
+        orientation: 'horizontal',
+        helperText: 'Select your billing tier',
+      });
+      expect(valid).toBe(true);
+
+      const invalid = radioGroupDefinition.validateProps!({
+        orientation: 'diagonal',
+        defaultSelected: 123,
+      });
+      expect(Array.isArray(invalid)).toBe(true);
+      expect((invalid as string[]).length).toBe(2);
+    });
+
+    it('radio and radio-item definitions expose required single-choice traits', () => {
+      for (const def of [radioDefinition, radioItemDefinition]) {
+        const traits = def.traits!;
+        expect(traits.find((t) => t.name === 'name')).toBeDefined();
+        expect(traits.find((t) => t.name === 'label')).toBeDefined();
+        expect(traits.find((t) => t.name === 'value')).toBeDefined();
+        expect(traits.find((t) => t.name === 'defaultChecked')).toBeDefined();
+        expect(traits.find((t) => t.name === 'helperText')).toBeDefined();
+      }
+    });
+  });
+
+  describe('Form Runtime Binding Contract (Acceptance Criteria)', () => {
+    it('checkbox and switch bind to boolean runtime value via defaultChecked', () => {
+      const cbDefChecked = checkboxDefinition.traits?.find((t) => t.name === 'defaultChecked');
+      const swDefChecked = switchDefinition.traits?.find((t) => t.name === 'defaultChecked');
+
+      expect(cbDefChecked?.type).toBe('boolean');
+      expect(swDefChecked?.type).toBe('boolean');
+      expect(typeof checkboxDefinition.defaultProps?.defaultChecked).toBe('boolean');
+      expect(typeof switchDefinition.defaultProps?.defaultChecked).toBe('boolean');
+    });
+
+    it('radio and radio-group bind to string runtime value via value and defaultSelected', () => {
+      const radioVal = radioDefinition.traits?.find((t) => t.name === 'value');
+      const groupSelected = radioGroupDefinition.traits?.find((t) => t.name === 'defaultSelected');
+
+      expect(radioVal?.type).toBe('string');
+      expect(groupSelected?.type).toBe('string');
+      expect(typeof radioDefinition.defaultProps?.value).toBe('string');
+      expect(typeof radioGroupDefinition.defaultProps?.defaultSelected).toBe('string');
+    });
+
+    it('all new form components are registered in default registry', () => {
+      const registry = createDefaultComponentRegistry();
+      expect(registry.has('checkbox')).toBe(true);
+      expect(registry.has('switch')).toBe(true);
+      expect(registry.has('radio-group')).toBe(true);
+      expect(registry.has('radio')).toBe(true);
+      expect(registry.has('radio-item')).toBe(true);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// STORA-334 — File Upload & Submit Button Traits & Definitions
+// ---------------------------------------------------------------------------
+describe('File Upload & Submit Button Traits (STORA-334)', () => {
+  describe('Trait Factories', () => {
+    it('creates acceptTrait with attribute and default', () => {
+      const trait = acceptTrait();
+      expect(trait.name).toBe('accept');
+      expect(trait.type).toBe('string');
+      expect(trait.attribute).toBe('accept');
+      expect(trait.defaultValue).toBe('*/*');
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates maxFileSizeTrait with number type and default 10', () => {
+      const trait = maxFileSizeTrait();
+      expect(trait.name).toBe('maxFileSize');
+      expect(trait.type).toBe('number');
+      expect(trait.defaultValue).toBe(10);
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates multipleTrait with boolean type and attribute', () => {
+      const trait = multipleTrait();
+      expect(trait.name).toBe('multiple');
+      expect(trait.type).toBe('boolean');
+      expect(trait.attribute).toBe('multiple');
+      expect(trait.defaultValue).toBe(false);
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates showPreviewTrait with boolean type and true default', () => {
+      const trait = showPreviewTrait();
+      expect(trait.name).toBe('showPreview');
+      expect(trait.type).toBe('boolean');
+      expect(trait.defaultValue).toBe(true);
+      expect(trait.group).toBe('form');
+    });
+
+    it('creates loadingTextTrait with behavior group', () => {
+      const trait = loadingTextTrait();
+      expect(trait.name).toBe('loadingText');
+      expect(trait.type).toBe('string');
+      expect(trait.defaultValue).toBe('Submitting...');
+      expect(trait.group).toBe('behavior');
+    });
+
+    it('creates showSpinnerTrait with boolean type and true default', () => {
+      const trait = showSpinnerTrait();
+      expect(trait.name).toBe('showSpinner');
+      expect(trait.type).toBe('boolean');
+      expect(trait.defaultValue).toBe(true);
+      expect(trait.group).toBe('behavior');
+    });
+
+    it('creates autoDisableOnSubmitTrait with boolean type and true default', () => {
+      const trait = autoDisableOnSubmitTrait();
+      expect(trait.name).toBe('autoDisableOnSubmit');
+      expect(trait.type).toBe('boolean');
+      expect(trait.defaultValue).toBe(true);
+      expect(trait.group).toBe('behavior');
+    });
+  });
+
+  describe('FileUpload Definition (STORA-334)', () => {
+    it('file-upload is registered under form category and does not accept children', () => {
+      expect(fileUploadDefinition.type).toBe('file-upload');
+      expect(fileUploadDefinition.category).toBe('form');
+      expect(fileUploadDefinition.acceptsChildren).toBe(false);
+    });
+
+    it('file-upload includes accept, maxFileSize, multiple, and showPreview traits', () => {
+      const traits = fileUploadDefinition.traits!;
+      expect(traits.find((t) => t.name === 'name')).toBeDefined();
+      expect(traits.find((t) => t.name === 'label')).toBeDefined();
+      expect(traits.find((t) => t.name === 'accept')).toBeDefined();
+      expect(traits.find((t) => t.name === 'maxFileSize')).toBeDefined();
+      expect(traits.find((t) => t.name === 'multiple')).toBeDefined();
+      expect(traits.find((t) => t.name === 'showPreview')).toBeDefined();
+      expect(traits.find((t) => t.name === 'helperText')).toBeDefined();
+      expect(traits.find((t) => t.name === 'required')).toBeDefined();
+      expect(traits.find((t) => t.name === 'disabled')).toBeDefined();
+      expect(traits.find((t) => t.name === 'id')).toBeDefined();
+      expect(traits.find((t) => t.name === 'ariaLabel')).toBeDefined();
+    });
+
+    it('file-upload defaultProps and propFields are configured correctly', () => {
+      expect(fileUploadDefinition.defaultProps?.accept).toBe('*/*');
+      expect(fileUploadDefinition.defaultProps?.maxFileSize).toBe(10);
+      expect(fileUploadDefinition.defaultProps?.multiple).toBe(false);
+      expect(fileUploadDefinition.defaultProps?.showPreview).toBe(true);
+      expect(fileUploadDefinition.propFields?.find((f) => f.name === 'accept')).toBeDefined();
+      expect(fileUploadDefinition.propFields?.find((f) => f.name === 'maxFileSize')).toBeDefined();
+    });
+
+    it('file-upload validateProps validates accept, maxFileSize, and multiple', () => {
+      const valid = fileUploadDefinition.validateProps!({
+        name: 'document',
+        label: 'Upload Resume',
+        accept: 'application/pdf,.docx',
+        maxFileSize: 25,
+        multiple: true,
+        showPreview: false,
+        required: true,
+        disabled: false,
+        helperText: 'PDF or DOCX only up to 25MB',
+      });
+      expect(valid).toBe(true);
+
+      const invalid = fileUploadDefinition.validateProps!({
+        accept: 123,
+        maxFileSize: -5,
+        multiple: 'yes',
+        showPreview: 1,
+      });
+      expect(Array.isArray(invalid)).toBe(true);
+      expect((invalid as string[]).length).toBe(4);
+    });
+  });
+
+  describe('Submit Button Definition (STORA-334)', () => {
+    it('button-submit is defined with form category and action capability', () => {
+      expect(buttonSubmitDefinition.type).toBe('button-submit');
+      expect(buttonSubmitDefinition.category).toBe('form');
+      expect(buttonSubmitDefinition.acceptsChildren).toBe(false);
+      expect(buttonSubmitDefinition.capabilities).toContain('actionRegistry');
+    });
+
+    it('button-submit includes loading state and spinner traits', () => {
+      const traits = buttonSubmitDefinition.traits!;
+      expect(traits.find((t) => t.name === 'buttonType')).toBeDefined();
+      expect(traits.find((t) => t.name === 'label')).toBeDefined();
+      expect(traits.find((t) => t.name === 'loadingText')).toBeDefined();
+      expect(traits.find((t) => t.name === 'showSpinner')).toBeDefined();
+      expect(traits.find((t) => t.name === 'autoDisableOnSubmit')).toBeDefined();
+      expect(traits.find((t) => t.name === 'disabled')).toBeDefined();
+    });
+
+    it('button-submit defaultProps are configured for automatic loading state', () => {
+      expect(buttonSubmitDefinition.defaultProps?.buttonType).toBe('submit');
+      expect(buttonSubmitDefinition.defaultProps?.label).toBe('Submit');
+      expect(buttonSubmitDefinition.defaultProps?.loadingText).toBe('Submitting...');
+      expect(buttonSubmitDefinition.defaultProps?.showSpinner).toBe(true);
+      expect(buttonSubmitDefinition.defaultProps?.autoDisableOnSubmit).toBe(true);
+    });
+
+    it('button-submit validateProps validates required and optional props', () => {
+      const valid = buttonSubmitDefinition.validateProps!({
+        label: 'Send Application',
+        loadingText: 'Sending...',
+        showSpinner: true,
+        autoDisableOnSubmit: true,
+        buttonType: 'submit',
+        disabled: false,
+      });
+      expect(valid).toBe(true);
+
+      const emptyLabel = buttonSubmitDefinition.validateProps!({
+        label: '',
+      });
+      expect(Array.isArray(emptyLabel)).toBe(true);
+      expect((emptyLabel as string[])[0]).toContain('non-empty "label"');
+
+      const invalidSpinner = buttonSubmitDefinition.validateProps!({
+        label: 'Send',
+        showSpinner: 'true',
+        autoDisableOnSubmit: 'true',
+      });
+      expect(Array.isArray(invalidSpinner)).toBe(true);
+      expect((invalidSpinner as string[]).length).toBe(2);
+    });
+  });
+
+  describe('Submit Button Automatic Loading Contract (Acceptance Criteria)', () => {
+    it('button-submit defaultProps ensure automatic loading spinner and auto-disable behavior', () => {
+      expect(buttonSubmitDefinition.defaultProps?.showSpinner).toBe(true);
+      expect(buttonSubmitDefinition.defaultProps?.autoDisableOnSubmit).toBe(true);
+      expect(buttonSubmitDefinition.defaultProps?.buttonType).toBe('submit');
+    });
+
+    it('all STORA-334 components are present in default registry', () => {
+      const registry = createDefaultComponentRegistry();
+      expect(registry.has('file-upload')).toBe(true);
+      expect(registry.has('button-submit')).toBe(true);
+    });
+  });
+});
+
+

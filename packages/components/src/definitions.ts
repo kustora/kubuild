@@ -42,6 +42,22 @@ import {
   prefixIconTrait,
   suffixIconTrait,
   helperTextTrait,
+  resizeTrait,
+  autoGrowTrait,
+  maxCharCountTrait,
+  optionsListTrait,
+  labelTextTrait,
+  indeterminateTrait,
+  switchSizeTrait,
+  orientationTrait,
+  defaultSelectedTrait,
+  acceptTrait,
+  maxFileSizeTrait,
+  multipleTrait,
+  showPreviewTrait,
+  loadingTextTrait,
+  showSpinnerTrait,
+  autoDisableOnSubmitTrait,
 } from './traits';
 
 /**
@@ -65,12 +81,17 @@ const CONTENT_CHILD_TYPES = [
   'icon',
   'html-embed',
   'button',
+  'button-submit',
   'form',
   'input',
   'textarea',
   'select',
   'checkbox',
+  'switch',
+  'radio-group',
   'radio',
+  'radio-item',
+  'file-upload',
   'list',
   'table',
   'collection',
@@ -1472,6 +1493,10 @@ export const textareaDefinition: ComponentDefinition = {
     required: false,
     disabled: false,
     readOnly: false,
+    resize: 'vertical',
+    autoGrow: false,
+    maxCharCount: undefined,
+    helperText: '',
   },
   propFields: [
     { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'message' },
@@ -1481,12 +1506,31 @@ export const textareaDefinition: ComponentDefinition = {
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
     { name: 'readOnly', label: 'Read Only', type: 'boolean', defaultValue: false },
+    {
+      name: 'resize',
+      label: 'Resize',
+      type: 'select',
+      defaultValue: 'vertical',
+      options: [
+        { label: 'Vertical only', value: 'vertical' },
+        { label: 'Horizontal only', value: 'horizontal' },
+        { label: 'Both', value: 'both' },
+        { label: 'None', value: 'none' },
+      ],
+    },
+    { name: 'autoGrow', label: 'Auto Grow', type: 'boolean', defaultValue: false },
+    { name: 'maxCharCount', label: 'Max Character Count', type: 'number' },
+    { name: 'helperText', label: 'Helper Text', type: 'string' },
   ],
   traits: [
     fieldNameTrait({ defaultValue: 'message' }),
     placeholderTrait({ defaultValue: 'Enter your message...' }),
     defaultValueTrait(),
     rowsTrait(),
+    resizeTrait(),
+    autoGrowTrait(),
+    maxCharCountTrait(),
+    helperTextTrait(),
     requiredTrait(),
     disabledTrait(),
     readOnlyTrait(),
@@ -1514,6 +1558,23 @@ export const textareaDefinition: ComponentDefinition = {
     }
     if (props.readOnly !== undefined && typeof props.readOnly !== 'boolean' && !isVariableBinding(props.readOnly)) {
       errors.push('Textarea "readOnly" must be a boolean when provided.');
+    }
+    if (props.resize !== undefined && !isVariableBinding(props.resize)) {
+      const allowedResize = ['vertical', 'horizontal', 'both', 'none'];
+      if (typeof props.resize !== 'string' || !allowedResize.includes(props.resize)) {
+        errors.push(`Textarea "resize" must be one of: ${allowedResize.join(', ')}.`);
+      }
+    }
+    if (props.autoGrow !== undefined && typeof props.autoGrow !== 'boolean' && !isVariableBinding(props.autoGrow)) {
+      errors.push('Textarea "autoGrow" must be a boolean when provided.');
+    }
+    if (props.maxCharCount !== undefined && !isVariableBinding(props.maxCharCount)) {
+      if (typeof props.maxCharCount !== 'number' || props.maxCharCount < 1 || !Number.isInteger(props.maxCharCount)) {
+        errors.push('Textarea "maxCharCount" must be a positive integer (>= 1) when provided.');
+      }
+    }
+    if (props.helperText !== undefined && typeof props.helperText !== 'string' && !isVariableBinding(props.helperText)) {
+      errors.push('Textarea "helperText" must be a string when provided.');
     }
     return errors.length > 0 ? errors : true;
   },
@@ -1554,6 +1615,7 @@ export const selectDefinition: ComponentDefinition = {
     defaultValue: '',
     required: false,
     disabled: false,
+    helperText: '',
   },
   propFields: [
     { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'select_field' },
@@ -1571,11 +1633,14 @@ export const selectDefinition: ComponentDefinition = {
     { name: 'defaultValue', label: 'Default Selected Value', type: 'string' },
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'helperText', label: 'Helper Text', type: 'string' },
   ],
   traits: [
     fieldNameTrait({ defaultValue: 'select_field' }),
     placeholderTrait({ defaultValue: 'Select an option...' }),
+    optionsListTrait({ description: 'The list of dropdown choices (label + value pairs). Editable via the inspector trait panel.' }),
     defaultValueTrait({ description: 'The initially selected option value (must match one of the option values).' }),
+    helperTextTrait(),
     requiredTrait(),
     disabledTrait(),
     idTrait(),
@@ -1596,6 +1661,9 @@ export const selectDefinition: ComponentDefinition = {
     }
     if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
       errors.push('Select "disabled" must be a boolean when provided.');
+    }
+    if (props.helperText !== undefined && typeof props.helperText !== 'string' && !isVariableBinding(props.helperText)) {
+      errors.push('Select "helperText" must be a string when provided.');
     }
     return errors.length > 0 ? errors : true;
   },
@@ -1630,21 +1698,28 @@ export const checkboxDefinition: ComponentDefinition = {
     label: 'I agree to the terms and conditions',
     value: 'yes',
     defaultChecked: false,
+    indeterminate: false,
     required: false,
     disabled: false,
+    helperText: '',
   },
   propFields: [
     { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'checkbox_field' },
     { name: 'label', label: 'Label Text', type: 'string', defaultValue: 'I agree to the terms and conditions' },
     { name: 'value', label: 'Checked Value', type: 'string', defaultValue: 'yes' },
     { name: 'defaultChecked', label: 'Default Checked', type: 'boolean', defaultValue: false },
+    { name: 'indeterminate', label: 'Indeterminate', type: 'boolean', defaultValue: false },
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'helperText', label: 'Helper Text', type: 'string' },
   ],
   traits: [
     fieldNameTrait({ defaultValue: 'checkbox_field' }),
+    labelTextTrait({ defaultValue: 'I agree to the terms and conditions' }),
     valueTrait({ defaultValue: 'yes' }),
     defaultCheckedTrait(),
+    indeterminateTrait(),
+    helperTextTrait(),
     requiredTrait(),
     disabledTrait(),
     idTrait(),
@@ -1664,11 +1739,17 @@ export const checkboxDefinition: ComponentDefinition = {
     if (props.defaultChecked !== undefined && typeof props.defaultChecked !== 'boolean' && !isVariableBinding(props.defaultChecked)) {
       errors.push('Checkbox "defaultChecked" must be a boolean when provided.');
     }
+    if (props.indeterminate !== undefined && typeof props.indeterminate !== 'boolean' && !isVariableBinding(props.indeterminate)) {
+      errors.push('Checkbox "indeterminate" must be a boolean when provided.');
+    }
     if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
       errors.push('Checkbox "required" must be a boolean when provided.');
     }
     if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
       errors.push('Checkbox "disabled" must be a boolean when provided.');
+    }
+    if (props.helperText !== undefined && typeof props.helperText !== 'string' && !isVariableBinding(props.helperText)) {
+      errors.push('Checkbox "helperText" must be a string when provided.');
     }
     return errors.length > 0 ? errors : true;
   },
@@ -1681,6 +1762,181 @@ export const checkboxDefinition: ComponentDefinition = {
       color: '#1e293b',
       cursor: 'pointer',
       userSelect: 'none',
+    },
+  },
+};
+
+export const switchDefinition: ComponentDefinition = {
+  type: 'switch',
+  label: 'Switch',
+  category: 'form',
+  icon: 'switch',
+  acceptsChildren: false,
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'switch_field',
+    label: 'Enable feature',
+    value: 'yes',
+    defaultChecked: false,
+    switchSize: 'md',
+    required: false,
+    disabled: false,
+    helperText: '',
+  },
+  propFields: [
+    { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'switch_field' },
+    { name: 'label', label: 'Label Text', type: 'string', defaultValue: 'Enable feature' },
+    { name: 'value', label: 'Checked Value', type: 'string', defaultValue: 'yes' },
+    { name: 'defaultChecked', label: 'Default Checked', type: 'boolean', defaultValue: false },
+    {
+      name: 'switchSize',
+      label: 'Size',
+      type: 'select',
+      defaultValue: 'md',
+      options: [
+        { label: 'Small', value: 'sm' },
+        { label: 'Medium', value: 'md' },
+        { label: 'Large', value: 'lg' },
+      ],
+    },
+    { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'helperText', label: 'Helper Text', type: 'string' },
+  ],
+  traits: [
+    fieldNameTrait({ defaultValue: 'switch_field' }),
+    labelTextTrait({ defaultValue: 'Enable feature' }),
+    valueTrait({ defaultValue: 'yes' }),
+    defaultCheckedTrait(),
+    switchSizeTrait(),
+    helperTextTrait(),
+    requiredTrait(),
+    disabledTrait(),
+    idTrait(),
+    ariaLabelTrait(),
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.label !== undefined && typeof props.label !== 'string' && !isVariableBinding(props.label)) {
+      errors.push('Switch "label" must be a string when provided.');
+    }
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('Switch "name" must be a string when provided.');
+    }
+    if (props.value !== undefined && typeof props.value !== 'string' && !isVariableBinding(props.value)) {
+      errors.push('Switch "value" must be a string when provided.');
+    }
+    if (props.defaultChecked !== undefined && typeof props.defaultChecked !== 'boolean' && !isVariableBinding(props.defaultChecked)) {
+      errors.push('Switch "defaultChecked" must be a boolean when provided.');
+    }
+    if (props.switchSize !== undefined && !isVariableBinding(props.switchSize)) {
+      const allowedSizes = ['sm', 'md', 'lg'];
+      if (typeof props.switchSize !== 'string' || !allowedSizes.includes(props.switchSize)) {
+        errors.push(`Switch "switchSize" must be one of: ${allowedSizes.join(', ')}.`);
+      }
+    }
+    if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
+      errors.push('Switch "required" must be a boolean when provided.');
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('Switch "disabled" must be a boolean when provided.');
+    }
+    if (props.helperText !== undefined && typeof props.helperText !== 'string' && !isVariableBinding(props.helperText)) {
+      errors.push('Switch "helperText" must be a string when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px',
+      color: '#1e293b',
+      cursor: 'pointer',
+      userSelect: 'none',
+    },
+  },
+};
+
+export const radioGroupDefinition: ComponentDefinition = {
+  type: 'radio-group',
+  label: 'Radio Group',
+  category: 'form',
+  icon: 'radio-group',
+  acceptsChildren: true,
+  allowedChildren: ['radio', 'radio-item', 'custom'],
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'radio_group',
+    defaultSelected: 'option1',
+    orientation: 'vertical',
+    required: false,
+    disabled: false,
+    helperText: '',
+  },
+  defaultChildren: [
+    { type: 'radio', props: { name: 'radio_group', label: 'Option 1', value: 'option1', defaultChecked: true } },
+    { type: 'radio', props: { name: 'radio_group', label: 'Option 2', value: 'option2', defaultChecked: false } },
+    { type: 'radio', props: { name: 'radio_group', label: 'Option 3', value: 'option3', defaultChecked: false } },
+  ],
+  propFields: [
+    { name: 'name', label: 'Group Name', type: 'string', defaultValue: 'radio_group' },
+    { name: 'defaultSelected', label: 'Default Selected', type: 'string', defaultValue: 'option1' },
+    {
+      name: 'orientation',
+      label: 'Orientation',
+      type: 'select',
+      defaultValue: 'vertical',
+      options: [
+        { label: 'Vertical', value: 'vertical' },
+        { label: 'Horizontal', value: 'horizontal' },
+      ],
+    },
+    { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'helperText', label: 'Helper Text', type: 'string' },
+  ],
+  traits: [
+    fieldNameTrait({ defaultValue: 'radio_group', label: 'Group Name' }),
+    defaultSelectedTrait({ defaultValue: 'option1' }),
+    orientationTrait(),
+    helperTextTrait(),
+    requiredTrait(),
+    disabledTrait(),
+    idTrait(),
+    ariaLabelTrait(),
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('RadioGroup "name" must be a string when provided.');
+    }
+    if (props.defaultSelected !== undefined && typeof props.defaultSelected !== 'string' && !isVariableBinding(props.defaultSelected)) {
+      errors.push('RadioGroup "defaultSelected" must be a string when provided.');
+    }
+    if (props.orientation !== undefined && !isVariableBinding(props.orientation)) {
+      const allowedOrientations = ['vertical', 'horizontal'];
+      if (typeof props.orientation !== 'string' || !allowedOrientations.includes(props.orientation)) {
+        errors.push(`RadioGroup "orientation" must be one of: ${allowedOrientations.join(', ')}.`);
+      }
+    }
+    if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
+      errors.push('RadioGroup "required" must be a boolean when provided.');
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('RadioGroup "disabled" must be a boolean when provided.');
+    }
+    if (props.helperText !== undefined && typeof props.helperText !== 'string' && !isVariableBinding(props.helperText)) {
+      errors.push('RadioGroup "helperText" must be a string when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
     },
   },
 };
@@ -1699,6 +1955,7 @@ export const radioDefinition: ComponentDefinition = {
     defaultChecked: false,
     required: false,
     disabled: false,
+    helperText: '',
   },
   propFields: [
     { name: 'name', label: 'Group Name', type: 'string', defaultValue: 'radio_group' },
@@ -1707,11 +1964,14 @@ export const radioDefinition: ComponentDefinition = {
     { name: 'defaultChecked', label: 'Default Selected', type: 'boolean', defaultValue: false },
     { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
     { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'helperText', label: 'Helper Text', type: 'string' },
   ],
   traits: [
     fieldNameTrait({ defaultValue: 'radio_group', label: 'Group Name' }),
+    labelTextTrait({ defaultValue: 'Option 1' }),
     valueTrait({ defaultValue: 'option1' }),
     defaultCheckedTrait(),
+    helperTextTrait(),
     requiredTrait(),
     disabledTrait(),
     idTrait(),
@@ -1737,6 +1997,9 @@ export const radioDefinition: ComponentDefinition = {
     if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
       errors.push('Radio "disabled" must be a boolean when provided.');
     }
+    if (props.helperText !== undefined && typeof props.helperText !== 'string' && !isVariableBinding(props.helperText)) {
+      errors.push('Radio "helperText" must be a string when provided.');
+    }
     return errors.length > 0 ? errors : true;
   },
   defaultStyles: {
@@ -1748,6 +2011,209 @@ export const radioDefinition: ComponentDefinition = {
       color: '#1e293b',
       cursor: 'pointer',
       userSelect: 'none',
+    },
+  },
+};
+
+export const radioItemDefinition: ComponentDefinition = {
+  ...radioDefinition,
+  type: 'radio-item',
+  label: 'Radio Item',
+};
+
+export const fileUploadDefinition: ComponentDefinition = {
+  type: 'file-upload',
+  label: 'File Upload',
+  category: 'form',
+  icon: 'upload',
+  acceptsChildren: false,
+  disallowedParents: ['page'],
+  defaultProps: {
+    name: 'file_upload',
+    label: 'Upload File',
+    accept: '*/*',
+    maxFileSize: 10,
+    multiple: false,
+    showPreview: true,
+    required: false,
+    disabled: false,
+    helperText: '',
+  },
+  propFields: [
+    { name: 'name', label: 'Field Name', type: 'string', defaultValue: 'file_upload' },
+    { name: 'label', label: 'Label Text', type: 'string', defaultValue: 'Upload File' },
+    { name: 'accept', label: 'Accepted File Types', type: 'string', defaultValue: '*/*' },
+    { name: 'maxFileSize', label: 'Max File Size (MB)', type: 'number', defaultValue: 10 },
+    { name: 'multiple', label: 'Allow Multiple Files', type: 'boolean', defaultValue: false },
+    { name: 'showPreview', label: 'Show Preview', type: 'boolean', defaultValue: true },
+    { name: 'required', label: 'Required', type: 'boolean', defaultValue: false },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'helperText', label: 'Helper Text', type: 'string' },
+  ],
+  traits: [
+    fieldNameTrait({ defaultValue: 'file_upload' }),
+    labelTextTrait({ defaultValue: 'Upload File' }),
+    acceptTrait(),
+    maxFileSizeTrait(),
+    multipleTrait(),
+    showPreviewTrait(),
+    helperTextTrait(),
+    requiredTrait(),
+    disabledTrait(),
+    idTrait(),
+    ariaLabelTrait(),
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    if (props.label !== undefined && typeof props.label !== 'string' && !isVariableBinding(props.label)) {
+      errors.push('FileUpload "label" must be a string when provided.');
+    }
+    if (props.name !== undefined && typeof props.name !== 'string' && !isVariableBinding(props.name)) {
+      errors.push('FileUpload "name" must be a string when provided.');
+    }
+    if (props.accept !== undefined && typeof props.accept !== 'string' && !isVariableBinding(props.accept)) {
+      errors.push('FileUpload "accept" must be a string when provided.');
+    }
+    if (props.maxFileSize !== undefined && !isVariableBinding(props.maxFileSize)) {
+      if (typeof props.maxFileSize !== 'number' || props.maxFileSize <= 0) {
+        errors.push('FileUpload "maxFileSize" must be a positive number when provided.');
+      }
+    }
+    if (props.multiple !== undefined && typeof props.multiple !== 'boolean' && !isVariableBinding(props.multiple)) {
+      errors.push('FileUpload "multiple" must be a boolean when provided.');
+    }
+    if (props.showPreview !== undefined && typeof props.showPreview !== 'boolean' && !isVariableBinding(props.showPreview)) {
+      errors.push('FileUpload "showPreview" must be a boolean when provided.');
+    }
+    if (props.required !== undefined && typeof props.required !== 'boolean' && !isVariableBinding(props.required)) {
+      errors.push('FileUpload "required" must be a boolean when provided.');
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('FileUpload "disabled" must be a boolean when provided.');
+    }
+    if (props.helperText !== undefined && typeof props.helperText !== 'string' && !isVariableBinding(props.helperText)) {
+      errors.push('FileUpload "helperText" must be a string when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      fontSize: '14px',
+      color: '#1e293b',
+    },
+  },
+};
+
+export const buttonSubmitDefinition: ComponentDefinition = {
+  type: 'button-submit',
+  label: 'Submit Button',
+  category: 'form',
+  icon: 'send',
+  acceptsChildren: false,
+  capabilities: ['actionRegistry'],
+  defaultProps: {
+    label: 'Submit',
+    loadingText: 'Submitting...',
+    showSpinner: true,
+    autoDisableOnSubmit: true,
+    variant: 'primary',
+    disabled: false,
+    buttonType: 'submit',
+  },
+  propFields: [
+    { name: 'label', label: 'Label', type: 'string', defaultValue: 'Submit' },
+    { name: 'loadingText', label: 'Loading Text', type: 'string', defaultValue: 'Submitting...' },
+    { name: 'showSpinner', label: 'Show Loading Spinner', type: 'boolean', defaultValue: true },
+    { name: 'autoDisableOnSubmit', label: 'Auto Disable on Submit', type: 'boolean', defaultValue: true },
+    {
+      name: 'buttonType',
+      label: 'Button Type',
+      type: 'select',
+      defaultValue: 'submit',
+      options: [
+        { label: 'Submit Form (submit)', value: 'submit' },
+        { label: 'Reset Form (reset)', value: 'reset' },
+      ],
+    },
+    {
+      name: 'variant',
+      label: 'Variant',
+      type: 'select',
+      defaultValue: 'primary',
+      options: [
+        { label: 'Primary', value: 'primary' },
+        { label: 'Secondary', value: 'secondary' },
+      ],
+    },
+    { name: 'disabled', label: 'Disabled', type: 'boolean', defaultValue: false },
+    { name: 'prefixIcon', label: 'Prefix Icon', type: 'string' },
+    { name: 'suffixIcon', label: 'Suffix Icon', type: 'string' },
+  ],
+  traits: [
+    buttonTypeTrait({
+      defaultValue: 'submit',
+      options: [
+        { label: 'Submit Form (submit)', value: 'submit' },
+        { label: 'Reset Form (reset)', value: 'reset' },
+      ],
+    }),
+    labelTextTrait({ defaultValue: 'Submit', label: 'Label' }),
+    loadingTextTrait(),
+    showSpinnerTrait(),
+    autoDisableOnSubmitTrait(),
+    disabledTrait(),
+    prefixIconTrait(),
+    suffixIconTrait(),
+    idTrait(),
+    titleTrait(),
+    ariaLabelTrait(),
+  ],
+  validateProps: (props) => {
+    const errors: string[] = [];
+    const hasLabel =
+      (typeof props.label === 'string' && props.label.trim().length > 0) || isVariableBinding(props.label);
+    if (!hasLabel) {
+      errors.push('Submit Button requires a non-empty "label".');
+    }
+    if (props.loadingText !== undefined && typeof props.loadingText !== 'string' && !isVariableBinding(props.loadingText)) {
+      errors.push('Submit Button "loadingText" must be a string when provided.');
+    }
+    if (props.showSpinner !== undefined && typeof props.showSpinner !== 'boolean' && !isVariableBinding(props.showSpinner)) {
+      errors.push('Submit Button "showSpinner" must be a boolean when provided.');
+    }
+    if (props.autoDisableOnSubmit !== undefined && typeof props.autoDisableOnSubmit !== 'boolean' && !isVariableBinding(props.autoDisableOnSubmit)) {
+      errors.push('Submit Button "autoDisableOnSubmit" must be a boolean when provided.');
+    }
+    if (props.buttonType !== undefined && !isVariableBinding(props.buttonType)) {
+      if (!['submit', 'reset', 'button'].includes(props.buttonType as string)) {
+        errors.push('Submit Button "buttonType" must be one of: "submit", "reset", "button".');
+      }
+    }
+    if (props.disabled !== undefined && typeof props.disabled !== 'boolean' && !isVariableBinding(props.disabled)) {
+      errors.push('Submit Button "disabled" must be a boolean when provided.');
+    }
+    return errors.length > 0 ? errors : true;
+  },
+  defaultStyles: {
+    base: {
+      backgroundColor: '#2563eb',
+      color: '#ffffff',
+      paddingTop: '10px',
+      paddingBottom: '10px',
+      paddingLeft: '20px',
+      paddingRight: '20px',
+      borderRadius: '6px',
+      fontWeight: '500',
+      fontSize: '15px',
+      border: 'none',
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
     },
   },
 };
@@ -1769,12 +2235,17 @@ export const coreComponentDefinitions: ComponentDefinition[] = [
   iconDefinition,
   htmlEmbedDefinition,
   buttonDefinition,
+  buttonSubmitDefinition,
   formDefinition,
   inputDefinition,
   textareaDefinition,
   selectDefinition,
   checkboxDefinition,
+  switchDefinition,
+  radioGroupDefinition,
   radioDefinition,
+  radioItemDefinition,
+  fileUploadDefinition,
   collectionDefinition,
   listDefinition,
   listItemDefinition,
@@ -1790,4 +2261,6 @@ export function createDefaultComponentRegistry(): ComponentRegistry {
   }
   return registry;
 }
+
+
 
