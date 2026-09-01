@@ -75,7 +75,6 @@ describe('STORA-341: Action Step Parameter Configuration Forms', () => {
     it('renders key-value inputs when entries are provided', () => {
       const html = renderToString(
         <KeyValueEditor
-          title="Query Params"
           title="Query Parameters"
           entries={{ search: 'kubuild', page: '1' }}
           onChange={() => {}}

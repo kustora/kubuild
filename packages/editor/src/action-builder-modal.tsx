@@ -646,17 +646,12 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                     <div
                       key={step.id}
                       data-testid={`action-step-card-${step.id}`}
-                      className="relative flex items-start gap-4 p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 transition shadow-sm group"
                       className={`relative flex flex-col p-4 rounded-xl bg-slate-900/90 border transition shadow-sm ${
                         isExpanded
                           ? 'border-blue-500/80 ring-1 ring-blue-500/40 bg-slate-900'
                           : 'border-slate-800 hover:border-slate-700/80'
                       }`}
                     >
-                      {/* Step Indicator Node */}
-                      <div className="relative z-10 w-8 h-8 rounded-full bg-slate-800 border-2 border-blue-500 text-blue-400 flex items-center justify-center font-mono text-xs font-bold shrink-0 shadow-sm">
-                        {idx + 1}
-                      </div>
                       <div className="flex items-start gap-4">
                         {/* Step Indicator Node */}
                         <div
@@ -670,17 +665,6 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                           {idx + 1}
                         </div>
 
-                      {/* Step Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                              <Icon className="w-3 h-3" />
-                              <span>{typeMeta.label}</span>
-                            </span>
-                            {step.label && (
-                              <span className="text-xs font-medium text-slate-200">
-                                {step.label}
                         {/* Step Details */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
@@ -692,7 +676,6 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                                 <Icon className="w-3 h-3" />
                                 <span>{typeMeta.label}</span>
                               </span>
-                            )}
                               {step.label && (
                                 <span className="text-xs font-medium text-slate-200 truncate">
                                   {step.label}
@@ -749,37 +732,6 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                             </div>
                           </div>
 
-                          {/* Reorder and Delete Controls */}
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              disabled={isFirst}
-                              onClick={() => handleMoveStep(idx, 'up')}
-                              title="Move step up"
-                              aria-label="Move step up"
-                              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
-                            >
-                              <ChevronUp className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isLast}
-                              onClick={() => handleMoveStep(idx, 'down')}
-                              title="Move step down"
-                              aria-label="Move step down"
-                              className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
-                            >
-                              <ChevronDown className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveStep(step.id)}
-                              title="Delete step"
-                              aria-label="Delete step"
-                              className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition ml-1 cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
                           {/* Summary / Description */}
                           <div
                             onClick={() => setEditingStepId(isExpanded ? null : step.id)}
@@ -790,9 +742,6 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                         </div>
                       </div>
 
-                        {/* Summary / Description */}
-                        <div className="text-xs font-mono text-slate-400 bg-slate-950/70 rounded px-2.5 py-1.5 border border-slate-800/80 truncate">
-                          {summary}
                       {/* Expandable Action Step Configuration Form */}
                       {isExpanded && (
                         <div className="mt-4 pt-4 border-t border-slate-800 animate-in fade-in slide-in-from-top-1 duration-150">
@@ -805,7 +754,6 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                             onUpdateMeta={(meta) => handleUpdateStepMeta(step.id, meta)}
                           />
                         </div>
-                      </div>
                       )}
                     </div>
                   );

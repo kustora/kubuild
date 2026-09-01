@@ -645,7 +645,6 @@ export const ModalStepForm: React.FC<{
             <option value="">— Select Detected Modal —</option>
             {detectedModals.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.label} (#{m.id})
                 {`${m.label} (#${m.id})`}
               </option>
             ))}
@@ -750,7 +749,6 @@ export const ResetFormStepForm: React.FC<{
             <option value="">— Parent Form / Active Form Container —</option>
             {detectedForms.map((f) => (
               <option key={f.id} value={f.id}>
-                {f.label} (#{f.id})
                 {`${f.label} (#${f.id})`}
               </option>
             ))}
