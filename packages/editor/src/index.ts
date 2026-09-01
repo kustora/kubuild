@@ -25,3 +25,4 @@ export * from './motion-sector-controls';
 export * from './config';
 export * from './action-builder-modal';
 export * from './action-step-form';
+export * from './action-branch-editor';

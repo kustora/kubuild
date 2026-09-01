@@ -458,6 +458,38 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
     commitPipelines(updatedPipelines);
   };
 
+  // Update step branching (onSuccess, onError)
+  const handleUpdateStepBranches = (
+    stepId: string,
+    branches: { onSuccess?: ActionStep[]; onError?: ActionStep[] },
+  ) => {
+    if (!currentPipeline) return;
+    const updatedPipelines = pipelines.map((p) => {
+      if (p.id === currentPipeline.id) {
+        return {
+          ...p,
+          steps: p.steps.map((s) => {
+            if (s.id === stepId) {
+              const updated = { ...s };
+              if (branches.onSuccess !== undefined) {
+                if (branches.onSuccess.length === 0) delete updated.onSuccess;
+                else updated.onSuccess = branches.onSuccess;
+              }
+              if (branches.onError !== undefined) {
+                if (branches.onError.length === 0) delete updated.onError;
+                else updated.onError = branches.onError;
+              }
+              return updated;
+            }
+            return s;
+          }),
+        };
+      }
+      return p;
+    });
+    commitPipelines(updatedPipelines);
+  };
+
   // Delete entire current pipeline
   const handleDeletePipeline = () => {
     if (!currentPipeline) return;
@@ -752,6 +784,9 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                               handleUpdateStepPayload(step.id, newPayload)
                             }
                             onUpdateMeta={(meta) => handleUpdateStepMeta(step.id, meta)}
+                            onUpdateBranches={(branches) =>
+                              handleUpdateStepBranches(step.id, branches)
+                            }
                           />
                         </div>
                       )}

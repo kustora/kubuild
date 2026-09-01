@@ -22,14 +22,18 @@ import {
   ExternalLink,
   Sliders,
   Sparkles,
+  GitBranch,
 } from 'lucide-react';
+import { ActionBranchEditor } from './action-branch-editor';
 
 export interface ActionStepFormProps {
   step: ActionStep;
   document?: PageDocument;
   onUpdatePayload: (payload: Record<string, unknown>) => void;
   onUpdateMeta?: (meta: { label?: string; timeout?: number; continueOnError?: boolean }) => void;
+  onUpdateBranches?: (branches: { onSuccess?: ActionStep[]; onError?: ActionStep[] }) => void;
   className?: string;
+  hideBranches?: boolean;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -899,7 +903,9 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
   document,
   onUpdatePayload,
   onUpdateMeta,
+  onUpdateBranches,
   className = '',
+  hideBranches = false,
 }) => {
   const [label, setLabel] = useState<string>(step.label || '');
   const [continueOnError, setContinueOnError] = useState<boolean>(Boolean(step.continueOnError));
@@ -984,6 +990,22 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
 
       {/* Dynamic Type-specific Form */}
       <div className="pt-2 border-t border-slate-800/80">{renderTypeForm()}</div>
+
+      {/* Branching Editor (for API Request steps) */}
+      {step.type === 'api_request' && !hideBranches && onUpdateBranches && (
+        <div className="pt-2 border-t border-slate-800/80">
+          <ActionBranchEditor
+            parentStep={step}
+            document={document}
+            onUpdateSuccessSteps={(successSteps) =>
+              onUpdateBranches({ onSuccess: successSteps, onError: step.onError })
+            }
+            onUpdateErrorSteps={(errorSteps) =>
+              onUpdateBranches({ onSuccess: step.onSuccess, onError: errorSteps })
+            }
+          />
+        </div>
+      )}
 
       {/* Advanced Error Policy Options */}
       <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
