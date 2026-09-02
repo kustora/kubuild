@@ -1043,6 +1043,95 @@ describe('STORA-302: NodeSchema Action Pipeline & Form Config Integration', () =
   });
 });
 
+describe('STORA-101 & STORA-110: Flexbox, CSS Grid & Sizing Constraints Schema Suite', () => {
+  describe('STORA-101: Flexbox and Sizing constraints in StyleDefinitionSchema', () => {
+    it('validates comprehensive Flexbox and Sizing property sets', () => {
+      const flexStyles = {
+        display: 'flex',
+        flexDirection: 'row-reverse',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        alignContent: 'space-around',
+        gap: '24px',
+        rowGap: '16px',
+        columnGap: '8px',
+        flexGrow: 1,
+        flexShrink: 0,
+        flexBasis: '250px',
+        alignSelf: 'stretch',
+        width: 'fit-content',
+        height: '100%',
+        minWidth: '320px',
+        maxWidth: '1440px',
+        minHeight: '200px',
+        maxHeight: '100vh',
+      };
+
+      const result = StyleDefinitionSchema.safeParse(flexStyles);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.flexDirection).toBe('row-reverse');
+        expect(result.data.justifyContent).toBe('space-between');
+        expect(result.data.flexGrow).toBe(1);
+        expect(result.data.width).toBe('fit-content');
+      }
+    });
+
+    it('rejects dangerous injection vectors inside Flexbox/Sizing style values', () => {
+      const dangerousFlexStyle = {
+        flexDirection: 'javascript:alert(1)',
+      };
+      const result = StyleDefinitionSchema.safeParse(dangerousFlexStyle);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('STORA-110: CSS Grid & Grid Child Item properties in StyleDefinitionSchema', () => {
+    it('validates CSS Grid container expressions and grid track formats', () => {
+      const gridContainerStyles = {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+        gridTemplateRows: 'auto 1fr auto',
+        gridAutoFlow: 'row dense',
+        gridAutoColumns: 'minmax(200px, auto)',
+        gridAutoRows: 'minmax(100px, auto)',
+        gap: '20px',
+        rowGap: '16px',
+        columnGap: '24px',
+      };
+
+      const result = StyleDefinitionSchema.safeParse(gridContainerStyles);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.gridTemplateColumns).toBe('repeat(12, minmax(0, 1fr))');
+        expect(result.data.gridAutoFlow).toBe('row dense');
+      }
+    });
+
+    it('validates CSS Grid child placement and span properties', () => {
+      const gridItemStyles = {
+        gridColumn: 'span 3 / span 3',
+        gridRow: '1 / 3',
+        gridColumnStart: '1',
+        gridColumnEnd: '4',
+        gridRowStart: 'auto',
+        gridRowEnd: 'span 2',
+        justifySelf: 'center',
+        alignSelf: 'end',
+      };
+
+      const result = StyleDefinitionSchema.safeParse(gridItemStyles);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.gridColumn).toBe('span 3 / span 3');
+        expect(result.data.justifySelf).toBe('center');
+      }
+    });
+  });
+});
+
+
 
 
 
