@@ -124,6 +124,45 @@ export const BlockThumbnail: React.FC<{ block: BlockDefinition }> = ({ block }) 
           </div>
         </div>
       );
+    case 'form-contact-us':
+      return (
+        <div className="w-full h-12 bg-white border border-slate-200 rounded flex flex-col justify-between p-1.5 shadow-xs">
+          <div className="w-1/2 h-1 bg-slate-700 rounded-full" />
+          <div className="flex gap-1 w-full">
+            <div className="flex-1 h-1 bg-slate-200 border border-slate-300 rounded-xs" />
+            <div className="flex-1 h-1 bg-slate-200 border border-slate-300 rounded-xs" />
+          </div>
+          <div className="w-full h-2 bg-slate-100 border border-slate-300 rounded-xs" />
+          <div className="w-full h-1.5 bg-blue-600 rounded-xs" />
+        </div>
+      );
+    case 'form-newsletter':
+      return (
+        <div className="w-full h-12 bg-slate-100 border border-slate-200 rounded flex flex-col items-center justify-center p-1.5 gap-1.5">
+          <div className="w-2/3 h-1 bg-slate-700 rounded-full" />
+          <div className="w-full flex items-center gap-1">
+            <div className="flex-1 h-2.5 bg-white border border-slate-300 rounded-xs" />
+            <div className="w-5 h-2.5 bg-blue-600 rounded-xs text-[6px] text-white flex items-center justify-center font-bold">
+              &gt;
+            </div>
+          </div>
+        </div>
+      );
+    case 'form-lead-gen':
+      return (
+        <div className="w-full h-12 bg-white border border-slate-200 rounded flex flex-col justify-between p-1.5 shadow-xs">
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-1 bg-blue-500 rounded-full" />
+            <div className="w-10 h-1 bg-slate-700 rounded-full" />
+          </div>
+          <div className="w-full h-1 bg-slate-200 border border-slate-300 rounded-xs" />
+          <div className="w-full h-1 bg-slate-100 border border-slate-300 rounded-xs flex items-center justify-between px-0.5">
+            <div className="w-4 h-0.5 bg-slate-400 rounded-full" />
+            <div className="w-1 h-0.5 bg-slate-400 rounded-full" />
+          </div>
+          <div className="w-full h-1.5 bg-blue-600 rounded-xs" />
+        </div>
+      );
     default:
       return (
         <div className="w-full h-12 bg-slate-50 border border-slate-200 rounded flex items-center justify-center text-slate-400">

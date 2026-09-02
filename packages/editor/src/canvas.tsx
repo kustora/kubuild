@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
 import { PageDocument } from '@kubuild/schema';
-import { ComponentRegistry } from '@kubuild/components';
+import { ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
 import { KubuildRenderer } from '@kubuild/renderer';
 import {
   RuntimeContext,
@@ -238,7 +238,17 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     } else if (activePayload.type === 'component') {
       incomingType = activePayload.componentType;
     } else if (activePayload.type === 'block') {
-      incomingType = 'section';
+      const blockDef = STARTER_BLOCKS.find((b) => b.id === activePayload.blockId);
+      if (blockDef) {
+        try {
+          const sample = blockDef.createNodeTree(() => 'sample');
+          incomingType = sample.type;
+        } catch {
+          incomingType = 'section';
+        }
+      } else {
+        incomingType = 'section';
+      }
     }
 
     if (!incomingType) {
