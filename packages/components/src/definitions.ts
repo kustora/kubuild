@@ -2219,6 +2219,44 @@ export const buttonSubmitDefinition: ComponentDefinition = {
   },
 };
 
+/**
+ * All built-in / core component type names provided by @kubuild/components.
+ */
+export type CoreComponentType =
+  | 'page'
+  | 'section'
+  | 'container'
+  | 'columns'
+  | 'heading'
+  | 'text'
+  | 'paragraph'
+  | 'link'
+  | 'blockquote'
+  | 'badge'
+  | 'code-block'
+  | 'image'
+  | 'video'
+  | 'icon'
+  | 'html-embed'
+  | 'button'
+  | 'button-submit'
+  | 'form'
+  | 'input'
+  | 'textarea'
+  | 'select'
+  | 'checkbox'
+  | 'switch'
+  | 'radio-group'
+  | 'radio'
+  | 'radio-item'
+  | 'file-upload'
+  | 'collection'
+  | 'list'
+  | 'list-item'
+  | 'table'
+  | 'table-row'
+  | 'table-cell';
+
 export const coreComponentDefinitions: ComponentDefinition[] = [
   pageDefinition,
   sectionDefinition,

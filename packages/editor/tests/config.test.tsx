@@ -6,6 +6,7 @@ import { createDefaultComponentRegistry } from '@kubuild/components';
 import { useEditorStore } from '../src/store';
 import { KubuildEditor } from '../src/components/layout/editor';
 import { LeftSidebar } from '../src/components/panels/left-sidebar';
+import { ComponentPanel } from '../src/components/panels/component-panel';
 import { InspectorPanel } from '../src/components/panels/inspector-panel';
 import { StyleManagerAccordion } from '../src/components/style-manager/style-manager-accordion';
 import { resolveEditorConfig } from '../src/config';
@@ -167,6 +168,72 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
       expect(html).toContain('tab-components');
       expect(html).toContain('tab-layers');
       expect(html).not.toContain('tab-blocks');
+    });
+
+    it('filters components displayed in sidebar when hiddenComponents is configured', () => {
+      const html = renderToString(
+        <KubuildEditor
+          registry={registry}
+          config={{
+            sidebar: {
+              hiddenComponents: ['page', 'table-row', 'table-cell'],
+            },
+          }}
+        />,
+      );
+
+      expect(html).not.toContain('data-testid="component-item-page"');
+      expect(html).not.toContain('data-testid="component-item-table-row"');
+      expect(html).not.toContain('data-testid="component-item-table-cell"');
+      // Other components should still exist
+      expect(html).toContain('data-testid="component-item-section"');
+      expect(html).toContain('data-testid="component-item-heading"');
+    });
+
+    it('filters components displayed in sidebar when allowedComponents is configured', () => {
+      const html = renderToString(
+        <ComponentPanel
+          registry={registry}
+          config={{
+            allowedComponents: ['heading', 'text', 'button'],
+          }}
+        />,
+      );
+
+      expect(html).toContain('data-testid="component-item-heading"');
+      expect(html).toContain('data-testid="component-item-text"');
+      expect(html).toContain('data-testid="component-item-button"');
+      expect(html).not.toContain('data-testid="component-item-section"');
+      expect(html).not.toContain('data-testid="component-item-container"');
+    });
+
+    it('filters categories displayed in sidebar with allowedCategories and hiddenCategories', () => {
+      const htmlAllowed = renderToString(
+        <ComponentPanel
+          registry={registry}
+          config={{
+            allowedCategories: ['typography'],
+          }}
+        />,
+      );
+
+      expect(htmlAllowed).toContain('Typography');
+      expect(htmlAllowed).not.toContain('Layout');
+      expect(htmlAllowed).not.toContain('Media');
+
+      const htmlHidden = renderToString(
+        <ComponentPanel
+          registry={registry}
+          config={{
+            hiddenCategories: ['data', 'custom'],
+          }}
+        />,
+      );
+
+      expect(htmlHidden).not.toContain('Data');
+      expect(htmlHidden).not.toContain('Custom');
+      expect(htmlHidden).toContain('Layout');
+      expect(htmlHidden).toContain('Typography');
     });
   });
 

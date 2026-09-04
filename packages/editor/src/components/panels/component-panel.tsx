@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { ComponentRegistry, ComponentCategory, ComponentDefinition } from '@kubuild/components';
 import { useEditorStore } from '../../store';
 import { ComponentIcon } from '../ui/icons';
+import { EditorSidebarConfig } from '../../config';
 
 export interface ComponentPanelProps {
   registry: ComponentRegistry;
+  config?: EditorSidebarConfig;
   className?: string;
 }
 
@@ -28,15 +30,41 @@ const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   custom: 'Custom',
 };
 
-export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, className }) => {
+export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, config, className }) => {
   const insertComponent = useEditorStore((s) => s.insertComponent);
   const setDragPayload = useEditorStore((s) => s.setDragPayload);
   const [error, setError] = useState<string | null>(null);
 
-  const groups = CATEGORY_ORDER.map((category) => ({
-    category,
-    items: registry.listByCategory(category),
-  })).filter((group) => group.items.length > 0);
+  const allowedCategories = config?.allowedCategories;
+  const hiddenCategories = config?.hiddenCategories;
+  const allowedComponents = config?.allowedComponents;
+  const hiddenComponents = config?.hiddenComponents;
+
+  const categories = CATEGORY_ORDER.filter((category) => {
+    if (allowedCategories && !allowedCategories.includes(category)) {
+      return false;
+    }
+    if (hiddenCategories && hiddenCategories.includes(category)) {
+      return false;
+    }
+    return true;
+  });
+
+  const groups = categories
+    .map((category) => {
+      let items = registry.listByCategory(category);
+      if (allowedComponents) {
+        items = items.filter((item) => allowedComponents.includes(item.type));
+      }
+      if (hiddenComponents) {
+        items = items.filter((item) => !hiddenComponents.includes(item.type));
+      }
+      return {
+        category,
+        items,
+      };
+    })
+    .filter((group) => group.items.length > 0);
 
   const handleInsert = (definition: ComponentDefinition) => {
     const result = insertComponent(definition.type, registry);
@@ -63,6 +91,11 @@ export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, classN
           className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1"
         >
           {error}
+        </div>
+      )}
+      {groups.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center text-slate-400 text-xs select-none">
+          <span>No components available</span>
         </div>
       )}
       {groups.map(({ category, items }) => (

@@ -1,7 +1,22 @@
 import React from 'react';
+import { ComponentCategory, CoreComponentType } from '@kubuild/components';
 import { StyleSectorId } from '../components/style-manager/style-manager-accordion';
 
 export type LeftSidebarTab = 'components' | 'blocks' | 'layers';
+
+export type { CoreComponentType, ComponentCategory };
+
+/**
+ * Built-in component types or custom component string identifier.
+ * Autocompletes standard component types in IDE IntelliSense while supporting custom registered components.
+ */
+export type ComponentTypeFilter = CoreComponentType | (string & {});
+
+/**
+ * Built-in component categories or custom category string identifier.
+ * Autocompletes standard categories ('layout' | 'typography' | 'media' | 'form' | 'interactive' | 'data' | 'custom').
+ */
+export type ComponentCategoryFilter = ComponentCategory | (string & {});
 
 export interface EditorToolbarConfig {
   /** Display page title & status badge in toolbar. Default: true */
@@ -35,6 +50,48 @@ export interface EditorSidebarConfig {
   defaultTab?: LeftSidebarTab;
   /** List of tabs available for user navigation. Default: ['components', 'blocks', 'layers'] */
   availableTabs?: LeftSidebarTab[];
+  /**
+   * Whitelist of component types to display in the Components panel.
+   * If specified, only components matching these types will be shown.
+   *
+   * Built-in component types:
+   * `'page'` | `'section'` | `'container'` | `'columns'` | `'heading'` | `'text'` |
+   * `'paragraph'` | `'link'` | `'blockquote'` | `'badge'` | `'code-block'` | `'image'` |
+   * `'video'` | `'icon'` | `'html-embed'` | `'button'` | `'button-submit'` | `'form'` |
+   * `'input'` | `'textarea'` | `'select'` | `'checkbox'` | `'switch'` | `'radio-group'` |
+   * `'radio'` | `'radio-item'` | `'file-upload'` | `'collection'` | `'list'` | `'list-item'` |
+   * `'table'` | `'table-row'` | `'table-cell'`
+   */
+  allowedComponents?: ComponentTypeFilter[];
+  /**
+   * Blacklist of component types to hide from the Components panel.
+   * Components matching these types will not be displayed in the sidebar.
+   *
+   * Built-in component types:
+   * `'page'` | `'section'` | `'container'` | `'columns'` | `'heading'` | `'text'` |
+   * `'paragraph'` | `'link'` | `'blockquote'` | `'badge'` | `'code-block'` | `'image'` |
+   * `'video'` | `'icon'` | `'html-embed'` | `'button'` | `'button-submit'` | `'form'` |
+   * `'input'` | `'textarea'` | `'select'` | `'checkbox'` | `'switch'` | `'radio-group'` |
+   * `'radio'` | `'radio-item'` | `'file-upload'` | `'collection'` | `'list'` | `'list-item'` |
+   * `'table'` | `'table-row'` | `'table-cell'`
+   */
+  hiddenComponents?: ComponentTypeFilter[];
+  /**
+   * Whitelist of component categories to display in the Components panel.
+   * If specified, only categories in this list will be shown.
+   *
+   * Standard categories:
+   * `'layout'` | `'typography'` | `'media'` | `'form'` | `'interactive'` | `'data'` | `'custom'`
+   */
+  allowedCategories?: ComponentCategoryFilter[];
+  /**
+   * Blacklist of component categories to hide from the Components panel.
+   * Categories matching this list will not be displayed.
+   *
+   * Standard categories:
+   * `'layout'` | `'typography'` | `'media'` | `'form'` | `'interactive'` | `'data'` | `'custom'`
+   */
+  hiddenCategories?: ComponentCategoryFilter[];
 }
 
 export interface EditorCanvasConfig {
@@ -92,6 +149,10 @@ export interface ResolvedEditorConfig {
     enabled: boolean;
     defaultTab: LeftSidebarTab;
     availableTabs: LeftSidebarTab[];
+    allowedComponents?: ComponentTypeFilter[];
+    hiddenComponents?: ComponentTypeFilter[];
+    allowedCategories?: ComponentCategoryFilter[];
+    hiddenCategories?: ComponentCategoryFilter[];
   };
   canvas: {
     showBreadcrumbs: boolean;
@@ -149,6 +210,10 @@ export function resolveEditorConfig(config?: EditorConfig): ResolvedEditorConfig
       enabled: sidebarEnabled,
       defaultTab,
       availableTabs,
+      allowedComponents: sidebarCfg.allowedComponents,
+      hiddenComponents: sidebarCfg.hiddenComponents,
+      allowedCategories: sidebarCfg.allowedCategories,
+      hiddenCategories: sidebarCfg.hiddenCategories,
     },
     canvas: {
       showBreadcrumbs: canvasCfg.showBreadcrumbs ?? true,

@@ -117,7 +117,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       <div className="flex-1 overflow-hidden min-h-0">
         {activeTab === 'components' && tabsList.includes('components') && (
           <div role="tabpanel" id="tabpanel-components" aria-labelledby="tab-components" className="h-full">
-            <ComponentPanel registry={registry} />
+            <ComponentPanel registry={registry} config={config} />
           </div>
         )}
         {activeTab === 'blocks' && tabsList.includes('blocks') && (
