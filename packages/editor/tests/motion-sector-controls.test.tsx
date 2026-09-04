@@ -9,9 +9,9 @@ import {
   EASING_OPTIONS,
   HOVER_EFFECTS,
   LOOP_EFFECTS,
-} from '../src/motion-sector-controls';
-import { StyleManagerAccordion } from '../src/style-manager-accordion';
-import { InspectorPanel } from '../src/inspector-panel';
+} from '../src/components/style-manager/motion-sector-controls';
+import { StyleManagerAccordion } from '../src/components/style-manager/style-manager-accordion';
+import { InspectorPanel } from '../src/components/panels/inspector-panel';
 import { useEditorStore } from '../src/store';
 
 describe('Motion & Animation Sector Controls (STORA-261)', () => {

@@ -15,8 +15,15 @@ import { ActionBranchEditor } from './action-branch-editor';
 import {
   VariableAutocompleteInput,
   VariableAutocompleteTextarea,
+} from '../ui/variable-autocomplete-input';
+import {
+  collectDocumentNodes,
+  collectDocumentModals,
+  collectDocumentForms,
+  collectDocumentAnchors,
   collectDocumentFormFields,
-} from './variable-autocomplete-input';
+} from '../../utils/document-scanner';
+
 
 export interface ActionStepFormProps {
   step: ActionStep;
@@ -26,62 +33,6 @@ export interface ActionStepFormProps {
   onUpdateBranches?: (branches: { onSuccess?: ActionStep[]; onError?: ActionStep[] }) => void;
   className?: string;
   hideBranches?: boolean;
-}
-
-// ------------------------------------------------------------------------------------------------
-// Document Node Scanners
-// ------------------------------------------------------------------------------------------------
-
-export function collectDocumentNodes(
-  node: Node,
-  predicate: (n: Node) => boolean,
-  acc: Node[] = [],
-): Node[] {
-  if (predicate(node)) {
-    acc.push(node);
-  }
-  if (Array.isArray(node.children)) {
-    for (const child of node.children) {
-      collectDocumentNodes(child, predicate, acc);
-    }
-  }
-  return acc;
-}
-
-export function collectDocumentModals(doc?: PageDocument): Array<{ id: string; label: string }> {
-  if (!doc?.document) return [];
-  const nodes = collectDocumentNodes(
-    doc.document,
-    (n) => n.type === 'modal' || n.type === 'dialog' || n.id.toLowerCase().includes('modal'),
-  );
-  return nodes.map((n) => ({
-    id: n.id,
-    label: (n.props?.title as string) || (n.props?.label as string) || `<${n.type}> #${n.id}`,
-  }));
-}
-
-export function collectDocumentForms(doc?: PageDocument): Array<{ id: string; label: string }> {
-  if (!doc?.document) return [];
-  const nodes = collectDocumentNodes(
-    doc.document,
-    (n) => n.type === 'form' || n.id.toLowerCase().includes('form'),
-  );
-  return nodes.map((n) => ({
-    id: n.id,
-    label: (n.props?.name as string) || (n.props?.ariaLabel as string) || `<${n.type}> #${n.id}`,
-  }));
-}
-
-export function collectDocumentAnchors(doc?: PageDocument): Array<{ id: string; label: string }> {
-  if (!doc?.document) return [];
-  const nodes = collectDocumentNodes(
-    doc.document,
-    (n) => n.type === 'section' || n.type === 'container' || Boolean(n.props?.id),
-  );
-  return nodes.map((n) => ({
-    id: n.id,
-    label: (n.props?.title as string) || (n.props?.heading as string) || `#${n.id} (${n.type})`,
-  }));
 }
 
 // ------------------------------------------------------------------------------------------------

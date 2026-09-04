@@ -7,7 +7,7 @@ import {
   SUPPORTED_RULES,
   getRuleDefinition,
   isFormFieldNode,
-} from '../src/form-validation-rules-panel';
+} from '../src/components/panels/form-validation-rules-panel';
 import { useEditorStore } from '../src/store';
 import { createBlankDocument } from '@kubuild/core';
 

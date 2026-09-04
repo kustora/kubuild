@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { STARTER_BLOCKS, BlockDefinition, ComponentRegistry } from '@kubuild/components';
 import { insertNode, collectNodeIdSet } from '@kubuild/core';
-import { useEditorStore } from './store';
-import { ComponentIcon } from './icons';
+import { useEditorStore } from '../../store';
+import { ComponentIcon } from '../ui/icons';
 import { Image as ImageIcon } from 'lucide-react';
 
 export interface BlocksPanelProps {

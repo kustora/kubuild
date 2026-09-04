@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCompatibleCatalogEntries, toBindingValue } from '../src/variable-picker';
+import { getCompatibleCatalogEntries, toBindingValue } from '../src/components/ui/variable-picker';
 import type { ComponentFieldDefinition } from '@kubuild/components';
 import type { VariableCatalog } from '@kubuild/core';
 

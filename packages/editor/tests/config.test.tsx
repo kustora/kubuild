@@ -4,10 +4,10 @@ import { renderToString } from 'react-dom/server';
 import { createBlankDocument, findNodeById } from '@kubuild/core';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { useEditorStore } from '../src/store';
-import { KubuildEditor } from '../src/editor';
-import { LeftSidebar } from '../src/left-sidebar';
-import { InspectorPanel } from '../src/inspector-panel';
-import { StyleManagerAccordion } from '../src/style-manager-accordion';
+import { KubuildEditor } from '../src/components/layout/editor';
+import { LeftSidebar } from '../src/components/panels/left-sidebar';
+import { InspectorPanel } from '../src/components/panels/inspector-panel';
+import { StyleManagerAccordion } from '../src/components/style-manager/style-manager-accordion';
 import { resolveEditorConfig } from '../src/config';
 
 describe('Editor Customization & Module Modularity (EditorConfig)', () => {

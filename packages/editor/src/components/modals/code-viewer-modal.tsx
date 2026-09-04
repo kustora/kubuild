@@ -5,9 +5,9 @@ import {
   generateDocumentCss,
   generateStandaloneHtml,
 } from '@kubuild/renderer';
-import { useEditorStore } from './store';
-import { downloadFile, sanitizeDocumentFilename } from './export-utils';
-import { CodeHighlighter } from './code-highlighter';
+import { useEditorStore } from '../../store';
+import { downloadFile, sanitizeDocumentFilename } from '../../utils';
+import { CodeHighlighter } from '../ui/code-highlighter';
 
 export interface CodeViewerModalProps {
   isOpen: boolean;

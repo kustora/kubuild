@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ComponentRegistry, ComponentCategory, ComponentDefinition } from '@kubuild/components';
-import { useEditorStore } from './store';
-import { ComponentIcon } from './icons';
+import { useEditorStore } from '../../store';
+import { ComponentIcon } from '../ui/icons';
 
 export interface ComponentPanelProps {
   registry: ComponentRegistry;

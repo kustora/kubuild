@@ -11,8 +11,8 @@ import {
   clearMemoryStorage,
   STORAGE_KEY_ACCORDION,
   DEFAULT_ACCORDION_STATE,
-} from '../src/style-manager-accordion';
-import { InspectorPanel, StateEditingBadge } from '../src/inspector-panel';
+} from '../src/components/style-manager/style-manager-accordion';
+import { InspectorPanel, StateEditingBadge } from '../src/components/panels/inspector-panel';
 import { useEditorStore } from '../src/store';
 
 describe('Sector-Based Style Manager & Visual Box Model (STORA-202)', () => {

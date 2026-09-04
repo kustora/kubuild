@@ -5,9 +5,9 @@ import { createBlankDocument } from '@kubuild/core';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { ResponsiveStyles } from '@kubuild/schema';
 import { useEditorStore } from '../src/store';
-import { CodeViewerModal } from '../src/code-viewer-modal';
-import { CodeHighlighter } from '../src/code-highlighter';
-import { EditorToolbar } from '../src/toolbar';
+import { CodeViewerModal } from '../src/components/modals/code-viewer-modal';
+import { CodeHighlighter } from '../src/components/ui/code-highlighter';
+import { EditorToolbar } from '../src/components/layout/toolbar';
 
 describe('Live Code Viewer Modal (STORA-251)', () => {
   const registry = createDefaultComponentRegistry();

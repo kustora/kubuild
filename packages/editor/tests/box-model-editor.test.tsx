@@ -3,9 +3,8 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
-import { starterPageFixture } from '@kubuild/schema';
-import { BoxModelEditor, VisualBoxModel, parseBoxValue } from '../src/box-model-editor';
-import { InspectorPanel } from '../src/inspector-panel';
+import { BoxModelEditor, VisualBoxModel, parseBoxValue } from '../src/components/style-manager/box-model-editor';
+import { InspectorPanel } from '../src/components/panels/inspector-panel';
 import { useEditorStore } from '../src/store';
 
 describe('Visual Box Model Component (STORA-201)', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { EditorCanvas } from '../src/canvas';
+import { EditorCanvas } from '../src/components/canvas/canvas';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
 import { starterPageFixture } from '@kubuild/schema';

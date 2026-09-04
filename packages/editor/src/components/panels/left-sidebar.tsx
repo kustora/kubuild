@@ -4,7 +4,7 @@ import { Boxes, Blocks, Layers } from 'lucide-react';
 import { ComponentPanel } from './component-panel';
 import { BlocksPanel } from './blocks-panel';
 import { LayersPanel } from './layers-panel';
-import { EditorSidebarConfig, LeftSidebarTab } from './config';
+import { EditorSidebarConfig, LeftSidebarTab } from '../../config';
 
 export type { LeftSidebarTab };
 

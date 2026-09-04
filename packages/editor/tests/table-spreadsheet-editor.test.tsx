@@ -3,7 +3,7 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
-import { TableSpreadsheetEditor, findActiveTableNode, parseCsv } from '../src/table-spreadsheet-editor';
+import { TableSpreadsheetEditor, findActiveTableNode, parseCsv } from '../src/components/table-editor/table-spreadsheet-editor';
 import { useEditorStore } from '../src/store';
 
 describe('Table Spreadsheet Editor', () => {

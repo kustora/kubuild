@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { ActionDebuggerPanel } from '../src/action-debugger-panel';
+import { ActionDebuggerPanel } from '../src/components/panels/action-debugger-panel';
 import { useEditorStore } from '../src/store';
 
 import { createBlankDocument } from '@kubuild/core';

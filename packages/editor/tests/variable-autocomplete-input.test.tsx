@@ -2,15 +2,15 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { createBlankDocument } from '@kubuild/core';
+import { collectDocumentFormFields } from '../src/utils/document-scanner';
 import {
-  collectDocumentFormFields,
   getAllVariableSuggestions,
   filterVariableSuggestions,
   insertVariableToken,
   VariableSuggestionMenu,
   VariableAutocompleteInput,
   VariableAutocompleteTextarea,
-} from '../src/variable-autocomplete-input';
+} from '../src/components/ui/variable-autocomplete-input';
 
 describe('STORA-343: Variable Chip / Autocomplete Picker', () => {
   const sampleDoc = createBlankDocument('Test Form Document');

@@ -11,7 +11,10 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import { collectDocumentNodes } from './action-step-form';
+import {
+  collectDocumentNodes,
+  collectDocumentFormFields,
+} from '../../utils/document-scanner';
 
 export type VariableCategory = 'form' | 'variables' | 'response' | 'state';
 
@@ -27,29 +30,6 @@ export interface VariableSuggestionItem {
 // Document Scanners & Suggestion Generators
 // ------------------------------------------------------------------------------------------------
 
-export function collectDocumentFormFields(doc?: PageDocument): string[] {
-  if (!doc?.document) return [];
-  const fieldSet = new Set<string>();
-
-  const inputNodes = collectDocumentNodes(
-    doc.document,
-    (n) =>
-      ['input', 'textarea', 'select', 'checkbox', 'radio', 'switch'].includes(n.type) ||
-      Boolean(n.props?.name),
-  );
-
-  for (const node of inputNodes) {
-    if (typeof node.props?.name === 'string' && node.props.name.trim()) {
-      fieldSet.add(node.props.name.trim());
-    } else if (node.id) {
-      // Fallback: sanitized node ID (e.g. "input-email" -> "email")
-      const cleanId = node.id.replace(/^(input|text|field|select|textarea)-/i, '');
-      if (cleanId) fieldSet.add(cleanId);
-    }
-  }
-
-  return Array.from(fieldSet);
-}
 
 export function getAllVariableSuggestions(doc?: PageDocument): VariableSuggestionItem[] {
   const dynamicFormFields = collectDocumentFormFields(doc);

@@ -10,8 +10,8 @@ import {
   STEP_TYPE_OPTIONS,
   formatStepSummary,
   getStepTypeMeta,
-} from '../src/action-builder-modal';
-import { InspectorPanel } from '../src/inspector-panel';
+} from '../src/components/action-builder/action-builder-modal';
+import { InspectorPanel } from '../src/components/panels/inspector-panel';
 import { useEditorStore } from '../src/store';
 
 describe('Visual Action Builder Modal & Flyout (STORA-340)', () => {

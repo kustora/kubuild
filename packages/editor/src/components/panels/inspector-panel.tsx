@@ -2,20 +2,20 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
 import { findNodeById, findNodeLocation } from '@kubuild/core';
 import { isVariableBinding, PageDocument, AnimationConfig } from '@kubuild/schema';
-import { useEditorStore, Viewport } from './store';
-import { VariableBindingControl, toBindingValue } from './variable-picker';
-import { AssetManagerModal } from './asset-manager-modal';
-import { ActionBuilderModal } from './action-builder-modal';
-import { TableSpreadsheetEditor } from './table-spreadsheet-editor';
-import { BoxModelEditor } from './box-model-editor';
-import { StyleManagerAccordion } from './style-manager-accordion';
+import { useEditorStore, Viewport } from '../../store';
+import { VariableBindingControl, toBindingValue } from '../ui/variable-picker';
+import { AssetManagerModal } from '../modals/asset-manager-modal';
+import { ActionBuilderModal } from '../action-builder/action-builder-modal';
+import { TableSpreadsheetEditor } from '../table-editor/table-spreadsheet-editor';
+import { BoxModelEditor } from '../style-manager/box-model-editor';
+import { StyleManagerAccordion } from '../style-manager/style-manager-accordion';
 import { TraitsPanel } from './traits-panel';
-import { ComponentIcon } from './icons';
+import { ComponentIcon } from '../ui/icons';
 import { replayNodeAnimation } from '@kubuild/renderer';
 import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap } from 'lucide-react';
 
-import { StyleSectorId } from './style-manager-accordion';
-import { EditorInspectorConfig } from './config';
+import { StyleSectorId } from '../style-manager/style-manager-accordion';
+import { EditorInspectorConfig } from '../../config';
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;

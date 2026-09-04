@@ -2,7 +2,7 @@ import React from 'react';
 import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import { getNodeAncestors } from '@kubuild/core';
-import { useEditorStore } from './store';
+import { useEditorStore } from '../../store';
 
 export interface HierarchyBreadcrumbsProps {
   registry?: ComponentRegistry;

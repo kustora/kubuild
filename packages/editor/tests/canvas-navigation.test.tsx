@@ -5,9 +5,9 @@ import { createBlankDocument, getParentNodeId, getNodeAncestors } from '@kubuild
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { PageDocument } from '@kubuild/schema';
 import { useEditorStore } from '../src/store';
-import { FloatingActionBadges } from '../src/floating-badges';
-import { HierarchyBreadcrumbs } from '../src/breadcrumbs';
-import { KubuildEditor } from '../src/editor';
+import { FloatingActionBadges } from '../src/components/canvas/floating-badges';
+import { HierarchyBreadcrumbs } from '../src/components/canvas/breadcrumbs';
+import { KubuildEditor } from '../src/components/layout/editor';
 
 describe('Canvas Navigation (STORA-230, STORA-231, STORA-232)', () => {
   const registry = createDefaultComponentRegistry();

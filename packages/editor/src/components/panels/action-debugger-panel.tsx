@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useEditorStore, ActionLogEntry, LiveFormState } from './store';
+import { useEditorStore, ActionLogEntry, LiveFormState } from '../../store';
 import {
   Terminal,
   Activity,

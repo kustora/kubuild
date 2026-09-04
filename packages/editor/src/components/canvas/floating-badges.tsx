@@ -3,7 +3,7 @@ import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getParentNodeId } from '@kubuild/core';
 import { ArrowUp, Move, Copy, Trash2 } from 'lucide-react';
-import { useEditorStore } from './store';
+import { useEditorStore } from '../../store';
 
 export interface FloatingActionBadgesProps {
   selectedNodeId: string;

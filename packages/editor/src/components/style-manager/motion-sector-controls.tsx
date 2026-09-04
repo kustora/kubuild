@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnimationConfig, DEFAULT_ANIMATION_CONFIG } from '@kubuild/schema';
-import { ComponentIcon } from './icons';
+import { ComponentIcon } from '../ui/icons';
 
 export interface MotionSectorControlsProps {
   animation?: Partial<AnimationConfig>;

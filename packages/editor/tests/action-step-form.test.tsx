@@ -14,10 +14,12 @@ import {
   CopyClipboardStepForm,
   CustomEventStepForm,
   KeyValueEditor,
+} from '../src/components/action-builder/action-step-form';
+import {
   collectDocumentModals,
   collectDocumentForms,
   collectDocumentAnchors,
-} from '../src/action-step-form';
+} from '../src/utils/document-scanner';
 
 describe('STORA-341: Action Step Parameter Configuration Forms', () => {
   const sampleDoc = createBlankDocument('Test Form Document');

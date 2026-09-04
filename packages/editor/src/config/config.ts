@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSectorId } from './style-manager-accordion';
+import { StyleSectorId } from '../components/style-manager/style-manager-accordion';
 
 export type LeftSidebarTab = 'components' | 'blocks' | 'layers';
 

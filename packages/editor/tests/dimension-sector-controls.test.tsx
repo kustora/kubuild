@@ -8,9 +8,9 @@ import {
   DimensionUnitInput,
   parseDimensionValue,
   DIMENSION_UNITS,
-} from '../src/dimension-sector-controls';
-import { StyleManagerAccordion } from '../src/style-manager-accordion';
-import { InspectorPanel } from '../src/inspector-panel';
+} from '../src/components/style-manager/dimension-sector-controls';
+import { StyleManagerAccordion } from '../src/components/style-manager/style-manager-accordion';
+import { InspectorPanel } from '../src/components/panels/inspector-panel';
 import { useEditorStore } from '../src/store';
 
 describe('Dimension & Display Sector Controls (STORA-203)', () => {

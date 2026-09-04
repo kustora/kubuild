@@ -11,9 +11,9 @@ import {
   findNodeLocation,
   isDescendantOf,
 } from '@kubuild/core';
-import { useEditorStore, Viewport } from './store';
+import { useEditorStore, Viewport } from '../../store';
 import { FloatingActionBadges } from './floating-badges';
-import { EditorCanvasConfig } from './config';
+import { EditorCanvasConfig } from '../../config';
 
 export interface EditorCanvasProps {
   document?: PageDocument;

@@ -6,8 +6,8 @@ import { ActionStep } from '@kubuild/schema';
 import {
   ActionBranchEditor,
   BranchLane,
-} from '../src/action-branch-editor';
-import { ActionStepForm } from '../src/action-step-form';
+} from '../src/components/action-builder/action-branch-editor';
+import { ActionStepForm } from '../src/components/action-builder/action-step-form';
 
 describe('STORA-342: Visual Branching Editor (On Success & On Error)', () => {
   const sampleDoc = createBlankDocument('Branching Test Doc');

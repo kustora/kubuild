@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnimationConfig, DEFAULT_ANIMATION_CONFIG } from '@kubuild/schema';
-import { ComponentIcon } from './icons';
+import { ComponentIcon } from '../ui/icons';
 import { BoxModelEditor } from './box-model-editor';
 import { DimensionSectorControls } from './dimension-sector-controls';
 import { TypographySectorControls } from './typography-sector-controls';

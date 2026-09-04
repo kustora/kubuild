@@ -2,8 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Node } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, findNodeLocation, isDescendantOf, getAncestorChain } from '@kubuild/core';
-import { useEditorStore } from './store';
-import { ComponentIcon } from './icons';
+import { useEditorStore } from '../../store';
+import { ComponentIcon } from '../ui/icons';
 import { ChevronDown, ChevronRight, X, GripVertical } from 'lucide-react';
 
 export interface LayersPanelProps {

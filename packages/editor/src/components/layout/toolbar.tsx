@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { ComponentRegistry } from '@kubuild/components';
-import { useEditorStore } from './store';
-import { ImportModal } from './import-modal';
-import { CodeViewerModal } from './code-viewer-modal';
-import { downloadDocumentAsStora, downloadDocumentAsJson } from './export-utils';
+import { useEditorStore } from '../../store';
+import { ImportModal } from '../modals/import-modal';
+import { CodeViewerModal } from '../modals/code-viewer-modal';
+import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils';
 import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal } from 'lucide-react';
 
-import { EditorToolbarConfig } from './config';
+import { EditorToolbarConfig } from '../../config';
 
 export interface EditorToolbarProps {
   registry: ComponentRegistry;

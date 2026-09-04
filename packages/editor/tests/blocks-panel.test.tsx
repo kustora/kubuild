@@ -4,9 +4,9 @@ import { renderToString } from 'react-dom/server';
 import { createBlankDocument } from '@kubuild/core';
 import { createDefaultComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
 import { useEditorStore } from '../src/store';
-import { BlocksPanel } from '../src/blocks-panel';
-import { LeftSidebar } from '../src/left-sidebar';
-import { KubuildEditor } from '../src/editor';
+import { BlocksPanel } from '../src/components/panels/blocks-panel';
+import { LeftSidebar } from '../src/components/panels/left-sidebar';
+import { KubuildEditor } from '../src/components/layout/editor';
 
 describe('Block Manager & Pre-composed Templates (STORA-240)', () => {
   const registry = createDefaultComponentRegistry();

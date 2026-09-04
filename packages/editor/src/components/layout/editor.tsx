@@ -7,16 +7,16 @@ import {
   Diagnostic,
   buildSampleVariablesFromCatalog,
 } from '@kubuild/core';
-import { useEditorStore, Viewport } from './store';
-import { EditorCanvas } from './canvas';
+import { useEditorStore, Viewport } from '../../store';
+import { EditorCanvas } from '../canvas/canvas';
 import { EditorToolbar } from './toolbar';
-import { InspectorPanel } from './inspector-panel';
-import { LayersPanel } from './layers-panel';
-import { TableSpreadsheetEditor, findActiveTableNode } from './table-spreadsheet-editor';
-import { HierarchyBreadcrumbs } from './breadcrumbs';
-import { LeftSidebar } from './left-sidebar';
-import { ActionDebuggerPanel } from './action-debugger-panel';
-import { EditorConfig, resolveEditorConfig } from './config';
+import { InspectorPanel } from '../panels/inspector-panel';
+import { LayersPanel } from '../panels/layers-panel';
+import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/table-spreadsheet-editor';
+import { HierarchyBreadcrumbs } from '../canvas/breadcrumbs';
+import { LeftSidebar } from '../panels/left-sidebar';
+import { ActionDebuggerPanel } from '../panels/action-debugger-panel';
+import { EditorConfig, resolveEditorConfig } from '../../config';
 import {
   Monitor,
   Tablet,

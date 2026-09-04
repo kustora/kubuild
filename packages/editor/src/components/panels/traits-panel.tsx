@@ -10,7 +10,7 @@ import { findNodeById } from '@kubuild/core';
 import { PageDocument, FormConfig } from '@kubuild/schema';
 import { X } from 'lucide-react';
 import { FormValidationRulesPanel, isFormFieldNode } from './form-validation-rules-panel';
-import { useEditorStore } from './store';
+import { useEditorStore } from '../../store';
 
 export interface TraitsPanelProps {
   registry: ComponentRegistry;

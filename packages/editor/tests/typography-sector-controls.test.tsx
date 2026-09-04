@@ -7,9 +7,9 @@ import {
   TypographySectorControls,
   GOOGLE_FONTS,
   loadGoogleFont,
-} from '../src/typography-sector-controls';
-import { StyleManagerAccordion } from '../src/style-manager-accordion';
-import { InspectorPanel } from '../src/inspector-panel';
+} from '../src/components/style-manager/typography-sector-controls';
+import { StyleManagerAccordion } from '../src/components/style-manager/style-manager-accordion';
+import { InspectorPanel } from '../src/components/panels/inspector-panel';
 import { useEditorStore } from '../src/store';
 
 describe('Typography Sector Controls with Google Fonts (STORA-204)', () => {
