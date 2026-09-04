@@ -413,7 +413,8 @@ export const VariableAutocompleteInput: React.FC<VariableAutocompleteInputProps>
           setTimeout(() => setIsOpen(false), 200);
         }}
         placeholder={placeholder}
-        className={`w-full pr-8 text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700/90 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs ${className}`}
+        style={{ color: '#f1f5f9', ...inputProps.style }}
+        className={`w-full pr-8 text-xs font-mono bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700/90 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-inner transition ${className}`}
         {...inputProps}
       />
 
@@ -549,7 +550,8 @@ export const VariableAutocompleteTextarea: React.FC<VariableAutocompleteTextarea
             setTimeout(() => setIsOpen(false), 200);
           }}
           placeholder={placeholder}
-          className={`w-full text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700/90 rounded-lg p-2.5 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-relaxed ${className}`}
+          style={{ color: '#f1f5f9', ...textareaProps.style }}
+          className={`w-full text-xs font-mono bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700/90 rounded-lg p-2.5 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-500 leading-relaxed shadow-inner transition ${className}`}
           {...textareaProps}
         />
 

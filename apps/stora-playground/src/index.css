@@ -21,8 +21,10 @@ body {
   height: 100%;
 }
 
-input, select, textarea {
-  color: #0f172a;
+@layer base {
+  input, select, textarea {
+    color: inherit;
+  }
 }
 
 /* Custom modern scrollbar for panels and sidebars */
@@ -36,11 +38,11 @@ input, select, textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: rgba(148, 163, 184, 0.35);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(148, 163, 184, 0.6);
 }
 

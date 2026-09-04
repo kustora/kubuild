@@ -183,7 +183,8 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
                 value={row.key}
                 onChange={(e) => handleUpdateRow(row.id, 'key', e.target.value)}
                 placeholder={keyPlaceholder}
-                className="w-1/3 text-xs bg-slate-900 text-slate-200 border border-slate-700/80 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+                style={{ color: '#f1f5f9' }}
+                className="w-1/3 text-xs bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700/80 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px] shadow-inner"
               />
               <div className="flex-1 min-w-0">
                 <VariableAutocompleteInput
@@ -295,15 +296,16 @@ export const ApiRequestStepForm: React.FC<{
           <select
             value={method}
             onChange={(e) => handleMethodChange(e.target.value)}
-            className="shrink-0 text-xs font-bold bg-slate-900 text-blue-400 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-xs"
+            style={{ color: '#60a5fa' }}
+            className="shrink-0 text-xs font-bold bg-slate-950 text-blue-400 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-xs"
           >
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-            <option value="PUT">PUT</option>
-            <option value="DELETE">DELETE</option>
-            <option value="PATCH">PATCH</option>
-            <option value="HEAD">HEAD</option>
-            <option value="OPTIONS">OPTIONS</option>
+            <option value="GET" className="bg-slate-900 text-slate-100">GET</option>
+            <option value="POST" className="bg-slate-900 text-slate-100">POST</option>
+            <option value="PUT" className="bg-slate-900 text-slate-100">PUT</option>
+            <option value="DELETE" className="bg-slate-900 text-slate-100">DELETE</option>
+            <option value="PATCH" className="bg-slate-900 text-slate-100">PATCH</option>
+            <option value="HEAD" className="bg-slate-900 text-slate-100">HEAD</option>
+            <option value="OPTIONS" className="bg-slate-900 text-slate-100">OPTIONS</option>
           </select>
 
           <div className="relative flex-1 min-w-0">
@@ -352,12 +354,13 @@ export const ApiRequestStepForm: React.FC<{
               <select
                 value={bodyFormat}
                 onChange={(e) => handleBodyFormatChange(e.target.value)}
-                className="text-[11px] bg-slate-900 text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none"
+                style={{ color: '#e2e8f0' }}
+                className="text-[11px] font-medium bg-slate-950 text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
               >
-                <option value="json">JSON</option>
-                <option value="formData">FormData</option>
-                <option value="urlencoded">URL-Encoded</option>
-                <option value="raw">Raw Text</option>
+                <option value="json" className="bg-slate-900 text-slate-100">JSON</option>
+                <option value="formData" className="bg-slate-900 text-slate-100">FormData</option>
+                <option value="urlencoded" className="bg-slate-900 text-slate-100">URL-Encoded</option>
+                <option value="raw" className="bg-slate-900 text-slate-100">Raw Text</option>
               </select>
             </div>
           </div>
@@ -395,7 +398,8 @@ export const ApiRequestStepForm: React.FC<{
             value={timeout}
             onChange={(e) => handleTimeoutChange(e.target.value)}
             placeholder="10000"
-            className="w-24 text-xs font-mono bg-slate-950 text-slate-200 border border-slate-700 rounded px-2 py-1 text-right focus:outline-none"
+            style={{ color: '#f1f5f9' }}
+            className="w-24 text-xs font-mono bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700 rounded px-2 py-1 text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           <span className="text-xs text-slate-400">ms</span>
         </div>
@@ -503,14 +507,15 @@ export const ShowToastStepForm: React.FC<{
           <select
             value={position}
             onChange={(e) => onChange({ ...payload, position: e.target.value })}
-            className="w-full text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded px-2.5 py-1.5 focus:outline-none cursor-pointer"
+            style={{ color: '#e2e8f0' }}
+            className="w-full text-xs bg-slate-950 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
           >
-            <option value="bottom-right">Bottom Right</option>
-            <option value="bottom-left">Bottom Left</option>
-            <option value="bottom-center">Bottom Center</option>
-            <option value="top-right">Top Right</option>
-            <option value="top-left">Top Left</option>
-            <option value="top-center">Top Center</option>
+            <option value="bottom-right" className="bg-slate-900 text-slate-100">Bottom Right</option>
+            <option value="bottom-left" className="bg-slate-900 text-slate-100">Bottom Left</option>
+            <option value="bottom-center" className="bg-slate-900 text-slate-100">Bottom Center</option>
+            <option value="top-right" className="bg-slate-900 text-slate-100">Top Right</option>
+            <option value="top-left" className="bg-slate-900 text-slate-100">Top Left</option>
+            <option value="top-center" className="bg-slate-900 text-slate-100">Top Center</option>
           </select>
         </div>
       </div>
@@ -565,11 +570,12 @@ export const NavigateStepForm: React.FC<{
                 onChange({ ...payload, url: e.target.value, scroll: true });
               }
             }}
-            className="w-full text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded px-2.5 py-1.5 focus:outline-none cursor-pointer"
+            style={{ color: '#e2e8f0' }}
+            className="w-full text-xs bg-slate-950 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
           >
-            <option value="">— Select Section Anchor —</option>
+            <option value="" className="bg-slate-900 text-slate-100">— Select Section Anchor —</option>
             {availableAnchors.map((anc) => (
-              <option key={anc.id} value={`#${anc.id}`}>
+              <option key={anc.id} value={`#${anc.id}`} className="bg-slate-900 text-slate-100">
                 {anc.label}
               </option>
             ))}
@@ -585,7 +591,7 @@ export const NavigateStepForm: React.FC<{
             type="checkbox"
             checked={target === '_blank'}
             onChange={(e) => onChange({ ...payload, target: e.target.checked ? '_blank' : '_self' })}
-            className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+            className="rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-0 accent-blue-600 w-4 h-4 cursor-pointer"
           />
         </label>
 
@@ -595,7 +601,7 @@ export const NavigateStepForm: React.FC<{
             type="checkbox"
             checked={scroll}
             onChange={(e) => onChange({ ...payload, scroll: e.target.checked })}
-            className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+            className="rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-0 accent-blue-600 w-4 h-4 cursor-pointer"
           />
         </label>
 
@@ -605,7 +611,7 @@ export const NavigateStepForm: React.FC<{
             type="checkbox"
             checked={replace}
             onChange={(e) => onChange({ ...payload, replace: e.target.checked })}
-            className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+            className="rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-0 accent-blue-600 w-4 h-4 cursor-pointer"
           />
         </label>
       </div>
@@ -639,11 +645,12 @@ export const ModalStepForm: React.FC<{
             onChange={(e) =>
               onChange({ ...payload, modalNodeId: e.target.value, modalId: e.target.value })
             }
-            className="w-full text-xs bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 mb-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+            style={{ color: '#f1f5f9' }}
+            className="w-full text-xs bg-slate-950 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 mb-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
           >
-            <option value="">— Select Detected Modal —</option>
+            <option value="" className="bg-slate-900 text-slate-100">— Select Detected Modal —</option>
             {detectedModals.map((m) => (
-              <option key={m.id} value={m.id}>
+              <option key={m.id} value={m.id} className="bg-slate-900 text-slate-100">
                 {`${m.label} (#${m.id})`}
               </option>
             ))}
@@ -657,7 +664,8 @@ export const ModalStepForm: React.FC<{
             onChange({ ...payload, modalNodeId: e.target.value, modalId: e.target.value })
           }
           placeholder="e.g. modal-contact-us or modal-1"
-          className="w-full text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ color: '#f1f5f9' }}
+          className="w-full text-xs font-mono bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <span className="text-[10px] text-slate-500 mt-1 block">
           Specify the unique Node ID of the modal component to {isOpenAction ? 'open' : 'close'}.
@@ -691,7 +699,8 @@ export const SetStateStepForm: React.FC<{
           value={key}
           onChange={(e) => onChange({ ...payload, key: e.target.value })}
           placeholder="e.g. selectedProduct, isLoggedIn, cartCount"
-          className="w-full text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ color: '#f1f5f9' }}
+          className="w-full text-xs font-mono bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -710,12 +719,13 @@ export const SetStateStepForm: React.FC<{
         <select
           value={scope}
           onChange={(e) => onChange({ ...payload, scope: e.target.value })}
-          className="w-full text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none cursor-pointer"
+          style={{ color: '#e2e8f0' }}
+          className="w-full text-xs bg-slate-950 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none cursor-pointer"
         >
-          <option value="runtime">Runtime (Current page view memory)</option>
-          <option value="session">Session (Browser sessionStorage)</option>
-          <option value="local">Local (Browser localStorage)</option>
-          <option value="document">Document (Portable document state)</option>
+          <option value="runtime" className="bg-slate-900 text-slate-100">Runtime (Current page view memory)</option>
+          <option value="session" className="bg-slate-900 text-slate-100">Session (Browser sessionStorage)</option>
+          <option value="local" className="bg-slate-900 text-slate-100">Local (Browser localStorage)</option>
+          <option value="document" className="bg-slate-900 text-slate-100">Document (Portable document state)</option>
         </select>
       </div>
     </div>
@@ -743,11 +753,12 @@ export const ResetFormStepForm: React.FC<{
           <select
             value={formId}
             onChange={(e) => onChange({ ...payload, formId: e.target.value || undefined })}
-            className="w-full text-xs bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 mb-2 focus:outline-none cursor-pointer"
+            style={{ color: '#f1f5f9' }}
+            className="w-full text-xs bg-slate-950 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 mb-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
           >
-            <option value="">— Parent Form / Active Form Container —</option>
+            <option value="" className="bg-slate-900 text-slate-100">— Parent Form / Active Form Container —</option>
             {detectedForms.map((f) => (
-              <option key={f.id} value={f.id}>
+              <option key={f.id} value={f.id} className="bg-slate-900 text-slate-100">
                 {`${f.label} (#${f.id})`}
               </option>
             ))}
@@ -759,7 +770,8 @@ export const ResetFormStepForm: React.FC<{
           value={formId}
           onChange={(e) => onChange({ ...payload, formId: e.target.value || undefined })}
           placeholder="Optional: explicit form ID (e.g. contact-form)"
-          className="w-full text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ color: '#f1f5f9' }}
+          className="w-full text-xs font-mono bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <span className="text-[10px] text-slate-500 mt-1 block">
           Leave blank to automatically target the enclosing parent form.
@@ -804,7 +816,7 @@ export const CopyClipboardStepForm: React.FC<{
             type="checkbox"
             checked={notify}
             onChange={(e) => onChange({ ...payload, notify: e.target.checked })}
-            className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+            className="rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-0 accent-blue-600 w-4 h-4 cursor-pointer"
           />
         </label>
 
@@ -816,7 +828,8 @@ export const CopyClipboardStepForm: React.FC<{
               value={toastMessage}
               onChange={(e) => onChange({ ...payload, toastMessage: e.target.value })}
               placeholder="Copied to clipboard!"
-              className="w-full text-xs bg-slate-900 text-slate-100 border border-slate-700 rounded px-2.5 py-1.5 focus:outline-none"
+              style={{ color: '#f1f5f9' }}
+              className="w-full text-xs bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         )}
@@ -850,7 +863,8 @@ export const CustomEventStepForm: React.FC<{
           value={eventName}
           onChange={(e) => onChange({ ...payload, eventName: e.target.value })}
           placeholder="e.g. analytics:purchase or app:user-registered"
-          className="w-full text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ color: '#f1f5f9' }}
+          className="w-full text-xs font-mono bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <span className="text-[10px] text-slate-500 mt-1 block">
           Dispatches <code className="font-mono text-slate-400">new CustomEvent(name, detail)</code> on the window.
@@ -873,7 +887,7 @@ export const CustomEventStepForm: React.FC<{
             type="checkbox"
             checked={bubbles}
             onChange={(e) => onChange({ ...payload, bubbles: e.target.checked })}
-            className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+            className="rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-0 accent-blue-600 w-4 h-4 cursor-pointer"
           />
           <span className="text-xs text-slate-300">Bubbles</span>
         </label>
@@ -883,7 +897,7 @@ export const CustomEventStepForm: React.FC<{
             type="checkbox"
             checked={cancelable}
             onChange={(e) => onChange({ ...payload, cancelable: e.target.checked })}
-            className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+            className="rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-0 accent-blue-600 w-4 h-4 cursor-pointer"
           />
           <span className="text-xs text-slate-300">Cancelable</span>
         </label>
@@ -970,11 +984,11 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
   return (
     <div
       data-testid={`action-step-form-${step.id}`}
-      className={`flex flex-col gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-inner ${className}`}
+      className={`flex flex-col gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-inner text-slate-100 ${className}`}
     >
       {/* Step Label Meta Input */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
           Step Description / Label
         </label>
         <input
@@ -982,7 +996,8 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
           value={label}
           onChange={(e) => handleLabelChange(e.target.value)}
           placeholder={`Describe this ${step.type} step`}
-          className="w-full text-xs font-medium bg-slate-950 text-slate-100 border border-slate-700/80 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ color: '#f1f5f9' }}
+          className="w-full text-xs font-medium bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700/80 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-inner"
         />
       </div>
 
@@ -1012,7 +1027,7 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
             type="checkbox"
             checked={continueOnError}
             onChange={(e) => handleContinueOnErrorChange(e.target.checked)}
-            className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
+            className="rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-0 accent-blue-600 w-4 h-4 cursor-pointer"
           />
           <span className="text-xs text-slate-400 hover:text-slate-300 transition">
             Continue pipeline execution if this step fails (Ignore Error)
