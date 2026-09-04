@@ -10,6 +10,7 @@ import { TableSpreadsheetEditor } from '../table-editor/table-spreadsheet-editor
 import { BoxModelEditor } from '../style-manager/box-model-editor';
 import { StyleManagerAccordion } from '../style-manager/style-manager-accordion';
 import { TraitsPanel } from './traits-panel';
+import { ActionPropControl } from './action-prop-control';
 import { ComponentIcon } from '../ui/icons';
 import { replayNodeAnimation } from '@kubuild/renderer';
 import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap } from 'lucide-react';
@@ -659,8 +660,19 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             setError={(err) => setError(errorKey, err)}
           />
         );
-      case 'image':
       case 'action':
+        return (
+          <ActionPropControl
+            nodeId={node.id}
+            field={field}
+            value={currentValue}
+            document={document}
+            onCommit={commitProp}
+            onOpenActionBuilder={() => setIsActionBuilderOpen(true)}
+            setError={(err) => setError(errorKey, err)}
+          />
+        );
+      case 'image':
       case 'json':
         return (
           <textarea

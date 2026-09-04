@@ -252,6 +252,11 @@ export function updateProps(
       ...previousProps,
       ...deepClone(props),
     };
+    for (const key of Object.keys(props)) {
+      if (props[key] === undefined) {
+        delete targetNode.props[key];
+      }
+    }
   } else {
     targetNode.props = deepClone(props);
   }

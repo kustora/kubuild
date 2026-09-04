@@ -1,4 +1,5 @@
 export * from './action-debugger-panel';
+export * from './action-prop-control';
 export * from './blocks-panel';
 export * from './component-panel';
 export * from './form-validation-rules-panel';

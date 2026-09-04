@@ -598,6 +598,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const candidate = merge
         ? { ...deepClone(node.props ?? {}), ...deepClone(props) }
         : deepClone(props);
+      if (merge) {
+        for (const key of Object.keys(props)) {
+          if (props[key] === undefined) {
+            delete candidate[key];
+          }
+        }
+      }
       const propResult = definition.validateProps(candidate);
       if (Array.isArray(propResult) && propResult.length > 0) {
         return { success: false, error: propResult.join(' ') };
