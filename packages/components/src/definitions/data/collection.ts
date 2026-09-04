@@ -20,3 +20,4 @@ export const collectionDefinition: ComponentDefinition = {
     ariaLabelTrait({ description: 'Accessible name summarizing the repeated collection (e.g. "Product list").' }),
   ],
 };
+

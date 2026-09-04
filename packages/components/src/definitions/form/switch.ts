@@ -105,3 +105,4 @@ export const switchDefinition: ComponentDefinition = {
     },
   },
 };
+

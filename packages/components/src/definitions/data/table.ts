@@ -164,3 +164,4 @@ export const tableCellDefinition: ComponentDefinition = {
     },
   },
 };
+

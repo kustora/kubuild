@@ -65,3 +65,4 @@ export const blockquoteDefinition: ComponentDefinition = {
     },
   },
 };
+

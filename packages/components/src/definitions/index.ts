@@ -94,3 +94,4 @@ export function createDefaultComponentRegistry(): ComponentRegistry {
   }
   return registry;
 }
+

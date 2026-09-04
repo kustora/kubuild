@@ -35,3 +35,4 @@ export type CoreComponentType =
   | 'table'
   | 'table-row'
   | 'table-cell';
+

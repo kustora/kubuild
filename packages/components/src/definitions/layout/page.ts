@@ -17,3 +17,4 @@ export const pageDefinition: ComponentDefinition = {
   ],
   defaultStyles: { base: { minHeight: '100vh', backgroundColor: '#ffffff' } },
 };
+

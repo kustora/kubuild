@@ -113,3 +113,4 @@ export const videoDefinition: ComponentDefinition = {
     },
   },
 };
+

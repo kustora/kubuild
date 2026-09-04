@@ -27,7 +27,8 @@ export const textDefinition: ComponentDefinition = {
     base: {
       fontSize: '16px',
       color: '#4b5563',
-      lineHeight: '1.6'
+      lineHeight: '1.6',
     },
   },
 };
+

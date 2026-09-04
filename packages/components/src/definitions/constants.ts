@@ -36,3 +36,4 @@ export const CONTENT_CHILD_TYPES = [
   'collection',
   'custom',
 ];
+

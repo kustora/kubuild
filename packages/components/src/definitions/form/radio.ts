@@ -175,3 +175,4 @@ export const radioItemDefinition: ComponentDefinition = {
   type: 'radio-item',
   label: 'Radio Item',
 };
+
