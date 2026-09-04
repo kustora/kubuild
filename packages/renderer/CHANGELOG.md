@@ -1,5 +1,25 @@
 # @kubuild/renderer
 
+## 0.2.0
+
+### Minor Changes
+
+- Minor release (v0.2.0):
+  - **Action & Form System**: Comprehensive action pipeline with trigger events, validation rules, step forms, branch conditions, and API request handling.
+  - **Action Builder & Debugger**: Visual Action Builder modal, Action Branch Editor, Action Debugger panel, and Form Validation Rules panel.
+  - **Variable System & Autocomplete**: Autocomplete inputs, textareas, and variable picker supporting runtime data binding and catalog expressions.
+  - **Form Templates**: Ready-to-use starter templates (Contact Us, Newsletter, Lead Generation) with predefined traits and validation.
+  - **Execution & Runtime Engines**: `ActionPipelineExecutor`, `RuntimeStateStore`, `validationEngine`, template interpolation, and built-in runners (toasts, modals, navigation, fetch).
+  - **Mobile Responsive Layout**: Mobile-friendly toolbar, bottom navigation bar, and pointer/touch event support for modals and canvas tools.
+  - **Architecture Refactoring**: Reorganized component directories across packages for better modularity and maintainability.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/components@0.2.0
+  - @kubuild/core@0.2.0
+  - @kubuild/schema@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes
