@@ -12,13 +12,13 @@ import {
   DocumentValidationError,
   ValidationOptions,
   ComponentRegistryLike,
-} from './validator';
+} from '../validation/validator';
 import {
   collectAssetReferences,
   extractRequirementsFromTree,
   CollectedAssetReference,
-} from './document-utils';
-import type { AssetProvider } from './interfaces';
+} from '../document/document-utils';
+import type { AssetProvider } from '../types/interfaces';
 
 export interface ExportAssetData {
   data: Uint8Array | ArrayBuffer | Blob | string;

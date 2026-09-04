@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { resolveBinding, resolveBindingValue } from '../src/binding-resolver';
-import type { RuntimeContext } from '../src/interfaces';
+import { resolveBinding, resolveBindingValue } from '../src/runtime/binding-resolver';
+import type { RuntimeContext } from '../src/types/interfaces';
 
 describe('resolveBinding', () => {
   it('resolves a top-level scalar key', () => {

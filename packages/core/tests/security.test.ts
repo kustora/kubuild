@@ -7,8 +7,8 @@ import {
   isDangerousAssetFilename,
   checkZipBomb,
   DEFAULT_DOCUMENT_SECURITY_LIMITS,
-} from '../src/security';
-import { validateDocument } from '../src/validator';
+} from '../src/validation/security';
+import { validateDocument } from '../src/validation/validator';
 import { starterPageFixture, PageDocument } from '@kubuild/schema';
 
 describe('STORA-083: Security Audit & Safety Controls Suite', () => {

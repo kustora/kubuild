@@ -6,7 +6,7 @@ import {
   ActionTimeoutError,
   evaluateActionCondition,
   executeActionPipeline,
-} from '../src/pipeline-executor';
+} from '../src/runtime/pipeline-executor';
 
 describe('STORA-312: Action Pipeline Execution Engine (ActionPipelineExecutor)', () => {
   describe('evaluateActionCondition', () => {

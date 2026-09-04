@@ -6,7 +6,7 @@ import type {
   ActionHandler,
   ActionRegistry,
   ActionExecutionContext,
-} from '../src/interfaces';
+} from '../src/types/interfaces';
 import { isAssetReference, isVariableBinding, isActionBinding } from '@kubuild/schema';
 import * as coreExports from '../src/index';
 

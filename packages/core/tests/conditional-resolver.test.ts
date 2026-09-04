@@ -6,7 +6,7 @@ import {
   evaluateOperator,
   isConditionGroup,
   isValueEmpty,
-} from '../src/conditional-resolver';
+} from '../src/runtime/conditional-resolver';
 
 describe('STORA-313: Conditional Logic Resolver', () => {
   describe('isValueEmpty', () => {

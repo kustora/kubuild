@@ -5,14 +5,14 @@ import {
   ActionBinding,
   AssetReference,
 } from '@kubuild/schema';
-import { createBlankDocument } from '../src/document-utils';
-import { exportPackage } from '../src/exporter';
-import { importPackage, preflightPackage } from '../src/importer';
+import { createBlankDocument } from '../src/document/document-utils';
+import { exportPackage } from '../src/io/exporter';
+import { importPackage, preflightPackage } from '../src/io/importer';
 import {
   compareDocumentsSemantically,
   compareManifestsSemantically,
-} from '../src/round-trip-comparator';
-import type { AssetProvider, AssetInfo } from '../src/interfaces';
+} from '../src/io/round-trip-comparator';
+import type { AssetProvider, AssetInfo } from '../src/types/interfaces';
 
 class InMemoryAssetProvider implements AssetProvider {
   private assets = new Map<string, { buffer: Uint8Array; info: AssetInfo }>();

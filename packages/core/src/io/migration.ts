@@ -5,8 +5,8 @@ import {
   SCHEMA_NAME,
   ResponsiveStyles,
 } from '@kubuild/schema';
-import { deepClone } from './command-tree-utils';
-import { validateDocument } from './validator';
+import { deepClone } from '../document/command-tree-utils';
+import { validateDocument } from '../validation/validator';
 
 export type MigrationErrorCode =
   | 'NO_MIGRATION_PATH'

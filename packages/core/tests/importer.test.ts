@@ -5,7 +5,7 @@ import {
   exportPackage,
   sha256Sync,
   calculateChecksum,
-} from '../src/exporter';
+} from '../src/io/exporter';
 import {
   preflightPackage,
   inspectPackage,
@@ -14,14 +14,14 @@ import {
   importStoraPackage,
   isDangerousPath,
   defaultRenameAssetStrategy,
-} from '../src/importer';
+} from '../src/io/importer';
 import {
   createBlankDocument,
   findMissingComponentNodes,
   remapAssetReferences,
-} from '../src/document-utils';
-import type { ComponentRegistryLike } from '../src/validator';
-import type { AssetProvider, AssetInfo } from '../src/interfaces';
+} from '../src/document/document-utils';
+import type { ComponentRegistryLike } from '../src/validation/validator';
+import type { AssetProvider, AssetInfo } from '../src/types/interfaces';
 
 
 describe('STORA-062: Importer .stora dengan Preflight Validation', () => {

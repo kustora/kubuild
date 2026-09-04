@@ -7,8 +7,8 @@ import {
   type PageDocument,
   type Node,
 } from '@kubuild/schema';
-import { deepClone } from './command-tree-utils';
-import { validateDocument } from './validator';
+import { deepClone } from '../document/command-tree-utils';
+import { validateDocument } from '../validation/validator';
 
 /**
  * Standard core built-in component types

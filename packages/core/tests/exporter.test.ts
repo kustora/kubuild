@@ -8,9 +8,9 @@ import {
   sha256Sync,
   calculateChecksum,
   sanitizeFilename,
-} from '../src/exporter';
-import { createBlankDocument } from '../src/document-utils';
-import { ComponentRegistryLike } from '../src/validator';
+} from '../src/io/exporter';
+import { createBlankDocument } from '../src/document/document-utils';
+import { ComponentRegistryLike } from '../src/validation/validator';
 
 describe('STORA-061: Portable Package Exporter (.stora)', () => {
   const samplePngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]);

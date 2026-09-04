@@ -11,7 +11,7 @@ import {
 import {
   validateDocument,
   ComponentRegistryLike,
-} from './validator';
+} from '../validation/validator';
 import {
   canMigrate,
   getMigrationPath,
@@ -20,13 +20,13 @@ import {
   defaultMigrationRegistry,
 } from './migration';
 import { calculateChecksum } from './exporter';
-import { remapDocumentAssetReferences } from './document-utils';
+import { remapDocumentAssetReferences } from '../document/document-utils';
 import {
   isDangerousAssetFilename,
   checkZipBomb,
   containsProhibitedKeys,
-} from './security';
-import type { AssetProvider, AssetInfo } from './interfaces';
+} from '../validation/security';
+import type { AssetProvider, AssetInfo } from '../types/interfaces';
 
 export interface SecurityLimits {
   /**

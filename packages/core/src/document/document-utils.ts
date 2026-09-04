@@ -1,15 +1,5 @@
 import { PageDocument, Node, SCHEMA_NAME } from '@kubuild/schema';
-import type { ComponentRegistryLike } from './validator';
-
-export { validateDocument } from './validator';
-export type {
-  DocumentValidationResult,
-  DocumentValidationError,
-  DocumentValidationErrorCode,
-  ValidationOptions,
-  ComponentDefinitionLike,
-  ComponentRegistryLike,
-} from './validator';
+import type { ComponentRegistryLike } from '../validation/validator';
 
 
 export function createBlankDocument(title = 'Untitled Page'): PageDocument {

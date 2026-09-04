@@ -3,7 +3,7 @@ import {
   validateTemplate,
   extractTemplateRequirements,
   createTemplateRecord,
-} from '../src/template-utils';
+} from '../src/io/template-utils';
 import { starterPageFixture } from '@kubuild/schema';
 
 describe('Template Utilities in @kubuild/core', () => {

@@ -6,7 +6,7 @@ import {
   interpolateTemplateString,
   interpolateValue,
   type InterpolationContext,
-} from '../src/interpolator';
+} from '../src/runtime/interpolator';
 
 describe('STORA-310: Template & Expression Variable Interpolator', () => {
   const sampleContext: InterpolationContext = {

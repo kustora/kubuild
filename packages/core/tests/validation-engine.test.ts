@@ -8,7 +8,7 @@ import {
   validateForm,
   validateFormAsync,
   isFormValid,
-} from '../src/validation-engine';
+} from '../src/validation/validation-engine';
 
 describe('STORA-311: Form Validation Engine (ValidationEngine)', () => {
   describe('isEmptyValue', () => {

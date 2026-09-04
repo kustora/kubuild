@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildSampleVariablesFromCatalog } from '../src/variable-catalog';
-import type { VariableCatalog } from '../src/interfaces';
+import { buildSampleVariablesFromCatalog } from '../src/runtime/variable-catalog';
+import type { VariableCatalog } from '../src/types/interfaces';
 
 describe('buildSampleVariablesFromCatalog', () => {
   it('expands a nested dotted key into a nested object', () => {

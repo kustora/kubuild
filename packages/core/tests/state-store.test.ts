@@ -3,7 +3,7 @@ import {
   createDefaultFormState,
   createRuntimeStore,
   RuntimeStateStore,
-} from '../src/state-store';
+} from '../src/runtime/state-store';
 
 describe('STORA-314: State Store & Context Manager (RuntimeStateStore)', () => {
   describe('Basic State Operations (get, set, delete, reset)', () => {
