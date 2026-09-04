@@ -9,11 +9,13 @@ import {
   Trash2,
   Check,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import { ActionBranchEditor } from './action-branch-editor';
 import {
   VariableAutocompleteInput,
   VariableAutocompleteTextarea,
+  collectDocumentFormFields,
 } from './variable-autocomplete-input';
 
 export interface ActionStepFormProps {
@@ -227,6 +229,7 @@ export const ApiRequestStepForm: React.FC<{
   const headers = (payload.headers as Record<string, string>) || {};
   const queryParams = (payload.queryParams as Record<string, string>) || {};
 
+  // Convert payload.body to string for Raw mode
   const bodyStr = useMemo(() => {
     if (payload.body === undefined || payload.body === null) return '';
     if (typeof payload.body === 'string') return payload.body;
@@ -240,9 +243,165 @@ export const ApiRequestStepForm: React.FC<{
   const [rawBody, setRawBody] = useState<string>(bodyStr);
   const [jsonError, setJsonError] = useState<string | null>(null);
 
+  // Determine initial body mode: 'fields' (form inputs) by default unless it's raw text or non-object string
+  const initialMode = useMemo<'fields' | 'raw'>(() => {
+    if (bodyFormat === 'raw' || bodyFormat === 'text') return 'raw';
+    if (typeof payload.body === 'string' && payload.body.trim()) {
+      try {
+        const parsed = JSON.parse(payload.body);
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          return 'fields';
+        }
+        return 'raw';
+      } catch {
+        return 'raw';
+      }
+    }
+    return 'fields';
+  }, [bodyFormat, payload.body]);
+
+  const [bodyMode, setBodyMode] = useState<'fields' | 'raw'>(initialMode);
+
+  // Key-value rows for Form mode
+  const [bodyRows, setBodyRows] = useState<Array<{ id: string; key: string; value: string }>>(() => {
+    if (typeof payload.body === 'object' && payload.body !== null && !Array.isArray(payload.body)) {
+      return Object.entries(payload.body).map(([k, v], idx) => ({
+        id: `brow-${idx}-${k}`,
+        key: k,
+        value: typeof v === 'string' ? v : JSON.stringify(v),
+      }));
+    }
+    if (typeof payload.body === 'string' && payload.body.trim()) {
+      try {
+        const parsed = JSON.parse(payload.body);
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          return Object.entries(parsed).map(([k, v], idx) => ({
+            id: `brow-${idx}-${k}`,
+            key: k,
+            value: typeof v === 'string' ? v : JSON.stringify(v),
+          }));
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return [];
+  });
+
   useEffect(() => {
     setRawBody(bodyStr);
   }, [bodyStr]);
+
+  // Sync rows if payload.body changes externally in fields mode
+  useEffect(() => {
+    if (bodyMode === 'fields' && typeof payload.body === 'object' && payload.body !== null && !Array.isArray(payload.body)) {
+      const currentKeys = Object.keys(payload.body);
+      const rowKeys = bodyRows.map((r) => r.key);
+      const differs =
+        currentKeys.length !== rowKeys.length ||
+        currentKeys.some((k) => (payload.body as Record<string, unknown>)[k] !== bodyRows.find((r) => r.key === k)?.value);
+
+      if (differs) {
+        setBodyRows(
+          Object.entries(payload.body).map(([k, v], idx) => ({
+            id: `brow-${idx}-${k}`,
+            key: k,
+            value: typeof v === 'string' ? v : JSON.stringify(v),
+          })),
+        );
+      }
+    }
+  }, [payload.body, bodyMode]);
+
+  const commitBodyRows = (newRows: Array<{ id: string; key: string; value: string }>) => {
+    setBodyRows(newRows);
+    const record: Record<string, string> = {};
+    for (const r of newRows) {
+      if (r.key.trim()) {
+        record[r.key.trim()] = r.value;
+      }
+    }
+    const hasKeys = Object.keys(record).length > 0;
+    onChange({ ...payload, body: hasKeys ? record : undefined });
+    setRawBody(hasKeys ? JSON.stringify(record, null, 2) : '');
+    setJsonError(null);
+  };
+
+  const handleAddBodyRow = () => {
+    const newRows = [...bodyRows, { id: `brow-${Date.now()}-${Math.random()}`, key: '', value: '' }];
+    commitBodyRows(newRows);
+  };
+
+  const handleRemoveBodyRow = (id: string) => {
+    const newRows = bodyRows.filter((r) => r.id !== id);
+    commitBodyRows(newRows);
+  };
+
+  const handleUpdateBodyRow = (id: string, field: 'key' | 'value', val: string) => {
+    const newRows = bodyRows.map((r) => (r.id === id ? { ...r, [field]: val } : r));
+    commitBodyRows(newRows);
+  };
+
+  const detectedFormFields = useMemo(() => {
+    return collectDocumentFormFields(document);
+  }, [document]);
+
+  const handleAutoFillFormFields = () => {
+    const existingKeys = new Set(bodyRows.map((r) => r.key.trim().toLowerCase()));
+    const newRows = [...bodyRows];
+
+    for (const field of detectedFormFields) {
+      if (!existingKeys.has(field.toLowerCase())) {
+        newRows.push({
+          id: `brow-auto-${Date.now()}-${field}`,
+          key: field,
+          value: `{{form.${field}}}`,
+        });
+        existingKeys.add(field.toLowerCase());
+      }
+    }
+
+    commitBodyRows(newRows);
+  };
+
+  const handleSetBodyMode = (mode: 'fields' | 'raw') => {
+    if (mode === 'fields') {
+      if (rawBody.trim()) {
+        try {
+          const parsed = JSON.parse(rawBody);
+          if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+            const parsedRows = Object.entries(parsed).map(([k, v], idx) => ({
+              id: `brow-${idx}-${k}`,
+              key: k,
+              value: typeof v === 'string' ? v : JSON.stringify(v),
+            }));
+            setBodyRows(parsedRows);
+            commitBodyRows(parsedRows);
+            setJsonError(null);
+            setBodyMode('fields');
+          } else {
+            setJsonError('Cannot switch to form fields: JSON root must be an object { "key": "value" }');
+          }
+        } catch {
+          setJsonError('Cannot switch to form fields: please fix invalid JSON syntax first');
+        }
+      } else {
+        setBodyRows([]);
+        setJsonError(null);
+        setBodyMode('fields');
+      }
+    } else {
+      const record: Record<string, string> = {};
+      for (const r of bodyRows) {
+        if (r.key.trim()) {
+          record[r.key.trim()] = r.value;
+        }
+      }
+      setRawBody(Object.keys(record).length > 0 ? JSON.stringify(record, null, 2) : '');
+      setJsonError(null);
+      setBodyMode('raw');
+    }
+  };
 
   const handleMethodChange = (m: string) => {
     onChange({ ...payload, method: m });
@@ -254,9 +413,12 @@ export const ApiRequestStepForm: React.FC<{
 
   const handleBodyFormatChange = (fmt: string) => {
     onChange({ ...payload, bodyFormat: fmt, bodyType: fmt });
+    if (fmt === 'raw' || fmt === 'text') {
+      setBodyMode('raw');
+    }
   };
 
-  const handleBodyChange = (txt: string) => {
+  const handleRawBodyChange = (txt: string) => {
     setRawBody(txt);
     if (!txt.trim()) {
       setJsonError(null);
@@ -271,7 +433,6 @@ export const ApiRequestStepForm: React.FC<{
         onChange({ ...payload, body: parsed });
       } catch {
         setJsonError('Invalid JSON format');
-        // Still save string payload
         onChange({ ...payload, body: txt });
       }
     } else {
@@ -346,16 +507,46 @@ export const ApiRequestStepForm: React.FC<{
 
       {/* Body Payload Section (for POST/PUT/PATCH/DELETE) */}
       {method !== 'GET' && method !== 'HEAD' && (
-        <div className="flex flex-col gap-2 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-300">Request Body Payload</span>
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] text-slate-400 mr-1">Format:</span>
+        <div className="flex flex-col gap-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-200">Request Body Payload</span>
+              {/* Mode Switch Tabs: Form Inputs vs Raw Code */}
+              <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-700/80 text-[11px]">
+                <button
+                  type="button"
+                  data-testid="body-mode-fields-btn"
+                  onClick={() => handleSetBodyMode('fields')}
+                  className={`px-2.5 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                    bodyMode === 'fields'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Form Inputs
+                </button>
+                <button
+                  type="button"
+                  data-testid="body-mode-raw-btn"
+                  onClick={() => handleSetBodyMode('raw')}
+                  className={`px-2.5 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                    bodyMode === 'raw'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Raw Code
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-400">Format:</span>
               <select
                 value={bodyFormat}
                 onChange={(e) => handleBodyFormatChange(e.target.value)}
                 style={{ color: '#e2e8f0' }}
-                className="text-[11px] font-medium bg-slate-950 text-slate-200 border border-slate-700 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                className="text-[11px] font-medium bg-slate-950 text-slate-200 border border-slate-700 rounded-md px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
               >
                 <option value="json" className="bg-slate-900 text-slate-100">JSON</option>
                 <option value="formData" className="bg-slate-900 text-slate-100">FormData</option>
@@ -365,22 +556,104 @@ export const ApiRequestStepForm: React.FC<{
             </div>
           </div>
 
-          <VariableAutocompleteTextarea
-            value={rawBody}
-            document={document}
-            onChange={handleBodyChange}
-            rows={5}
-            placeholder={
-              bodyFormat === 'json'
-                ? '{\n  "email": "{{form.email}}",\n  "name": "{{form.name}}"\n}'
-                : 'key1=value1&key2=value2'
-            }
-          />
+          {bodyMode === 'fields' ? (
+            /* Form Inputs Mode (Key-Value Builder with Variable Autocomplete) */
+            <div className="flex flex-col gap-2">
+              {bodyRows.length === 0 ? (
+                <div className="text-[11px] text-slate-500 italic py-2.5 text-center bg-slate-900/40 rounded-lg border border-dashed border-slate-800">
+                  No payload fields configured. Click &quot;Add Field&quot; or auto-fill from form fields on the page.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {bodyRows.map((row) => (
+                    <div key={row.id} className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={row.key}
+                        onChange={(e) => handleUpdateBodyRow(row.id, 'key', e.target.value)}
+                        placeholder="Field Key (e.g. email)"
+                        style={{ color: '#f1f5f9' }}
+                        className="w-1/3 text-xs bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700/80 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px] shadow-inner"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <VariableAutocompleteInput
+                          value={row.value}
+                          document={document}
+                          onChange={(val) => handleUpdateBodyRow(row.id, 'value', val)}
+                          placeholder="Field Value (e.g. {{form.email}})"
+                          className="py-1.5"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBodyRow(row.id)}
+                        title="Remove field"
+                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition cursor-pointer shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-          {jsonError && (
-            <div className="flex items-center gap-1.5 text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded p-1.5">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>{jsonError}</span>
+              {/* Action Controls for Form Mode */}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    data-testid="add-body-field-btn"
+                    onClick={handleAddBodyRow}
+                    className="px-2.5 py-1 text-[11px] font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Field</span>
+                  </button>
+
+                  {detectedFormFields.length > 0 && (
+                    <button
+                      type="button"
+                      data-testid="autofill-body-fields-btn"
+                      onClick={handleAutoFillFormFields}
+                      title="Automatically populate fields from form elements on this page"
+                      className="px-2.5 py-1 text-[11px] font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>Auto-fill from Form ({detectedFormFields.length})</span>
+                    </button>
+                  )}
+                </div>
+
+                <span className="text-[10px] text-slate-500 font-mono">
+                  {bodyFormat === 'formData'
+                    ? 'multipart/form-data'
+                    : bodyFormat === 'urlencoded'
+                    ? 'application/x-www-form-urlencoded'
+                    : 'application/json'}
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* Raw Code Editor Mode */
+            <div className="flex flex-col gap-2">
+              <VariableAutocompleteTextarea
+                value={rawBody}
+                document={document}
+                onChange={handleRawBodyChange}
+                rows={5}
+                placeholder={
+                  bodyFormat === 'json'
+                    ? '{\n  "email": "{{form.email}}",\n  "name": "{{form.name}}"\n}'
+                    : 'key1=value1&key2=value2'
+                }
+              />
+
+              {jsonError && (
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded p-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{jsonError}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

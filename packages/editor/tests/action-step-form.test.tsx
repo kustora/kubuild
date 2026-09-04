@@ -111,6 +111,57 @@ describe('STORA-341: Action Step Parameter Configuration Forms', () => {
       expect(html).toContain('Request Timeout');
       expect(html).toContain('value="5000"');
     });
+
+    it('renders Request Body Payload in Form Inputs mode with key and variable autocomplete values', () => {
+      const payload = {
+        method: 'POST',
+        url: 'https://api.example.com/leads',
+        bodyFormat: 'json',
+        body: { email: '{{form.email}}', name: '{{form.name}}' },
+      };
+
+      const html = renderToString(
+        <ApiRequestStepForm payload={payload} onChange={() => {}} />,
+      );
+
+      expect(html).toContain('Request Body Payload');
+      expect(html).toContain('data-testid="body-mode-fields-btn"');
+      expect(html).toContain('data-testid="body-mode-raw-btn"');
+      expect(html).toContain('value="email"');
+      expect(html).toContain('value="{{form.email}}"');
+      expect(html).toContain('value="name"');
+      expect(html).toContain('value="{{form.name}}"');
+      expect(html).toContain('data-testid="add-body-field-btn"');
+    });
+
+    it('renders Auto-fill from Form button when document contains form inputs', () => {
+      const doc = {
+        id: 'page-1',
+        title: 'Form Page',
+        document: {
+          id: 'root',
+          type: 'container',
+          children: [
+            { id: 'input-email', type: 'input', props: { name: 'email' } },
+            { id: 'input-phone', type: 'input', props: { name: 'phone' } },
+          ],
+        },
+      };
+
+      const payload = {
+        method: 'POST',
+        url: 'https://api.example.com/leads',
+        bodyFormat: 'json',
+        body: {},
+      };
+
+      const html = renderToString(
+        <ApiRequestStepForm payload={payload} document={doc as any} onChange={() => {}} />,
+      );
+
+      expect(html).toContain('data-testid="autofill-body-fields-btn"');
+      expect(html).toContain('Auto-fill from Form');
+    });
   });
 
   describe('ShowToastStepForm', () => {
