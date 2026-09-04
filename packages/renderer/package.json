@@ -30,7 +30,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kustora/kubuild.git"
+    "url": "git+https://github.com/kustora/kubuild.git",
+    "directory": "packages/renderer"
   },
   "keywords": [
     "page-builder",
