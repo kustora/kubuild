@@ -171,6 +171,26 @@ export async function processAiRequest(
 }
 
 /**
+ * Options for {@link createAiHandler} (STORA-519).
+ */
+export interface CreateAiHandlerOptions {
+  /**
+   * Optional hook invoked with the raw incoming `Request` before it ever reaches the
+   * engine/provider — the place to plug in host-owned auth and/or rate-limiting without
+   * forking the handler.
+   *
+   * - Return a `Response` (or a Promise resolving to one) to reject/short-circuit the
+   *   request — e.g. `new Response(..., { status: 401 })` or `429` — that response is
+   *   returned as-is and the engine/provider is never invoked.
+   * - Return `void`/`undefined` (or a Promise resolving to that) to allow the request to
+   *   continue through the normal handler logic unchanged.
+   *
+   * Omitting this option entirely preserves the exact pre-STORA-519 behavior.
+   */
+  beforeRequest?: (request: Request) => Promise<Response | void> | Response | void;
+}
+
+/**
  * Creates a standard Web Fetch API Request handler with optional SSE streaming support.
  *
  * Plug-and-play for Next.js App Router (route.ts), SvelteKit, Remix, Astro, Bun, etc.
@@ -179,10 +199,29 @@ export async function processAiRequest(
  * ```ts
  * export const POST = createAiHandler(engine);
  * ```
+ *
+ * Example with an auth/rate-limit hook (STORA-519):
+ * ```ts
+ * export const POST = createAiHandler(engine, {
+ *   beforeRequest: async (request) => {
+ *     if (!isAuthorized(request)) {
+ *       return new Response('Unauthorized', { status: 401 });
+ *     }
+ *     // returning nothing lets the request proceed as normal
+ *   },
+ * });
+ * ```
  */
-export function createAiHandler(engine: KubuildAiEngine) {
+export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandlerOptions) {
   return async (request: Request): Promise<Response> => {
     try {
+      if (options?.beforeRequest) {
+        const hookResult = await options.beforeRequest(request);
+        if (hookResult instanceof Response) {
+          return hookResult;
+        }
+      }
+
       if (request.method !== 'POST') {
         return new Response(
           JSON.stringify({

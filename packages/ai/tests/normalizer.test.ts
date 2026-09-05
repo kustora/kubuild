@@ -202,4 +202,101 @@ describe('normalizer', () => {
       expect(refactored.props?.label).toBe('New Label');
     });
   });
+
+  // STORA-521 — `@kubuild/ai` must reuse `@kubuild/core`'s `validateDocumentSecurity`
+  // (depth/node-count limits) for every AI output path, not just the editor's downstream
+  // defense-in-depth reuse. These crafted payloads exercise that the *engine-facing*
+  // normalize/validate helpers reject a deliberately deep/wide tree cleanly (a thrown,
+  // descriptive error) instead of silently passing it through or hanging.
+  describe('security limits on AI output (STORA-521)', () => {
+    /** Builds a `container` chain nested `depth` levels deep — exceeds the default 32. */
+    function buildDeepTree(depth: number): Record<string, unknown> {
+      let node: Record<string, unknown> = { id: 'leaf', type: 'text', props: { text: 'x' } };
+      for (let i = 0; i < depth; i++) {
+        node = { id: `wrap-${i}`, type: 'container', children: [node] };
+      }
+      return node;
+    }
+
+    /** Builds a single node with `count` direct children — exceeds the default 1000. */
+    function buildWideChildren(count: number): Record<string, unknown>[] {
+      return Array.from({ length: count }, (_, i) => ({
+        id: `child-${i}`,
+        type: 'text',
+        props: { text: `item ${i}` },
+      }));
+    }
+
+    it('normalizeAndValidateSectionNode rejects a deliberately deep tree (MAX_TREE_DEPTH_EXCEEDED)', () => {
+      const deepSection = {
+        id: 'deep-section',
+        type: 'section',
+        children: [buildDeepTree(50)],
+      };
+
+      expect(() => normalizeAndValidateSectionNode(deepSection)).toThrow(/MAX_TREE_DEPTH_EXCEEDED/);
+    });
+
+    it('normalizeAndValidateSectionNode rejects a deliberately wide tree (MAX_CHILDREN_COUNT_EXCEEDED / MAX_NODE_COUNT_EXCEEDED)', () => {
+      const wideSection = {
+        id: 'wide-section',
+        type: 'section',
+        children: buildWideChildren(1500),
+      };
+
+      expect(() => normalizeAndValidateSectionNode(wideSection)).toThrow(
+        /MAX_CHILDREN_COUNT_EXCEEDED|MAX_NODE_COUNT_EXCEEDED/,
+      );
+    });
+
+    it('normalizeAndValidatePageDocument rejects a deliberately deep generated page tree', () => {
+      const deepDoc = {
+        schema: 'stora.page',
+        version: '1.0.0',
+        metadata: { title: 'Malicious Deep Page' },
+        document: {
+          id: 'root-page',
+          type: 'page',
+          children: [buildDeepTree(60)],
+        },
+      };
+
+      // `normalizeAndValidatePageDocument` routes through `@kubuild/core`'s full
+      // `validateDocument` (schema + security), which re-labels the security violation
+      // code as `SECURITY_LIMIT_EXCEEDED` while preserving the underlying "nesting depth
+      // exceeded" message — still the same shared `validateDocumentSecurity` check, just
+      // wrapped with a document-level error code.
+      expect(() => normalizeAndValidatePageDocument(deepDoc)).toThrow(
+        /SECURITY_LIMIT_EXCEEDED.*nesting depth/,
+      );
+    });
+
+    it('normalizeAndValidateRefactoredNode rejects an oversized refactor candidate the same way', () => {
+      const original = { id: 'card-1', type: 'container', children: [] };
+      const maliciousCandidate = {
+        id: 'card-1',
+        type: 'container',
+        children: [buildDeepTree(50)],
+      };
+
+      expect(() => normalizeAndValidateRefactoredNode(maliciousCandidate, original)).toThrow(
+        /MAX_TREE_DEPTH_EXCEEDED/,
+      );
+    });
+
+    it('respects a custom (tighter) securityLimits override, not a hardcoded duplicate limit', () => {
+      // A tree that is well within the *default* 32-depth limit, but exceeds a custom,
+      // tighter limit passed by the caller — proves the same `DocumentSecurityLimits`
+      // config threads all the way through, rather than a second hardcoded checker.
+      const shallowButOverCustomLimit = {
+        id: 'sec',
+        type: 'section',
+        children: [buildDeepTree(5)],
+      };
+
+      expect(() =>
+        normalizeAndValidateSectionNode(shallowButOverCustomLimit, { maxTreeDepth: 3 }),
+      ).toThrow(/MAX_TREE_DEPTH_EXCEEDED/);
+    });
+  });
 });
