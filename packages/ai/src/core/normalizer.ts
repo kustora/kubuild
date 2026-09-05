@@ -42,6 +42,98 @@ export function extractJsonFromResponse(raw: string): unknown {
   }
 }
 
+export function normalizeStyles(rawStyles: unknown): Node['styles'] {
+  if (!rawStyles || typeof rawStyles !== 'object' || Array.isArray(rawStyles)) {
+    return undefined;
+  }
+
+  const raw = rawStyles as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  const states: Record<string, Record<string, unknown>> = {};
+
+  // Existing states
+  if (raw.states && typeof raw.states === 'object' && !Array.isArray(raw.states)) {
+    for (const [stateKey, stateVal] of Object.entries(raw.states as Record<string, unknown>)) {
+      if (stateVal && typeof stateVal === 'object' && !Array.isArray(stateVal)) {
+        states[stateKey] = { ...(stateVal as Record<string, unknown>) };
+      }
+    }
+  }
+
+  const knownBreakpoints = ['base', 'desktop', 'tablet', 'mobile'];
+  const hasBreakpoint = Object.keys(raw).some((k) => knownBreakpoints.includes(k));
+
+  if (!hasBreakpoint) {
+    // If AI output flat CSS properties without 'base' wrapper
+    const baseStyles: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (key === 'states') continue;
+      if (key.startsWith(':') || key === 'hover' || key === 'focus' || key === 'active') {
+        const stateKey = key.startsWith(':') ? key : `:${key}`;
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          states[stateKey] = { ...(states[stateKey] || {}), ...(value as Record<string, unknown>) };
+        }
+      } else if (typeof value !== 'object' || value === null) {
+        baseStyles[key] = value;
+      }
+    }
+    if (Object.keys(baseStyles).length > 0) {
+      result.base = baseStyles;
+    }
+  } else {
+    for (const bp of knownBreakpoints) {
+      const bpVal = raw[bp];
+      if (bpVal && typeof bpVal === 'object' && !Array.isArray(bpVal)) {
+        const cleanBp: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(bpVal as Record<string, unknown>)) {
+          if (key.startsWith(':') || key === 'hover' || key === 'focus' || key === 'active') {
+            const stateKey = key.startsWith(':') ? key : `:${key}`;
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              states[stateKey] = { ...(states[stateKey] || {}), ...(value as Record<string, unknown>) };
+            }
+          } else if (typeof value !== 'object' || value === null) {
+            cleanBp[key] = value;
+          }
+        }
+        if (Object.keys(cleanBp).length > 0) {
+          result[bp] = cleanBp;
+        }
+      }
+    }
+
+    // Also extract any pseudo-classes at top level
+    for (const [key, value] of Object.entries(raw)) {
+      if (knownBreakpoints.includes(key) || key === 'states') continue;
+      if (key.startsWith(':') || key === 'hover' || key === 'focus' || key === 'active') {
+        const stateKey = key.startsWith(':') ? key : `:${key}`;
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          states[stateKey] = { ...(states[stateKey] || {}), ...(value as Record<string, unknown>) };
+        }
+      }
+    }
+  }
+
+  // Clean and sanitize states: each state can only have primitives
+  const cleanStates: Record<string, Record<string, unknown>> = {};
+  for (const [stateKey, stateDef] of Object.entries(states)) {
+    const cleanDef: Record<string, unknown> = {};
+    for (const [propKey, propVal] of Object.entries(stateDef)) {
+      if (typeof propVal !== 'object' || propVal === null) {
+        cleanDef[propKey] = propVal;
+      }
+    }
+    if (Object.keys(cleanDef).length > 0) {
+      cleanStates[stateKey] = cleanDef;
+    }
+  }
+
+  if (Object.keys(cleanStates).length > 0) {
+    result.states = cleanStates;
+  }
+
+  return Object.keys(result).length > 0 ? (result as Node['styles']) : undefined;
+}
+
 export function normalizeNodeTree(
   node: unknown,
   usedIds: Set<string> = new Set(),
@@ -70,14 +162,20 @@ export function normalizeNodeTree(
   // Normalize props
   const props =
     raw.props && typeof raw.props === 'object' && !Array.isArray(raw.props)
-      ? (raw.props as Record<string, unknown>)
+      ? { ...(raw.props as Record<string, unknown>) }
       : {};
 
+  // Fix common LLM prop quirks:
+  // e.g. heading level passed as string "1" instead of number 1
+  if (type === 'heading' && typeof props.level === 'string') {
+    const parsedLevel = parseInt(props.level, 10);
+    if (!isNaN(parsedLevel) && parsedLevel >= 1 && parsedLevel <= 6) {
+      props.level = parsedLevel;
+    }
+  }
+
   // Normalize styles
-  const styles =
-    raw.styles && typeof raw.styles === 'object' && !Array.isArray(raw.styles)
-      ? (raw.styles as Node['styles'])
-      : undefined;
+  const styles = normalizeStyles(raw.styles);
 
   // Normalize children recursively
   let children: Node[] | undefined = undefined;

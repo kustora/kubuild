@@ -141,9 +141,16 @@ KUBUILD is a component-driven visual website builder. Your job is to output pure
    - Layout hierarchy: \`page\` -> \`section\` -> \`container\` or \`columns\` -> content components (\`heading\`, \`paragraph\`, \`button\`, \`image\`, \`form\`, etc.).
    - Leaf components (e.g. \`button\`, \`input\`, \`heading\`, \`text\`, \`badge\`) must have \`acceptsChildren: false\` and empty or omitted \`children\`.
 4. Every node MUST have a unique string \`id\` (e.g. "hero-section", "hero-title", "cta-btn").
-5. Responsive styling:
+5. Responsive & Interactive State Styling:
    - Use the \`styles\` object with breakpoint keys: \`base\` (all viewports/desktop), and optionally \`tablet\` or \`mobile\`.
-   - Use standard CSS-in-JS style keys (e.g. \`backgroundColor\`, \`paddingTop\`, \`borderRadius\`, \`display\`, \`flexDirection\`, \`gap\`, \`boxShadow\`).
+   - In \`base\`, \`tablet\`, and \`mobile\`, values MUST be CSS primitives (strings or numbers, e.g. "backgroundColor": "#3b82f6"). NEVER put nested objects or ":hover" inside "base"!
+   - For hover, active, or interactive pseudo-classes, use \`styles.states\` with pseudo-class keys (e.g. \`":hover"\`), like:
+     "styles": {
+       "base": { "backgroundColor": "#3b82f6", "color": "#ffffff" },
+       "states": {
+         ":hover": { "backgroundColor": "#2563eb" }
+       }
+     }
 6. NEVER include dangerous scripts, \`javascript:\` URIs, or malicious payload attributes.
 ${styleGuide}
 
@@ -169,6 +176,7 @@ export function buildJsonSchemaForMode(mode: AiGenerationMode): Record<string, u
           base: { type: 'object' },
           tablet: { type: 'object' },
           mobile: { type: 'object' },
+          states: { type: 'object' },
         },
       },
       children: {

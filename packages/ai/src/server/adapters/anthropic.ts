@@ -38,21 +38,27 @@ export class AnthropicAdapter implements AiProviderAdapter {
   }
 
   async generate(params: AiProviderGenerateParams): Promise<AiProviderGenerateResult> {
-    const { systemPrompt, userPrompt, signal } = params;
+    const { systemPrompt, userPrompt, messages: chatMessages, signal } = params;
 
     const url = `${this.baseUrl}/messages`;
+
+    const messages = chatMessages && chatMessages.length > 0
+      ? chatMessages
+          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+      : [
+          {
+            role: 'user' as const,
+            content: userPrompt,
+          },
+        ];
 
     const body: Record<string, unknown> = {
       model: this.model,
       max_tokens: this.maxTokens,
       temperature: this.temperature,
       system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userPrompt,
-        },
-      ],
+      messages,
     };
 
     const res = await fetch(url, {

@@ -3,6 +3,8 @@ import type {
   AiGeneratePageRequest,
   AiGenerateSectionRequest,
   AiRefactorNodeRequest,
+  AiChatRequest,
+  AiChatResponse,
   AiGenerateResponse,
   AiStreamCallbacks,
   AiStreamEvent,
@@ -139,24 +141,28 @@ export class KubuildAiClient {
           const lines = part.split('\n');
           for (const line of lines) {
             if (line.startsWith('data: ')) {
+              let event: AiStreamEvent;
               try {
-                const event = JSON.parse(line.slice(6).trim()) as AiStreamEvent;
-                if (event.type === 'status') {
-                  callbacks?.onStatus?.(event.message);
-                } else if (event.type === 'metadata') {
-                  callbacks?.onMetadata?.(event.metadata, event.rootPageNode);
-                } else if (event.type === 'section') {
-                  callbacks?.onSection?.(event.section, event.index, event.total);
-                } else if (event.type === 'complete') {
-                  finalDoc = event.document;
-                  callbacks?.onComplete?.(event.document);
-                } else if (event.type === 'error') {
-                  const err = new Error(event.error.message);
-                  callbacks?.onError?.(err);
-                  throw err;
-                }
-              } catch (e) {
-                if (e instanceof Error && e.message.includes('STREAM_ERROR')) throw e;
+                event = JSON.parse(line.slice(6).trim()) as AiStreamEvent;
+              } catch {
+                // Ignore incomplete or non-JSON data frames
+                continue;
+              }
+
+              if (event.type === 'status') {
+                callbacks?.onStatus?.(event.message);
+              } else if (event.type === 'metadata') {
+                callbacks?.onMetadata?.(event.metadata, event.rootPageNode);
+              } else if (event.type === 'section') {
+                callbacks?.onSection?.(event.section, event.index, event.total);
+              } else if (event.type === 'complete') {
+                finalDoc = event.document;
+                callbacks?.onComplete?.(event.document);
+              } else if (event.type === 'error') {
+                const err = new Error(event.error.message || 'Stream error');
+                (err as unknown as { code?: string }).code = event.error.code;
+                callbacks?.onError?.(err);
+                throw err;
               }
             }
           }
@@ -193,6 +199,19 @@ export class KubuildAiClient {
     return this.sendRequest<Node>(
       {
         mode: 'refactor',
+        ...params,
+      },
+      options?.signal,
+    );
+  }
+
+  async chat(
+    params: AiChatRequest,
+    options?: { signal?: AbortSignal },
+  ): Promise<AiChatResponse> {
+    return this.sendRequest<AiChatResponse>(
+      {
+        mode: 'chat',
         ...params,
       },
       options?.signal,

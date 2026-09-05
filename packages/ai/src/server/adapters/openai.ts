@@ -32,19 +32,31 @@ export class OpenAiAdapter implements AiProviderAdapter {
   }
 
   async generate(params: AiProviderGenerateParams): Promise<AiProviderGenerateResult> {
-    const { systemPrompt, userPrompt, signal } = params;
+    const { systemPrompt, userPrompt, messages: chatMessages, signal } = params;
 
     const url = `${this.baseUrl}/chat/completions`;
 
-    const body = {
+    const messages = chatMessages && chatMessages.length > 0
+      ? [
+          { role: 'system', content: systemPrompt },
+          ...chatMessages.map((m) => ({ role: m.role, content: m.content })),
+        ]
+      : [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ];
+
+    const body: Record<string, unknown> = {
       model: this.model,
       temperature: this.temperature,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
+      messages,
     };
+
+    // Only force json_object when JSON schema is provided or specifically requested,
+    // allowing natural conversation text in chat mode.
+    if (params.jsonSchema || (!chatMessages && (systemPrompt.includes('JSON') || systemPrompt.includes('json')))) {
+      body.response_format = { type: 'json_object' };
+    }
 
     const res = await fetch(url, {
       method: 'POST',

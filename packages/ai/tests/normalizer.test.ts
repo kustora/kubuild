@@ -127,6 +127,59 @@ describe('normalizer', () => {
       expect(section.type).toBe('section');
       expect(section.children?.[0].id).toBe('btn');
     });
+
+    it('normalizes nested :hover inside styles.base to styles.states', () => {
+      const rawWithHoverInBase = {
+        id: 'hero-section',
+        type: 'section',
+        children: [
+          {
+            id: 'cta-primary',
+            type: 'button',
+            props: { label: 'Click Me' },
+            styles: {
+              base: {
+                backgroundColor: '#3b82f6',
+                color: '#ffffff',
+                ':hover': {
+                  backgroundColor: '#2563eb',
+                },
+              },
+            },
+          },
+        ],
+      };
+
+      const section = normalizeAndValidateSectionNode(rawWithHoverInBase);
+      expect(section.type).toBe('section');
+      const btn = section.children?.[0];
+      expect(btn).toBeDefined();
+      expect(btn?.styles?.base).toEqual({
+        backgroundColor: '#3b82f6',
+        color: '#ffffff',
+      });
+      expect(btn?.styles?.states?.[':hover']).toEqual({
+        backgroundColor: '#2563eb',
+      });
+    });
+
+    it('normalizes string heading level to number', () => {
+      const rawWithHeading = {
+        id: 'sec-head',
+        type: 'section',
+        children: [
+          {
+            id: 'h1',
+            type: 'heading',
+            props: { text: 'Title', level: '1' },
+          },
+        ],
+      };
+
+      const section = normalizeAndValidateSectionNode(rawWithHeading);
+      const heading = section.children?.[0];
+      expect(heading?.props?.level).toBe(1);
+    });
   });
 
   describe('normalizeAndValidateRefactoredNode', () => {

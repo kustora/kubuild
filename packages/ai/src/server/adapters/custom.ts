@@ -31,10 +31,16 @@ export class CustomHttpAdapter implements AiProviderAdapter {
     this.formatRequestBody =
       options.formatRequestBody ||
       ((params) => ({
-        messages: [
-          { role: 'system', content: params.systemPrompt },
-          { role: 'user', content: params.userPrompt },
-        ],
+        messages:
+          params.messages && params.messages.length > 0
+            ? [
+                { role: 'system', content: params.systemPrompt },
+                ...params.messages.map((m) => ({ role: m.role, content: m.content })),
+              ]
+            : [
+                { role: 'system', content: params.systemPrompt },
+                { role: 'user', content: params.userPrompt },
+              ],
       }));
 
     // Default response parser

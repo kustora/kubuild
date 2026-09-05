@@ -1,8 +1,10 @@
 import type { KubuildAiEngine } from './engine';
+import type { PageDocument } from '@kubuild/schema';
 import type {
   AiGeneratePageRequest,
   AiGenerateSectionRequest,
   AiRefactorNodeRequest,
+  AiChatMessage,
   AiGenerateResponse,
   AiGenerationMode,
 } from '../types';
@@ -19,6 +21,9 @@ export interface AiApiRequestBody {
   node?: AiRefactorNodeRequest['node'];
   instruction?: string;
   stream?: boolean;
+  messages?: AiChatMessage[];
+  currentDocument?: PageDocument;
+  selectedNodeId?: string;
 }
 
 export async function processAiRequest(
@@ -126,13 +131,40 @@ export async function processAiRequest(
     };
   }
 
+  if (mode === 'chat') {
+    if (!payload.messages || !Array.isArray(payload.messages) || payload.messages.length === 0) {
+      return {
+        status: 400,
+        response: {
+          success: false,
+          error: {
+            code: 'INVALID_CHAT_PARAMS',
+            message: '"messages" array is required and must not be empty for chat mode',
+          },
+        },
+      };
+    }
+    const result = await engine.chat(
+      {
+        messages: payload.messages,
+        currentDocument: payload.currentDocument,
+        selectedNodeId: payload.selectedNodeId,
+      },
+      { signal },
+    );
+    return {
+      status: result.success ? 200 : 500,
+      response: result,
+    };
+  }
+
   return {
     status: 400,
     response: {
       success: false,
       error: {
         code: 'UNKNOWN_MODE',
-        message: `Unsupported mode: ${String(mode)}. Supported modes: 'full-page', 'section', 'refactor'`,
+        message: `Unsupported mode: ${String(mode)}. Supported modes: 'full-page', 'section', 'refactor', 'chat'`,
       },
     },
   };

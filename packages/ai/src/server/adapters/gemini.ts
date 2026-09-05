@@ -30,24 +30,36 @@ export class GeminiAdapter implements AiProviderAdapter {
   }
 
   async generate(params: AiProviderGenerateParams): Promise<AiProviderGenerateResult> {
-    const { systemPrompt, userPrompt, signal } = params;
+    const { systemPrompt, userPrompt, messages: chatMessages, signal } = params;
 
     const url = `${this.baseUrl}/models/${encodeURIComponent(this.model)}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
+
+    const contents = chatMessages && chatMessages.length > 0
+      ? chatMessages.map((m) => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        }))
+      : [
+          {
+            role: 'user',
+            parts: [{ text: userPrompt }],
+          },
+        ];
+
+    const generationConfig: Record<string, unknown> = {
+      temperature: this.temperature,
+    };
+
+    if (params.jsonSchema || (!chatMessages && (systemPrompt.includes('JSON') || systemPrompt.includes('json')))) {
+      generationConfig.responseMimeType = 'application/json';
+    }
 
     const body: Record<string, unknown> = {
       system_instruction: {
         parts: [{ text: systemPrompt }],
       },
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: userPrompt }],
-        },
-      ],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: this.temperature,
-      },
+      contents,
+      generationConfig,
     };
 
     const res = await fetch(url, {

@@ -1,7 +1,29 @@
 import type { Node, PageDocument, DocumentMetadata } from '@kubuild/schema';
 import type { DocumentSecurityLimits } from '@kubuild/core';
 
-export type AiGenerationMode = 'full-page' | 'section' | 'refactor';
+export type AiGenerationMode = 'full-page' | 'section' | 'refactor' | 'chat';
+
+export interface AiChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp?: number;
+}
+
+export interface AiChatRequest {
+  messages: AiChatMessage[];
+  currentDocument?: PageDocument;
+  selectedNodeId?: string;
+  systemPrompt?: string;
+}
+
+export interface AiChatResponse {
+  message: AiChatMessage;
+  suggestedAction?: {
+    type: 'insert-section' | 'update-node' | 'replace-document';
+    payload?: unknown;
+    description?: string;
+  };
+}
 
 export interface AiGeneratePageRequest {
   prompt: string;
@@ -80,6 +102,7 @@ export interface AiCompiledComponentSpec {
 export interface AiProviderGenerateParams {
   systemPrompt: string;
   userPrompt: string;
+  messages?: AiChatMessage[];
   jsonSchema?: Record<string, unknown>;
   signal?: AbortSignal;
 }
@@ -127,4 +150,6 @@ export interface KubuildAiEngineOptions {
   adapter: AiProviderAdapter;
   securityLimits?: DocumentSecurityLimits;
   systemPromptPrefix?: string;
+  debug?: boolean;
+  logger?: (level: 'info' | 'warn' | 'error' | 'debug', message: string, meta?: unknown) => void;
 }
