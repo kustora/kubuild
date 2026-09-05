@@ -85,7 +85,9 @@
     "@kubuild/components": "workspace:*",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
+    "@types/react-test-renderer": "^18.3.0",
     "react": "^19.2.8",
+    "react-test-renderer": "^19.2.0",
     "tsup": "^8.3.6",
     "typescript": "^6.0.0",
     "vitest": "^3.0.5"

@@ -3,6 +3,7 @@ import type { PageDocument } from '@kubuild/schema';
 import { findNodeById } from '@kubuild/core';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import { useAiChat, useAiGenerator } from '@kubuild/ai/react';
+import type { AiChatHistoryStorageAdapter } from '@kubuild/ai/react';
 import type { AiChatMessage } from '@kubuild/ai';
 import type { AiClientOptions } from '@kubuild/ai/client';
 import { useEditorStore } from '../../store';
@@ -43,6 +44,14 @@ export interface AiChatPanelProps {
    * fixture in tests). Passed straight through to `useAiChat({ initialMessages })`.
    */
   initialMessages?: AiChatMessage[];
+  /**
+   * Optional chat history persistence adapter (STORA-520), passed straight through to
+   * `useAiChat({ historyStorage })`. Without it, chat history stays pure in-memory React
+   * state and is lost on reload — exactly as before. Hosts can implement this with
+   * `localStorage`, a Stora.page backend call, etc.; `@kubuild/ai`/`@kubuild/editor`
+   * never assume a concrete storage mechanism.
+   */
+  historyStorage?: AiChatHistoryStorageAdapter;
   /**
    * Optional overrides for the document/selection this panel builds AI context from,
    * following the same prop-over-store precedence as `InspectorPanel`. Falls back to the
@@ -180,6 +189,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   onToggleMode,
   className,
   initialMessages,
+  historyStorage,
   document: propDocument,
   selectedNodeId: propSelectedNodeId,
   registry = createDefaultComponentRegistry(),
@@ -207,6 +217,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     endpoint: endpointOptions?.endpoint ?? PROVIDER_NOT_CONFIGURED_ENDPOINT,
     headers: endpointOptions?.headers,
     initialMessages,
+    historyStorage,
   });
 
   // STORA-512 — a separate network boundary from `useAiChat`: an "Enhance" instruction
