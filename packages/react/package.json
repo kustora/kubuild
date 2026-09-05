@@ -48,6 +48,7 @@
   },
   "homepage": "https://github.com/kustora/kubuild#readme",
   "dependencies": {
+    "@kubuild/ai": "workspace:*",
     "@kubuild/components": "workspace:*",
     "@kubuild/core": "workspace:*",
     "@kubuild/editor": "workspace:*",

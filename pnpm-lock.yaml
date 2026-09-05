@@ -187,6 +187,9 @@ importers:
 
   packages/editor:
     dependencies:
+      '@kubuild/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@kubuild/components':
         specifier: workspace:*
         version: link:../components
@@ -230,6 +233,9 @@ importers:
 
   packages/react:
     dependencies:
+      '@kubuild/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@kubuild/components':
         specifier: workspace:*
         version: link:../components
