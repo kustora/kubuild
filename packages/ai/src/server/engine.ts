@@ -92,9 +92,7 @@ export class KubuildAiEngine {
         signal: context?.signal,
       });
 
-
-      console.log("Raw model response:", result.text);
-      
+      this.log('debug', 'Raw model response (generatePage)', result.text);
 
       rawText = result.text;
       const rawJson = extractJsonFromResponse(rawText);
@@ -166,7 +164,7 @@ export class KubuildAiEngine {
         signal: context?.signal,
       });
 
-      console.log(`[generateSection] Raw result text:\n${result.text}\n`);
+      this.log('debug', 'Raw model response (generateSection)', result.text);
 
       rawText = result.text;
       const rawJson = extractJsonFromResponse(rawText);
@@ -254,7 +252,6 @@ export class KubuildAiEngine {
   ): AsyncIterable<AiStreamEvent> {
     try {
       this.log('info', `[SSE] Starting streamPage for prompt: "${request.prompt}"`);
-      console.log(`\n🌊 [SSE streamPage] Initiating stream for prompt: "${request.prompt}"`);
 
       yield {
         type: 'status',
@@ -294,21 +291,21 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
       if (request.tone) planUserPrompt += `\nTone: ${request.tone}`;
       if (request.locale) planUserPrompt += `\nLocale: ${request.locale}`;
 
-      console.log(`📋 [SSE streamPage] Generating website layout plan...`);
+      this.log('info', '[SSE] Generating website layout plan...');
       const planResult = await this.options.adapter.generate({
         systemPrompt: planSystemPrompt,
         userPrompt: planUserPrompt,
         signal: context?.signal,
       });
 
-      console.log(`📝 [SSE streamPage] Raw plan response from model:\n${planResult.text}\n`);
+      this.log('debug', '[SSE] Raw plan response from model', planResult.text);
 
       let plan: PagePlan;
       try {
         plan = extractJsonFromResponse(planResult.text) as PagePlan;
-        console.log(`✅ [SSE streamPage] Parsed plan successfully:`, JSON.stringify(plan, null, 2));
+        this.log('debug', '[SSE] Parsed plan successfully', plan);
       } catch (parseErr) {
-        console.warn(`⚠️ [SSE streamPage] Failed to parse plan JSON, using fallback plan. Reason:`, parseErr);
+        this.log('warn', '[SSE] Failed to parse plan JSON, using fallback plan', parseErr);
         // Fallback default plan if JSON parse failed
         plan = {
           title: 'AI Generated Page',
@@ -354,14 +351,17 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
       };
 
       // 2. Emit initial metadata so canvas can render initial empty page immediately!
-      console.log(`📄 [SSE streamPage] Emitting metadata: "${metadata.title}"`);
+      this.log('info', `[SSE] Emitting metadata: "${metadata.title}"`);
       yield {
         type: 'metadata',
         metadata,
         rootPageNode,
       };
 
-      console.log(`ℹ️ [SSE streamPage] Plan ready with ${sectionsToGenerate.length} sections: ${sectionsToGenerate.map((s) => s.title).join(', ')}`);
+      this.log(
+        'info',
+        `[SSE] Plan ready with ${sectionsToGenerate.length} sections: ${sectionsToGenerate.map((s) => s.title).join(', ')}`,
+      );
       yield {
         type: 'status',
         message: `Plan ready with ${sectionsToGenerate.length} sections: ${sectionsToGenerate.map((s) => s.title).join(', ')}`,
@@ -373,12 +373,15 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
 
       for (let i = 0; i < total; i++) {
         if (context?.signal?.aborted) {
-          console.warn('🔌 [SSE streamPage] Streaming aborted by client signal');
+          this.log('warn', '[SSE] Streaming aborted by client signal');
           throw new Error('Streaming aborted by client');
         }
 
         const plannedSec = sectionsToGenerate[i];
-        console.log(`\n⏳ [SSE streamPage] Generating section ${i + 1}/${total} [${plannedSec.type}]: "${plannedSec.title}"`);
+        this.log(
+          'info',
+          `[SSE] Generating section ${i + 1}/${total} [${plannedSec.type}]: "${plannedSec.title}"`,
+        );
         yield {
           type: 'status',
           message: `Generating section ${i + 1}/${total} (${plannedSec.title})...`,
@@ -395,7 +398,10 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
         );
 
         if (secRes.success && secRes.data) {
-          console.log(`✨ [SSE streamPage] Section ${i + 1}/${total} generated successfully: [${secRes.data.id || secRes.data.type}]`);
+          this.log(
+            'info',
+            `[SSE] Section ${i + 1}/${total} generated successfully: [${secRes.data.id || secRes.data.type}]`,
+          );
           completedSections.push(secRes.data);
           yield {
             type: 'section',
@@ -404,12 +410,12 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
             section: secRes.data,
           };
         } else {
-          console.error(`❌ [SSE streamPage] Section ${i + 1}/${total} failed:`, secRes.error?.message);
+          this.log('error', `[SSE] Section ${i + 1}/${total} failed`, secRes.error?.message);
         }
       }
 
       if (completedSections.length === 0) {
-        console.error(`❌ [SSE streamPage] All sections failed to generate.`);
+        this.log('error', '[SSE] All sections failed to generate.');
         yield {
           type: 'error',
           error: {
@@ -431,15 +437,17 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
         } as PageDocument['document'],
       };
 
-      console.log(`🎉 [SSE streamPage] All ${completedSections.length} sections generated. Emitting complete event.\n`);
+      this.log(
+        'info',
+        `[SSE] All ${completedSections.length} sections generated. Emitting complete event.`,
+      );
       yield {
         type: 'complete',
         document: finalDocument,
       };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`❌ [SSE streamPage] Error during stream:`, message);
-      this.log('error', `Streaming failed: ${message}`);
+      this.log('error', `[SSE] Streaming failed: ${message}`);
       yield {
         type: 'error',
         error: {
@@ -451,9 +459,61 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
   }
 
   /**
+   * Builds the system/user prompt pair shared by `chat()` and `chatStream()` — the exact
+   * same document/selection grounding is used regardless of whether the response is
+   * streamed token-by-token or returned as a single request/response (STORA-515).
+   */
+  private buildChatPrompt(request: AiChatRequest): { systemPrompt: string; userPrompt: string } {
+    let systemPrompt = `You are the KUBUILD AI Assistant — an expert web designer, developer, and page architecture consultant.
+Your role is to assist users with creating, designing, refining, and understanding web pages built with the KUBUILD builder.
+Answer questions directly, concisely, and helpfully using friendly professional tone and markdown formatting.
+
+### Available KUBUILD Components:
+${this.catalog.map((c) => `- **${c.type}** (${c.category}): ${c.label}${c.description ? ` — ${c.description}` : ''}`).join('\n')}
+`;
+
+    if (this.options.systemPromptPrefix) {
+      systemPrompt = `${this.options.systemPromptPrefix}\n\n${systemPrompt}`;
+    }
+
+    if (request.systemPrompt) {
+      systemPrompt += `\nAdditional Context:\n${request.systemPrompt}`;
+    }
+
+    if (request.currentDocument) {
+      const doc = request.currentDocument;
+      const sections = doc.document?.children || [];
+      const sectionSummary = sections
+        .map((s, idx) => `Section ${idx + 1}: id="${s.id}", type="${s.type}", title="${(s.props?.title as string) || 'untitled'}", childrenCount=${s.children?.length || 0}`)
+        .join('\n');
+
+      systemPrompt += `\n### Current Page in Builder Canvas:
+- Title: ${doc.metadata?.title || 'Untitled Page'}
+- Description: ${doc.metadata?.description || 'N/A'}
+- Total Sections: ${sections.length}
+- Sections Summary:
+${sectionSummary || '(Canvas is currently empty)'}
+`;
+    }
+
+    if (request.selectedNodeId) {
+      systemPrompt += `\nCurrently Selected Component Node ID: "${request.selectedNodeId}"`;
+    }
+
+    // Extract last user message
+    const lastUserMsg = [...request.messages].reverse().find((m) => m.role === 'user');
+    const userPrompt = lastUserMsg?.content || 'Hello';
+
+    return { systemPrompt, userPrompt };
+  }
+
+  /**
    * Conversational Assistant / Q&A.
    * Can discuss web design, explain KUBUILD components, review current page,
    * suggest improvements, or recommend copywriting.
+   *
+   * Single request/response — unchanged since before STORA-515. See `chatStream()` for
+   * the token-level streaming variant.
    */
   async chat(
     request: AiChatRequest,
@@ -473,46 +533,7 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
 
       this.log('info', `Processing chat turn with ${request.messages.length} messages`);
 
-      // Build system prompt with component catalog and document grounding
-      let systemPrompt = `You are the KUBUILD AI Assistant — an expert web designer, developer, and page architecture consultant.
-Your role is to assist users with creating, designing, refining, and understanding web pages built with the KUBUILD builder.
-Answer questions directly, concisely, and helpfully using friendly professional tone and markdown formatting.
-
-### Available KUBUILD Components:
-${this.catalog.map((c) => `- **${c.type}** (${c.category}): ${c.label}${c.description ? ` — ${c.description}` : ''}`).join('\n')}
-`;
-
-      if (this.options.systemPromptPrefix) {
-        systemPrompt = `${this.options.systemPromptPrefix}\n\n${systemPrompt}`;
-      }
-
-      if (request.systemPrompt) {
-        systemPrompt += `\nAdditional Context:\n${request.systemPrompt}`;
-      }
-
-      if (request.currentDocument) {
-        const doc = request.currentDocument;
-        const sections = doc.document?.children || [];
-        const sectionSummary = sections
-          .map((s, idx) => `Section ${idx + 1}: id="${s.id}", type="${s.type}", title="${(s.props?.title as string) || 'untitled'}", childrenCount=${s.children?.length || 0}`)
-          .join('\n');
-
-        systemPrompt += `\n### Current Page in Builder Canvas:
-- Title: ${doc.metadata?.title || 'Untitled Page'}
-- Description: ${doc.metadata?.description || 'N/A'}
-- Total Sections: ${sections.length}
-- Sections Summary:
-${sectionSummary || '(Canvas is currently empty)'}
-`;
-      }
-
-      if (request.selectedNodeId) {
-        systemPrompt += `\nCurrently Selected Component Node ID: "${request.selectedNodeId}"`;
-      }
-
-      // Extract last user message
-      const lastUserMsg = [...request.messages].reverse().find((m) => m.role === 'user');
-      const userPrompt = lastUserMsg?.content || 'Hello';
+      const { systemPrompt, userPrompt } = this.buildChatPrompt(request);
 
       const result = await this.options.adapter.generate({
         systemPrompt,
@@ -547,6 +568,98 @@ ${sectionSummary || '(Canvas is currently empty)'}
           message,
         },
         rawModelResponse: rawText || undefined,
+      };
+    }
+  }
+
+  /**
+   * Token-level streaming variant of `chat()` (STORA-515). Emits `chat-chunk` events as
+   * partial text arrives, then a terminal `chat-complete` event with the fully assembled
+   * assistant message — the same `AsyncIterable<AiStreamEvent>` mechanism `streamPage`
+   * already uses, so it can be piped over SSE by `createAiHandler`/consumed by
+   * `KubuildAiClient` with no separate transport.
+   *
+   * When the configured adapter does not implement `generateStream` (e.g. the generic
+   * custom/HTTP adapter), this falls back to a single non-streaming `generate()` call and
+   * emits the entire response as one `chat-chunk`, so callers never see an error just
+   * because the underlying provider can't stream — only a less granular update cadence.
+   */
+  async *chatStream(
+    request: AiChatRequest,
+    context?: { signal?: AbortSignal },
+  ): AsyncIterable<AiStreamEvent> {
+    try {
+      if (!request.messages || !Array.isArray(request.messages) || request.messages.length === 0) {
+        yield {
+          type: 'error',
+          error: {
+            code: 'INVALID_CHAT_REQUEST',
+            message: '"messages" array is required and must not be empty',
+          },
+        };
+        return;
+      }
+
+      this.log(
+        'info',
+        `[SSE] Starting chatStream with ${request.messages.length} messages (adapter: ${this.options.adapter.name})`,
+      );
+
+      const { systemPrompt, userPrompt } = this.buildChatPrompt(request);
+
+      let accumulated = '';
+      let usage: AiGenerateResponse<AiChatResponse>['usage'];
+
+      if (typeof this.options.adapter.generateStream === 'function') {
+        const generator = this.options.adapter.generateStream({
+          systemPrompt,
+          userPrompt,
+          messages: request.messages,
+          signal: context?.signal,
+        });
+
+        while (true) {
+          const { value, done } = await generator.next();
+          if (done) {
+            usage = value?.usage;
+            break;
+          }
+          accumulated += value;
+          yield { type: 'chat-chunk', delta: value, content: accumulated };
+        }
+      } else {
+        this.log(
+          'debug',
+          `Adapter "${this.options.adapter.name}" has no generateStream; falling back to non-streaming chat`,
+        );
+        const result = await this.options.adapter.generate({
+          systemPrompt,
+          userPrompt,
+          messages: request.messages,
+          signal: context?.signal,
+        });
+        accumulated = result.text;
+        usage = result.usage;
+        yield { type: 'chat-chunk', delta: accumulated, content: accumulated };
+      }
+
+      const assistantMessage: AiChatMessage = {
+        role: 'assistant',
+        content: accumulated.trim(),
+        timestamp: Date.now(),
+      };
+
+      this.log('info', '[SSE] Chat stream completed', usage);
+      yield { type: 'chat-complete', message: assistantMessage };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.log('error', `[SSE] Chat streaming failed: ${message}`);
+      yield {
+        type: 'error',
+        error: {
+          code: 'CHAT_STREAM_ERROR',
+          message,
+        },
       };
     }
   }

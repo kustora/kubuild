@@ -3,6 +3,7 @@ import type {
   AiProviderGenerateParams,
   AiProviderGenerateResult,
 } from '../../types';
+import { readSseDataLines } from './stream-utils';
 
 export interface OpenAiAdapterOptions {
   apiKey: string;
@@ -31,12 +32,9 @@ export class OpenAiAdapter implements AiProviderAdapter {
     this.customHeaders = options.headers;
   }
 
-  async generate(params: AiProviderGenerateParams): Promise<AiProviderGenerateResult> {
-    const { systemPrompt, userPrompt, messages: chatMessages, signal } = params;
-
-    const url = `${this.baseUrl}/chat/completions`;
-
-    const messages = chatMessages && chatMessages.length > 0
+  private buildMessages(params: AiProviderGenerateParams): Array<{ role: string; content: string }> {
+    const { systemPrompt, userPrompt, messages: chatMessages } = params;
+    return chatMessages && chatMessages.length > 0
       ? [
           { role: 'system', content: systemPrompt },
           ...chatMessages.map((m) => ({ role: m.role, content: m.content })),
@@ -45,6 +43,14 @@ export class OpenAiAdapter implements AiProviderAdapter {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ];
+  }
+
+  async generate(params: AiProviderGenerateParams): Promise<AiProviderGenerateResult> {
+    const { systemPrompt, signal } = params;
+
+    const url = `${this.baseUrl}/chat/completions`;
+    const messages = this.buildMessages(params);
+    const chatMessages = params.messages;
 
     const body: Record<string, unknown> = {
       model: this.model,
@@ -102,5 +108,79 @@ export class OpenAiAdapter implements AiProviderAdapter {
           }
         : undefined,
     };
+  }
+
+  /**
+   * Token-level streaming via OpenAI's `stream: true` chat completions mode (STORA-515).
+   * Yields each `delta.content` fragment as it arrives and returns the fully assembled
+   * text + usage (when the final chunk includes it) once the stream ends.
+   */
+  async *generateStream(
+    params: AiProviderGenerateParams,
+  ): AsyncGenerator<string, AiProviderGenerateResult, void> {
+    const { signal } = params;
+    const url = `${this.baseUrl}/chat/completions`;
+    const messages = this.buildMessages(params);
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      temperature: this.temperature,
+      messages,
+      stream: true,
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        ...this.customHeaders,
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(
+        `OpenAI API error [${res.status} ${res.statusText}]: ${errText || 'Unknown error'}`,
+      );
+    }
+
+    if (!res.body) {
+      throw new Error('OpenAI streaming response has no readable body');
+    }
+
+    let text = '';
+    let usage: AiProviderGenerateResult['usage'];
+
+    for await (const raw of readSseDataLines(res.body, signal)) {
+      if (raw === '[DONE]') break;
+
+      let parsed: {
+        choices?: Array<{ delta?: { content?: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        continue;
+      }
+
+      const delta = parsed.choices?.[0]?.delta?.content;
+      if (typeof delta === 'string' && delta.length > 0) {
+        text += delta;
+        yield delta;
+      }
+
+      if (parsed.usage) {
+        usage = {
+          promptTokens: parsed.usage.prompt_tokens,
+          completionTokens: parsed.usage.completion_tokens,
+        };
+      }
+    }
+
+    return { text, usage };
   }
 }

@@ -18,11 +18,6 @@ export interface AiChatRequest {
 
 export interface AiChatResponse {
   message: AiChatMessage;
-  suggestedAction?: {
-    type: 'insert-section' | 'update-node' | 'replace-document';
-    payload?: unknown;
-    description?: string;
-  };
 }
 
 export interface AiGeneratePageRequest {
@@ -52,6 +47,15 @@ export type AiStreamEvent =
   | { type: 'metadata'; metadata: DocumentMetadata; rootPageNode: Node }
   | { type: 'section'; index: number; total: number; section: Node }
   | { type: 'complete'; document: PageDocument }
+  /**
+   * Token-level chat streaming (STORA-515). `delta` is the newly-arrived text fragment,
+   * `content` is the full accumulated assistant message so far — consumers that only
+   * care about the running text (e.g. rendering a live-updating bubble) can just use
+   * `content` and ignore `delta`.
+   */
+  | { type: 'chat-chunk'; delta: string; content: string }
+  /** Terminal event for a chat stream — mirrors `complete` for `streamPage`. */
+  | { type: 'chat-complete'; message: AiChatMessage }
   | { type: 'error'; error: { code: string; message: string } };
 
 export interface AiStreamCallbacks {
@@ -59,6 +63,10 @@ export interface AiStreamCallbacks {
   onMetadata?: (metadata: DocumentMetadata, rootPage: Node) => void;
   onSection?: (section: Node, index: number, total: number) => void;
   onComplete?: (document: PageDocument) => void;
+  /** Fired for every partial chunk of a streaming chat response (STORA-515/516). */
+  onChatChunk?: (delta: string, content: string) => void;
+  /** Fired once, when a streaming chat response has finished assembling. */
+  onChatComplete?: (message: AiChatMessage) => void;
   onError?: (error: Error) => void;
 }
 
@@ -118,6 +126,21 @@ export interface AiProviderGenerateResult {
 export interface AiProviderAdapter {
   readonly name: string;
   generate(params: AiProviderGenerateParams): Promise<AiProviderGenerateResult>;
+  /**
+   * Optional token-level streaming variant (STORA-515). Adapters whose provider API
+   * supports incremental streaming (OpenAI, Anthropic, Gemini) should implement this as
+   * an async generator that `yield`s each text delta as it arrives over the wire, and
+   * `return`s the final `AiProviderGenerateResult` (full text + usage, mirroring
+   * `generate`) once the stream ends.
+   *
+   * Adapters that omit this are treated by `KubuildAiEngine` as non-streaming-capable:
+   * the engine falls back to a single `generate()` call and emits the whole response as
+   * one chunk through the same streaming interface, so callers never need to branch on
+   * adapter capability themselves.
+   */
+  generateStream?(
+    params: AiProviderGenerateParams,
+  ): AsyncGenerator<string, AiProviderGenerateResult, void>;
 }
 
 export interface ComponentDefinitionLike {
