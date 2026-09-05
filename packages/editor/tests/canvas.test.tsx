@@ -124,3 +124,60 @@ describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
   });
 });
 
+describe('STORA-508: AI progressive-preview placeholder', () => {
+  const registry = createDefaultComponentRegistry();
+
+  // `aiGenerationStatus` is passed as a direct prop (same store-override pattern the
+  // `document` prop already uses on this component) rather than mutated on the store
+  // and read back through `renderToString` — zustand v5's SSR snapshot
+  // (`getServerSnapshot` -> `getInitialState()`) does not reflect `set()` calls made
+  // before a `renderToString` pass, only the real browser subscription path does.
+
+  it('renders the generation placeholder on the active artboard while aiGenerationStatus is active', () => {
+    const doc = createBlankDocument('AI Progressive Preview Test');
+    useEditorStore.getState().setDocument(doc);
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        aiGenerationStatus={{
+          active: true,
+          totalSections: 3,
+          completedSections: 1,
+          currentLabel: 'Generating section 2/3...',
+        }}
+      />,
+    );
+
+    expect(html).toContain('data-testid="ai-generation-placeholder"');
+    expect(html).toContain('Generating section 2/3...');
+  });
+
+  it('does not render the placeholder when no generation is in flight', () => {
+    const doc = createBlankDocument('AI Progressive Preview Test 2');
+    useEditorStore.getState().setDocument(doc);
+
+    const html = renderToString(
+      <EditorCanvas registry={registry} viewport="desktop" aiGenerationStatus={null} />,
+    );
+
+    expect(html).not.toContain('data-testid="ai-generation-placeholder"');
+  });
+
+  it('does not render the placeholder once completedSections reaches totalSections (active: false)', () => {
+    const doc = createBlankDocument('AI Progressive Preview Test 3');
+    useEditorStore.getState().setDocument(doc);
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        aiGenerationStatus={{ active: false, totalSections: 1, completedSections: 1 }}
+      />,
+    );
+
+    expect(html).not.toContain('data-testid="ai-generation-placeholder"');
+  });
+});
+

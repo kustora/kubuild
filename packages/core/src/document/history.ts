@@ -36,6 +36,11 @@ export class HistoryEngine<T = PageDocument> {
   private current: HistoryEntry<T>;
   private future: HistoryEntry<T>[] = [];
   private readonly maxHistory: number;
+  // STORA-510: grouped-history transaction bookkeeping. `transactionAnchor` is the
+  // entry that was `current` immediately before the outermost `beginTransaction()`
+  // call — the single state `endTransaction()` restores undo history to.
+  private transactionDepth = 0;
+  private transactionAnchor: HistoryEntry<T> | null = null;
 
   constructor(initialState: T, options: HistoryOptions = {}) {
     if (initialState === undefined || initialState === null) {
@@ -99,10 +104,23 @@ export class HistoryEngine<T = PageDocument> {
   /**
    * Push a new state.
    * Clears the redo stack and shifts oldest past entries if maxHistory is exceeded.
+   *
+   * STORA-510: while a transaction is active (see `beginTransaction`), pushes update
+   * `current` in place without creating an individual undo entry — the whole group
+   * collapses into one entry when `endTransaction()` is called.
    */
   push(nextState: T, event?: DocumentChangeEvent): void {
     if (nextState === undefined || nextState === null) {
       throw new Error('Cannot push undefined or null state into history.');
+    }
+
+    if (this.transactionDepth > 0) {
+      this.current = {
+        state: deepClone(nextState),
+        event,
+        timestamp: new Date().toISOString(),
+      };
+      return;
     }
 
     // Save current to past
@@ -122,6 +140,58 @@ export class HistoryEngine<T = PageDocument> {
 
     // Any new action clears redo future stack
     this.future = [];
+  }
+
+  /**
+   * Begin a grouped-history transaction (STORA-510).
+   *
+   * Every `push()` made between `beginTransaction()` and the matching outermost
+   * `endTransaction()` updates the live state immediately (so `present`/`getState()`
+   * always reflect the latest change), but no individual undo entry is recorded until
+   * the transaction ends. This is how a multi-step action (e.g. one `streamPage`
+   * generation session inserting several sections) collapses into a single undo step.
+   *
+   * Transactions may be nested; only the outermost `beginTransaction`/`endTransaction`
+   * pair has any effect, so a batching caller can safely wrap calls that themselves
+   * might also start their own (nested) transaction.
+   */
+  beginTransaction(): void {
+    if (this.transactionDepth === 0) {
+      this.transactionAnchor = this.current;
+    }
+    this.transactionDepth += 1;
+  }
+
+  /**
+   * Ends the current transaction (see `beginTransaction`). Once the outermost
+   * transaction ends, the state as it was immediately before `beginTransaction()` is
+   * pushed as a single past entry (exactly as one `push()` would) and the redo stack
+   * is cleared — unless nothing actually changed during the transaction, in which case
+   * this is a no-op and no empty undo entry is created.
+   *
+   * Calling `endTransaction()` without a matching `beginTransaction()` is a no-op.
+   */
+  endTransaction(): void {
+    if (this.transactionDepth === 0) return;
+    this.transactionDepth -= 1;
+    if (this.transactionDepth > 0) return;
+
+    const anchor = this.transactionAnchor;
+    this.transactionAnchor = null;
+    if (!anchor || anchor === this.current) return;
+
+    this.past.push(anchor);
+    while (this.past.length > this.maxHistory) {
+      this.past.shift();
+    }
+    this.future = [];
+  }
+
+  /**
+   * Whether a grouped-history transaction is currently active.
+   */
+  get inTransaction(): boolean {
+    return this.transactionDepth > 0;
   }
 
   /**
@@ -234,6 +304,27 @@ export class DocumentHistoryManager {
 
   redo(): PageDocument | undefined {
     return this.history.redo();
+  }
+
+  /**
+   * Begin a grouped-history transaction (STORA-510) — see `HistoryEngine.beginTransaction`.
+   * Every `execute()` call made until the matching `endTransaction()` updates
+   * `document` immediately but is collapsed into a single undo entry.
+   */
+  beginTransaction(): void {
+    this.history.beginTransaction();
+  }
+
+  /**
+   * Ends a grouped-history transaction started with `beginTransaction()` — see
+   * `HistoryEngine.endTransaction`.
+   */
+  endTransaction(): void {
+    this.history.endTransaction();
+  }
+
+  get inTransaction(): boolean {
+    return this.history.inTransaction;
   }
 
   reset(newDocument: PageDocument): void {

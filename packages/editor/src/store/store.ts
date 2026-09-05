@@ -42,6 +42,7 @@ import {
   STARTER_BLOCKS,
   BlockDefinition,
 } from '@kubuild/components';
+import type { AiGenerationPlaceholderStatus } from '../ai/generate-page';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 export type NavigatorMode = 'docked' | 'floating' | 'hidden';
@@ -202,6 +203,12 @@ export interface EditorState {
   actionDebuggerOpen: boolean;
   actionLogs: ActionLogEntry[];
   liveFormState: LiveFormState | null;
+  /**
+   * Progressive-preview status for an in-flight `streamPage` AI generation session
+   * (STORA-508). UI-only, like every other panel-mode field here — never serialized
+   * into the document. `null` when no generation is in flight.
+   */
+  aiGenerationStatus: AiGenerationPlaceholderStatus | null;
 
   setDocument: (document: PageDocument) => void;
   setDragPayload: (payload: DragPayload | null) => void;
@@ -221,6 +228,15 @@ export interface EditorState {
   setLiveFormState: (state: LiveFormState | null) => void;
   setOnChangeHandler: (handler: ((doc: PageDocument) => void) | null) => void;
   dispatch: (executor: (doc: PageDocument) => CommandResult) => void;
+  /**
+   * Groups every `dispatch()` call made until the matching `endHistoryTransaction()`
+   * into a single undo entry (STORA-510) — e.g. every section an AI `streamPage`
+   * session inserts. Delegates to `DocumentHistoryManager.beginTransaction()`, the same
+   * history engine manual edits already use, so `undo()`/`redo()` need no special-casing.
+   */
+  beginHistoryTransaction: () => void;
+  endHistoryTransaction: () => void;
+  setAiGenerationStatus: (status: AiGenerationPlaceholderStatus | null) => void;
   insertComponent: (
     type: string,
     registry: ComponentRegistry,
@@ -347,6 +363,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   actionDebuggerOpen: false,
   actionLogs: [],
   liveFormState: null,
+  aiGenerationStatus: null,
 
   setDragPayload: (payload) => set({ dragPayload: payload }),
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
@@ -409,6 +426,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       clipboard: null,
       canUndo: false,
       canRedo: false,
+      aiGenerationStatus: null,
     });
   },
 
@@ -430,6 +448,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
     onChangeHandler?.(result.document);
   },
+
+  beginHistoryTransaction: () => {
+    historyManager.beginTransaction();
+  },
+
+  endHistoryTransaction: () => {
+    historyManager.endTransaction();
+    // A transaction may have started with no prior document changes; refresh
+    // canUndo/canRedo now in case the grouped entry was just committed.
+    set({
+      canUndo: historyManager.canUndo,
+      canRedo: historyManager.canRedo,
+    });
+  },
+
+  setAiGenerationStatus: (status) => set({ aiGenerationStatus: status }),
 
   insertComponent: (type, registry, parentId, index) => {
     const state = get();

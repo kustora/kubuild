@@ -1467,6 +1467,135 @@ describe('STORA-013: Generic Undo/Redo History Engine', () => {
       expect(history.canRedo()).toBe(false);
     });
   });
+
+  describe('STORA-510: Grouped-history transactions (beginTransaction/endTransaction)', () => {
+    it('collapses multiple execute() calls made during a transaction into a single undo entry', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      manager.beginTransaction();
+      const r1 = manager.execute((doc) =>
+        insertNode(doc, {
+          parentId: 'container-1',
+          node: { id: 'ai-section-1', type: 'section', children: [] },
+        }),
+      );
+      const r2 = manager.execute((doc) =>
+        insertNode(doc, {
+          parentId: 'container-1',
+          node: { id: 'ai-section-2', type: 'section', children: [] },
+        }),
+      );
+      const r3 = manager.execute((doc) =>
+        insertNode(doc, {
+          parentId: 'container-1',
+          node: { id: 'ai-section-3', type: 'section', children: [] },
+        }),
+      );
+      manager.endTransaction();
+
+      // The live document reflects every insert made during the transaction.
+      expect(manager.document).toEqual(r3.document);
+      expect(r1.document).not.toEqual(r2.document);
+      expect(r2.document).not.toEqual(r3.document);
+
+      // Exactly one undo entry was recorded for the whole group.
+      expect(manager.getState().undoCount).toBe(1);
+      expect(manager.canUndo).toBe(true);
+
+      // A single undo() reverts ALL THREE inserts at once, back to the pre-transaction state.
+      const undone = manager.undo();
+      expect(undone).toEqual(initialDoc);
+      expect(manager.document).toEqual(initialDoc);
+      expect(manager.canUndo).toBe(false);
+      expect(manager.canRedo).toBe(true);
+
+      // A single redo() restores the fully-generated state again.
+      const redone = manager.redo();
+      expect(redone).toEqual(r3.document);
+    });
+
+    it('does not create an empty undo entry when a transaction makes no changes', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      manager.beginTransaction();
+      manager.endTransaction();
+
+      expect(manager.canUndo).toBe(false);
+      expect(manager.getState().undoCount).toBe(0);
+    });
+
+    it('canUndo/canRedo stay correct for manual actions performed after a transaction', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      manager.beginTransaction();
+      manager.execute((doc) =>
+        insertNode(doc, {
+          parentId: doc.document.id,
+          node: { id: 'gen-1', type: 'section', children: [] },
+        }),
+      );
+      manager.execute((doc) =>
+        insertNode(doc, {
+          parentId: doc.document.id,
+          node: { id: 'gen-2', type: 'section', children: [] },
+        }),
+      );
+      manager.endTransaction();
+
+      expect(manager.getState().undoCount).toBe(1);
+
+      // A manual edit after the generation session is its own separate undo entry.
+      const manualResult = manager.execute((doc) =>
+        updateProps(doc, { nodeId: 'heading-1', props: { title: 'Manual edit after generate' } }),
+      );
+      expect(manager.getState().undoCount).toBe(2);
+      expect(manager.canUndo).toBe(true);
+      expect(manager.canRedo).toBe(false);
+
+      // Undo once: only the manual edit is reverted, the whole generated group stays.
+      manager.undo();
+      expect(manager.document).not.toEqual(manualResult.document);
+      expect(manager.document?.document.children?.some((n) => n.id === 'gen-1')).toBe(true);
+      expect(manager.document?.document.children?.some((n) => n.id === 'gen-2')).toBe(true);
+      expect(manager.canRedo).toBe(true);
+
+      // Undo again: the entire generated group is reverted in one step.
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+      expect(manager.canUndo).toBe(false);
+    });
+
+    it('nested transactions only take effect at the outermost begin/end pair', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      manager.beginTransaction();
+      manager.beginTransaction();
+      manager.execute((doc) =>
+        insertNode(doc, {
+          parentId: 'container-1',
+          node: { id: 'nested-1', type: 'section', children: [] },
+        }),
+      );
+      manager.endTransaction(); // inner end — should NOT commit yet
+      expect(manager.canUndo).toBe(false);
+
+      manager.execute((doc) =>
+        insertNode(doc, {
+          parentId: 'container-1',
+          node: { id: 'nested-2', type: 'section', children: [] },
+        }),
+      );
+      manager.endTransaction(); // outer end — commits the whole group as one entry
+
+      expect(manager.getState().undoCount).toBe(1);
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+    });
+  });
 });
 
 describe('STORA-014: Schema Migration Registry and Document Migration', () => {
