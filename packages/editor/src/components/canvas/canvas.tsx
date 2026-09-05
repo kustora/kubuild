@@ -23,6 +23,10 @@ import { MultiDevicePreview } from './multi-device-preview';
 import { GridGuidelinesOverlay } from './grid-guidelines-overlay';
 import { ViewportResizer } from './viewport-resizer';
 import { EditorCanvasConfig } from '../../config';
+import {
+  type AiGenerationPlaceholderStatus,
+  shouldShowAiGenerationPlaceholder,
+} from '../../ai/generate-page';
 
 export interface EditorPageItem {
   id: string;
@@ -39,6 +43,13 @@ export interface EditorCanvasProps {
   context?: RuntimeContext;
   viewport: Viewport;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
+  /**
+   * Overrides the store's `aiGenerationStatus` (STORA-508) for this render — same
+   * store-override pattern as the `document` prop above. Optional: `KubuildEditor`
+   * doesn't pass this, so `EditorCanvas` reads live `aiGenerationStatus` from the store
+   * as usual in a real app; the prop exists so callers/tests can control it directly.
+   */
+  aiGenerationStatus?: AiGenerationPlaceholderStatus | null;
   config?: EditorCanvasConfig;
   fluidWidth?: number;
   onFluidWidthChange?: (width: number) => void;
@@ -90,6 +101,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   context,
   viewport,
   onDiagnostic,
+  aiGenerationStatus: propAiGenerationStatus,
   config,
   fluidWidth,
   onFluidWidthChange,
@@ -128,9 +140,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     toggleMultiDeviceMode,
     addActionLog,
     setLiveFormState,
+    aiGenerationStatus: storeAiGenerationStatus,
   } = useEditorStore();
 
   const document = propDoc ?? storeDoc;
+  const aiGenerationStatus = propAiGenerationStatus ?? storeAiGenerationStatus;
   const showFloatingBadges = config?.showFloatingBadges !== false && !previewMode;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1050,6 +1064,29 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       onDiagnostic?.(diag);
                     }}
                   />
+
+                  {/* AI Progressive Preview Placeholder (STORA-508) — shown while a
+                      streamPage() session is generating the next section. Purely a UI
+                      overlay: it is never part of the document, so it disappears the
+                      instant the real section's insertNode lands and the exact same
+                      KubuildRenderer pass above already renders it — no separate
+                      preview-only render tree, no flicker between placeholder and real
+                      content. */}
+                  {shouldShowAiGenerationPlaceholder({ isActive, previewMode, aiGenerationStatus }) && (
+                    <div
+                      aria-hidden="true"
+                      role="presentation"
+                      data-testid="ai-generation-placeholder"
+                      className="relative mt-2 w-full rounded-md border border-dashed border-blue-300 bg-blue-50/60 px-4 py-6 text-center animate-pulse"
+                    >
+                      <span className="text-xs font-medium text-blue-600">
+                        {aiGenerationStatus?.currentLabel ||
+                          (aiGenerationStatus && aiGenerationStatus.totalSections > 0
+                            ? `Generating section ${aiGenerationStatus.completedSections + 1}/${aiGenerationStatus.totalSections}...`
+                            : 'Generating page...')}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Overlays on Active Artboard */}
                   {!previewMode && hoveredRect && hoveredNodeId !== selectedNodeId && (

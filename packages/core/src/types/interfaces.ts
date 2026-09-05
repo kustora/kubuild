@@ -58,7 +58,24 @@ export interface CollectionDiagnostic {
   message: string;
 }
 
-export type Diagnostic = ActionDiagnostic | PropBindingDiagnostic | CollectionDiagnostic;
+/**
+ * Non-fatal diagnostic for AI-generated content that was rejected or that errored out
+ * before ever reaching the document (STORA-507/509). Reuses the same `onDiagnostic`
+ * reporting channel as render-time diagnostics — no separate AI-only reporting path.
+ */
+export interface AiGenerationDiagnostic {
+  code: 'AI_SECTION_REJECTED' | 'AI_STREAM_ERROR';
+  /** The id of the rejected node, when one could be determined. */
+  nodeId?: string;
+  message: string;
+  error?: unknown;
+}
+
+export type Diagnostic =
+  | ActionDiagnostic
+  | PropBindingDiagnostic
+  | CollectionDiagnostic
+  | AiGenerationDiagnostic;
 
 export type RenderContext = Readonly<{
   variables?: Readonly<Record<string, unknown>>;
