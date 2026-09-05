@@ -13,10 +13,10 @@ import { TraitsPanel } from './traits-panel';
 import { ActionPropControl } from './action-prop-control';
 import { ComponentIcon } from '../ui/icons';
 import { replayNodeAnimation } from '@kubuild/renderer';
-import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap } from 'lucide-react';
+import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles } from 'lucide-react';
 
 import { StyleSectorId } from '../style-manager/style-manager-accordion';
-import { EditorInspectorConfig } from '../../config';
+import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config';
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
@@ -24,6 +24,12 @@ export interface InspectorPanelProps {
   document?: PageDocument;
   selectedNodeId?: string | null;
   config?: EditorInspectorConfig;
+  /**
+   * Fully-resolved AI config (STORA-511). Gates the "Ask AI about this component" action
+   * — omitted (or `features.enhance` false) means the action does not render at all,
+   * matching every other AI feature's opt-in-only behavior.
+   */
+  aiConfig?: ResolvedAiEditorConfig;
 }
 
 const SPACING_FIELDS: Array<{ name: string; label: string }> = [
@@ -529,6 +535,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   document: propDocument,
   selectedNodeId: propSelectedNodeId,
   config,
+  aiConfig,
 }) => {
   const storeState = useEditorStore((s) => s);
   const document = propDocument ?? storeState.document;
@@ -549,6 +556,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     selectNode,
     tableSpreadsheetMode,
     setTableSpreadsheetMode,
+    aiChatMode,
+    toggleAiChat,
+    requestAiChatFocus,
   } = storeState;
 
   const showProps = config?.showProps !== false;
@@ -877,6 +887,40 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           </button>
         </div>
       </div>
+
+      {/* STORA-511 — "Ask AI about this component": opens the AI Chat Panel (if hidden)
+          with this node already attached as context, and focuses its input. Only ever
+          rendered when a node is selected (guaranteed here) and `features.enhance` is on. */}
+      {aiConfig?.enabled && aiConfig.features.enhance && (
+        <div className="pb-3 border-b border-slate-200">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50/60 border border-blue-200 hover:border-blue-300 transition">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-slate-700 leading-tight">Ask AI</span>
+                <span className="text-[10px] text-slate-500 truncate">
+                  Discuss or enhance this component with AI
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              data-testid="ask-ai-about-component-btn"
+              onClick={() => {
+                if (aiChatMode === 'hidden') toggleAiChat();
+                requestAiChatFocus();
+              }}
+              className="px-2.5 py-1 text-xs font-medium text-blue-600 bg-white hover:bg-blue-100 border border-blue-200 rounded-md transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Ask AI</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {node.type === 'list' && (
         <div className="pb-3 border-b border-slate-200">
           <div className="flex items-center justify-between mb-2">
