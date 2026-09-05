@@ -17,7 +17,15 @@ import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/tab
 import { HierarchyBreadcrumbs } from '../canvas/breadcrumbs';
 import { LeftSidebar } from '../panels/left-sidebar';
 import { ActionDebuggerPanel } from '../panels/action-debugger-panel';
-import { EditorConfig, resolveEditorConfig, AiEditorConfig, resolveAiEditorConfig } from '../../config';
+import { AiChatPanel } from '../ai-chat/ai-chat-panel';
+import {
+  EditorConfig,
+  resolveEditorConfig,
+  AiEditorConfig,
+  resolveAiEditorConfig,
+  isAnyAiFeatureEnabled,
+  shouldRenderAiChatPanel,
+} from '../../config';
 import {
   Monitor,
   Tablet,
@@ -80,6 +88,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     navigatorMode,
     tableSpreadsheetMode,
     setTableSpreadsheetMode,
+    aiChatMode,
+    setAiChatMode,
     undo,
     redo,
     canUndo,
@@ -246,10 +256,23 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   };
 
   const resolvedConfig = useMemo(() => resolveEditorConfig(config), [config]);
-  // Resolved but not yet wired into any panel UI — the chat/generate panel lands in a
-  // later epic (EPIC-51+). Resolving here keeps `ai` a validated, always-safe-to-pass prop
-  // today; `data-ai-enabled` lets tests confirm the prop is opt-in with zero UI impact.
+  // `data-ai-enabled` lets tests confirm the prop stays opt-in; the AI Chat Panel (STORA-503)
+  // and its toolbar toggle (STORA-504) are gated by `aiFeatureEnabled` below, not `enabled`
+  // alone — a host can supply `provider` with every `features.*` flag left off, which must
+  // still render zero AI UI.
   const resolvedAiConfig = useMemo(() => resolveAiEditorConfig(ai), [ai]);
+  const aiFeatureEnabled = isAnyAiFeatureEnabled(resolvedAiConfig);
+
+  // Seed the panel mode from config once at mount (STORA-503) — after that, the store's
+  // own toggle/setAiChatMode actions are the single source of truth, same as navigatorMode.
+  const didSeedAiChatMode = React.useRef(false);
+  // Intentionally mount-only: re-running this when `resolvedAiConfig` changes would fight
+  // the store's own setAiChatMode/toggleAiChat actions on every subsequent render.
+  useEffect(() => {
+    if (didSeedAiChatMode.current) return;
+    didSeedAiChatMode.current = true;
+    setAiChatMode(resolvedAiConfig.defaultPanelMode);
+  }, []);
 
   return (
     <div
@@ -258,6 +281,16 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     >
       {/* Floating Navigator */}
       {navigatorMode === 'floating' && <LayersPanel registry={registry} />}
+
+      {/* Floating AI Chat Panel (STORA-503) — never mounted when AI is fully disabled */}
+      {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'floating') && (
+        <AiChatPanel
+          aiConfig={resolvedAiConfig}
+          mode="floating"
+          onToggleMode={() => setAiChatMode('docked')}
+          onClose={() => setAiChatMode('hidden')}
+        />
+      )}
 
       {/* Floating Table Spreadsheet Editor */}
       {activeTable && tableSpreadsheetMode === 'floating' && (
@@ -373,7 +406,11 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           )}
 
           <div className="flex items-center gap-2 shrink-0">
-            <EditorToolbar registry={registry} config={resolvedConfig.toolbar} />
+            <EditorToolbar
+              registry={registry}
+              config={resolvedConfig.toolbar}
+              aiEnabled={aiFeatureEnabled}
+            />
 
             {/* Viewport switcher */}
             {resolvedConfig.toolbar.showViewportSwitcher && (
@@ -493,6 +530,19 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         {resolvedConfig.inspector.enabled && (
           <div className="hidden lg:flex w-72 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full">
             <InspectorPanel registry={registry} config={resolvedConfig.inspector} />
+          </div>
+        )}
+
+        {/* Docked AI Chat Panel (STORA-503) — an additional sibling column, sized like the
+            other docked panels, so it never shrinks/shifts Sidebar/Navigator/Inspector. */}
+        {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'docked') && (
+          <div className="hidden lg:flex w-80 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full">
+            <AiChatPanel
+              aiConfig={resolvedAiConfig}
+              mode="docked"
+              onToggleMode={() => setAiChatMode('floating')}
+              onClose={() => setAiChatMode('hidden')}
+            />
           </div>
         )}
       </div>

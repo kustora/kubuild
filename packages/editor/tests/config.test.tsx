@@ -3,13 +3,14 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { createBlankDocument, findNodeById } from '@kubuild/core';
 import { createDefaultComponentRegistry } from '@kubuild/components';
+import type { AiProviderAdapter } from '@kubuild/ai';
 import { useEditorStore } from '../src/store';
 import { KubuildEditor } from '../src/components/layout/editor';
 import { LeftSidebar } from '../src/components/panels/left-sidebar';
 import { ComponentPanel } from '../src/components/panels/component-panel';
 import { InspectorPanel } from '../src/components/panels/inspector-panel';
 import { StyleManagerAccordion } from '../src/components/style-manager/style-manager-accordion';
-import { resolveEditorConfig } from '../src/config';
+import { resolveEditorConfig, isAiChatPanelActive } from '../src/config';
 
 describe('Editor Customization & Module Modularity (EditorConfig)', () => {
   const registry = createDefaultComponentRegistry();
@@ -18,6 +19,7 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
     const doc = createBlankDocument('Custom Config Test');
     useEditorStore.getState().setDocument(doc);
     useEditorStore.getState().selectNode(null);
+    useEditorStore.getState().setAiChatMode('hidden');
   });
 
   describe('resolveEditorConfig', () => {
@@ -31,6 +33,7 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
       expect(resolved.toolbar.showExportImport).toBe(true);
       expect(resolved.toolbar.showViewportSwitcher).toBe(true);
       expect(resolved.toolbar.showSelectionStatus).toBe(true);
+      expect(resolved.toolbar.showAiChatToggle).toBe(true);
 
       expect(resolved.sidebar.enabled).toBe(true);
       expect(resolved.sidebar.defaultTab).toBe('components');
@@ -64,6 +67,7 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
         toolbar: {
           showHistory: false,
           showClipboard: false,
+          showAiChatToggle: false,
         },
         sidebar: {
           availableTabs: ['components', 'layers'],
@@ -81,6 +85,7 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
       expect(resolved.toolbar.enabled).toBe(true);
       expect(resolved.toolbar.showHistory).toBe(false);
       expect(resolved.toolbar.showClipboard).toBe(false);
+      expect(resolved.toolbar.showAiChatToggle).toBe(false);
       expect(resolved.toolbar.showCodeViewer).toBe(true);
 
       expect(resolved.sidebar.availableTabs).toEqual(['components', 'layers']);
@@ -315,6 +320,69 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
       );
 
       expect(html).not.toContain('id="style-state-selector"');
+    });
+  });
+
+  describe('AI Chat toolbar toggle (STORA-504)', () => {
+    const fakeAdapter: AiProviderAdapter = {
+      name: 'fake',
+      generate: async () => ({ text: '{}' }),
+    };
+
+    it('is hidden when no ai config is given at all', () => {
+      const html = renderToString(<KubuildEditor registry={registry} />);
+      expect(html).not.toContain('data-testid="toolbar-ai-chat-toggle"');
+    });
+
+    it('is hidden when ai config is given but every feature flag is false/omitted', () => {
+      const html = renderToString(
+        <KubuildEditor registry={registry} ai={{ provider: fakeAdapter }} />,
+      );
+      expect(html).not.toContain('data-testid="toolbar-ai-chat-toggle"');
+    });
+
+    it('is shown once at least one AI feature is enabled', () => {
+      const html = renderToString(
+        <KubuildEditor
+          registry={registry}
+          ai={{ provider: fakeAdapter, features: { chat: true } }}
+        />,
+      );
+      expect(html).toContain('data-testid="toolbar-ai-chat-toggle"');
+    });
+
+    it('stays hidden when showAiChatToggle: false, even with AI features enabled', () => {
+      const html = renderToString(
+        <KubuildEditor
+          registry={registry}
+          ai={{ provider: fakeAdapter, features: { chat: true } }}
+          config={{ toolbar: { showAiChatToggle: false } }}
+        />,
+      );
+      expect(html).not.toContain('data-testid="toolbar-ai-chat-toggle"');
+    });
+
+    it('is not highlighted (aria-pressed=false) while the panel is hidden', () => {
+      useEditorStore.getState().setAiChatMode('hidden');
+      const html = renderToString(
+        <KubuildEditor
+          registry={registry}
+          ai={{ provider: fakeAdapter, features: { chat: true } }}
+        />,
+      );
+      expect(html).toContain('data-testid="toolbar-ai-chat-toggle"');
+      expect(html).toMatch(/data-testid="toolbar-ai-chat-toggle"[^>]*aria-pressed="false"/);
+    });
+
+    // The full-editor `aria-pressed="true"` case (panel docked/floating) can't be driven
+    // through a `renderToString` mutation — Zustand v5's SSR snapshot always reflects the
+    // store's state at module creation (`getServerSnapshot` → `getInitialState()`), never a
+    // `setAiChatMode()` call made right before render. `isAiChatPanelActive` is the toggle's
+    // exact highlight predicate, so it's verified directly here instead.
+    it('is highlighted (isAiChatPanelActive) once the panel is docked or floating, not hidden', () => {
+      expect(isAiChatPanelActive('docked')).toBe(true);
+      expect(isAiChatPanelActive('floating')).toBe(true);
+      expect(isAiChatPanelActive('hidden')).toBe(false);
     });
   });
 });

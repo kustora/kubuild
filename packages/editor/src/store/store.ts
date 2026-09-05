@@ -47,6 +47,8 @@ import type { AiGenerationPlaceholderStatus } from '../ai/generate-page';
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 export type NavigatorMode = 'docked' | 'floating' | 'hidden';
 export type TableSpreadsheetMode = 'floating' | 'docked' | 'hidden';
+/** Panel mode for the AI Chat Panel (STORA-503), following the `NavigatorMode` pattern. */
+export type AiChatPanelMode = 'docked' | 'floating' | 'hidden';
 
 export interface ActionLogEntry {
   id: string;
@@ -198,6 +200,8 @@ export interface EditorState {
   variableCatalog: VariableCatalog;
   navigatorMode: NavigatorMode;
   tableSpreadsheetMode: TableSpreadsheetMode;
+  /** UI-only panel mode for the AI Chat Panel (STORA-503/504). Never serialized into `PageDocument`. */
+  aiChatMode: AiChatPanelMode;
   previewMode: boolean;
   multiDeviceMode: boolean;
   actionDebuggerOpen: boolean;
@@ -217,6 +221,8 @@ export interface EditorState {
   toggleNavigator: () => void;
   setTableSpreadsheetMode: (mode: TableSpreadsheetMode) => void;
   toggleTableSpreadsheet: () => void;
+  setAiChatMode: (mode: AiChatPanelMode) => void;
+  toggleAiChat: () => void;
   setPreviewMode: (enabled: boolean) => void;
   togglePreviewMode: () => void;
   setMultiDeviceMode: (enabled: boolean) => void;
@@ -358,6 +364,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   variableCatalog: [],
   navigatorMode: 'floating',
   tableSpreadsheetMode: 'floating',
+  aiChatMode: 'hidden',
   previewMode: false,
   multiDeviceMode: false,
   actionDebuggerOpen: false,
@@ -376,6 +383,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   toggleTableSpreadsheet: () =>
     set((state) => ({
       tableSpreadsheetMode: state.tableSpreadsheetMode === 'hidden' ? 'floating' : 'hidden',
+    })),
+  setAiChatMode: (mode) => set({ aiChatMode: mode }),
+  toggleAiChat: () =>
+    set((state) => ({
+      aiChatMode: state.aiChatMode === 'hidden' ? 'floating' : 'hidden',
     })),
   setPreviewMode: (enabled) =>
     set((state) => ({

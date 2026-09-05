@@ -24,3 +24,19 @@ export function buildAiChatContext(
     selectedNodeId: state.selectedNodeId ?? undefined,
   };
 }
+
+/**
+ * Applies the AI Chat Panel's "dismiss context for this message only" behavior (STORA-506)
+ * to an already-built `AiChatContext`. When the user dismisses the active-context chip
+ * before sending, `selectedNodeId` must be stripped from *that* request even though the
+ * canvas selection itself is untouched and will resume being sent on the next message.
+ */
+export function resolveChatSendContext(
+  context: AiChatContext,
+  contextDismissed: boolean,
+): AiChatContext {
+  return {
+    currentDocument: context.currentDocument,
+    selectedNodeId: contextDismissed ? undefined : context.selectedNodeId,
+  };
+}
