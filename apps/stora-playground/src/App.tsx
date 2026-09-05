@@ -4,6 +4,7 @@ import {
   ImportModal,
   downloadDocumentAsStora,
   downloadDocumentAsJson,
+  Viewport,
 } from '@kubuild/editor';
 import {
   PreviewViewportAdapter,
@@ -35,6 +36,8 @@ export interface ProjectPage {
   name: string;
   slug: string;
   document: PageDocument;
+  width?: number;
+  viewport?: Viewport;
 }
 
 const INITIAL_PAGES: ProjectPage[] = [
@@ -43,11 +46,15 @@ const INITIAL_PAGES: ProjectPage[] = [
     name: 'Home',
     slug: '/',
     document: starterPageFixture,
+    width: 1200,
+    viewport: 'desktop',
   },
   {
     id: 'page-about',
     name: 'About Us',
     slug: '/about',
+    width: 1200,
+    viewport: 'desktop',
     document: {
       schema: 'stora.page',
       version: '1.0.0',
@@ -194,6 +201,8 @@ export function App() {
       name,
       slug,
       document: newDoc,
+      width: 1200,
+      viewport: 'desktop',
     };
 
     setPages((prev) => [...prev, createdPage]);
@@ -211,6 +220,8 @@ export function App() {
       name: `${pageToDup.name} (Copy)`,
       slug: `${pageToDup.slug}-copy`,
       document: JSON.parse(JSON.stringify(pageToDup.document)),
+      width: pageToDup.width ?? 1200,
+      viewport: pageToDup.viewport ?? 'desktop',
     };
     setPages((prev) => [...prev, duplicated]);
     setActivePageId(id);
@@ -701,6 +712,8 @@ export function App() {
                   name: p.name,
                   slug: p.slug ?? '',
                   document: p.document,
+                  width: p.width,
+                  viewport: p.viewport,
                 })),
               );
             }}

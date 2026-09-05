@@ -94,10 +94,6 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     return 1200;
   };
   const [fluidWidth, setFluidWidth] = useState<number>(() => defaultWidthForViewport(viewport));
-
-  useEffect(() => {
-    setFluidWidth(defaultWidthForViewport(viewport));
-  }, [viewport]);
   const [isMobileLayersOpen, setIsMobileLayersOpen] = useState<boolean>(false);
 
   const activeTable = useMemo(
@@ -121,9 +117,37 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
       if (targetPage) {
         lastLoadedDocRef.current = targetPage.document;
         setDocument(targetPage.document);
+        const vp =
+          targetPage.viewport ||
+          (targetPage.width
+            ? targetPage.width < 768
+              ? 'mobile'
+              : targetPage.width < 1024
+                ? 'tablet'
+                : 'desktop'
+            : 'desktop');
+        const w = targetPage.width ?? defaultWidthForViewport(vp);
+        setViewport(vp);
+        setFluidWidth(w);
       }
     },
-    [pages, onActivePageChange, setDocument],
+    [pages, onActivePageChange, setDocument, setViewport],
+  );
+
+  const handleBreakpointChange = useCallback(
+    (newBp: Viewport) => {
+      setViewport(newBp);
+      const defaultW = defaultWidthForViewport(newBp);
+      setFluidWidth(defaultW);
+      if (pages && onPagesChange) {
+        onPagesChange(
+          pages.map((p) =>
+            p.id === effectiveActivePageId ? { ...p, viewport: newBp, width: defaultW } : p,
+          ),
+        );
+      }
+    },
+    [pages, onPagesChange, effectiveActivePageId, setViewport],
   );
 
   const handlePagesChange = useCallback(
@@ -137,12 +161,28 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     if (activePageId) {
       setInternalActivePageId(activePageId);
       const target = pages?.find((p) => p.id === activePageId);
-      if (target && target.document !== useEditorStore.getState().document) {
-        lastLoadedDocRef.current = target.document;
-        setDocument(target.document);
+      if (target) {
+        if (target.document !== useEditorStore.getState().document) {
+          lastLoadedDocRef.current = target.document;
+          setDocument(target.document);
+        }
+        const vp =
+          target.viewport ||
+          (target.width
+            ? target.width < 768
+              ? 'mobile'
+              : target.width < 1024
+                ? 'tablet'
+                : 'desktop'
+            : 'desktop');
+        const w = target.width ?? defaultWidthForViewport(vp);
+        if (vp !== useEditorStore.getState().viewport) {
+          setViewport(vp);
+        }
+        setFluidWidth(w);
       }
     }
-  }, [activePageId, pages, setDocument]);
+  }, [activePageId, pages, setDocument, setViewport]);
 
   useEffect(() => {
     if (
@@ -332,7 +372,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
                     type="button"
                     onClick={() => {
                       if (multiDeviceMode) toggleMultiDeviceMode();
-                      setViewport(vp);
+                      handleBreakpointChange(vp);
                     }}
                     title={`Switch to ${vp} preview`}
                     className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded capitalize font-medium transition flex items-center gap-1 text-[11px] sm:text-xs ${

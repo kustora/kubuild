@@ -295,7 +295,9 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
                   key={preset.name}
                   type="button"
                   data-testid={`preset-button-${preset.name.toLowerCase()}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect?.();
                     onWidthChange(preset.width);
                     onBreakpointChange?.(preset.breakpoint);
                   }}
@@ -323,22 +325,27 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
         ref={frameRef}
         data-testid="viewport-resizer-frame"
         style={{ width: `${width}px`, maxWidth: '100%' }}
+        onClick={isActive ? undefined : onSelect}
         className={`relative bg-white shadow-xl rounded-xl overflow-visible border transition-[width] duration-75 min-h-[500px] ${
-          isActive ? 'border-blue-400 ring-4 ring-blue-500/10' : 'border-slate-200'
+          isActive
+            ? 'border-blue-400 ring-4 ring-blue-500/10'
+            : 'border-slate-200 hover:border-blue-400/80 hover:shadow-2xl cursor-pointer'
         }`}
       >
         {children}
 
-        {/* Vertical Draggable Handle on the Right Edge */}
-        <ViewportResizerHandle
-          width={width}
-          onWidthChange={onWidthChange}
-          minWidth={minWidth}
-          maxWidth={maxWidth}
-          onBreakpointChange={onBreakpointChange}
-          disabled={disabled}
-          zoom={zoom}
-        />
+        {/* Vertical Draggable Handle on the Right Edge only when active */}
+        {isActive && !disabled && (
+          <ViewportResizerHandle
+            width={width}
+            onWidthChange={onWidthChange}
+            minWidth={minWidth}
+            maxWidth={maxWidth}
+            onBreakpointChange={onBreakpointChange}
+            disabled={disabled}
+            zoom={zoom}
+          />
+        )}
       </div>
     </div>
   );

@@ -30,6 +30,7 @@ export interface EditorPageItem {
   slug?: string;
   document: PageDocument;
   width?: number;
+  viewport?: Viewport;
 }
 
 export interface EditorCanvasProps {
@@ -165,25 +166,154 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     return 1200;
   };
 
-  const [localFluidWidth, setLocalFluidWidth] = useState<number>(() => {
-    return fluidWidth ?? defaultWidthForViewport(viewport);
+  const getBreakpointFromWidth = (w: number): Viewport => {
+    if (w < 768) return 'mobile';
+    if (w < 1024) return 'tablet';
+    return 'desktop';
+  };
+
+  // Per-page responsive state map
+  const [pageResponsiveMap, setPageResponsiveMap] = useState<
+    Record<string, { width: number; viewport: Viewport }>
+  >(() => {
+    const initial: Record<string, { width: number; viewport: Viewport }> = {};
+    if (pages && pages.length > 0) {
+      pages.forEach((p) => {
+        const vp = p.viewport || (p.width ? getBreakpointFromWidth(p.width) : 'desktop');
+        const w = p.width ?? defaultWidthForViewport(vp);
+        initial[p.id] = { width: w, viewport: vp };
+      });
+    } else {
+      const activeVp = viewport ?? 'desktop';
+      const activeW = fluidWidth ?? defaultWidthForViewport(activeVp);
+      initial['default'] = { width: activeW, viewport: activeVp };
+    }
+    return initial;
   });
 
-  const currentFluidWidth = fluidWidth ?? localFluidWidth;
+  useEffect(() => {
+    if (pages && pages.length > 0) {
+      setPageResponsiveMap((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        pages.forEach((p) => {
+          if (!next[p.id]) {
+            const vp = p.viewport || (p.width ? getBreakpointFromWidth(p.width) : 'desktop');
+            const w = p.width ?? defaultWidthForViewport(vp);
+            next[p.id] = { width: w, viewport: vp };
+            changed = true;
+          } else {
+            if (p.width !== undefined && p.width !== next[p.id].width) {
+              next[p.id] = { ...next[p.id], width: p.width };
+              changed = true;
+            }
+            if (p.viewport !== undefined && p.viewport !== next[p.id].viewport) {
+              next[p.id] = { ...next[p.id], viewport: p.viewport };
+              changed = true;
+            }
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [pages]);
 
-  const handleWidthChange = useCallback(
-    (w: number) => {
-      setLocalFluidWidth(w);
-      onFluidWidthChange?.(w);
+  useEffect(() => {
+    if (effectiveActivePageId) {
+      setPageResponsiveMap((prev) => {
+        const cur = prev[effectiveActivePageId];
+        const newW = fluidWidth ?? cur?.width;
+        const newVp = viewport ?? cur?.viewport;
+        if (!cur || cur.width !== newW || cur.viewport !== newVp) {
+          if (newW !== undefined || newVp !== undefined) {
+            return {
+              ...prev,
+              [effectiveActivePageId]: {
+                width: newW ?? defaultWidthForViewport(newVp || 'desktop'),
+                viewport: newVp ?? 'desktop',
+              },
+            };
+          }
+        }
+        return prev;
+      });
+    }
+  }, [effectiveActivePageId, fluidWidth, viewport]);
+
+  const getPageWidth = useCallback(
+    (p: EditorPageItem): number => {
+      if (p.id === effectiveActivePageId && fluidWidth !== undefined) {
+        return fluidWidth;
+      }
+      return (
+        pageResponsiveMap[p.id]?.width ??
+        p.width ??
+        defaultWidthForViewport(p.viewport || 'desktop')
+      );
     },
-    [onFluidWidthChange],
+    [effectiveActivePageId, fluidWidth, pageResponsiveMap],
   );
 
-  const handleBreakpointChange = useCallback(
-    (bp: string) => {
-      onBreakpointChange?.(bp as Viewport);
+  const getPageViewport = useCallback(
+    (p: EditorPageItem): Viewport => {
+      if (p.id === effectiveActivePageId && viewport !== undefined) {
+        return viewport;
+      }
+      return (
+        pageResponsiveMap[p.id]?.viewport ??
+        p.viewport ??
+        (p.width ? getBreakpointFromWidth(p.width) : 'desktop')
+      );
     },
-    [onBreakpointChange],
+    [effectiveActivePageId, viewport, pageResponsiveMap],
+  );
+
+  const handlePageWidthChange = useCallback(
+    (pageId: string, newWidth: number) => {
+      const newBp = getBreakpointFromWidth(newWidth);
+      setPageResponsiveMap((prev) => ({
+        ...prev,
+        [pageId]: { width: newWidth, viewport: newBp },
+      }));
+
+      if (pageId === effectiveActivePageId) {
+        onFluidWidthChange?.(newWidth);
+        onBreakpointChange?.(newBp);
+      }
+
+      if (onPagesChange && pages) {
+        onPagesChange(
+          pages.map((p) =>
+            p.id === pageId ? { ...p, width: newWidth, viewport: newBp } : p,
+          ),
+        );
+      }
+    },
+    [effectiveActivePageId, onFluidWidthChange, onBreakpointChange, onPagesChange, pages],
+  );
+
+  const handlePageBreakpointChange = useCallback(
+    (pageId: string, newBp: Viewport) => {
+      const newWidth = defaultWidthForViewport(newBp);
+      setPageResponsiveMap((prev) => ({
+        ...prev,
+        [pageId]: { width: newWidth, viewport: newBp },
+      }));
+
+      if (pageId === effectiveActivePageId) {
+        onFluidWidthChange?.(newWidth);
+        onBreakpointChange?.(newBp);
+      }
+
+      if (onPagesChange && pages) {
+        onPagesChange(
+          pages.map((p) =>
+            p.id === pageId ? { ...p, width: newWidth, viewport: newBp } : p,
+          ),
+        );
+      }
+    },
+    [effectiveActivePageId, onFluidWidthChange, onBreakpointChange, onPagesChange, pages],
   );
 
   const handleSelectPage = useCallback(
@@ -192,9 +322,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       const targetPage = allPages.find((p) => p.id === pageId);
       if (targetPage) {
         useEditorStore.getState().setDocument(targetPage.document);
+        const targetViewport = getPageViewport(targetPage);
+        useEditorStore.getState().setViewport(targetViewport);
       }
     },
-    [allPages, onActivePageChange],
+    [allPages, onActivePageChange, getPageViewport],
   );
 
   const [selectedRect, setSelectedRect] = useState<CanvasRect | null>(null);
@@ -242,7 +374,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       const ch = container.clientHeight;
       if (cw > 0 && ch > 0) {
         hasAutoCenteredRef.current = true;
-        const targetWidth = currentFluidWidth;
+        const activePageItem = allPages.find((p) => p.id === effectiveActivePageId) || allPages[0];
+        const targetWidth = activePageItem ? getPageWidth(activePageItem) : (fluidWidth || 1200);
         if (cw < targetWidth + 96) {
           const fitScale = clampZoom(Math.max(0.25, (cw - 64) / targetWidth));
           const fitPanX = Math.max(24, Math.round((cw - targetWidth * fitScale) / 2));
@@ -258,7 +391,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     checkAndCenter();
     const frame = requestAnimationFrame(checkAndCenter);
     return () => cancelAnimationFrame(frame);
-  }, [containerRef, currentFluidWidth, setPan, setZoom]);
+  }, [containerRef, allPages, effectiveActivePageId, fluidWidth, getPageWidth, setPan, setZoom]);
 
   const fitPanZoom = useCallback(() => {
     if (!containerRef.current || !layerRef.current) {
@@ -269,8 +402,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
+    const activePageItem = allPages.find((p) => p.id === effectiveActivePageId) || allPages[0];
+    const targetWidth = activePageItem ? getPageWidth(activePageItem) : (fluidWidth || 1200);
     const artboardContainer = layerRef.current.firstElementChild as HTMLElement | null;
-    const contentWidth = artboardContainer ? artboardContainer.scrollWidth : currentFluidWidth;
+    const contentWidth = artboardContainer ? artboardContainer.scrollWidth : targetWidth;
     const contentHeight = artboardContainer ? artboardContainer.scrollHeight : 800;
 
     if (containerWidth > 0 && contentWidth > 0) {
@@ -285,7 +420,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     } else {
       resetPanZoom();
     }
-  }, [containerRef, layerRef, currentFluidWidth, resetPanZoom, setZoom, setPan]);
+  }, [containerRef, layerRef, fluidWidth, resetPanZoom, setZoom, setPan]);
 
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
@@ -331,7 +466,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       window.removeEventListener('scroll', recompute, true);
       container?.removeEventListener('input', recompute);
     };
-  }, [activeDoc, selectedNodeId, selectedNodeIds, hoveredNodeId, viewport, zoom, pan, currentFluidWidth, effectiveActivePageId]);
+  }, [activeDoc, selectedNodeId, selectedNodeIds, hoveredNodeId, viewport, zoom, pan, fluidWidth, effectiveActivePageId]);
 
   // Set draggable on element nodes
   useEffect(() => {
@@ -834,30 +969,33 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         <div className="inline-flex items-start gap-16 p-12 select-none" style={{ minWidth: 'max-content' }}>
           {allPages.map((pageItem) => {
             const isActive = pageItem.id === effectiveActivePageId;
-            const pageWidth = isActive ? currentFluidWidth : (pageItem.width || 1200);
+            const pageWidth = getPageWidth(pageItem);
+            const pageViewport = getPageViewport(pageItem);
 
-            if (isActive) {
-              return (
-                <ViewportResizer
-                  key={pageItem.id}
-                  width={pageWidth}
-                  onWidthChange={handleWidthChange}
-                  onBreakpointChange={handleBreakpointChange}
-                  title={pageItem.name}
-                  slug={pageItem.slug}
-                  isActive={true}
-                  zoom={zoom}
-                  showPresets={true}
-                  frameRef={activeArtboardRef}
-                  onHeaderPointerDown={handlePanPointerDown}
-                  className="shrink-0"
-                >
-                  <KubuildRenderer
-                    document={activeDoc}
-                    registry={registry}
-                    context={context}
-                    viewport={viewport}
-                    mode={previewMode ? 'runtime' : 'editor'}
+            return (
+              <ViewportResizer
+                key={pageItem.id}
+                width={pageWidth}
+                onWidthChange={(newW) => handlePageWidthChange(pageItem.id, newW)}
+                onBreakpointChange={(newBp) => handlePageBreakpointChange(pageItem.id, newBp as Viewport)}
+                title={pageItem.name}
+                slug={pageItem.slug}
+                isActive={isActive}
+                onSelect={() => handleSelectPage(pageItem.id)}
+                zoom={zoom}
+                showPresets={true}
+                frameRef={isActive ? activeArtboardRef : undefined}
+                onHeaderPointerDown={handlePanPointerDown}
+                className="shrink-0"
+              >
+                {isActive ? (
+                  <>
+                    <KubuildRenderer
+                      document={activeDoc}
+                      registry={registry}
+                      context={context}
+                      viewport={pageViewport}
+                      mode={previewMode ? 'runtime' : 'editor'}
                     onNodeClick={(id: string, e?: React.MouseEvent) => {
                       if (!previewMode) {
                         if (e?.shiftKey) {
@@ -1064,54 +1202,28 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                         }}
                       />
                     ))}
-                </ViewportResizer>
-              );
-            }
-
-            // Inactive Artboard Frame on Figma Canvas
-            return (
-              <div
-                key={pageItem.id}
-                data-testid={`canvas-artboard-page-${pageItem.id}`}
-                className="flex flex-col items-start shrink-0 select-none group"
-                style={{ width: `${pageWidth}px` }}
-              >
-                {/* Inactive Artboard Header */}
-                <div
-                  onClick={() => handleSelectPage(pageItem.id)}
-                  onPointerDown={handlePanPointerDown}
-                  className="flex items-center justify-between w-full px-2 py-1 mb-2 text-xs cursor-pointer text-slate-600 hover:text-blue-600 transition"
-                  title="Click to edit this page"
-                >
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <span>{pageItem.name}</span>
-                    {pageItem.slug && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 border border-slate-300/60">
-                        {pageItem.slug}
-                      </span>
-                    )}
+                  </>
+                ) : (
+                  <div
+                    data-testid={`canvas-artboard-page-${pageItem.id}`}
+                    onClick={() => handleSelectPage(pageItem.id)}
+                    className="w-full h-full min-h-[500px] cursor-pointer group/artboard relative"
+                    title="Click to edit"
+                  >
+                    <div className="absolute top-2 right-2 z-10 opacity-0 group-hover/artboard:opacity-100 transition-opacity bg-slate-900/80 text-white text-[11px] font-medium px-2 py-1 rounded shadow pointer-events-none">
+                      Click to edit
+                    </div>
+                    <KubuildRenderer
+                      document={pageItem.document}
+                      registry={registry}
+                      context={context}
+                      viewport={pageViewport}
+                      mode="runtime"
+                      onNodeClick={() => handleSelectPage(pageItem.id)}
+                    />
                   </div>
-                  <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-medium">
-                    Click to edit
-                  </span>
-                </div>
-
-                {/* Inactive Artboard Card */}
-                <div
-                  onClick={() => handleSelectPage(pageItem.id)}
-                  style={{ width: `${pageWidth}px`, maxWidth: '100%', minHeight: '500px', backgroundColor: '#ffffff' }}
-                  className="relative bg-white shadow-md hover:shadow-xl rounded-xl overflow-hidden border border-slate-200 group-hover:border-blue-400/80 transition-all duration-150 cursor-pointer"
-                >
-                  <KubuildRenderer
-                    document={pageItem.document}
-                    registry={registry}
-                    context={context}
-                    viewport="desktop"
-                    mode="runtime"
-                    onNodeClick={() => handleSelectPage(pageItem.id)}
-                  />
-                </div>
-              </div>
+                )}
+              </ViewportResizer>
             );
           })}
         </div>
