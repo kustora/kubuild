@@ -23,6 +23,12 @@ export interface EditorToolbarConfig {
   showTitle?: boolean;
   /** Display Navigator (element tree) toggle button. Default: true */
   showNavigatorToggle?: boolean;
+  /**
+   * Display the AI Chat toggle button (STORA-504). Default: true.
+   * The button is still hidden when AI is disabled entirely in `AiEditorConfig`
+   * (no `ai` prop given, or every `features.*` flag is false) regardless of this flag.
+   */
+  showAiChatToggle?: boolean;
   /** Display Undo and Redo buttons. Default: true */
   showHistory?: boolean;
   /** Display Copy, Paste, Duplicate, and Delete buttons. Default: true */
@@ -135,6 +141,7 @@ export interface ResolvedEditorConfig {
     enabled: boolean;
     showTitle: boolean;
     showNavigatorToggle: boolean;
+    showAiChatToggle: boolean;
     showHistory: boolean;
     showClipboard: boolean;
     showCodeViewer: boolean;
@@ -196,6 +203,7 @@ export function resolveEditorConfig(config?: EditorConfig): ResolvedEditorConfig
       enabled: toolbarEnabled,
       showTitle: toolbarCfg.showTitle ?? true,
       showNavigatorToggle: toolbarCfg.showNavigatorToggle ?? true,
+      showAiChatToggle: toolbarCfg.showAiChatToggle ?? true,
       showHistory: toolbarCfg.showHistory ?? true,
       showClipboard: toolbarCfg.showClipboard ?? true,
       showCodeViewer: toolbarCfg.showCodeViewer ?? true,

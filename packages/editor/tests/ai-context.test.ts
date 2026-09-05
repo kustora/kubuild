@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createBlankDocument } from '@kubuild/core';
 import { useEditorStore } from '../src/store';
-import { buildAiChatContext } from '../src/utils/ai-context';
+import { buildAiChatContext, resolveChatSendContext } from '../src/utils/ai-context';
 
 describe('buildAiChatContext (STORA-502)', () => {
   it('reflects the currently selected node and current document snapshot', () => {
@@ -62,5 +62,44 @@ describe('buildAiChatContext (STORA-502)', () => {
     expect(state.variableCatalog.length).toBe(1);
     expect(context).not.toHaveProperty('variableCatalog');
     expect(JSON.stringify(context)).not.toContain('Preview-only Site Name');
+  });
+});
+
+describe('resolveChatSendContext (STORA-506)', () => {
+  it('passes selectedNodeId through untouched when context is not dismissed', () => {
+    const doc = createBlankDocument('Dismiss Context Test');
+    doc.document.children = [{ id: 'button-1', type: 'button', props: { text: 'Click me' } }];
+    useEditorStore.getState().setDocument(doc);
+    useEditorStore.getState().selectNode('button-1');
+
+    const built = buildAiChatContext(useEditorStore.getState());
+    const resolved = resolveChatSendContext(built, false);
+
+    expect(resolved.selectedNodeId).toBe('button-1');
+    expect(resolved.currentDocument).toBe(built.currentDocument);
+  });
+
+  it('strips selectedNodeId from the outgoing request when dismissed, even though the canvas selection is untouched', () => {
+    const doc = createBlankDocument('Dismiss Context Test 2');
+    doc.document.children = [{ id: 'button-1', type: 'button', props: { text: 'Click me' } }];
+    useEditorStore.getState().setDocument(doc);
+    useEditorStore.getState().selectNode('button-1');
+
+    const built = buildAiChatContext(useEditorStore.getState());
+    const resolved = resolveChatSendContext(built, true);
+
+    expect(resolved.selectedNodeId).toBeUndefined();
+    // The store's own selection is untouched by dismissal — only the outgoing request is affected.
+    expect(useEditorStore.getState().selectedNodeId).toBe('button-1');
+  });
+
+  it('is a no-op (still undefined) when there was never a selection to begin with', () => {
+    const doc = createBlankDocument('Dismiss Context Test 3');
+    useEditorStore.getState().setDocument(doc);
+    useEditorStore.getState().selectNode(null);
+
+    const built = buildAiChatContext(useEditorStore.getState());
+    expect(resolveChatSendContext(built, true).selectedNodeId).toBeUndefined();
+    expect(resolveChatSendContext(built, false).selectedNodeId).toBeUndefined();
   });
 });

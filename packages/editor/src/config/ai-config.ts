@@ -70,3 +70,40 @@ export function resolveAiEditorConfig(config?: AiEditorConfig): ResolvedAiEditor
     systemPromptPrefix: config.systemPromptPrefix,
   };
 }
+
+/**
+ * Whether any AI capability is actually turned on (STORA-504's "atau fitur AI nonaktif di
+ * AiEditorConfig" check). `resolved.enabled` alone only means an `ai` config object was
+ * given — a host can supply `provider` with every `features.*` flag left `false`/omitted,
+ * which must still be treated as "AI disabled" for UI gating (toolbar toggle, chat panel).
+ */
+export function isAnyAiFeatureEnabled(resolved: ResolvedAiEditorConfig): boolean {
+  return (
+    resolved.enabled &&
+    (resolved.features.chat || resolved.features.generate || resolved.features.enhance)
+  );
+}
+
+/**
+ * Pure gating logic (STORA-503) for whether `KubuildEditor` should mount the AI Chat Panel
+ * in a given layout slot (`'docked'` or `'floating'`). Factored out of the JSX conditional
+ * in `editor.tsx` so it has a single, directly-unit-testable source of truth — the panel
+ * mode itself lives in Zustand store state, which `react-dom/server`'s SSR snapshot
+ * (`getServerSnapshot` → `store.getInitialState()`) can't reflect post-mutation in tests,
+ * so this function is exercised with plain boolean/string inputs instead.
+ */
+export function shouldRenderAiChatPanel(
+  aiFeatureEnabled: boolean,
+  aiChatMode: 'docked' | 'floating' | 'hidden',
+  targetMode: 'docked' | 'floating',
+): boolean {
+  return aiFeatureEnabled && aiChatMode === targetMode;
+}
+
+/**
+ * Whether the AI Chat toolbar toggle (STORA-504) should render in its "active/highlighted"
+ * visual state — i.e. the panel is open in some form (docked or floating), not hidden.
+ */
+export function isAiChatPanelActive(aiChatMode: 'docked' | 'floating' | 'hidden'): boolean {
+  return aiChatMode !== 'hidden';
+}

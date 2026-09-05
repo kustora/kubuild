@@ -4,15 +4,21 @@ import { useEditorStore } from '../../store';
 import { ImportModal } from '../modals/import-modal';
 import { CodeViewerModal } from '../modals/code-viewer-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils';
-import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal } from 'lucide-react';
+import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles } from 'lucide-react';
 
-import { EditorToolbarConfig } from '../../config';
+import { EditorToolbarConfig, isAiChatPanelActive } from '../../config';
 
 export interface EditorToolbarProps {
   registry: ComponentRegistry;
   className?: string;
   showExportImport?: boolean;
   config?: EditorToolbarConfig;
+  /**
+   * Whether any AI capability is actually turned on in `AiEditorConfig` (STORA-504).
+   * The AI Chat toggle button only ever renders when this is `true`, regardless of
+   * `config.showAiChatToggle` — AI must stay fully invisible when not configured.
+   */
+  aiEnabled?: boolean;
 }
 
 interface ToolbarIconButtonProps {
@@ -72,6 +78,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   className,
   showExportImport: propShowExportImport = true,
   config,
+  aiEnabled = false,
 }) => {
   const {
     document,
@@ -82,6 +89,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     canRedo,
     navigatorMode,
     toggleNavigator,
+    aiChatMode,
+    toggleAiChat,
     duplicateComponent,
     deleteComponent,
     copyNode,
@@ -99,6 +108,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const showNavigatorToggle = config?.showNavigatorToggle !== false;
+  const showAiChatToggle = config?.showAiChatToggle !== false && aiEnabled;
   const showHistory = config?.showHistory !== false;
   const showClipboard = config?.showClipboard !== false;
   const showCodeViewer = config?.showCodeViewer !== false;
@@ -207,7 +217,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </button>
         )}
 
-        {showNavigatorToggle &&
+        {showAiChatToggle && (
+          <button
+            type="button"
+            data-testid="toolbar-ai-chat-toggle"
+            title={`AI Chat (${isAiChatPanelActive(aiChatMode) ? 'Open' : 'Hidden'})`}
+            onClick={toggleAiChat}
+            aria-pressed={isAiChatPanelActive(aiChatMode)}
+            className={`hidden sm:flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
+              isAiChatPanelActive(aiChatMode)
+                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
+                : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>AI Chat</span>
+          </button>
+        )}
+
+        {(showNavigatorToggle || showAiChatToggle) &&
           (showClipboard || showHistory || showCodeViewer || showExportImport) && (
             <div className="hidden sm:block h-4 w-px bg-slate-200 mx-1" />
           )}

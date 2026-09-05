@@ -1,4 +1,5 @@
 export * from './action-builder';
+export * from './ai-chat';
 export * from './canvas';
 export * from './layout';
 export * from './modals';

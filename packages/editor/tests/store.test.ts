@@ -905,4 +905,45 @@ describe('Editor Store', () => {
       expect(root.children?.[0].type).toBe('section');
     });
   });
+
+  describe('aiChatMode (STORA-503)', () => {
+    it('defaults to hidden', () => {
+      useEditorStore.getState().setAiChatMode('hidden');
+      expect(useEditorStore.getState().aiChatMode).toBe('hidden');
+    });
+
+    it('setAiChatMode switches between docked, floating, and hidden', () => {
+      useEditorStore.getState().setAiChatMode('docked');
+      expect(useEditorStore.getState().aiChatMode).toBe('docked');
+
+      useEditorStore.getState().setAiChatMode('floating');
+      expect(useEditorStore.getState().aiChatMode).toBe('floating');
+
+      useEditorStore.getState().setAiChatMode('hidden');
+      expect(useEditorStore.getState().aiChatMode).toBe('hidden');
+    });
+
+    it('toggleAiChat flips between hidden and floating like toggleNavigator/toggleTableSpreadsheet', () => {
+      useEditorStore.getState().setAiChatMode('hidden');
+
+      useEditorStore.getState().toggleAiChat();
+      expect(useEditorStore.getState().aiChatMode).toBe('floating');
+
+      useEditorStore.getState().toggleAiChat();
+      expect(useEditorStore.getState().aiChatMode).toBe('hidden');
+    });
+
+    it('toggleAiChat from docked collapses to hidden (any non-hidden mode toggles off)', () => {
+      useEditorStore.getState().setAiChatMode('docked');
+
+      useEditorStore.getState().toggleAiChat();
+      expect(useEditorStore.getState().aiChatMode).toBe('hidden');
+    });
+
+    it('is UI-only: setDocument does not reset aiChatMode', () => {
+      useEditorStore.getState().setAiChatMode('docked');
+      useEditorStore.getState().setDocument(createBlankDocument('Fresh Doc'));
+      expect(useEditorStore.getState().aiChatMode).toBe('docked');
+    });
+  });
 });
