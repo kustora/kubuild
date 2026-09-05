@@ -31,7 +31,8 @@ export type DocumentChangeType =
   | 'NODE_REMOVED'
   | 'NODE_DUPLICATED'
   | 'NODE_WRAPPED'
-  | 'NODE_UNGROUPED';
+  | 'NODE_UNGROUPED'
+  | 'NODE_REPLACED';
 
 export interface DocumentChangeEvent {
   type: DocumentChangeType;
@@ -118,6 +119,13 @@ export interface WrapNodeIntoFrameParams {
 export interface UngroupNodeFrameParams {
   /** Node ID of the flex container to unwrap. */
   nodeId: string;
+}
+
+export interface ReplaceNodeParams {
+  /** ID of the existing node to replace. */
+  nodeId: string;
+  /** Full replacement node — its `id` must match `nodeId` (identity is never silently changed). */
+  node: Node;
 }
 
 /**
@@ -852,6 +860,79 @@ export function ungroupNodeFrame(
         unwrappedChildIds: unwrappedChildren.map((c) => c.id),
         unwrappedChildren,
         removedNode: deepClone(targetNode),
+      },
+    },
+  };
+}
+
+/**
+ * 12. Replace an existing node's entire subtree (props, styles, children, animation,
+ * actions, formConfig) in place, preserving its position in the parent.
+ *
+ * Used by AI "enhance" flows (STORA-514) when a validated candidate node differs
+ * structurally from the original (e.g. AI regenerated nested children) — a change
+ * `updateProps`/`updateStyle` alone can't express since they only ever touch one
+ * property bag at a time. The replacement node's `id` must match `nodeId`; this command
+ * never lets identity (id) drift, the same guarantee `@kubuild/ai`'s
+ * `normalizeAndValidateRefactoredNode` already enforces upstream on `type`/`id`.
+ *
+ * Returns a new PageDocument and a NODE_REPLACED event.
+ */
+export function replaceNode(
+  document: PageDocument,
+  params: ReplaceNodeParams,
+): CommandResult {
+  const { nodeId, node } = params;
+
+  if (!node || typeof node !== 'object' || !node.id || !node.type) {
+    throw new Error('Invalid node: Node must be an object with non-empty "id" and "type"');
+  }
+
+  if (node.id !== nodeId) {
+    throw new Error(
+      `Cannot replace node: replacement node id "${node.id}" must match target node id "${nodeId}".`,
+    );
+  }
+
+  if (nodeId === document.document.id) {
+    throw new Error('Cannot replace the root page node.');
+  }
+
+  const newDoc = deepClone(document);
+  const loc = findNodeLocation(newDoc.document, nodeId);
+  if (!loc || !loc.parent) {
+    throw new Error(`Cannot replace node: Node with ID "${nodeId}" not found in document.`);
+  }
+
+  // A replacement subtree may introduce ids that collide with the rest of the document
+  // (outside the subtree being replaced) — reject rather than silently corrupting ids.
+  const existingIds = collectNodeIdSet(newDoc.document);
+  for (const id of collectNodeIdSet(loc.node)) {
+    existingIds.delete(id);
+  }
+  for (const incomingId of collectNodeIdSet(node)) {
+    if (existingIds.has(incomingId)) {
+      throw new Error(
+        `Cannot replace node: Duplicate node ID "${incomingId}" already exists elsewhere in document.`,
+      );
+    }
+  }
+
+  const previousNode = deepClone(loc.node);
+  const replacement = deepClone(node);
+  loc.parent.children![loc.index] = replacement;
+
+  return {
+    document: newDoc,
+    event: {
+      type: 'NODE_REPLACED',
+      timestamp: new Date().toISOString(),
+      nodeId,
+      parentId: loc.parent.id,
+      index: loc.index,
+      payload: {
+        node: replacement,
+        previousNode,
       },
     },
   };

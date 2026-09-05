@@ -23,6 +23,7 @@ import {
   updateAnimation,
   updateActions,
   updateFormConfig,
+  replaceNode,
   DocumentHistoryManager,
   CommandResult,
   deepClone,
@@ -202,6 +203,12 @@ export interface EditorState {
   tableSpreadsheetMode: TableSpreadsheetMode;
   /** UI-only panel mode for the AI Chat Panel (STORA-503/504). Never serialized into `PageDocument`. */
   aiChatMode: AiChatPanelMode;
+  /**
+   * Monotonically-increasing signal (STORA-511) the AI Chat Panel watches to focus its
+   * chat input and re-attach the current selection as context — e.g. "Ask AI about this
+   * component" from the Inspector. UI-only, never serialized into `PageDocument`.
+   */
+  aiChatFocusRequestId: number;
   previewMode: boolean;
   multiDeviceMode: boolean;
   actionDebuggerOpen: boolean;
@@ -223,6 +230,8 @@ export interface EditorState {
   toggleTableSpreadsheet: () => void;
   setAiChatMode: (mode: AiChatPanelMode) => void;
   toggleAiChat: () => void;
+  /** Bumps `aiChatFocusRequestId` (STORA-511) — does not itself open the panel. */
+  requestAiChatFocus: () => void;
   setPreviewMode: (enabled: boolean) => void;
   togglePreviewMode: () => void;
   setMultiDeviceMode: (enabled: boolean) => void;
@@ -274,6 +283,18 @@ export interface EditorState {
     breakpoint: 'base' | 'desktop' | 'tablet' | 'mobile',
     merge?: boolean,
   ) => UpdateStyleResult;
+  /**
+   * Replaces a node's entire subtree in place via `@kubuild/core`'s `replaceNode` command
+   * (STORA-514) — used by the AI enhance Apply flow when a validated candidate's nested
+   * `children` differ structurally from the original, a change `updateNodeProps`/
+   * `updateNodeStyle` alone can't express. Same command-engine/history path as every
+   * other mutation here: it lands in `DocumentHistoryManager` and `undo()` reverts it.
+   */
+  replaceNodeSubtree: (
+    nodeId: string,
+    node: Node,
+    registry: ComponentRegistry,
+  ) => UpdatePropsResult;
   /**
    * Reset a specific overridden style property on a breakpoint layer, falling back to inherited base (STORA-141).
    */
@@ -365,6 +386,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   navigatorMode: 'floating',
   tableSpreadsheetMode: 'floating',
   aiChatMode: 'hidden',
+  aiChatFocusRequestId: 0,
   previewMode: false,
   multiDeviceMode: false,
   actionDebuggerOpen: false,
@@ -389,6 +411,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({
       aiChatMode: state.aiChatMode === 'hidden' ? 'floating' : 'hidden',
     })),
+  requestAiChatFocus: () =>
+    set((state) => ({ aiChatFocusRequestId: state.aiChatFocusRequestId + 1 })),
   setPreviewMode: (enabled) =>
     set((state) => ({
       previewMode: enabled,
@@ -713,6 +737,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateNodeStyle: (nodeId, styles, breakpoint, merge = true) => {
     try {
       get().dispatch((doc) => updateStyle(doc, { nodeId, styles, breakpoint, merge }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
+  replaceNodeSubtree: (nodeId, node, registry) => {
+    const state = get();
+    if (!findNodeById(state.document.document, nodeId)) {
+      return { success: false, error: `Node "${nodeId}" was not found in the document.` };
+    }
+
+    const definition = registry.get(node.type);
+    if (definition?.validateProps) {
+      const propResult = definition.validateProps(node.props ?? {});
+      if (Array.isArray(propResult) && propResult.length > 0) {
+        return { success: false, error: propResult.join(' ') };
+      }
+      if (propResult === false) {
+        return { success: false, error: `Props failed validation for "${definition.label}".` };
+      }
+    }
+
+    try {
+      get().dispatch((doc) => replaceNode(doc, { nodeId, node }));
     } catch (err) {
       return { success: false, error: formatCommandError(err) };
     }

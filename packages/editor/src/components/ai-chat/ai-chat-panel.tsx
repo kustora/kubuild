@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { PageDocument } from '@kubuild/schema';
 import { findNodeById } from '@kubuild/core';
-import { useAiChat } from '@kubuild/ai/react';
+import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
+import { useAiChat, useAiGenerator } from '@kubuild/ai/react';
 import type { AiChatMessage } from '@kubuild/ai';
 import type { AiClientOptions } from '@kubuild/ai/client';
 import { useEditorStore } from '../../store';
 import { ResolvedAiEditorConfig } from '../../config';
 import { buildAiChatContext, resolveChatSendContext } from '../../utils/ai-context';
+import {
+  runEnhanceNode,
+  diffEnhanceNode,
+  applyEnhanceCandidate,
+  type EnhanceCandidate,
+} from '../../ai/enhance-node';
 import {
   Bot,
   User,
@@ -19,6 +26,8 @@ import {
   PanelRight,
   PictureInPicture2,
   Sparkles,
+  Wand2,
+  Check,
 } from 'lucide-react';
 
 export interface AiChatPanelProps {
@@ -41,6 +50,13 @@ export interface AiChatPanelProps {
    */
   document?: PageDocument;
   selectedNodeId?: string | null;
+  /**
+   * Component registry used to validate an AI enhance candidate's props before Apply
+   * (STORA-514), the same registry manual editing (`InspectorPanel`) validates against.
+   * Defaults to `createDefaultComponentRegistry()` so existing callers/tests that predate
+   * STORA-512 keep compiling without passing one.
+   */
+  registry?: ComponentRegistry;
 }
 
 /**
@@ -62,6 +78,22 @@ function resolveEndpointOptions(
 }
 
 const PROVIDER_NOT_CONFIGURED_ENDPOINT = '__kubuild_ai_provider_not_http_configured__';
+
+/**
+ * Compact, single-line rendering of one diff field's before/after value (STORA-513) — a
+ * targeted line, never a full object dump. `undefined` renders as `(none)` so an added or
+ * removed field is legible rather than blank.
+ */
+function stringifyDiffValue(value: unknown): string {
+  if (value === undefined) return '(none)';
+  if (typeof value === 'string') return value;
+  try {
+    const json = JSON.stringify(value);
+    return json.length > 60 ? `${json.slice(0, 60)}…` : json;
+  } catch {
+    return String(value);
+  }
+}
 
 /** Exported for isolated unit testing (STORA-505) — the loading/typing bubble. */
 export function AiChatTypingIndicator() {
@@ -150,11 +182,21 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   initialMessages,
   document: propDocument,
   selectedNodeId: propSelectedNodeId,
+  registry = createDefaultComponentRegistry(),
 }) => {
   const storeState = useEditorStore();
   const document = propDocument ?? storeState.document;
   const selectedNodeId =
     propSelectedNodeId !== undefined ? propSelectedNodeId : storeState.selectedNodeId;
+  const {
+    updateNodeProps,
+    updateNodeStyle,
+    updateNodeStateStyle,
+    replaceNodeSubtree,
+    beginHistoryTransaction,
+    endHistoryTransaction,
+    aiChatFocusRequestId,
+  } = storeState;
 
   const endpointOptions = useMemo(
     () => resolveEndpointOptions(aiConfig.provider),
@@ -167,23 +209,49 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     initialMessages,
   });
 
+  // STORA-512 — a separate network boundary from `useAiChat`: an "Enhance" instruction
+  // is never sent as a chat message, it always goes through `refactorNode` so the result
+  // can be validated and previewed as a candidate before touching the document.
+  const { refactorNode, isGenerating: isEnhancing } = useAiGenerator({
+    endpoint: endpointOptions?.endpoint ?? PROVIDER_NOT_CONFIGURED_ENDPOINT,
+    headers: endpointOptions?.headers,
+  });
+
   const [inputValue, setInputValue] = useState('');
   const [contextDismissed, setContextDismissed] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  // STORA-513 — the validated enhance candidate awaiting Apply/Discard. Purely local
+  // component state: nothing here has touched the document or the command engine yet.
+  const [candidate, setCandidate] = useState<EnhanceCandidate | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Re-attach context automatically whenever the canvas selection itself changes
   // (STORA-506) — a dismissal only ever applies to the message it was dismissed for.
   useEffect(() => {
     setContextDismissed(false);
+    setCandidate(null);
   }, [selectedNodeId]);
+
+  // STORA-511 — "Ask AI about this component" bumps `aiChatFocusRequestId`; re-attach
+  // context (in case it was previously dismissed for this same node) and focus the input.
+  useEffect(() => {
+    if (aiChatFocusRequestId === 0) return;
+    setContextDismissed(false);
+    inputRef.current?.focus();
+    // Deliberately keyed only on the signal itself — it must fire once per focus
+    // request, not on every re-render this effect's body would otherwise depend on.
+  }, [aiChatFocusRequestId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, isLoading, error, localError]);
+  }, [messages, isLoading, error, localError, candidate, enhanceError]);
 
   const selectedNode = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const showContextChip = !!selectedNodeId && !contextDismissed;
+  const canEnhance =
+    aiConfig.features.enhance && !!selectedNode && !contextDismissed && !isLoading && !isEnhancing;
 
   const doSend = (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -220,6 +288,83 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const handleRetry = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     if (lastUser) doSend(lastUser.content);
+  };
+
+  /**
+   * STORA-512 — the explicit "Enhance" action: distinct from `doSend`/chat entirely, so
+   * an enhance instruction is never inferred from free text. Only ever enabled when a
+   * node is attached as context (`canEnhance`). The result is validated (STORA-509's
+   * pipeline, via `runEnhanceNode`) before ever being held as a candidate — the document
+   * itself is untouched at this point.
+   */
+  const handleEnhance = async () => {
+    const instruction = inputValue.trim();
+    if (!instruction || !selectedNode || !canEnhance) return;
+
+    if (!endpointOptions) {
+      setLocalError(
+        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
+          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
+      );
+      return;
+    }
+
+    setLocalError(null);
+    setEnhanceError(null);
+    setInputValue('');
+
+    const outcome = await runEnhanceNode(refactorNode, { node: selectedNode, instruction });
+
+    if (outcome.status === 'no-result') {
+      setEnhanceError('AI enhancement request failed. Please try again.');
+      return;
+    }
+    if (outcome.status === 'invalid') {
+      setEnhanceError(`AI enhancement produced an invalid result: ${outcome.message}`);
+      return;
+    }
+
+    setCandidate({
+      originalNode: outcome.originalNode,
+      candidateNode: outcome.candidateNode,
+      diff: diffEnhanceNode(outcome.originalNode, outcome.candidateNode),
+    });
+  };
+
+  /**
+   * STORA-514 — Apply dispatches the candidate through the exact same store actions
+   * manual editing already uses (`updateNodeProps`/`updateNodeStyle`, or `replaceNode`
+   * only when the candidate's children changed structurally) — see `applyEnhanceCandidate`.
+   */
+  const handleApplyEnhance = () => {
+    if (!candidate) return;
+    const result = applyEnhanceCandidate(candidate, {
+      updateNodeProps: (nodeId, props, merge) => updateNodeProps(nodeId, props, registry, merge),
+      updateNodeStyle: (nodeId, styles, breakpoint, merge) =>
+        updateNodeStyle(nodeId, styles, breakpoint, merge),
+      updateNodeStateStyle: (nodeId, styles, state, merge) =>
+        updateNodeStateStyle(nodeId, styles, state, merge),
+      replaceNodeSubtree: (nodeId, node) => replaceNodeSubtree(nodeId, node, registry),
+      beginHistoryTransaction,
+      endHistoryTransaction,
+    });
+
+    if (!result.success) {
+      setEnhanceError(result.error ?? 'Failed to apply the AI enhancement.');
+      return;
+    }
+
+    setCandidate(null);
+    setEnhanceError(null);
+  };
+
+  /**
+   * STORA-513 — Discard leaves zero trace: the candidate only ever lived in local state
+   * (`candidate`), never dispatched to the store, so clearing it is the entire operation.
+   */
+  const handleDiscardEnhance = () => {
+    setCandidate(null);
+    setEnhanceError(null);
   };
 
   const header = (
@@ -275,8 +420,89 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           <AiChatBubble key={`${message.role}-${message.timestamp ?? idx}-${idx}`} message={message} />
         ))}
         {isLoading && <AiChatTypingIndicator />}
+        {isEnhancing && (
+          <div
+            className="flex items-center gap-2 self-start max-w-[85%]"
+            data-testid="ai-enhance-loading"
+          >
+            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <Wand2 className="w-3.5 h-3.5 text-blue-600" />
+            </div>
+            <div className="bg-blue-50 text-blue-600 rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span className="text-xs">Enhancing…</span>
+            </div>
+          </div>
+        )}
         {(error || localError) && (
           <AiChatErrorBubble message={error?.message || localError || 'Something went wrong.'} onRetry={handleRetry} />
+        )}
+        {enhanceError && !candidate && (
+          <AiChatErrorBubble message={enhanceError} onRetry={handleEnhance} />
+        )}
+
+        {/* STORA-513 — enhance diff preview: only props/styles/children fields that
+            actually changed, never a full node dump, plus Apply/Discard. */}
+        {candidate && (
+          <div
+            data-testid="ai-enhance-preview"
+            className="self-stretch flex flex-col gap-2 bg-white border border-blue-200 rounded-xl px-3 py-2.5 shadow-xs"
+          >
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+              <Wand2 className="w-3.5 h-3.5 text-blue-600" />
+              <span>
+                Enhance preview — #{candidate.originalNode.type}:{candidate.originalNode.id}
+              </span>
+            </div>
+
+            {candidate.diff.fields.length === 0 && !candidate.diff.childrenChanged ? (
+              <p className="text-[11px] text-slate-500">AI did not change anything.</p>
+            ) : (
+              <div className="flex flex-col gap-1 max-h-40 overflow-y-auto" data-testid="ai-enhance-diff-fields">
+                {candidate.diff.fields.map((field) => (
+                  <div
+                    key={field.path}
+                    data-testid="ai-enhance-diff-field"
+                    className="text-[11px] font-mono bg-slate-50 border border-slate-200 rounded px-1.5 py-1 break-words"
+                  >
+                    <span className="text-slate-500">{field.path}: </span>
+                    <span className="text-red-600 line-through">{stringifyDiffValue(field.before)}</span>
+                    <span className="text-slate-400"> → </span>
+                    <span className="text-green-700">{stringifyDiffValue(field.after)}</span>
+                  </div>
+                ))}
+                {candidate.diff.childrenChanged && (
+                  <div
+                    data-testid="ai-enhance-diff-children"
+                    className="text-[11px] font-mono bg-amber-50 border border-amber-200 text-amber-700 rounded px-1.5 py-1"
+                  >
+                    Nested content changed
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5 justify-end pt-1">
+              <button
+                type="button"
+                data-testid="ai-enhance-discard"
+                onClick={handleDiscardEnhance}
+                className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Discard
+              </button>
+              <button
+                type="button"
+                data-testid="ai-enhance-apply"
+                onClick={handleApplyEnhance}
+                className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-md transition flex items-center gap-1"
+              >
+                <Check className="w-3 h-3" />
+                Apply
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -304,6 +530,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
         <div className="flex items-center gap-1.5">
           <input
+            ref={inputRef}
             type="text"
             data-testid="ai-chat-input"
             value={inputValue}
@@ -311,6 +538,21 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             placeholder="Ask AI anything about this page…"
             className="flex-1 min-w-0 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
+          {/* STORA-512 — explicit, distinct action from Send: an enhance instruction is
+              only ever triggered here, never inferred from the message text itself. Only
+              enabled once a node is attached as context and an instruction is typed. */}
+          {aiConfig.features.enhance && (
+            <button
+              type="button"
+              data-testid="ai-chat-enhance"
+              title={selectedNode ? 'Enhance selected component with AI' : 'Select a component first'}
+              onClick={handleEnhance}
+              disabled={!canEnhance || !inputValue.trim() || isEnhancing}
+              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           {isLoading ? (
             <button
               type="button"

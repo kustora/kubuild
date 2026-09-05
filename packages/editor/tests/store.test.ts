@@ -946,4 +946,79 @@ describe('Editor Store', () => {
       expect(useEditorStore.getState().aiChatMode).toBe('docked');
     });
   });
+
+  describe('requestAiChatFocus (STORA-511)', () => {
+    it('starts at 0 and increments on every call', () => {
+      useEditorStore.getState().setDocument(createBlankDocument('Focus Signal Test'));
+      expect(useEditorStore.getState().aiChatFocusRequestId).toBe(0);
+
+      useEditorStore.getState().requestAiChatFocus();
+      expect(useEditorStore.getState().aiChatFocusRequestId).toBe(1);
+
+      useEditorStore.getState().requestAiChatFocus();
+      expect(useEditorStore.getState().aiChatFocusRequestId).toBe(2);
+    });
+
+    it('is UI-only: setDocument does not reset the counter', () => {
+      useEditorStore.getState().requestAiChatFocus();
+      const before = useEditorStore.getState().aiChatFocusRequestId;
+      useEditorStore.getState().setDocument(createBlankDocument('Fresh Doc'));
+      expect(useEditorStore.getState().aiChatFocusRequestId).toBe(before);
+    });
+  });
+
+  describe('replaceNodeSubtree (STORA-514: AI enhance structural apply)', () => {
+    const registry = createDefaultComponentRegistry();
+
+    it('replaces a node subtree in place and is undoable', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+
+      const result = useEditorStore.getState().replaceNodeSubtree(
+        'child-node',
+        {
+          id: 'child-node',
+          type: 'heading',
+          props: { text: 'AI Enhanced' },
+          children: [{ id: 'child-node-badge', type: 'text', props: { text: 'New' } }],
+        },
+        registry,
+      );
+
+      expect(result.success).toBe(true);
+      const node = useEditorStore.getState().document.document.children?.[0];
+      expect(node?.props?.text).toBe('AI Enhanced');
+      expect(node?.children?.[0]?.id).toBe('child-node-badge');
+      expect(useEditorStore.getState().canUndo).toBe(true);
+
+      useEditorStore.getState().undo();
+      const restored = useEditorStore.getState().document.document.children?.[0];
+      expect(restored?.props?.text).toBe('Hello');
+      expect(restored?.children ?? []).toHaveLength(0);
+    });
+
+    it('rejects a replacement whose props fail registry validation, leaving the document unchanged', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+      const before = useEditorStore.getState().document;
+
+      const result = useEditorStore
+        .getState()
+        .replaceNodeSubtree('child-node', { id: 'child-node', type: 'heading', props: { text: '' } }, registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('non-empty');
+      expect(useEditorStore.getState().document).toBe(before);
+      expect(useEditorStore.getState().canUndo).toBe(false);
+    });
+
+    it('rejects replacing an unknown nodeId without throwing', () => {
+      useEditorStore.getState().setDocument(docWithChild());
+
+      const result = useEditorStore
+        .getState()
+        .replaceNodeSubtree('does-not-exist', { id: 'does-not-exist', type: 'text', props: {} }, registry);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+    });
+  });
 });

@@ -286,6 +286,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
       {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'floating') && (
         <AiChatPanel
           aiConfig={resolvedAiConfig}
+          registry={registry}
           mode="floating"
           onToggleMode={() => setAiChatMode('docked')}
           onClose={() => setAiChatMode('hidden')}
@@ -355,7 +356,11 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
               </button>
             </div>
             <div className="flex-1 overflow-hidden min-h-0">
-              <InspectorPanel registry={registry} config={resolvedConfig.inspector} />
+              <InspectorPanel
+                registry={registry}
+                config={resolvedConfig.inspector}
+                aiConfig={resolvedAiConfig}
+              />
             </div>
           </div>
         </div>
@@ -539,6 +544,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           <div className="hidden lg:flex w-80 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full">
             <AiChatPanel
               aiConfig={resolvedAiConfig}
+              registry={registry}
               mode="docked"
               onToggleMode={() => setAiChatMode('floating')}
               onClose={() => setAiChatMode('hidden')}

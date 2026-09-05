@@ -12,6 +12,7 @@ import {
   duplicateNode,
   wrapNodeIntoFrame,
   ungroupNodeFrame,
+  replaceNode,
   findNodeLocation,
   isDescendantOf,
   getNavigationTarget,
@@ -575,6 +576,7 @@ describe('STORA-012: Immutable Command Engine', () => {
       expect(typeof updateStyle).toBe('function');
       expect(typeof removeNode).toBe('function');
       expect(typeof duplicateNode).toBe('function');
+      expect(typeof replaceNode).toBe('function');
     });
   });
 
@@ -1091,6 +1093,78 @@ describe('STORA-012: Immutable Command Engine', () => {
       expect(wrapResult.document).toEqual(snapshot);
     });
   });
+
+  describe('Command: replaceNode (STORA-514: AI enhance structural apply)', () => {
+    it('replaces a node subtree in place, preserving its position and id', () => {
+      const doc = createSampleDoc();
+      const replacement: Node = {
+        id: 'heading-1',
+        type: 'heading',
+        props: { title: 'AI Enhanced Title' },
+        styles: { base: { color: '#ffffff', fontWeight: 'bold' } },
+        children: [{ id: 'heading-1-badge', type: 'text', props: { text: 'New' } }],
+      };
+
+      const result = replaceNode(doc, { nodeId: 'heading-1', node: replacement });
+
+      expect(result.event.type).toBe('NODE_REPLACED');
+      expect(result.event.nodeId).toBe('heading-1');
+      expect(result.event.parentId).toBe('container-1');
+      expect(result.event.index).toBe(0);
+
+      const container = findNodeById(result.document.document, 'container-1');
+      expect(container?.children?.[0]).toEqual(replacement);
+      // Sibling (button-1) untouched and still at its original position.
+      expect(container?.children?.[1].id).toBe('button-1');
+    });
+
+    it('rejects a replacement whose id does not match the target nodeId', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        replaceNode(doc, {
+          nodeId: 'heading-1',
+          node: { id: 'something-else', type: 'heading', props: {} },
+        });
+      }).toThrow(/must match target node id/);
+    });
+
+    it('rejects replacing the root page node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        replaceNode(doc, { nodeId: 'root-page', node: { id: 'root-page', type: 'page', props: {} } });
+      }).toThrow(/Cannot replace the root page node/);
+    });
+
+    it('rejects replacing a non-existent node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        replaceNode(doc, { nodeId: 'unknown-node', node: { id: 'unknown-node', type: 'text', props: {} } });
+      }).toThrow(/not found in document/);
+    });
+
+    it('rejects a replacement subtree whose id collides with another node elsewhere in the document', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        replaceNode(doc, {
+          nodeId: 'heading-1',
+          // 'button-1' already exists as heading-1's sibling.
+          node: { id: 'heading-1', type: 'heading', props: {}, children: [{ id: 'button-1', type: 'text' }] },
+        });
+      }).toThrow(/Duplicate node ID "button-1"/);
+    });
+
+    it('does not mutate the input document', () => {
+      const doc = createSampleDoc();
+      const snapshot = JSON.parse(JSON.stringify(doc));
+
+      replaceNode(doc, {
+        nodeId: 'heading-1',
+        node: { id: 'heading-1', type: 'heading', props: { title: 'Changed' } },
+      });
+
+      expect(doc).toEqual(snapshot);
+    });
+  });
 });
 
 describe('STORA-013: Generic Undo/Redo History Engine', () => {
@@ -1188,6 +1262,29 @@ describe('STORA-013: Generic Undo/Redo History Engine', () => {
 
       manager.redo();
       expect(manager.document).toEqual(updateResult.document);
+    });
+
+    it('restores identical state for replaceNode (STORA-514: AI enhance apply/undo)', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      const replaceResult = manager.execute((doc) =>
+        replaceNode(doc, {
+          nodeId: 'heading-1',
+          node: {
+            id: 'heading-1',
+            type: 'heading',
+            props: { title: 'AI Enhanced Title' },
+            children: [{ id: 'heading-1-badge', type: 'text', props: { text: 'New' } }],
+          },
+        }),
+      );
+
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+
+      manager.redo();
+      expect(manager.document).toEqual(replaceResult.document);
     });
 
     it('restores identical state for updateStyle', () => {
