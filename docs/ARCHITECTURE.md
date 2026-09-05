@@ -1541,3 +1541,48 @@ Template -> contains Document
 ```
 
 This makes the entire ecosystem portable and keeps `kubuild` independent from Stora.page.
+
+---
+
+# 40. AI Integration Architecture
+
+Reference: `docs/PRD.md` §31, `docs/todo.md` Phase 10 (STORA-500–524).
+
+## Package Position
+
+`@kubuild/ai` depends only on `@kubuild/core` and `@kubuild/schema` — never on `@kubuild/editor`, `@kubuild/react`, or React itself (React is an optional peer dependency only for its own `./react` subpath).
+
+Only `@kubuild/editor` and `@kubuild/react` take a new dependency on `@kubuild/ai` (its `./react` and `./client` subpaths). This does not violate the existing dependency direction rule (§6): `core` never imports `ai`, and `ai` never imports `editor`/`react`.
+
+Host apps (e.g. Stora.page) own the AI provider adapter, API key, and endpoint. `kubuild` never hardcodes a provider — same pattern as `registry`/`context`/asset providers.
+
+## Generation Modes
+
+`@kubuild/ai` exposes four modes through one engine (`KubuildAiEngine`) and one HTTP handler (`createAiHandler`):
+
+- `full-page` — prompt to whole `PageDocument`. Streamable (`streamPage`): plan sections once, then generate and emit each section as its own event.
+- `section` — prompt to a single section `Node`.
+- `refactor` — existing `Node` plus instruction to replacement `Node`; identity (`id`/`type`) preserved.
+- `chat` — conversational Q&A grounded in the live document and selected node id.
+
+## Document Safety
+
+AI output is treated exactly like `.stora` import (§31 Security Model): normalize, then schema validation (`PageDocumentSchema`/`Node`), then `validateDocumentSecurity` (depth/count/size limits, no `javascript:` URIs) — only then dispatched into the document, and only through the same command engine as manual edits.
+
+```
+AI Provider -> raw JSON -> normalize -> schema validate -> security validate -> Command -> Document -> History
+```
+
+No AI output ever bypasses the command engine. This preserves undo/redo, diagnostics, and the "Document is the source of truth" rule (§39) unchanged. A full `streamPage` session is grouped as one history entry, so a single `undo()` reverts the whole generation.
+
+## Editor Integration Point
+
+- New optional `KubuildEditorProps` field (`AiEditorConfig`): provider adapter/endpoint, per-feature flags (chat/generate on/off), default panel mode — same pattern as the existing `registry`/`context`/`config` props.
+- AI Chat Panel follows the existing panel pattern (`docked | floating | hidden`, like `navigatorMode`/`tableSpreadsheetMode` in `EditorState`) — UI-only state, never serialized into the document.
+- `selectedNodeId` (already in `EditorState`) is the bridge to `AiChatRequest.selectedNodeId` / `AiRefactorNodeRequest.node` — no new selection model needed.
+
+## Non-Goals
+
+- No agentic tool-use / AI calling external actions.
+- No AI-only editing path — manual editing (drag/drop, inspector) must always work without AI configured.
+- No provider API key management or billing UI inside `kubuild` — host responsibility.
