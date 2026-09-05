@@ -62,8 +62,105 @@ export const StyleValueSchema = z.union([
   z.null(),
   z.undefined(),
 ]);
-export const StyleDefinitionSchema = z.record(z.string(), StyleValueSchema);
-export type StyleDefinition = Record<string, string | number | boolean | null | undefined>;
+
+export type StyleValue = z.infer<typeof StyleValueSchema>;
+
+/**
+ * Standard CSS style definition supporting Flexbox (STORA-101), Sizing constraints (STORA-101),
+ * Effects & rounded corners (STORA-101), CSS Grid (STORA-110), and arbitrary CSS properties/tokens.
+ */
+export interface StyleDefinition extends Record<string, StyleValue> {
+  // Display
+  display?: string;
+
+  // Flexbox / Auto Layout (STORA-101)
+  flexDirection?: 'row' | 'row-reverse' | 'column' | 'column-reverse' | (string & {});
+  flexWrap?: 'nowrap' | 'wrap' | 'wrap-reverse' | (string & {});
+  justifyContent?:
+    | 'flex-start'
+    | 'flex-end'
+    | 'center'
+    | 'space-between'
+    | 'space-around'
+    | 'space-evenly'
+    | 'start'
+    | 'end'
+    | 'left'
+    | 'right'
+    | (string & {});
+  alignItems?:
+    | 'stretch'
+    | 'flex-start'
+    | 'flex-end'
+    | 'center'
+    | 'baseline'
+    | 'start'
+    | 'end'
+    | 'self-start'
+    | 'self-end'
+    | (string & {});
+  alignContent?:
+    | 'flex-start'
+    | 'flex-end'
+    | 'center'
+    | 'space-between'
+    | 'space-around'
+    | 'space-evenly'
+    | 'stretch'
+    | 'start'
+    | 'end'
+    | (string & {});
+  gap?: string | number;
+  rowGap?: string | number;
+  columnGap?: string | number;
+  flexGrow?: number | string;
+  flexShrink?: number | string;
+  flexBasis?: string | number;
+  alignSelf?:
+    | 'auto'
+    | 'flex-start'
+    | 'flex-end'
+    | 'center'
+    | 'baseline'
+    | 'stretch'
+    | (string & {});
+
+  // Sizing constraints (STORA-101)
+  width?: string | number;
+  height?: string | number;
+  minWidth?: string | number;
+  maxWidth?: string | number;
+  minHeight?: string | number;
+  maxHeight?: string | number;
+
+  // Effects & Rounded Corners (STORA-101)
+  borderRadius?: string | number;
+  borderTopLeftRadius?: string | number;
+  borderTopRightRadius?: string | number;
+  borderBottomRightRadius?: string | number;
+  borderBottomLeftRadius?: string | number;
+  backdropFilter?: string;
+  filter?: string;
+  boxShadow?: string;
+
+  // CSS Grid (STORA-110)
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridAutoFlow?: string;
+  gridAutoColumns?: string;
+  gridAutoRows?: string;
+  gridColumn?: string | number;
+  gridRow?: string | number;
+  gridColumnStart?: string | number;
+  gridColumnEnd?: string | number;
+  gridRowStart?: string | number;
+  gridRowEnd?: string | number;
+  colSpan?: number | string;
+  rowSpan?: number | string;
+  justifySelf?: string;
+}
+
+export const StyleDefinitionSchema: z.ZodType<StyleDefinition> = z.record(z.string(), StyleValueSchema);
 
 /**
  * Pseudo-state style definitions keyed by CSS pseudo-class selector

@@ -2,6 +2,8 @@ import { ComponentDefinition, ComponentRegistry } from '../registry';
 import {
   columnsDefinition,
   containerDefinition,
+  flexDefinition,
+  gridDefinition,
   pageDefinition,
   sectionDefinition,
 } from './layout';
@@ -56,6 +58,8 @@ export const coreComponentDefinitions: ComponentDefinition[] = [
   sectionDefinition,
   containerDefinition,
   columnsDefinition,
+  flexDefinition,
+  gridDefinition,
   headingDefinition,
   textDefinition,
   paragraphDefinition,

@@ -8,7 +8,7 @@ export const columnsDefinition: ComponentDefinition = {
   category: 'layout',
   icon: 'columns',
   acceptsChildren: true,
-  allowedChildren: ['container', ...CONTENT_CHILD_TYPES],
+  allowedChildren: ['container', 'flex', 'grid', ...CONTENT_CHILD_TYPES],
   defaultProps: { columns: 2, gap: '16px' },
   traits: [
     idTrait(),

@@ -29,7 +29,9 @@ export type DocumentChangeType =
   | 'ACTIONS_UPDATED'
   | 'FORM_CONFIG_UPDATED'
   | 'NODE_REMOVED'
-  | 'NODE_DUPLICATED';
+  | 'NODE_DUPLICATED'
+  | 'NODE_WRAPPED'
+  | 'NODE_UNGROUPED';
 
 export interface DocumentChangeEvent {
   type: DocumentChangeType;
@@ -98,6 +100,24 @@ export interface DuplicateNodeParams {
   targetParentId?: string;
   index?: number;
   idGenerator?: (oldId: string) => string;
+}
+
+export interface WrapNodeIntoFrameParams {
+  /** Single node ID to wrap into a frame. */
+  nodeId?: string;
+  /** Multiple node IDs to wrap into a frame. */
+  nodeIds?: string[] | string;
+  /** Optional custom ID for the created flex frame container. */
+  frameId?: string;
+  /** Optional custom props for the flex frame container. */
+  frameProps?: Record<string, unknown>;
+  /** Optional custom responsive styles for the flex frame container. */
+  frameStyles?: ResponsiveStyles;
+}
+
+export interface UngroupNodeFrameParams {
+  /** Node ID of the flex container to unwrap. */
+  nodeId: string;
 }
 
 /**
@@ -656,6 +676,182 @@ export function updateFormConfig(
       payload: {
         formConfig: targetNode.formConfig,
         previousFormConfig,
+      },
+    },
+  };
+}
+
+/**
+ * 10. Wrap specified node(s) into a new flex container node at the same position in the parent.
+ * Preserves sibling ordering and returns a new PageDocument and a NODE_WRAPPED event.
+ * Full undo/redo compatibility with DocumentHistoryManager. (STORA-105)
+ */
+export function wrapNodeIntoFrame(
+  document: PageDocument,
+  params: WrapNodeIntoFrameParams,
+): CommandResult {
+  const rawIds =
+    params.nodeIds !== undefined
+      ? Array.isArray(params.nodeIds)
+        ? params.nodeIds
+        : [params.nodeIds]
+      : params.nodeId
+        ? [params.nodeId]
+        : [];
+
+  const targetIds = Array.from(
+    new Set(rawIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)),
+  );
+
+  if (targetIds.length === 0) {
+    throw new Error('Cannot wrap nodes: At least one node ID must be provided.');
+  }
+
+  // Prevent wrapping the root page node
+  if (targetIds.includes(document.document.id)) {
+    throw new Error('Cannot wrap the root page node.');
+  }
+
+  const newDoc = deepClone(document);
+
+  // Locate all target nodes in the tree
+  const locations: Array<{ node: Node; parent: Node; index: number }> = [];
+  for (const id of targetIds) {
+    const loc = findNodeLocation(newDoc.document, id);
+    if (!loc || !loc.parent) {
+      throw new Error(`Cannot wrap node: Node with ID "${id}" not found in document.`);
+    }
+    locations.push(loc as { node: Node; parent: Node; index: number });
+  }
+
+  // Verify all target nodes share the exact same parent container
+  const parentId = locations[0].parent.id;
+  const parentNode = locations[0].parent;
+  for (const loc of locations) {
+    if (loc.parent.id !== parentId) {
+      throw new Error('Cannot wrap nodes: All nodes must share the same parent container.');
+    }
+  }
+
+  // Determine frame ID
+  const existingIds = collectNodeIdSet(newDoc.document);
+  let frameId = params.frameId;
+  if (frameId) {
+    if (existingIds.has(frameId)) {
+      throw new Error(`Cannot wrap nodes: Node ID "${frameId}" already exists in document.`);
+    }
+  } else {
+    let counter = 1;
+    while (existingIds.has(`flex_${counter}`)) {
+      counter++;
+    }
+    frameId = `flex_${counter}`;
+  }
+
+  // Sort locations by their index in the parent to preserve original sibling order
+  locations.sort((a, b) => a.index - b.index);
+
+  // The insertion position in the parent is the index of the first node being wrapped
+  const minIndex = locations[0].index;
+  const wrappedNodes = locations.map((loc) => loc.node);
+
+  // Remove the target nodes from the parent's children
+  const targetIdSet = new Set(targetIds);
+  parentNode.children = (parentNode.children || []).filter((child) => !targetIdSet.has(child.id));
+
+  // Default flex container styles (STORA-102)
+  const defaultFlexStyles: ResponsiveStyles = {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+    },
+  };
+
+  const frameNode: Node = {
+    id: frameId,
+    type: 'flex',
+    props: deepClone(params.frameProps || {}),
+    styles: deepClone(params.frameStyles || defaultFlexStyles),
+    children: wrappedNodes,
+  };
+
+  // Insert the frame node into the parent at minIndex
+  const insertIndex = Math.min(minIndex, parentNode.children.length);
+  parentNode.children.splice(insertIndex, 0, frameNode);
+
+  return {
+    document: newDoc,
+    event: {
+      type: 'NODE_WRAPPED',
+      timestamp: new Date().toISOString(),
+      nodeId: frameId,
+      parentId,
+      index: insertIndex,
+      payload: {
+        wrappedNodeIds: targetIds,
+        frameNode: deepClone(frameNode),
+      },
+    },
+  };
+}
+
+/**
+ * 11. Unwrap a flex frame container, moving all of its children to its parent at its position,
+ * and removing the container.
+ * Returns a new PageDocument and a NODE_UNGROUPED event.
+ * Full undo/redo compatibility with DocumentHistoryManager. (STORA-106)
+ */
+export function ungroupNodeFrame(
+  document: PageDocument,
+  params: UngroupNodeFrameParams,
+): CommandResult {
+  const { nodeId } = params;
+
+  if (!nodeId || typeof nodeId !== 'string' || nodeId.trim().length === 0) {
+    throw new Error('Invalid nodeId: Node ID must be a non-empty string.');
+  }
+
+  if (nodeId === document.document.id) {
+    throw new Error('Cannot ungroup the root page node.');
+  }
+
+  const newDoc = deepClone(document);
+  const loc = findNodeLocation(newDoc.document, nodeId);
+  if (!loc || !loc.parent) {
+    throw new Error(`Cannot ungroup node: Node with ID "${nodeId}" not found in document.`);
+  }
+
+  const targetNode = loc.node;
+  const parentNode = loc.parent;
+  const targetIndex = loc.index;
+
+  // Verify that the node is a flex container
+  if (targetNode.type !== 'flex') {
+    throw new Error(`Cannot ungroup node: Node "${nodeId}" is not a flex container (type is "${targetNode.type}").`);
+  }
+
+  const unwrappedChildren = targetNode.children ? deepClone(targetNode.children) : [];
+
+  if (!parentNode.children) {
+    parentNode.children = [];
+  }
+
+  // Replace the frame container at targetIndex with all of its children in place
+  parentNode.children.splice(targetIndex, 1, ...unwrappedChildren);
+
+  return {
+    document: newDoc,
+    event: {
+      type: 'NODE_UNGROUPED',
+      timestamp: new Date().toISOString(),
+      nodeId,
+      parentId: parentNode.id,
+      index: targetIndex,
+      payload: {
+        unwrappedChildIds: unwrappedChildren.map((c) => c.id),
+        unwrappedChildren,
+        removedNode: deepClone(targetNode),
       },
     },
   };

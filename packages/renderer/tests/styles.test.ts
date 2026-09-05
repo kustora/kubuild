@@ -119,3 +119,160 @@ describe('STORA-222: Dynamic hover style compilation', () => {
     expect(css).not.toContain(';d');
   });
 });
+
+describe('CSS Grid, Auto Layout Flex, Sizing, and Effect Styles Resolution', () => {
+  it('resolves CSS Grid container properties', () => {
+    const styles = resolveNodeStyles({
+      base: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+        gridTemplateRows: 'repeat(2, 100px)',
+        gridAutoFlow: 'row dense',
+        columnGap: 16,
+        rowGap: 24,
+      },
+    });
+
+    expect(styles.display).toBe('grid');
+    expect(styles.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+    expect(styles.gridTemplateRows).toBe('repeat(2, 100px)');
+    expect(styles.gridAutoFlow).toBe('row dense');
+    expect(styles.columnGap).toBe('16px');
+    expect(styles.rowGap).toBe('24px');
+  });
+
+  it('resolves colSpan and rowSpan into CSS gridColumn and gridRow', () => {
+    const stylesNum = resolveNodeStyles({
+      base: {
+        colSpan: 2,
+        rowSpan: 3,
+      },
+    });
+    expect(stylesNum.gridColumn).toBe('span 2');
+    expect(stylesNum.gridRow).toBe('span 3');
+
+    const stylesStr = resolveNodeStyles({
+      base: {
+        colSpan: '4',
+        rowSpan: 'span 2',
+      },
+    });
+    expect(stylesStr.gridColumn).toBe('span 4');
+    expect(stylesStr.gridRow).toBe('span 2');
+  });
+
+  it('resolves Auto Layout flex properties and converts numeric gaps to px', () => {
+    const styles = resolveNodeStyles({
+      base: {
+        display: 'flex',
+        flexDirection: 'column',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 12,
+        flexGrow: 1,
+        flexShrink: 0,
+      },
+    });
+
+    expect(styles.display).toBe('flex');
+    expect(styles.flexDirection).toBe('column');
+    expect(styles.flexWrap).toBe('wrap');
+    expect(styles.justifyContent).toBe('space-between');
+    expect(styles.alignItems).toBe('center');
+    expect(styles.gap).toBe('12px');
+    expect(styles.flexGrow).toBe(1);
+    expect(styles.flexShrink).toBe(0);
+  });
+
+  it('resolves child sizing modes: fit-content (hug) and fill (flex: 1 1 0%)', () => {
+    const hugStyles = resolveNodeStyles({
+      base: {
+        width: 'hug',
+        height: 'fit-content',
+      },
+    });
+    expect(hugStyles.width).toBe('fit-content');
+    expect(hugStyles.height).toBe('fit-content');
+
+    const fillStyles = resolveNodeStyles({
+      base: {
+        width: 'fill',
+        sizingMode: 'fill',
+      },
+    });
+    expect(fillStyles.width).toBe('100%');
+    expect(fillStyles.flex).toBe('1 1 0%');
+
+    const explicitFlexStyles = resolveNodeStyles({
+      base: {
+        flex: '1 1 0%',
+      },
+    });
+    expect(explicitFlexStyles.flex).toBe('1 1 0%');
+  });
+
+  it('resolves 4-corner border radius into valid CSS styles', () => {
+    const styles = resolveNodeStyles({
+      base: {
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 12,
+        borderBottomRightRadius: '16px',
+        borderBottomLeftRadius: 4,
+      },
+    });
+
+    expect(styles.borderTopLeftRadius).toBe('8px');
+    expect(styles.borderTopRightRadius).toBe('12px');
+    expect(styles.borderBottomRightRadius).toBe('16px');
+    expect(styles.borderBottomLeftRadius).toBe('4px');
+  });
+
+  it('resolves backdrop blur into backdropFilter and WebkitBackdropFilter', () => {
+    const blurNumStyles = resolveNodeStyles({
+      base: {
+        backdropBlur: 16,
+      },
+    });
+    expect(blurNumStyles.backdropFilter).toBe('blur(16px)');
+    expect(blurNumStyles.WebkitBackdropFilter).toBe('blur(16px)');
+
+    const filterStyles = resolveNodeStyles({
+      base: {
+        backdropFilter: 'blur(20px) saturate(180%)',
+      },
+    });
+    expect(filterStyles.backdropFilter).toBe('blur(20px) saturate(180%)');
+    expect(filterStyles.WebkitBackdropFilter).toBe('blur(20px) saturate(180%)');
+  });
+
+  it('resolves linear and radial gradients into backgroundImage', () => {
+    const linearStyles = resolveNodeStyles({
+      base: {
+        gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      },
+    });
+    expect(linearStyles.backgroundImage).toBe('linear-gradient(135deg, #667eea 0%, #764ba2 100%)');
+
+    const radialStyles = resolveNodeStyles({
+      base: {
+        backgroundGradient: 'radial-gradient(circle at center, #ff0000 0%, #0000ff 100%)',
+      },
+    });
+    expect(radialStyles.backgroundImage).toBe('radial-gradient(circle at center, #ff0000 0%, #0000ff 100%)');
+  });
+
+  it('compiles normalized styles into CSS declarations via styleDefinitionToCssDeclarations', () => {
+    const css = styleDefinitionToCssDeclarations({
+      colSpan: 2,
+      backdropBlur: 10,
+      gradient: 'linear-gradient(90deg, #f00, #00f)',
+    });
+
+    expect(css).toContain('grid-column: span 2;');
+    expect(css).toContain('backdrop-filter: blur(10px);');
+    expect(css).toContain('-webkit-backdrop-filter: blur(10px);');
+    expect(css).toContain('background-image: linear-gradient(90deg, #f00, #00f);');
+  });
+});
+

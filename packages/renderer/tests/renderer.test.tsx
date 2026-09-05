@@ -1427,6 +1427,148 @@ describe('STORA-052: Collection rendering', () => {
       expect(editorHtml).toContain('type="button"'); // Buttons inside editor use type="button" to prevent form submit refresh
     });
   });
+
+  describe('Flex Frame, CSS Grid Container, and Effect Rendering', () => {
+    const registry = createDefaultComponentRegistry();
+
+    it('renders flex frame containers with Auto Layout styles in runtime and editor modes', () => {
+      const doc = createBlankDocument('Flex Layout Page');
+      doc.document.children = [
+        {
+          id: 'flex-frame-1',
+          type: 'flex',
+          props: { ariaLabel: 'Auto Layout Container' },
+          styles: {
+            base: {
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              padding: '24px',
+              backgroundColor: '#f8fafc',
+            },
+          },
+          children: [
+            {
+              id: 'btn-child',
+              type: 'button',
+              props: { label: 'Submit Now' },
+              styles: { base: { width: 'fit-content' } },
+            },
+            {
+              id: 'text-child',
+              type: 'text',
+              props: { content: 'Auto layout item description' },
+              styles: { base: { width: 'fill' } },
+            },
+          ],
+        },
+      ];
+
+      // Runtime Mode
+      const runtimeHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(runtimeHtml).toContain('data-kubuild-node="flex-frame-1"');
+      expect(runtimeHtml).toContain('aria-label="Auto Layout Container"');
+      expect(runtimeHtml).toContain('display:flex');
+      expect(runtimeHtml).toContain('flex-direction:column');
+      expect(runtimeHtml).toContain('gap:16px');
+      expect(runtimeHtml).not.toContain('Unknown Component');
+
+      // Editor Mode
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      expect(editorHtml).toContain('data-kubuild-node="flex-frame-1"');
+      expect(editorHtml).not.toContain('Unknown Component: flex');
+      expect(editorHtml).toContain('Submit Now');
+    });
+
+    it('renders grid containers with CSS Grid columns and child placement styles', () => {
+      const doc = createBlankDocument('Grid Layout Page');
+      doc.document.children = [
+        {
+          id: 'grid-frame-1',
+          type: 'grid',
+          props: { ariaLabel: 'Dashboard Grid' },
+          styles: {
+            base: {
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 20,
+            },
+          },
+          children: [
+            {
+              id: 'card-1',
+              type: 'container',
+              styles: {
+                base: {
+                  colSpan: 2,
+                  rowSpan: 1,
+                  backgroundColor: '#ffffff',
+                },
+              },
+              children: [
+                { id: 'card-1-text', type: 'text', props: { content: 'Wide Card' } },
+              ],
+            },
+            {
+              id: 'card-2',
+              type: 'container',
+              styles: {
+                base: {
+                  colSpan: 1,
+                  backgroundColor: '#f1f5f9',
+                },
+              },
+              children: [
+                { id: 'card-2-text', type: 'text', props: { content: 'Side Card' } },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(html).toContain('data-kubuild-node="grid-frame-1"');
+      expect(html).toContain('aria-label="Dashboard Grid"');
+      expect(html).toContain('display:grid');
+      expect(html).toContain('grid-template-columns:repeat(3, minmax(0, 1fr))');
+      expect(html).toContain('gap:20px');
+      expect(html).toContain('grid-column:span 2');
+      expect(html).toContain('grid-row:span 1');
+      expect(html).not.toContain('Unknown Component');
+    });
+
+    it('renders containers with backdrop blur, 4-corner border radius, and gradients', () => {
+      const doc = createBlankDocument('Effects Page');
+      doc.document.children = [
+        {
+          id: 'glass-card',
+          type: 'container',
+          styles: {
+            base: {
+              backdropBlur: 12,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              borderBottomRightRadius: 4,
+              borderBottomLeftRadius: 4,
+              gradient: 'linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.2))',
+            },
+          },
+          children: [
+            { id: 'glass-text', type: 'text', props: { content: 'Glassmorphism Card' } },
+          ],
+        },
+      ];
+
+      const html = renderToString(<KubuildRenderer document={doc} registry={registry} mode="runtime" />);
+      expect(html).toContain('backdrop-filter:blur(12px)');
+      expect(html).toContain('border-top-left-radius:16px');
+      expect(html).toContain('border-top-right-radius:16px');
+      expect(html).toContain('border-bottom-right-radius:4px');
+      expect(html).toContain('border-bottom-left-radius:4px');
+      expect(html).toContain('background-image:linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.2))');
+    });
+  });
 });
+
 
 

@@ -538,6 +538,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     viewport,
     updateNodeProps,
     updateNodeStyle,
+    resetNodeStyleProperty,
+    resetNodeViewportStyles,
     updateNodeStateStyle,
     updateNodeAnimation,
     updateNodeFormConfig,
@@ -739,6 +741,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     activeState === 'default'
       ? ((node.styles?.[activeBreakpoint] as Record<string, unknown> | undefined) ?? {})
       : ((node.styles?.states?.[activeState] as Record<string, unknown> | undefined) ?? {});
+
+  const nodeLocation = findNodeLocation(document.document, node.id);
+  const parentNode = nodeLocation?.parent;
+  const isParentGrid = Boolean(
+    parentNode &&
+    (parentNode.type === 'grid' ||
+     (parentNode.styles?.base as Record<string, unknown> | undefined)?.display === 'grid' ||
+     (parentNode.styles?.base as Record<string, unknown> | undefined)?.display === 'inline-grid')
+  );
 
   const handleCommitSpacing = (fieldName: string, value: string) => {
     const errorKey = `style:${fieldName}`;
@@ -1136,9 +1147,22 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <StyleManagerAccordion
                 key={`${node.id}-${activeBreakpoint}-${activeState}`}
                 styles={activeLayer}
+                baseStyles={(node.styles?.base as Record<string, unknown> | undefined) ?? {}}
                 animation={node.animation}
                 allowedSectors={allowedStyleSectors}
+                nodeType={node.type}
+                isParentGrid={isParentGrid}
                 onCommitStyle={handleCommitSpacing}
+                onResetProperty={(prop) => {
+                  if (activeBreakpoint !== 'base') {
+                    resetNodeStyleProperty(node.id, prop, activeBreakpoint);
+                  }
+                }}
+                onResetAllOverrides={() => {
+                  if (activeBreakpoint !== 'base') {
+                    resetNodeViewportStyles(node.id, activeBreakpoint);
+                  }
+                }}
                 onCommitAnimation={(anim) => {
                   const result = updateNodeAnimation(node.id, anim);
                   if (!result.success && result.error) {
