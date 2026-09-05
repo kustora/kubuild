@@ -130,3 +130,72 @@ describe('AiChatPanel Enhance action (STORA-512/513)', () => {
     expect(html).not.toContain('data-testid="ai-enhance-loading"');
   });
 });
+
+describe('AiChatPanel Generate action (STORA-507) — full-page generation trigger', () => {
+  it('renders the Generate button only when features.generate is on', () => {
+    const doc = createBlankDocument('Generate Test');
+    const generateEnabled = resolveAiEditorConfig({
+      provider: { endpoint: '/api/ai' },
+      features: { chat: true, generate: true },
+    });
+
+    const html = renderToString(
+      <AiChatPanel aiConfig={generateEnabled} mode="docked" registry={registry} document={doc} selectedNodeId={null} />,
+    );
+    expect(html).toContain('data-testid="ai-chat-generate"');
+  });
+
+  it('does not render the Generate button when features.generate is off', () => {
+    const doc = createBlankDocument('Generate Test');
+    const chatOnly = resolveAiEditorConfig({ provider: { endpoint: '/api/ai' }, features: { chat: true } });
+
+    const html = renderToString(
+      <AiChatPanel aiConfig={chatOnly} mode="docked" registry={registry} document={doc} selectedNodeId={null} />,
+    );
+    expect(html).not.toContain('data-testid="ai-chat-generate"');
+  });
+
+  it('is available with no node selected, unlike Enhance', () => {
+    const doc = createBlankDocument('Generate Test');
+    const generateEnabled = resolveAiEditorConfig({
+      provider: { endpoint: '/api/ai' },
+      features: { generate: true },
+    });
+
+    const html = renderToString(
+      <AiChatPanel aiConfig={generateEnabled} mode="docked" registry={registry} document={doc} selectedNodeId={null} />,
+    );
+    const idx = html.indexOf('data-testid="ai-chat-generate"');
+    expect(idx).toBeGreaterThan(-1);
+  });
+
+  it('the Generate button is disabled up front (no prompt typed on mount)', () => {
+    const doc = createBlankDocument('Generate Test');
+    const generateEnabled = resolveAiEditorConfig({
+      provider: { endpoint: '/api/ai' },
+      features: { generate: true },
+    });
+
+    const html = renderToString(
+      <AiChatPanel aiConfig={generateEnabled} mode="docked" registry={registry} document={doc} selectedNodeId={null} />,
+    );
+    const idx = html.indexOf('data-testid="ai-chat-generate"');
+    expect(idx).toBeGreaterThan(-1);
+    const buttonMarkup = html.slice(idx, idx + 250);
+    expect(buttonMarkup).toContain('disabled=""');
+  });
+
+  it('renders no generation status/error/summary up front (no request has been made on mount)', () => {
+    const doc = createBlankDocument('Generate Test');
+    const generateEnabled = resolveAiEditorConfig({
+      provider: { endpoint: '/api/ai' },
+      features: { generate: true },
+    });
+
+    const html = renderToString(
+      <AiChatPanel aiConfig={generateEnabled} mode="docked" registry={registry} document={doc} selectedNodeId={null} />,
+    );
+    expect(html).not.toContain('data-testid="ai-generate-loading"');
+    expect(html).not.toContain('data-testid="ai-generate-summary"');
+  });
+});

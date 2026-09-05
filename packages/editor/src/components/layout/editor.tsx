@@ -288,6 +288,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           aiConfig={resolvedAiConfig}
           registry={registry}
           mode="floating"
+          onDiagnostic={onDiagnostic}
           onToggleMode={() => setAiChatMode('docked')}
           onClose={() => setAiChatMode('hidden')}
         />
@@ -546,6 +547,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
               aiConfig={resolvedAiConfig}
               registry={registry}
               mode="docked"
+              onDiagnostic={onDiagnostic}
               onToggleMode={() => setAiChatMode('floating')}
               onClose={() => setAiChatMode('hidden')}
             />

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { PageDocument } from '@kubuild/schema';
-import { findNodeById } from '@kubuild/core';
+import { findNodeById, type Diagnostic } from '@kubuild/core';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import { useAiChat, useAiGenerator } from '@kubuild/ai/react';
 import type { AiChatHistoryStorageAdapter } from '@kubuild/ai/react';
@@ -15,6 +15,7 @@ import {
   applyEnhanceCandidate,
   type EnhanceCandidate,
 } from '../../ai/enhance-node';
+import { runStreamPageGeneration, type StreamPageGenerationSummary } from '../../ai/generate-page';
 import {
   Bot,
   User,
@@ -29,6 +30,7 @@ import {
   Sparkles,
   Wand2,
   Check,
+  LayoutTemplate,
 } from 'lucide-react';
 
 export interface AiChatPanelProps {
@@ -66,6 +68,13 @@ export interface AiChatPanelProps {
    * STORA-512 keep compiling without passing one.
    */
   registry?: ComponentRegistry;
+  /**
+   * Non-fatal reporting channel for full-page generation (STORA-507/509) — the same
+   * `onDiagnostic` prop `KubuildEditorProps` already exposes for import/validation
+   * diagnostics elsewhere in the editor. A section that fails validation is reported
+   * here and skipped; it never silently corrupts the document or blocks other sections.
+   */
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
 }
 
 /**
@@ -193,18 +202,21 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   document: propDocument,
   selectedNodeId: propSelectedNodeId,
   registry = createDefaultComponentRegistry(),
+  onDiagnostic,
 }) => {
   const storeState = useEditorStore();
   const document = propDocument ?? storeState.document;
   const selectedNodeId =
     propSelectedNodeId !== undefined ? propSelectedNodeId : storeState.selectedNodeId;
   const {
+    dispatch,
     updateNodeProps,
     updateNodeStyle,
     updateNodeStateStyle,
     replaceNodeSubtree,
     beginHistoryTransaction,
     endHistoryTransaction,
+    setAiGenerationStatus,
     aiChatFocusRequestId,
   } = storeState;
 
@@ -222,16 +234,33 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
   // STORA-512 — a separate network boundary from `useAiChat`: an "Enhance" instruction
   // is never sent as a chat message, it always goes through `refactorNode` so the result
-  // can be validated and previewed as a candidate before touching the document.
-  const { refactorNode, isGenerating: isEnhancing } = useAiGenerator({
+  // can be validated and previewed as a candidate before touching the document. The same
+  // instance's `streamPage` also drives full-page generation below (STORA-507) — both
+  // share `isGenerating`/`cancel` since they're mutually exclusive user actions; `isStreaming`
+  // distinguishes "generating a page" from "enhancing a node" for the UI.
+  const {
+    refactorNode,
+    streamPage,
+    isGenerating: isAiGeneratorBusy,
+    isStreaming,
+    currentStep,
+    cancel: cancelGenerator,
+  } = useAiGenerator({
     endpoint: endpointOptions?.endpoint ?? PROVIDER_NOT_CONFIGURED_ENDPOINT,
     headers: endpointOptions?.headers,
   });
+  const isEnhancing = isAiGeneratorBusy && !isStreaming;
+  const isGeneratingPage = isStreaming;
 
   const [inputValue, setInputValue] = useState('');
   const [contextDismissed, setContextDismissed] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  // STORA-507 — full-page generation status/result, mirrors the enhance error/candidate
+  // pattern above but has no candidate step: sections are dispatched as they validate.
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generateSummary, setGenerateSummary] = useState<string | null>(null);
+  const [lastGeneratePrompt, setLastGeneratePrompt] = useState('');
   // STORA-513 — the validated enhance candidate awaiting Apply/Discard. Purely local
   // component state: nothing here has touched the document or the command engine yet.
   const [candidate, setCandidate] = useState<EnhanceCandidate | null>(null);
@@ -257,15 +286,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, isLoading, error, localError, candidate, enhanceError]);
+  }, [messages, isLoading, error, localError, candidate, enhanceError, generateError, generateSummary, isGeneratingPage]);
 
   const selectedNode = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const showContextChip = !!selectedNodeId && !contextDismissed;
   const canEnhance =
-    aiConfig.features.enhance && !!selectedNode && !contextDismissed && !isLoading && !isEnhancing;
+    aiConfig.features.enhance &&
+    !!selectedNode &&
+    !contextDismissed &&
+    !isLoading &&
+    !isEnhancing &&
+    !isGeneratingPage;
+  const canGeneratePage =
+    aiConfig.features.generate && !isLoading && !isAiGeneratorBusy && !!inputValue.trim();
 
   const doSend = (content: string) => {
-    if (!content.trim() || isLoading) return;
+    if (!content.trim() || isLoading || isGeneratingPage) return;
 
     if (!endpointOptions) {
       setLocalError(
@@ -299,6 +335,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const handleRetry = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     if (lastUser) doSend(lastUser.content);
+  };
+
+  const handleRetryGenerate = () => {
+    if (lastGeneratePrompt) void handleGeneratePage(lastGeneratePrompt);
   };
 
   /**
@@ -340,6 +380,67 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       candidateNode: outcome.candidateNode,
       diff: diffEnhanceNode(outcome.originalNode, outcome.candidateNode),
     });
+  };
+
+  /**
+   * STORA-507/508/509/510 — the "Generate" action: turns the typed prompt into a full
+   * page via `streamPage`, dispatching each validated section as `insertNode` through the
+   * store as it arrives (progressive canvas preview, batched into one undo entry). This is
+   * the Flow A "prompt-to-page" trigger the chat panel was previously missing entirely —
+   * distinct from Send (chat) and Enhance for the same reason Enhance is distinct from
+   * Send: no free-text intent inference, an explicit action the user opts into.
+   */
+  const handleGeneratePage = async (promptOverride?: string) => {
+    const prompt = (promptOverride ?? inputValue).trim();
+    if (!prompt || (!promptOverride && !canGeneratePage) || isAiGeneratorBusy) return;
+
+    if (!endpointOptions) {
+      setLocalError(
+        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
+          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
+      );
+      return;
+    }
+
+    setLocalError(null);
+    setGenerateError(null);
+    setGenerateSummary(null);
+    setLastGeneratePrompt(prompt);
+    if (!promptOverride) setInputValue('');
+
+    let summary: StreamPageGenerationSummary;
+    try {
+      summary = await runStreamPageGeneration(
+        streamPage,
+        { prompt },
+        {
+          dispatch,
+          getDocument: () => useEditorStore.getState().document,
+          beginHistoryTransaction,
+          endHistoryTransaction,
+          onDiagnostic,
+          onPlaceholderChange: setAiGenerationStatus,
+        },
+      );
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : 'Page generation failed. Please try again.');
+      return;
+    }
+
+    if (summary.insertedSectionIds.length === 0) {
+      setGenerateError(
+        summary.streamErrored
+          ? 'Page generation failed. Please try again.'
+          : 'AI did not return any valid sections for this prompt.',
+      );
+      return;
+    }
+
+    setGenerateSummary(
+      summary.failedSectionCount > 0
+        ? `Generated ${summary.insertedSectionIds.length} section(s) — ${summary.failedSectionCount} rejected (see diagnostics).`
+        : `Generated ${summary.insertedSectionIds.length} section(s) onto the canvas.`,
+    );
   };
 
   /**
@@ -445,11 +546,37 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             </div>
           </div>
         )}
+        {isGeneratingPage && (
+          <div
+            className="flex items-center gap-2 self-start max-w-[85%]"
+            data-testid="ai-generate-loading"
+          >
+            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <LayoutTemplate className="w-3.5 h-3.5 text-blue-600" />
+            </div>
+            <div className="bg-blue-50 text-blue-600 rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span className="text-xs">{currentStep || 'Generating page…'}</span>
+            </div>
+          </div>
+        )}
         {(error || localError) && (
           <AiChatErrorBubble message={error?.message || localError || 'Something went wrong.'} onRetry={handleRetry} />
         )}
         {enhanceError && !candidate && (
           <AiChatErrorBubble message={enhanceError} onRetry={handleEnhance} />
+        )}
+        {generateError && (
+          <AiChatErrorBubble message={generateError} onRetry={handleRetryGenerate} />
+        )}
+        {generateSummary && !generateError && (
+          <div
+            data-testid="ai-generate-summary"
+            className="self-start max-w-[90%] bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-3 py-2 text-xs flex items-center gap-1.5"
+          >
+            <LayoutTemplate className="w-3.5 h-3.5 shrink-0" />
+            <span>{generateSummary}</span>
+          </div>
         )}
 
         {/* STORA-513 — enhance diff preview: only props/styles/children fields that
@@ -549,6 +676,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             placeholder="Ask AI anything about this page…"
             className="flex-1 min-w-0 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
+          {/* STORA-507 — explicit "Generate" action: turns the typed prompt into a full
+              page via streamPage, distinct from Send (chat) for the same reason Enhance
+              is distinct from Send — no free-text intent inference. Available regardless
+              of selection (unlike Enhance, which requires an attached node). */}
+          {aiConfig.features.generate && (
+            <button
+              type="button"
+              data-testid="ai-chat-generate"
+              title="Generate a full page from this prompt"
+              onClick={() => void handleGeneratePage()}
+              disabled={!canGeneratePage}
+              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <LayoutTemplate className="w-3.5 h-3.5" />
+            </button>
+          )}
           {/* STORA-512 — explicit, distinct action from Send: an enhance instruction is
               only ever triggered here, never inferred from the message text itself. Only
               enabled once a node is attached as context and an instruction is typed. */}
@@ -564,11 +707,11 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               <Wand2 className="w-3.5 h-3.5" />
             </button>
           )}
-          {isLoading ? (
+          {isLoading || isGeneratingPage ? (
             <button
               type="button"
               data-testid="ai-chat-cancel"
-              onClick={cancel}
+              onClick={isGeneratingPage ? cancelGenerator : cancel}
               title="Stop"
               className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition"
             >
@@ -578,7 +721,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             <button
               type="submit"
               data-testid="ai-chat-send"
-              disabled={!inputValue.trim()}
+              disabled={!inputValue.trim() || isAiGeneratorBusy}
               title="Send"
               className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
             >

@@ -5,6 +5,7 @@ import {
   downloadDocumentAsStora,
   downloadDocumentAsJson,
   Viewport,
+  AiEditorConfig,
 } from '@kubuild/editor';
 import {
   PreviewViewportAdapter,
@@ -158,6 +159,21 @@ export function App() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const registry = useMemo(() => createDefaultComponentRegistry(), []);
+
+  // Talks to the kubuild-test reference backend (apps/server), which proxies
+  // @kubuild/ai's engine + holds the provider API key server-side. Point
+  // VITE_AI_API_ENDPOINT at a different backend if needed; see
+  // docs/AI_PROVIDER_QUICKSTART.md for the client/server split rationale.
+  const aiConfig: AiEditorConfig = useMemo(
+    () => ({
+      provider: {
+        endpoint: import.meta.env.VITE_AI_API_ENDPOINT || 'http://localhost:4000/api/ai/handler',
+      },
+      features: { chat: true, generate: true, enhance: true },
+      defaultPanelMode: 'floating',
+    }),
+    [],
+  );
 
   const activePage = useMemo(() => {
     return pages.find((p) => p.id === activePageId) || pages[0];
@@ -721,6 +737,7 @@ export function App() {
             onChange={handleDocChange}
             registry={registry}
             context={renderContext}
+            ai={aiConfig}
             className="h-full"
           />
         )}
