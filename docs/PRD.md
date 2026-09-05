@@ -1007,3 +1007,92 @@ Builder dan Renderer menggunakan **document specification yang sama**.
 ```
 
 **Prinsip paling penting:** `kubuild` harus menjadi **engine yang independen**, sedangkan **Stora.page adalah platform/consumer** yang memanfaatkan engine tersebut. `.stora` menjadi format portable yang menghubungkan builder, renderer, template, dan komunitas.
+
+---
+
+# 31. AI Provider Embed & In-Editor Assistant
+
+## 31.1 Latar Belakang
+
+`@kubuild/ai` sudah tersedia sebagai package terpisah: engine orkestrasi (`KubuildAiEngine`), 4 adapter provider (OpenAI, Anthropic, Gemini, custom/HTTP-generic), client HTTP dengan SSE (`KubuildAiClient`), dan React hooks (`useAiGenerator`, `useAiChat`). Package ini **belum diintegrasikan ke `@kubuild/editor`/`@kubuild/react`** — belum ada UI chat, belum ada panel di dalam `KubuildEditor`, dan belum ada jalur "apply ke document" yang melewati command engine `@kubuild/core`.
+
+Tujuan fase ini: embed AI provider langsung di dalam editor, sehingga:
+
+1. User dapat chat dengan AI di editor (prompt bebas, mis. "buatkan landing page").
+2. Hasil generate AI langsung menjadi document terstruktur dan ter-render di preview — bukan text yang harus disalin manual.
+3. Editing tetap manual-first: AI adalah assist, bukan keharusan. User bisa terus edit dengan drag-drop/inspector seperti biasa tanpa menyentuh AI sama sekali.
+4. User dapat select component di canvas lalu bertanya ke chat tentang component itu, atau meminta AI "enhance" component tersebut.
+
+## 31.2 Prinsip Desain
+
+- **Document tetap satu-satunya source of truth.** AI tidak pernah menulis langsung ke document. Semua output AI (page baru, section baru, node hasil refactor) masuk lewat command engine yang sama dengan aksi manual (`insertNode`, `updateProps`, `updateStyle`, dst.) sehingga undo/redo, validation, dan security limit tetap berlaku otomatis.
+- **`@kubuild/core` tetap murni.** Dependency AI hanya ditambahkan pada `@kubuild/editor` dan `@kubuild/react` (consumer-facing), searah dengan aturan dependency yang ada: `... → editor → react`. `@kubuild/ai` sendiri sudah hanya bergantung pada `core`/`schema`, jadi arah dependency baru (`editor → ai`) tidak melanggar aturan `no-restricted-imports` yang ada di `core`.
+- **AI provider adalah konfigurasi host, bukan hardcode.** Consumer (mis. Stora.page) menyuplai adapter/endpoint/API key sendiri lewat config, sama seperti pola `registry`, `context`, dan `variableCatalog` yang sudah ada di `KubuildEditorProps`.
+- **AI output tidak dipercaya begitu saja.** Sebelum di-dispatch ke command engine, hasil AI melewati jalur yang sama dengan import `.stora`: schema validation + `validateDocumentSecurity` (lihat §31 gap analysis di bawah), tidak ada eksekusi kode arbitrary dari respons model.
+- **Streaming adalah UX, bukan arsitektur baru.** Pola SSE yang sudah ada di `streamPage`/`createAiHandler` dipakai ulang; chat perlu ditingkatkan ke true token-level streaming (saat ini `chat()` masih single request/response).
+
+## 31.3 User Flows
+
+### Flow A — Prompt-to-Page Generation
+
+```
+User buka AI Chat Panel
+  → ketik "buatkan landing page untuk SaaS analytics"
+  → engine.streamPage() jalan (plan section → generate per section)
+  → tiap section event di-dispatch sebagai insertNode ke document aktif
+  → canvas preview update progresif, section demi section
+  → user lanjut edit manual (drag, inspector, style) seperti biasa
+```
+
+### Flow B — Selection-Aware Ask
+
+```
+User select node di canvas (selectedNodeId sudah ada di editor store)
+  → buka AI Chat Panel, tanya "kenapa button ini gak menonjol?"
+  → chat request menyertakan selectedNodeId + snapshot node itu (props/styles ringkas)
+  → jawaban AI tampil di chat, tidak otomatis mengubah document
+```
+
+### Flow C — Enhance Selected Component
+
+```
+User select node → klik "Enhance with AI" (atau ketik instruksi di chat)
+  → engine.refactorNode() dipanggil dengan node + instruksi
+  → hasil node baru ditampilkan sebagai preview diff (before/after) di chat
+  → user klik "Apply" → dispatch ke command engine (mis. updateProps/updateStyle
+    gabungan, atau replace subtree) → masuk history, bisa di-undo
+  → user klik "Discard" → tidak ada perubahan ke document
+```
+
+## 31.4 Integrasi Teknis (ringkas)
+
+- `KubuildEditorProps` mendapat prop baru (opsional) untuk konfigurasi AI, mengikuti pola `registry`/`context`/`config` yang sudah ada — bukan hardcode provider di dalam editor.
+- Panel chat mengikuti pola panel existing yang sudah punya mode `docked | floating | hidden` (lihat `navigatorMode`, `tableSpreadsheetMode` di `EditorState`) supaya konsisten dengan UX panel lain.
+- Semua mutasi document dari AI wajib lewat method store yang sudah ada (`dispatch`, `insertComponent`, `updateNodeProps`, dst.) atau lewat command baru yang mengikuti pola `CommandResult` — **tidak ada jalur mutasi baru di luar command engine**.
+- `selectedNodeId` dari `EditorState` menjadi context yang dikirim ke `AiChatRequest.selectedNodeId` — ini sudah didukung tipe-nya di `@kubuild/ai`, tinggal disambungkan dari store.
+
+## 31.5 Non-Goals (fase ini)
+
+- Tidak membangun UI untuk mengelola API key/billing provider (itu tanggung jawab consumer/Stora.page).
+- Tidak membangun multi-turn agentic tool-use (AI memanggil action/API eksternal) — scope hanya generate/refactor/chat seputar document.
+- Tidak mengganti manual editing dengan AI-only flow — manual editing tetap jalur utama yang harus selalu bisa dipakai tanpa AI.
+- Tidak menyediakan model training/fine-tuning sendiri; hanya orkestrasi ke provider pihak ketiga yang sudah ada di `@kubuild/ai`.
+
+## 31.6 Gap Analysis dari `@kubuild/ai` (harus dibereskan sebelum/selagi integrasi)
+
+Ditemukan saat eksplorasi codebase (lihat tiket Phase 10 di `docs/todo.md`):
+
+- `chat()` di `KubuildAiEngine` belum streaming token-level (SSE hanya dipakai `streamPage`).
+- `AiChatResponse.suggestedAction` didefinisikan di tipe tapi tidak pernah diisi oleh engine — perlu diimplementasi atau dihapus dari tipe.
+- Adapter (OpenAI/Anthropic/Gemini/custom) tidak meneruskan `stream: true` ke provider — semua panggilan provider non-streaming di level HTTP.
+- `createAiHandler` tidak punya auth/rate-limiting bawaan — perlu didokumentasikan sebagai tanggung jawab host, atau disediakan hook.
+- Ada `console.log` debug yang tertinggal di `server/engine.ts` yang perlu dibersihkan/di-gate ke `debug`/`logger` option yang sudah ada.
+- Tidak ada persistence layer untuk chat history — saat ini murni di React state (`useAiChat`), hilang saat reload.
+
+## 31.7 Success Criteria
+
+- User dapat generate landing page dari prompt kosong sampai preview ter-render, tanpa menyentuh code.
+- User dapat lanjut edit manual dokumen hasil generate AI tanpa error/struktur rusak.
+- User dapat memilih node, bertanya ke AI tentang node itu, dan mendapat jawaban yang menyebut prop/style node yang benar.
+- User dapat menjalankan "Enhance with AI" pada satu node dan meng-apply/discard hasilnya, dengan aksi apply tercatat di undo/redo history.
+- Tidak ada mutasi document yang terjadi di luar command engine (`@kubuild/core`) sebagai akibat dari fitur AI.
