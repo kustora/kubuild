@@ -29,7 +29,7 @@ export class KubuildAiClient {
     }
     this.endpoint = options.endpoint;
     this.headers = options.headers;
-    this.fetchFn = options.fetch || globalThis.fetch;
+    this.fetchFn = options.fetch || globalThis.fetch.bind(globalThis);
   }
 
   private async resolveHeaders(): Promise<Record<string, string>> {
