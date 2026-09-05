@@ -9,7 +9,7 @@ describe('Subpath Exports Contract', () => {
     expect(Definitions.pageDefinition).toBeDefined();
     expect(Definitions.buttonDefinition).toBeDefined();
     expect(Definitions.createDefaultComponentRegistry).toBeDefined();
-    expect(Definitions.coreComponentDefinitions.length).toBe(33);
+    expect(Definitions.coreComponentDefinitions.length).toBe(35);
   });
 
   it('exports traits independently', () => {
