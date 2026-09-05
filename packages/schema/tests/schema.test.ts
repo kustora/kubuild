@@ -1078,12 +1078,64 @@ describe('STORA-101 & STORA-110: Flexbox, CSS Grid & Sizing Constraints Schema S
       }
     });
 
-    it('rejects dangerous injection vectors inside Flexbox/Sizing style values', () => {
+    it('validates sizing constraints including fit-content, max-content, min-content, and percentages', () => {
+      const sizingStyles = {
+        width: 'max-content',
+        height: 'min-content',
+        minWidth: '50%',
+        maxWidth: '100vw',
+        minHeight: '25vh',
+        maxHeight: '75%',
+      };
+
+      const result = StyleDefinitionSchema.safeParse(sizingStyles);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.width).toBe('max-content');
+        expect(result.data.height).toBe('min-content');
+        expect(result.data.minWidth).toBe('50%');
+        expect(result.data.maxHeight).toBe('75%');
+      }
+    });
+
+    it('validates effects properties: 4-corner border radiuses, backdropFilter, filter, and boxShadow', () => {
+      const effectsStyles = {
+        borderRadius: '12px',
+        borderTopLeftRadius: '16px',
+        borderTopRightRadius: 8,
+        borderBottomRightRadius: '24px',
+        borderBottomLeftRadius: 0,
+        backdropFilter: 'blur(10px) saturate(180%)',
+        filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+      };
+
+      const result = StyleDefinitionSchema.safeParse(effectsStyles);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.borderTopLeftRadius).toBe('16px');
+        expect(result.data.borderTopRightRadius).toBe(8);
+        expect(result.data.backdropFilter).toBe('blur(10px) saturate(180%)');
+        expect(result.data.filter).toContain('drop-shadow');
+        expect(result.data.boxShadow).toContain('rgba');
+      }
+    });
+
+    it('rejects dangerous injection vectors inside Flexbox/Sizing/Effects style values', () => {
       const dangerousFlexStyle = {
         flexDirection: 'javascript:alert(1)',
       };
-      const result = StyleDefinitionSchema.safeParse(dangerousFlexStyle);
-      expect(result.success).toBe(false);
+      expect(StyleDefinitionSchema.safeParse(dangerousFlexStyle).success).toBe(false);
+
+      const dangerousBackdropStyle = {
+        backdropFilter: 'url(javascript:malicious())',
+      };
+      expect(StyleDefinitionSchema.safeParse(dangerousBackdropStyle).success).toBe(false);
+
+      const dangerousBoxShadowStyle = {
+        boxShadow: '@import url("http://evil.com")',
+      };
+      expect(StyleDefinitionSchema.safeParse(dangerousBoxShadowStyle).success).toBe(false);
     });
   });
 
@@ -1109,7 +1161,7 @@ describe('STORA-101 & STORA-110: Flexbox, CSS Grid & Sizing Constraints Schema S
       }
     });
 
-    it('validates CSS Grid child placement and span properties', () => {
+    it('validates CSS Grid child placement, colSpan, rowSpan, and span properties', () => {
       const gridItemStyles = {
         gridColumn: 'span 3 / span 3',
         gridRow: '1 / 3',
@@ -1117,6 +1169,8 @@ describe('STORA-101 & STORA-110: Flexbox, CSS Grid & Sizing Constraints Schema S
         gridColumnEnd: '4',
         gridRowStart: 'auto',
         gridRowEnd: 'span 2',
+        colSpan: 3,
+        rowSpan: 'span 2',
         justifySelf: 'center',
         alignSelf: 'end',
       };
@@ -1125,8 +1179,17 @@ describe('STORA-101 & STORA-110: Flexbox, CSS Grid & Sizing Constraints Schema S
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.gridColumn).toBe('span 3 / span 3');
+        expect(result.data.colSpan).toBe(3);
+        expect(result.data.rowSpan).toBe('span 2');
         expect(result.data.justifySelf).toBe('center');
       }
+    });
+
+    it('rejects dangerous injection vectors inside CSS Grid style values', () => {
+      const dangerousGridStyle = {
+        gridTemplateColumns: 'expression(document.cookie)',
+      };
+      expect(StyleDefinitionSchema.safeParse(dangerousGridStyle).success).toBe(false);
     });
   });
 });

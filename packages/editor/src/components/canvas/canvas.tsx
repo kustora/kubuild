@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
+import React, { useLayoutEffect, useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
 import { KubuildRenderer } from '@kubuild/renderer';
@@ -13,7 +13,24 @@ import {
 } from '@kubuild/core';
 import { useEditorStore, Viewport } from '../../store';
 import { FloatingActionBadges } from './floating-badges';
+import { ResizeHandles } from './resize-handles';
+import { SpacingSliders } from './spacing-sliders';
+import { SmartGuides, GuideLine, CanvasRect } from './smart-guides';
+import { DistanceMeter } from './distance-meter';
+import { CanvasZoomToolbar, useCanvasPanZoom, clampZoom } from './canvas-pan-zoom';
+import { MarqueeSelectionBox, MarqueeRect, calculateMarqueeIntersections } from './marquee-selection';
+import { MultiDevicePreview } from './multi-device-preview';
+import { GridGuidelinesOverlay } from './grid-guidelines-overlay';
+import { ViewportResizer } from './viewport-resizer';
 import { EditorCanvasConfig } from '../../config';
+
+export interface EditorPageItem {
+  id: string;
+  name: string;
+  slug?: string;
+  document: PageDocument;
+  width?: number;
+}
 
 export interface EditorCanvasProps {
   document?: PageDocument;
@@ -22,13 +39,14 @@ export interface EditorCanvasProps {
   viewport: Viewport;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   config?: EditorCanvasConfig;
-}
-
-interface Rect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
+  fluidWidth?: number;
+  onFluidWidthChange?: (width: number) => void;
+  onBreakpointChange?: (breakpoint: Viewport) => void;
+  pages?: EditorPageItem[];
+  activePageId?: string;
+  onActivePageChange?: (pageId: string) => void;
+  onPagesChange?: (pages: EditorPageItem[]) => void;
+  className?: string;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -47,20 +65,21 @@ interface DropTarget {
   parentId: string;
   index?: number;
   position: 'before' | 'after' | 'inside';
-  rect: Rect;
+  rect: CanvasRect;
 }
 
-function rectFor(container: HTMLElement, nodeId: string | null): Rect | null {
+function rectFor(container: HTMLElement, nodeId: string | null, zoom = 1): CanvasRect | null {
   if (!nodeId) return null;
   const el = container.querySelector(`[data-kubuild-node="${CSS.escape(nodeId)}"]`);
   if (!el) return null;
   const containerRect = container.getBoundingClientRect();
   const elRect = el.getBoundingClientRect();
+  const scale = zoom > 0 ? zoom : 1;
   return {
-    top: elRect.top - containerRect.top,
-    left: elRect.left - containerRect.left,
-    width: elRect.width,
-    height: elRect.height,
+    top: (elRect.top - containerRect.top) / scale,
+    left: (elRect.left - containerRect.left) / scale,
+    width: elRect.width / scale,
+    height: elRect.height / scale,
   };
 }
 
@@ -71,37 +90,235 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   viewport,
   onDiagnostic,
   config,
+  fluidWidth,
+  onFluidWidthChange,
+  onBreakpointChange,
+  pages,
+  activePageId,
+  onActivePageChange,
+  onPagesChange,
+  className,
 }) => {
   const {
     document: storeDoc,
     selectedNodeId,
+    selectedNodeIds,
     hoveredNodeId,
     dragPayload,
     selectNode,
+    selectMultipleNodes,
+    toggleNodeSelection,
+    wrapSelectedIntoFrame,
+    ungroupSelectedFrame,
     hoverNode,
     updateNodeProps,
     setDragPayload,
     insertComponent,
     insertBlock,
     moveComponent,
+    deleteComponent,
+    duplicateComponent,
+    copyNode,
+    pasteNode,
+    undo,
+    redo,
     previewMode,
+    multiDeviceMode,
+    toggleMultiDeviceMode,
     addActionLog,
     setLiveFormState,
   } = useEditorStore();
+
   const document = propDoc ?? storeDoc;
   const showFloatingBadges = config?.showFloatingBadges !== false && !previewMode;
+
   const containerRef = useRef<HTMLDivElement>(null);
-  const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
-  const [hoveredRect, setHoveredRect] = useState<Rect | null>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
+  const activeArtboardRef = useRef<HTMLDivElement>(null);
+
+  const allPages = useMemo<EditorPageItem[]>(() => {
+    if (pages && pages.length > 0) return pages;
+    return [
+      {
+        id: 'default',
+        name: document.metadata?.title || 'Page 1',
+        slug: '/',
+        document,
+      },
+    ];
+  }, [pages, document]);
+
+  const effectiveActivePageId = useMemo(() => {
+    if (activePageId && allPages.some((p) => p.id === activePageId)) {
+      return activePageId;
+    }
+    return allPages[0]?.id || 'default';
+  }, [activePageId, allPages]);
+
+  const activeDoc = useMemo(() => {
+    return allPages.find((p) => p.id === effectiveActivePageId)?.document || document;
+  }, [allPages, effectiveActivePageId, document]);
+
+  const defaultWidthForViewport = (vp: Viewport) => {
+    if (vp === 'mobile') return 375;
+    if (vp === 'tablet') return 768;
+    return 1200;
+  };
+
+  const [localFluidWidth, setLocalFluidWidth] = useState<number>(() => {
+    return fluidWidth ?? defaultWidthForViewport(viewport);
+  });
+
+  const currentFluidWidth = fluidWidth ?? localFluidWidth;
+
+  const handleWidthChange = useCallback(
+    (w: number) => {
+      setLocalFluidWidth(w);
+      onFluidWidthChange?.(w);
+    },
+    [onFluidWidthChange],
+  );
+
+  const handleBreakpointChange = useCallback(
+    (bp: string) => {
+      onBreakpointChange?.(bp as Viewport);
+    },
+    [onBreakpointChange],
+  );
+
+  const handleSelectPage = useCallback(
+    (pageId: string) => {
+      onActivePageChange?.(pageId);
+      const targetPage = allPages.find((p) => p.id === pageId);
+      if (targetPage) {
+        useEditorStore.getState().setDocument(targetPage.document);
+      }
+    },
+    [allPages, onActivePageChange],
+  );
+
+  const [selectedRect, setSelectedRect] = useState<CanvasRect | null>(null);
+  const [selectedRects, setSelectedRects] = useState<Array<{ id: string; rect: CanvasRect }>>([]);
+  const [hoveredRect, setHoveredRect] = useState<CanvasRect | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [activeGuides, setActiveGuides] = useState<GuideLine[]>([]);
+  const [isAltPressed, setIsAltPressed] = useState<boolean>(false);
+  const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
 
+  const marqueeDragRef = useRef<{
+    startX: number;
+    startY: number;
+    shiftKey: boolean;
+  } | null>(null);
+
+  // Pan & Zoom controls (STORA-130, STORA-131)
+  const {
+    pan,
+    setPan,
+    zoom,
+    setZoom,
+    isPanning,
+    isSpacePressed,
+    toolMode,
+    setToolMode,
+    cursorStyle,
+    handlePointerDown: handlePanPointerDown,
+    resetPanZoom,
+  } = useCanvasPanZoom({
+    containerRef,
+    enabled: !previewMode,
+  });
+
+  // Auto-center active artboard comfortably in the canvas viewport on mount
+  const hasAutoCenteredRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoCenteredRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const checkAndCenter = () => {
+      const cw = container.clientWidth;
+      const ch = container.clientHeight;
+      if (cw > 0 && ch > 0) {
+        hasAutoCenteredRef.current = true;
+        const targetWidth = currentFluidWidth;
+        if (cw < targetWidth + 96) {
+          const fitScale = clampZoom(Math.max(0.25, (cw - 64) / targetWidth));
+          const fitPanX = Math.max(24, Math.round((cw - targetWidth * fitScale) / 2));
+          setZoom(fitScale);
+          setPan({ x: fitPanX, y: 40 });
+        } else {
+          const initialPanX = Math.round((cw - targetWidth) / 2);
+          setPan({ x: initialPanX, y: 40 });
+        }
+      }
+    };
+
+    checkAndCenter();
+    const frame = requestAnimationFrame(checkAndCenter);
+    return () => cancelAnimationFrame(frame);
+  }, [containerRef, currentFluidWidth, setPan, setZoom]);
+
+  const fitPanZoom = useCallback(() => {
+    if (!containerRef.current || !layerRef.current) {
+      resetPanZoom();
+      return;
+    }
+    const container = containerRef.current;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    const artboardContainer = layerRef.current.firstElementChild as HTMLElement | null;
+    const contentWidth = artboardContainer ? artboardContainer.scrollWidth : currentFluidWidth;
+    const contentHeight = artboardContainer ? artboardContainer.scrollHeight : 800;
+
+    if (containerWidth > 0 && contentWidth > 0) {
+      const padding = 60;
+      const scaleX = (containerWidth - padding * 2) / contentWidth;
+      const scaleY = (containerHeight - padding * 2) / contentHeight;
+      const targetZoom = Math.min(1.0, Math.max(0.25, Math.min(scaleX, scaleY)));
+      const targetPanX = Math.round((containerWidth - contentWidth * targetZoom) / 2);
+      const targetPanY = 40;
+      setZoom(Math.round(targetZoom * 100) / 100);
+      setPan({ x: targetPanX, y: targetPanY });
+    } else {
+      resetPanZoom();
+    }
+  }, [containerRef, layerRef, currentFluidWidth, resetPanZoom, setZoom, setPan]);
+
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return findNodeById(activeDoc.document, selectedNodeId);
+  }, [activeDoc.document, selectedNodeId]);
+
+  const isGridSelected = useMemo(() => {
+    if (!selectedNode) return false;
+    if (selectedNode.type === 'grid') return true;
+    const baseDisplay = (selectedNode.styles?.base as Record<string, unknown> | undefined)?.display;
+    const viewportDisplay = (selectedNode.styles?.[viewport] as Record<string, unknown> | undefined)?.display;
+    return (
+      baseDisplay === 'grid' ||
+      baseDisplay === 'inline-grid' ||
+      viewportDisplay === 'grid' ||
+      viewportDisplay === 'inline-grid'
+    );
+  }, [selectedNode, viewport]);
+
+  // Recompute bounding boxes of selection and hover
   useLayoutEffect(() => {
     const recompute = () => {
-      const container = containerRef.current;
-      if (!container) return;
-      setSelectedRect(rectFor(container, selectedNodeId));
-      setHoveredRect(rectFor(container, hoveredNodeId));
+      const artboard = activeArtboardRef.current || layerRef.current || containerRef.current;
+      if (!artboard) return;
+      setSelectedRect(rectFor(artboard, selectedNodeId, zoom));
+      setHoveredRect(rectFor(artboard, hoveredNodeId, zoom));
+
+      const multi: Array<{ id: string; rect: CanvasRect }> = [];
+      for (const id of selectedNodeIds) {
+        const r = rectFor(artboard, id, zoom);
+        if (r) multi.push({ id, rect: r });
+      }
+      setSelectedRects(multi);
     };
 
     recompute();
@@ -114,20 +331,26 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       window.removeEventListener('scroll', recompute, true);
       container?.removeEventListener('input', recompute);
     };
-  }, [document, selectedNodeId, hoveredNodeId, viewport]);
+  }, [activeDoc, selectedNodeId, selectedNodeIds, hoveredNodeId, viewport, zoom, pan, currentFluidWidth, effectiveActivePageId]);
 
+  // Set draggable on element nodes
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    container.querySelectorAll<HTMLElement>('[data-kubuild-node]').forEach((el) => {
+    const layer = layerRef.current;
+    if (!layer) return;
+    layer.querySelectorAll<HTMLElement>('[data-kubuild-node]').forEach((el) => {
       const id = el.getAttribute('data-kubuild-node');
       const isEditable = el.isContentEditable || el.getAttribute('contenteditable') === 'true';
       el.draggable = !!id && id !== document.document.id && !isEditable;
     });
   }, [document, viewport]);
 
+  // Global Keyboard listener
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        setIsAltPressed(true);
+      }
+
       if (isEditableTarget(e.target)) return;
 
       const state = useEditorStore.getState();
@@ -139,6 +362,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
       const mod = e.metaKey || e.ctrlKey;
 
+      // Undo / Redo
       if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
         state.undo();
@@ -150,31 +374,51 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         return;
       }
 
-      if (!state.selectedNodeId) return;
+      // Wrap into frame (Cmd+G) & Ungroup frame (Cmd+Shift+G)
+      if (mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          state.ungroupSelectedFrame();
+        } else {
+          state.wrapSelectedIntoFrame();
+        }
+        return;
+      }
 
-      if (mod && e.key.toLowerCase() === 'c') {
+      const activeIds =
+        state.selectedNodeIds.length > 0
+          ? state.selectedNodeIds
+          : state.selectedNodeId
+            ? [state.selectedNodeId]
+            : [];
+
+      if (activeIds.length === 0) return;
+
+      if (mod && e.key.toLowerCase() === 'c' && state.selectedNodeId) {
         state.copyNode(state.selectedNodeId);
         return;
       }
-      if (mod && e.key.toLowerCase() === 'v') {
+      if (mod && e.key.toLowerCase() === 'v' && state.selectedNodeId) {
         state.pasteNode(state.selectedNodeId, registry);
         return;
       }
       if (mod && e.key.toLowerCase() === 'd') {
         e.preventDefault();
-        state.duplicateComponent(state.selectedNodeId, registry);
+        activeIds.forEach((id) => state.duplicateComponent(id, registry));
         return;
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (state.selectedNodeId === state.document.document.id) return;
-        e.preventDefault();
-        state.deleteComponent(state.selectedNodeId);
+        const toDelete = activeIds.filter((id) => id !== state.document.document.id);
+        if (toDelete.length > 0) {
+          e.preventDefault();
+          toDelete.forEach((id) => state.deleteComponent(id));
+        }
         return;
       }
 
       const direction = ARROW_DIRECTIONS[e.key];
-      if (direction) {
+      if (direction && state.selectedNodeId) {
         e.preventDefault();
         const target = getNavigationTarget(
           state.document.document,
@@ -185,9 +429,49 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       }
     };
 
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        setIsAltPressed(false);
+      }
+    };
+
+    const onBlur = () => {
+      setIsAltPressed(false);
+    };
+
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
   }, [registry]);
+
+  // Candidate rects for smart snapping
+  const candidateRects = useMemo(() => {
+    const layer = layerRef.current;
+    if (!layer || !selectedNodeId) return [];
+    const elements = layer.querySelectorAll<HTMLElement>('[data-kubuild-node]');
+    const results: CanvasRect[] = [];
+    const layerRect = layer.getBoundingClientRect();
+    const scale = zoom > 0 ? zoom : 1;
+
+    elements.forEach((el) => {
+      const id = el.getAttribute('data-kubuild-node');
+      if (id && id !== selectedNodeId && id !== document.document.id) {
+        const r = el.getBoundingClientRect();
+        results.push({
+          top: (r.top - layerRect.top) / scale,
+          left: (r.left - layerRect.left) / scale,
+          width: r.width / scale,
+          height: r.height / scale,
+        });
+      }
+    });
+    return results;
+  }, [document, selectedNodeId, zoom]);
 
   const handleMouseOver = (e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest('[data-kubuild-node]');
@@ -196,6 +480,110 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   const handleMouseLeave = () => hoverNode(null);
 
+  // Marquee Drag Selection Handlers (STORA-133) & Canvas Pan Handlers (STORA-130)
+  const handleCanvasPointerDown = (e: React.PointerEvent) => {
+    // Check if middle click, space pan, or hand tool mode
+    if (e.button === 1 || isSpacePressed || toolMode === 'hand') {
+      handlePanPointerDown(e);
+      return;
+    }
+
+    if (previewMode || e.button !== 0) return;
+
+    const target = e.target as HTMLElement;
+    const clickedNode = target.closest('[data-kubuild-node]');
+    const isRootOrEmpty = !clickedNode || clickedNode.getAttribute('data-kubuild-node') === document.document.id;
+
+    // Check if clicking directly on empty canvas background / dot-grid container or transform layer:
+    const isDirectCanvasBg =
+      target === containerRef.current ||
+      target === layerRef.current ||
+      target.getAttribute('data-testid') === 'canvas-viewport-container' ||
+      target.getAttribute('data-testid') === 'canvas-transform-layer';
+
+    if (isDirectCanvasBg && !e.shiftKey) {
+      // In Figma, clicking empty canvas background without holding Shift starts panning!
+      handlePanPointerDown(e);
+      return;
+    }
+
+    if (isRootOrEmpty) {
+      marqueeDragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        shiftKey: e.shiftKey,
+      };
+    }
+  };
+
+  const handleCanvasPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const drag = marqueeDragRef.current;
+      if (!drag || !layerRef.current) return;
+
+      const layerRect = layerRef.current.getBoundingClientRect();
+      const scale = zoom > 0 ? zoom : 1;
+
+      const startX = (drag.startX - layerRect.left) / scale;
+      const startY = (drag.startY - layerRect.top) / scale;
+      const currentX = (e.clientX - layerRect.left) / scale;
+      const currentY = (e.clientY - layerRect.top) / scale;
+
+      const left = Math.min(startX, currentX);
+      const top = Math.min(startY, currentY);
+      const width = Math.abs(currentX - startX);
+      const height = Math.abs(currentY - startY);
+
+      setMarqueeRect({ top, left, width, height });
+    },
+    [zoom],
+  );
+
+  const handleCanvasPointerUp = useCallback(() => {
+    const drag = marqueeDragRef.current;
+    if (!drag) return;
+
+    const layer = layerRef.current;
+    if (layer && marqueeRect && marqueeRect.width >= 4 && marqueeRect.height >= 4) {
+      const nodeElements = Array.from(layer.querySelectorAll<HTMLElement>('[data-kubuild-node]'));
+      const scale = zoom > 0 ? zoom : 1;
+      const layerRect = layer.getBoundingClientRect();
+
+      const candidateNodes = nodeElements
+        .map((el) => {
+          const id = el.getAttribute('data-kubuild-node');
+          if (!id || id === document.document.id) return null;
+          const r = el.getBoundingClientRect();
+          const rect: CanvasRect = {
+            top: (r.top - layerRect.top) / scale,
+            left: (r.left - layerRect.left) / scale,
+            width: r.width / scale,
+            height: r.height / scale,
+          };
+          return { id, rect };
+        })
+        .filter((n): n is { id: string; rect: CanvasRect } => n !== null);
+
+      const intersectedIds = calculateMarqueeIntersections(marqueeRect, candidateNodes);
+
+      if (drag.shiftKey) {
+        const merged = Array.from(new Set([...selectedNodeIds, ...intersectedIds]));
+        selectMultipleNodes(merged);
+      } else if (intersectedIds.length > 0) {
+        selectMultipleNodes(intersectedIds);
+      } else {
+        selectNode(null);
+      }
+    } else {
+      // Just a click on empty canvas background
+      selectNode(null);
+    }
+
+    marqueeDragRef.current = null;
+    setMarqueeRect(null);
+  }, [marqueeRect, zoom, document.document.id, selectedNodeIds, selectMultipleNodes, selectNode]);
+
+  // Drag & drop handlers
   const handleDragStart = (e: React.DragEvent) => {
     const target = e.target as HTMLElement;
     if (target.isContentEditable || target.closest('[contenteditable="true"]')) {
@@ -223,10 +611,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       dragPayload ?? (draggingId ? { type: 'node' as const, nodeId: draggingId } : null);
     if (!activePayload) return;
 
-    const container = containerRef.current;
-    if (!container) return;
+    const layer = layerRef.current;
+    if (!layer) return;
 
-    const containerRect = container.getBoundingClientRect();
+    const layerRect = layer.getBoundingClientRect();
+    const scale = zoom > 0 ? zoom : 1;
     const hoveredEl = (e.target as HTMLElement).closest(
       '[data-kubuild-node]',
     ) as HTMLElement | null;
@@ -258,7 +647,6 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     }
 
     if (!hoveredEl) {
-      // Hovering directly over empty canvas container: default to dropping inside root page
       const rootNode = document.document;
       const policy = registry.canInsertChild(rootNode.type, incomingType);
       if (!policy.valid) {
@@ -276,8 +664,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         rect: {
           top: 0,
           left: 0,
-          width: containerRect.width,
-          height: Math.max(containerRect.height, 200),
+          width: layerRect.width / scale,
+          height: Math.max(layerRect.height / scale, 200),
         },
       });
       return;
@@ -286,7 +674,6 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     const hoveredId = hoveredEl.getAttribute('data-kubuild-node');
     if (!hoveredId) return;
 
-    // If dragging an existing node, prevent dropping into itself or its descendants
     if (activePayload.type === 'node') {
       const draggedNode = findNodeById(document.document, activePayload.nodeId);
       if (!draggedNode || isDescendantOf(draggedNode, hoveredId)) {
@@ -327,7 +714,6 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         targetType: location.parent.type,
       };
     } else {
-      // Hovering root directly
       candidate = {
         parentId: document.document.id,
         index: document.document.children?.length ?? 0,
@@ -350,10 +736,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       index: candidate.index,
       position: candidate.position,
       rect: {
-        top: elRect.top - containerRect.top,
-        left: elRect.left - containerRect.left,
-        width: elRect.width,
-        height: elRect.height,
+        top: (elRect.top - layerRect.top) / scale,
+        left: (elRect.left - layerRect.left) / scale,
+        width: elRect.width / scale,
+        height: elRect.height / scale,
       },
     });
   };
@@ -389,10 +775,39 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     setDragPayload(null);
   };
 
+  const isMultiSelecting = selectedNodeIds.length > 1;
+
+  if (multiDeviceMode) {
+    return (
+      <MultiDevicePreview
+        document={document}
+        registry={registry}
+        context={context}
+        onClose={toggleMultiDeviceMode}
+      />
+    );
+  }
+
   return (
     <div
       ref={containerRef}
-      style={{ position: 'relative' }}
+      data-testid="canvas-viewport-container"
+      className={`relative w-full h-full overflow-hidden select-none ${className || ''}`}
+      style={{
+        position: 'relative',
+        width: '100%',
+        minHeight: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        cursor: cursorStyle,
+        backgroundColor: '#f1f5f9',
+        backgroundImage: `radial-gradient(circle, #cbd5e1 ${Math.max(0.75, Math.min(2.5, 1.2 * zoom))}px, transparent ${Math.max(0.75, Math.min(2.5, 1.2 * zoom))}px)`,
+        backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
+        backgroundPosition: `${pan.x}px ${pan.y}px`,
+      }}
+      onPointerDown={handleCanvasPointerDown}
+      onPointerMove={handleCanvasPointerMove}
+      onPointerUp={handleCanvasPointerUp}
       onMouseOver={previewMode ? undefined : handleMouseOver}
       onMouseLeave={previewMode ? undefined : handleMouseLeave}
       onDragStart={previewMode ? undefined : handleDragStart}
@@ -400,138 +815,326 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       onDrop={previewMode ? undefined : handleDrop}
       onDragEnd={previewMode ? undefined : handleDragEnd}
     >
-      <KubuildRenderer
-        document={document}
-        registry={registry}
-        context={context}
-        viewport={viewport}
-        mode={previewMode ? 'runtime' : 'editor'}
-        onNodeClick={(id: string) => {
-          if (!previewMode) {
-            selectNode(id);
-          }
+      {/* 60 FPS Hardware-Accelerated Canvas Transform Layer (STORA-125, STORA-130, STORA-131) */}
+      <div
+        ref={layerRef}
+        data-testid="canvas-transform-layer"
+        style={{
+          position: 'relative',
+          width: 'max-content',
+          minWidth: '100%',
+          minHeight: '100%',
+          transform: `translate3d(${pan.x}px, ${pan.y}px, 0px) scale(${zoom})`,
+          transformOrigin: '0 0',
+          willChange: isPanning ? 'transform' : undefined,
+          boxSizing: 'border-box',
         }}
-        onNodePropChange={(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => {
-          if (previewMode) {
-            return;
-          }
-          if (!isBlur && typeof value === 'string' && value.trim() === '') {
-            return;
-          }
-          updateNodeProps(nodeId, { [propName]: value }, registry);
-        }}
-        onActionDispatch={(actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => {
-          if (previewMode) {
-            addActionLog({
-              actionType,
-              trigger: 'dispatch',
-              nodeId,
-              status: 'success',
-              payload,
-            });
-            if (actionType === 'submit' && payload) {
-              setLiveFormState({
-                formId: nodeId,
-                values: payload,
-                errors: {},
-                touched: {},
-                isSubmitting: false,
-                isValid: true,
-                dirty: true,
-              });
+      >
+        {/* Figma Multi-Page Artboards Container */}
+        <div className="inline-flex items-start gap-16 p-12 select-none" style={{ minWidth: 'max-content' }}>
+          {allPages.map((pageItem) => {
+            const isActive = pageItem.id === effectiveActivePageId;
+            const pageWidth = isActive ? currentFluidWidth : (pageItem.width || 1200);
+
+            if (isActive) {
+              return (
+                <ViewportResizer
+                  key={pageItem.id}
+                  width={pageWidth}
+                  onWidthChange={handleWidthChange}
+                  onBreakpointChange={handleBreakpointChange}
+                  title={pageItem.name}
+                  slug={pageItem.slug}
+                  isActive={true}
+                  zoom={zoom}
+                  showPresets={true}
+                  frameRef={activeArtboardRef}
+                  onHeaderPointerDown={handlePanPointerDown}
+                  className="shrink-0"
+                >
+                  <KubuildRenderer
+                    document={activeDoc}
+                    registry={registry}
+                    context={context}
+                    viewport={viewport}
+                    mode={previewMode ? 'runtime' : 'editor'}
+                    onNodeClick={(id: string, e?: React.MouseEvent) => {
+                      if (!previewMode) {
+                        if (e?.shiftKey) {
+                          // STORA-132: Multi-selection via Shift + Click
+                          toggleNodeSelection(id, true);
+                        } else {
+                          selectNode(id);
+                        }
+                      }
+                    }}
+                    onNodePropChange={(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => {
+                      if (previewMode) return;
+                      if (!isBlur && typeof value === 'string' && value.trim() === '') return;
+                      updateNodeProps(nodeId, { [propName]: value }, registry);
+                    }}
+                    onActionDispatch={(
+                      actionType: string,
+                      payload: Record<string, unknown> | undefined,
+                      nodeId: string,
+                    ) => {
+                      if (previewMode) {
+                        addActionLog({
+                          actionType,
+                          trigger: 'dispatch',
+                          nodeId,
+                          status: 'success',
+                          payload,
+                        });
+                        if (actionType === 'submit' && payload) {
+                          setLiveFormState({
+                            formId: nodeId,
+                            values: payload,
+                            errors: {},
+                            touched: {},
+                            isSubmitting: false,
+                            isValid: true,
+                            dirty: true,
+                          });
+                        }
+                      }
+                    }}
+                    onDiagnostic={(diag) => {
+                      if (previewMode && diag.code === 'ACTION_EXECUTION_ERROR') {
+                        addActionLog({
+                          actionType: diag.actionType || 'action_error',
+                          trigger: 'error',
+                          nodeId: diag.nodeId,
+                          status: 'error',
+                          error: diag.message,
+                        });
+                      }
+                      onDiagnostic?.(diag);
+                    }}
+                  />
+
+                  {/* Overlays on Active Artboard */}
+                  {!previewMode && hoveredRect && hoveredNodeId !== selectedNodeId && (
+                    <div
+                      aria-hidden="true"
+                      role="presentation"
+                      data-testid="editor-hover-overlay"
+                      style={{
+                        position: 'absolute',
+                        pointerEvents: 'none',
+                        top: hoveredRect.top,
+                        left: hoveredRect.left,
+                        width: hoveredRect.width,
+                        height: hoveredRect.height,
+                        border: '1px dashed #94a3b8',
+                      }}
+                    />
+                  )}
+
+                  {!previewMode &&
+                    isMultiSelecting &&
+                    selectedRects.map(({ id, rect }) => (
+                      <div
+                        key={id}
+                        aria-hidden="true"
+                        role="presentation"
+                        data-testid="editor-selection-overlay"
+                        data-node-id={id}
+                        style={{
+                          position: 'absolute',
+                          pointerEvents: 'none',
+                          top: rect.top,
+                          left: rect.left,
+                          width: rect.width,
+                          height: rect.height,
+                          border: '2px solid #3b82f6',
+                          backgroundColor: 'rgba(59, 130, 246, 0.06)',
+                        }}
+                      />
+                    ))}
+
+                  {!previewMode && !isMultiSelecting && selectedRect && (
+                    <div
+                      aria-hidden="true"
+                      role="presentation"
+                      data-testid="editor-selection-overlay"
+                      style={{
+                        position: 'absolute',
+                        pointerEvents: 'none',
+                        top: selectedRect.top,
+                        left: selectedRect.left,
+                        width: selectedRect.width,
+                        height: selectedRect.height,
+                        border: '2px solid #3b82f6',
+                      }}
+                    />
+                  )}
+
+                  {!previewMode && !isMultiSelecting && selectedRect && selectedNode && isGridSelected && (
+                    <GridGuidelinesOverlay
+                      node={selectedNode}
+                      selectedRect={selectedRect}
+                      viewport={viewport}
+                      zoom={zoom}
+                      containerRef={activeArtboardRef}
+                    />
+                  )}
+
+                  {!previewMode &&
+                    !isMultiSelecting &&
+                    selectedRect &&
+                    selectedNodeId &&
+                    selectedNodeId !== activeDoc.document.id && (
+                      <ResizeHandles
+                        selectedNodeId={selectedNodeId}
+                        selectedRect={selectedRect}
+                        zoom={zoom}
+                        candidateRects={candidateRects}
+                        onGuidesChange={setActiveGuides}
+                      />
+                    )}
+
+                  {!previewMode &&
+                    !isMultiSelecting &&
+                    selectedRect &&
+                    selectedNodeId &&
+                    selectedNodeId !== activeDoc.document.id && (
+                      <SpacingSliders
+                        selectedNodeId={selectedNodeId}
+                        selectedRect={selectedRect}
+                        document={activeDoc}
+                        zoom={zoom}
+                      />
+                    )}
+
+                  {!previewMode && <SmartGuides guides={activeGuides} />}
+
+                  {!previewMode &&
+                    isAltPressed &&
+                    selectedRect &&
+                    hoveredRect &&
+                    hoveredNodeId &&
+                    hoveredNodeId !== selectedNodeId && (
+                      <DistanceMeter selectedRect={selectedRect} targetRect={hoveredRect} />
+                    )}
+
+                  {!previewMode && showFloatingBadges && selectedRect && selectedNodeId && !isMultiSelecting && (
+                    <FloatingActionBadges
+                      selectedNodeId={selectedNodeId}
+                      document={activeDoc}
+                      registry={registry}
+                      selectedRect={selectedRect}
+                      onDragStart={handleDragStart}
+                    />
+                  )}
+
+                  {dropTarget &&
+                    (dropTarget.position === 'inside' ? (
+                      <div
+                        aria-hidden="true"
+                        role="presentation"
+                        data-testid="editor-drop-overlay"
+                        style={{
+                          position: 'absolute',
+                          pointerEvents: 'none',
+                          top: dropTarget.rect.top,
+                          left: dropTarget.rect.left,
+                          width: dropTarget.rect.width,
+                          height: dropTarget.rect.height,
+                          border: '2px dashed #16a34a',
+                          backgroundColor: 'rgba(22, 163, 74, 0.08)',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        aria-hidden="true"
+                        role="presentation"
+                        data-testid="editor-drop-line-overlay"
+                        style={{
+                          position: 'absolute',
+                          pointerEvents: 'none',
+                          left: dropTarget.rect.left,
+                          width: dropTarget.rect.width,
+                          top:
+                            dropTarget.position === 'before'
+                              ? dropTarget.rect.top - 1
+                              : dropTarget.rect.top + dropTarget.rect.height - 1,
+                          height: 2,
+                          backgroundColor: '#16a34a',
+                        }}
+                      />
+                    ))}
+                </ViewportResizer>
+              );
             }
-          }
-        }}
-        onDiagnostic={(diag) => {
-          if (previewMode && diag.code === 'ACTION_EXECUTION_ERROR') {
-            addActionLog({
-              actionType: diag.actionType || 'action_error',
-              trigger: 'error',
-              nodeId: diag.nodeId,
-              status: 'error',
-              error: diag.message,
-            });
-          }
-          onDiagnostic?.(diag);
-        }}
-      />
-      {!previewMode && hoveredRect && hoveredNodeId !== selectedNodeId && (
-        <div
-          aria-hidden="true"
-          role="presentation"
-          data-testid="editor-hover-overlay"
-          style={{
-            position: 'absolute',
-            pointerEvents: 'none',
-            top: hoveredRect.top,
-            left: hoveredRect.left,
-            width: hoveredRect.width,
-            height: hoveredRect.height,
-            border: '1px dashed #94a3b8',
-          }}
-        />
-      )}
-      {!previewMode && selectedRect && (
-        <div
-          aria-hidden="true"
-          role="presentation"
-          data-testid="editor-selection-overlay"
-          style={{
-            position: 'absolute',
-            pointerEvents: 'none',
-            top: selectedRect.top,
-            left: selectedRect.left,
-            width: selectedRect.width,
-            height: selectedRect.height,
-            border: '2px solid #3b82f6',
-          }}
-        />
-      )}
-      {!previewMode && showFloatingBadges && selectedRect && selectedNodeId && (
-        <FloatingActionBadges
-          selectedNodeId={selectedNodeId}
-          document={document}
-          registry={registry}
-          selectedRect={selectedRect}
-          onDragStart={handleDragStart}
-        />
-      )}
-      {dropTarget &&
-        (dropTarget.position === 'inside' ? (
-          <div
-            aria-hidden="true"
-            role="presentation"
-            data-testid="editor-drop-overlay"
-            style={{
-              position: 'absolute',
-              pointerEvents: 'none',
-              top: dropTarget.rect.top,
-              left: dropTarget.rect.left,
-              width: dropTarget.rect.width,
-              height: dropTarget.rect.height,
-              border: '2px dashed #16a34a',
-              backgroundColor: 'rgba(22, 163, 74, 0.08)',
-            }}
+
+            // Inactive Artboard Frame on Figma Canvas
+            return (
+              <div
+                key={pageItem.id}
+                data-testid={`canvas-artboard-page-${pageItem.id}`}
+                className="flex flex-col items-start shrink-0 select-none group"
+                style={{ width: `${pageWidth}px` }}
+              >
+                {/* Inactive Artboard Header */}
+                <div
+                  onClick={() => handleSelectPage(pageItem.id)}
+                  onPointerDown={handlePanPointerDown}
+                  className="flex items-center justify-between w-full px-2 py-1 mb-2 text-xs cursor-pointer text-slate-600 hover:text-blue-600 transition"
+                  title="Click to edit this page"
+                >
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <span>{pageItem.name}</span>
+                    {pageItem.slug && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 border border-slate-300/60">
+                        {pageItem.slug}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-medium">
+                    Click to edit
+                  </span>
+                </div>
+
+                {/* Inactive Artboard Card */}
+                <div
+                  onClick={() => handleSelectPage(pageItem.id)}
+                  style={{ width: `${pageWidth}px`, maxWidth: '100%', minHeight: '500px', backgroundColor: '#ffffff' }}
+                  className="relative bg-white shadow-md hover:shadow-xl rounded-xl overflow-hidden border border-slate-200 group-hover:border-blue-400/80 transition-all duration-150 cursor-pointer"
+                >
+                  <KubuildRenderer
+                    document={pageItem.document}
+                    registry={registry}
+                    context={context}
+                    viewport="desktop"
+                    mode="runtime"
+                    onNodeClick={() => handleSelectPage(pageItem.id)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* STORA-133: Marquee Selection Box */}
+        {!previewMode && <MarqueeSelectionBox rect={marqueeRect} />}
+      </div>
+
+      {/* STORA-131: Canvas Zoom Toolbar */}
+      {!previewMode && (
+        <div className="absolute bottom-3 right-3 z-40">
+          <CanvasZoomToolbar
+            zoom={zoom}
+            onZoomChange={setZoom}
+            onReset={resetPanZoom}
+            onFit={fitPanZoom}
+            toolMode={toolMode}
+            onToolModeChange={setToolMode}
+            multiDeviceMode={multiDeviceMode}
+            onToggleMultiDevice={toggleMultiDeviceMode}
           />
-        ) : (
-          <div
-            aria-hidden="true"
-            role="presentation"
-            data-testid="editor-drop-line-overlay"
-            style={{
-              position: 'absolute',
-              pointerEvents: 'none',
-              left: dropTarget.rect.left,
-              width: dropTarget.rect.width,
-              top:
-                dropTarget.position === 'before'
-                  ? dropTarget.rect.top - 1
-                  : dropTarget.rect.top + dropTarget.rect.height - 1,
-              height: 2,
-              backgroundColor: '#16a34a',
-            }}
-          />
-        ))}
+        </div>
+      )}
     </div>
   );
 };

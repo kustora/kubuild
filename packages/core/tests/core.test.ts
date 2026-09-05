@@ -10,6 +10,8 @@ import {
   updateActions,
   removeNode,
   duplicateNode,
+  wrapNodeIntoFrame,
+  ungroupNodeFrame,
   findNodeLocation,
   isDescendantOf,
   getNavigationTarget,
@@ -903,6 +905,192 @@ describe('STORA-012: Immutable Command Engine', () => {
       }).toThrow(/Cannot duplicate the root page node/);
     });
   });
+
+  describe('Command: wrapNodeIntoFrame (STORA-105)', () => {
+    it('wraps a single node into a new flex container preserving position in parent', () => {
+      const doc = createSampleDoc();
+      const result = wrapNodeIntoFrame(doc, { nodeId: 'heading-1' });
+
+      expect(result.event.type).toBe('NODE_WRAPPED');
+      expect(result.event.parentId).toBe('container-1');
+      expect(result.event.index).toBe(0);
+
+      const container = findNodeById(result.document.document, 'container-1');
+      expect(container?.children?.length).toBe(2);
+      const frameNode = container?.children?.[0];
+      expect(frameNode?.type).toBe('flex');
+      expect(frameNode?.styles?.base?.display).toBe('flex');
+      expect(frameNode?.styles?.base?.flexDirection).toBe('column');
+      expect(frameNode?.styles?.base?.gap).toBe('16px');
+      expect(frameNode?.children?.length).toBe(1);
+      expect(frameNode?.children?.[0].id).toBe('heading-1');
+      expect(container?.children?.[1].id).toBe('button-1');
+    });
+
+    it('wraps multiple nodes into a new flex container preserving sibling order at first node index', () => {
+      let doc = createSampleDoc();
+      doc = insertNode(doc, {
+        parentId: 'container-1',
+        node: { id: 'text-1', type: 'text', props: { text: 'Subtitle' } },
+        index: 1,
+      }).document;
+
+      // Container has: [heading-1, text-1, button-1]
+      const result = wrapNodeIntoFrame(doc, {
+        nodeIds: ['text-1', 'button-1'],
+        frameId: 'action-frame',
+      });
+
+      expect(result.event.type).toBe('NODE_WRAPPED');
+      expect(result.event.nodeId).toBe('action-frame');
+      expect(result.event.parentId).toBe('container-1');
+      expect(result.event.index).toBe(1);
+
+      const container = findNodeById(result.document.document, 'container-1');
+      expect(container?.children?.length).toBe(2);
+      expect(container?.children?.[0].id).toBe('heading-1');
+      expect(container?.children?.[1].id).toBe('action-frame');
+
+      const frame = container?.children?.[1];
+      expect(frame?.children?.length).toBe(2);
+      expect(frame?.children?.[0].id).toBe('text-1');
+      expect(frame?.children?.[1].id).toBe('button-1');
+    });
+
+    it('supports custom frameId, frameProps, and frameStyles', () => {
+      const doc = createSampleDoc();
+      const customStyles = {
+        base: {
+          display: 'flex',
+          flexDirection: 'row' as const,
+          gap: '24px',
+          justifyContent: 'space-between',
+        },
+      };
+
+      const result = wrapNodeIntoFrame(doc, {
+        nodeIds: ['heading-1', 'button-1'],
+        frameId: 'header-row',
+        frameProps: { role: 'banner' },
+        frameStyles: customStyles,
+      });
+
+      const frame = findNodeById(result.document.document, 'header-row');
+      expect(frame).toBeDefined();
+      expect(frame?.props?.role).toBe('banner');
+      expect(frame?.styles?.base?.flexDirection).toBe('row');
+      expect(frame?.styles?.base?.gap).toBe('24px');
+      expect(frame?.styles?.base?.justifyContent).toBe('space-between');
+    });
+
+    it('rejects wrapping the root page node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        wrapNodeIntoFrame(doc, { nodeId: 'root-page' });
+      }).toThrow(/Cannot wrap the root page node/);
+    });
+
+    it('rejects wrapping empty node IDs', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        wrapNodeIntoFrame(doc, { nodeIds: [] });
+      }).toThrow(/At least one node ID must be provided/);
+    });
+
+    it('rejects wrapping non-existent node ID', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        wrapNodeIntoFrame(doc, { nodeId: 'non-existent-id' });
+      }).toThrow(/not found in document/);
+    });
+
+    it('rejects wrapping nodes from different parent containers', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        wrapNodeIntoFrame(doc, { nodeIds: ['heading-1', 'section-2'] });
+      }).toThrow(/All nodes must share the same parent container/);
+    });
+
+    it('does not mutate the input document', () => {
+      const doc = createSampleDoc();
+      const snapshot = JSON.parse(JSON.stringify(doc));
+      wrapNodeIntoFrame(doc, { nodeId: 'heading-1' });
+      expect(doc).toEqual(snapshot);
+    });
+  });
+
+  describe('Command: ungroupNodeFrame (STORA-106)', () => {
+    it('unwraps a flex container moving all children into parent container at its position', () => {
+      const doc = createSampleDoc();
+      // First wrap heading-1 and button-1 into a frame
+      const wrapResult = wrapNodeIntoFrame(doc, {
+        nodeIds: ['heading-1', 'button-1'],
+        frameId: 'my-frame',
+      });
+
+      // Now ungroup the frame
+      const ungroupResult = ungroupNodeFrame(wrapResult.document, { nodeId: 'my-frame' });
+
+      expect(ungroupResult.event.type).toBe('NODE_UNGROUPED');
+      expect(ungroupResult.event.nodeId).toBe('my-frame');
+      expect(ungroupResult.event.parentId).toBe('container-1');
+      expect(ungroupResult.event.index).toBe(0);
+      expect(ungroupResult.event.payload?.unwrappedChildIds).toEqual(['heading-1', 'button-1']);
+
+      const container = findNodeById(ungroupResult.document.document, 'container-1');
+      expect(container?.children?.length).toBe(2);
+      expect(container?.children?.[0].id).toBe('heading-1');
+      expect(container?.children?.[1].id).toBe('button-1');
+      expect(findNodeById(ungroupResult.document.document, 'my-frame')).toBeNull();
+    });
+
+    it('handles an empty flex container by removing it cleanly', () => {
+      let doc = createSampleDoc();
+      // Insert empty flex container
+      doc = insertNode(doc, {
+        parentId: 'container-1',
+        node: { id: 'empty-flex', type: 'flex', children: [] },
+        index: 1,
+      }).document;
+
+      const result = ungroupNodeFrame(doc, { nodeId: 'empty-flex' });
+      const container = findNodeById(result.document.document, 'container-1');
+      expect(container?.children?.length).toBe(2);
+      expect(container?.children?.[0].id).toBe('heading-1');
+      expect(container?.children?.[1].id).toBe('button-1');
+      expect(findNodeById(result.document.document, 'empty-flex')).toBeNull();
+    });
+
+    it('rejects ungrouping the root page node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        ungroupNodeFrame(doc, { nodeId: 'root-page' });
+      }).toThrow(/Cannot ungroup the root page node/);
+    });
+
+    it('rejects ungrouping a non-flex container node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        ungroupNodeFrame(doc, { nodeId: 'heading-1' });
+      }).toThrow(/is not a flex container/);
+    });
+
+    it('rejects ungrouping non-existent node', () => {
+      const doc = createSampleDoc();
+      expect(() => {
+        ungroupNodeFrame(doc, { nodeId: 'unknown-node' });
+      }).toThrow(/not found in document/);
+    });
+
+    it('does not mutate the input document', () => {
+      const doc = createSampleDoc();
+      const wrapResult = wrapNodeIntoFrame(doc, { nodeId: 'heading-1', frameId: 'test-flex' });
+      const snapshot = JSON.parse(JSON.stringify(wrapResult.document));
+
+      ungroupNodeFrame(wrapResult.document, { nodeId: 'test-flex' });
+      expect(wrapResult.document).toEqual(snapshot);
+    });
+  });
 });
 
 describe('STORA-013: Generic Undo/Redo History Engine', () => {
@@ -1053,6 +1241,73 @@ describe('STORA-013: Generic Undo/Redo History Engine', () => {
 
       manager.redo();
       expect(manager.document).toEqual(duplicateResult.document);
+    });
+
+    it('restores identical state for wrapNodeIntoFrame (STORA-105)', () => {
+      const initialDoc = createSampleDoc();
+      const manager = new DocumentHistoryManager(initialDoc);
+
+      const wrapResult = manager.execute((doc) =>
+        wrapNodeIntoFrame(doc, {
+          nodeIds: ['heading-1'],
+          frameId: 'wrap-frame',
+        }),
+      );
+
+      expect(manager.document).toEqual(wrapResult.document);
+      expect(manager.canUndo).toBe(true);
+
+      // Undo restores initialDoc
+      manager.undo();
+      expect(manager.document).toEqual(initialDoc);
+      expect(manager.canRedo).toBe(true);
+
+      // Redo restores wrapped document
+      manager.redo();
+      expect(manager.document).toEqual(wrapResult.document);
+    });
+
+    it('restores identical state for ungroupNodeFrame (STORA-106)', () => {
+      const initialDoc = createSampleDoc();
+      // First wrap into a frame
+      const wrapResult = wrapNodeIntoFrame(initialDoc, {
+        nodeIds: ['heading-1'],
+        frameId: 'wrap-frame',
+      });
+      const manager = new DocumentHistoryManager(wrapResult.document);
+
+      const ungroupResult = manager.execute((doc) =>
+        ungroupNodeFrame(doc, {
+          nodeId: 'wrap-frame',
+        }),
+      );
+
+      expect(manager.document).toEqual(ungroupResult.document);
+      expect(manager.canUndo).toBe(true);
+
+      // Undo restores wrapped document
+      manager.undo();
+      expect(manager.document).toEqual(wrapResult.document);
+      expect(manager.canRedo).toBe(true);
+
+      // Redo restores ungrouped document
+      manager.redo();
+      expect(manager.document).toEqual(ungroupResult.document);
+    });
+
+    it('round trip: wrap followed by ungroup restores identical document structure', () => {
+      const initialDoc = createSampleDoc();
+
+      const wrapResult = wrapNodeIntoFrame(initialDoc, {
+        nodeIds: ['heading-1'],
+        frameId: 'temp-flex',
+      });
+
+      const ungroupResult = ungroupNodeFrame(wrapResult.document, {
+        nodeId: 'temp-flex',
+      });
+
+      expect(ungroupResult.document).toEqual(initialDoc);
     });
   });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import {
@@ -8,7 +8,8 @@ import {
   buildSampleVariablesFromCatalog,
 } from '@kubuild/core';
 import { useEditorStore, Viewport } from '../../store';
-import { EditorCanvas } from '../canvas/canvas';
+import { EditorCanvas, EditorPageItem } from '../canvas';
+import { MultiDevicePreview } from '../canvas/multi-device-preview';
 import { EditorToolbar } from './toolbar';
 import { InspectorPanel } from '../panels/inspector-panel';
 import { LayersPanel } from '../panels/layers-panel';
@@ -21,6 +22,7 @@ import {
   Monitor,
   Tablet,
   Smartphone,
+  Columns3,
   Plus,
   Layers,
   Sliders,
@@ -32,6 +34,10 @@ import {
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
+  pages?: EditorPageItem[];
+  activePageId?: string;
+  onActivePageChange?: (pageId: string) => void;
+  onPagesChange?: (pages: EditorPageItem[]) => void;
   registry?: ComponentRegistry;
   context?: RuntimeContext;
   /** Host-declared bindable variables + preview-only sample values (STORA-053). Never written to the document. */
@@ -44,6 +50,10 @@ export interface KubuildEditorProps {
 
 export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   initialDocument,
+  pages,
+  activePageId,
+  onActivePageChange,
+  onPagesChange,
   registry = createDefaultComponentRegistry(),
   context,
   variableCatalog,
@@ -68,6 +78,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     canUndo,
     canRedo,
     previewMode,
+    multiDeviceMode,
+    toggleMultiDeviceMode,
     actionDebuggerOpen,
   } = useEditorStore();
   const lastLoadedDocRef = React.useRef<PageDocument | undefined>(undefined);
@@ -75,12 +87,62 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   // Mobile drawer states
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isMobileInspectorOpen, setIsMobileInspectorOpen] = useState<boolean>(false);
+
+  const defaultWidthForViewport = (vp: Viewport) => {
+    if (vp === 'mobile') return 375;
+    if (vp === 'tablet') return 768;
+    return 1200;
+  };
+  const [fluidWidth, setFluidWidth] = useState<number>(() => defaultWidthForViewport(viewport));
+
+  useEffect(() => {
+    setFluidWidth(defaultWidthForViewport(viewport));
+  }, [viewport]);
   const [isMobileLayersOpen, setIsMobileLayersOpen] = useState<boolean>(false);
 
   const activeTable = useMemo(
     () => findActiveTableNode(document.document, selectedNodeId),
     [document.document, selectedNodeId],
   );
+
+  const [internalActivePageId, setInternalActivePageId] = useState<string>(() => {
+    if (activePageId) return activePageId;
+    if (pages && pages.length > 0) return pages[0].id;
+    return 'default';
+  });
+
+  const effectiveActivePageId = activePageId || internalActivePageId;
+
+  const handleActivePageChange = useCallback(
+    (pageId: string) => {
+      setInternalActivePageId(pageId);
+      onActivePageChange?.(pageId);
+      const targetPage = pages?.find((p) => p.id === pageId);
+      if (targetPage) {
+        lastLoadedDocRef.current = targetPage.document;
+        setDocument(targetPage.document);
+      }
+    },
+    [pages, onActivePageChange, setDocument],
+  );
+
+  const handlePagesChange = useCallback(
+    (nextPages: EditorPageItem[]) => {
+      onPagesChange?.(nextPages);
+    },
+    [onPagesChange],
+  );
+
+  useEffect(() => {
+    if (activePageId) {
+      setInternalActivePageId(activePageId);
+      const target = pages?.find((p) => p.id === activePageId);
+      if (target && target.document !== useEditorStore.getState().document) {
+        lastLoadedDocRef.current = target.document;
+        setDocument(target.document);
+      }
+    }
+  }, [activePageId, pages, setDocument]);
 
   useEffect(() => {
     if (
@@ -94,8 +156,17 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   }, [initialDocument, setDocument]);
 
   useEffect(() => {
-    setOnChangeHandler(onChange ?? null);
-  }, [onChange, setOnChangeHandler]);
+    const wrappedOnChange = (updatedDoc: PageDocument) => {
+      onChange?.(updatedDoc);
+      if (pages && pages.length > 0 && onPagesChange) {
+        const nextPages = pages.map((p) =>
+          p.id === effectiveActivePageId ? { ...p, document: updatedDoc } : p,
+        );
+        onPagesChange(nextPages);
+      }
+    };
+    setOnChangeHandler(wrappedOnChange);
+  }, [onChange, pages, onPagesChange, effectiveActivePageId, setOnChangeHandler]);
 
   useEffect(() => {
     setVariableCatalog(variableCatalog ?? []);
@@ -259,10 +330,13 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
                   <button
                     key={vp}
                     type="button"
-                    onClick={() => setViewport(vp)}
+                    onClick={() => {
+                      if (multiDeviceMode) toggleMultiDeviceMode();
+                      setViewport(vp);
+                    }}
                     title={`Switch to ${vp} preview`}
                     className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded capitalize font-medium transition flex items-center gap-1 text-[11px] sm:text-xs ${
-                      viewport === vp
+                      viewport === vp && !multiDeviceMode
                         ? 'bg-white text-blue-600 shadow-xs font-semibold'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -271,6 +345,21 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
                     <span className="hidden md:inline">{vp}</span>
                   </button>
                 ))}
+                <div className="w-[1px] h-3.5 bg-slate-300 mx-0.5" />
+                <button
+                  type="button"
+                  data-testid="multi-device-toolbar-toggle"
+                  onClick={toggleMultiDeviceMode}
+                  title={multiDeviceMode ? 'Exit Multi-Device Preview' : 'Side-by-Side Multi-Device Preview (STORA-143)'}
+                  className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded font-medium transition flex items-center gap-1 text-[11px] sm:text-xs cursor-pointer ${
+                    multiDeviceMode
+                      ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Columns3 className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Multi-Device</span>
+                </button>
               </div>
             )}
           </div>
@@ -300,19 +389,29 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
 
         {/* Central Canvas Area */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0 h-full bg-slate-100/90 relative">
-          <div className="flex-1 overflow-auto p-2 sm:p-4 md:p-8 flex justify-center items-start min-h-0">
-            <div
-              className={`${viewportWidthMap[viewport]} bg-white shadow-md rounded-lg overflow-hidden transition-all duration-200 min-h-[500px] border border-slate-200`}
-            >
-              <EditorCanvas
-                registry={registry}
-                context={previewContext}
-                viewport={viewport}
-                onDiagnostic={onDiagnostic}
-                config={resolvedConfig.canvas}
-              />
-            </div>
-          </div>
+          {multiDeviceMode ? (
+            <MultiDevicePreview
+              registry={registry}
+              context={previewContext}
+              onClose={toggleMultiDeviceMode}
+            />
+          ) : (
+            <EditorCanvas
+              registry={registry}
+              context={previewContext}
+              viewport={viewport}
+              onDiagnostic={onDiagnostic}
+              config={resolvedConfig.canvas}
+              fluidWidth={fluidWidth}
+              onFluidWidthChange={setFluidWidth}
+              onBreakpointChange={(bp) => setViewport(bp)}
+              pages={pages}
+              activePageId={effectiveActivePageId}
+              onActivePageChange={handleActivePageChange}
+              onPagesChange={handlePagesChange}
+              className="flex-1 min-h-0"
+            />
+          )}
 
           {/* Quick Edit Selected Floating Action Pill (Mobile only) */}
           {selectedNodeId && !isMobileInspectorOpen && resolvedConfig.inspector.enabled && (

@@ -33,6 +33,8 @@ import {
   cloneTemplateAsPage,
   SaveTemplateMetadata,
   CloneTemplateOptions,
+  wrapNodeIntoFrame,
+  ungroupNodeFrame,
 } from '@kubuild/core';
 import {
   ComponentRegistry,
@@ -182,6 +184,7 @@ function buildDefaultChildren(
 export interface EditorState {
   document: PageDocument;
   selectedNodeId: string | null;
+  selectedNodeIds: string[];
   hoveredNodeId: string | null;
   dragPayload: DragPayload | null;
   viewport: Viewport;
@@ -195,6 +198,7 @@ export interface EditorState {
   navigatorMode: NavigatorMode;
   tableSpreadsheetMode: TableSpreadsheetMode;
   previewMode: boolean;
+  multiDeviceMode: boolean;
   actionDebuggerOpen: boolean;
   actionLogs: ActionLogEntry[];
   liveFormState: LiveFormState | null;
@@ -208,6 +212,8 @@ export interface EditorState {
   toggleTableSpreadsheet: () => void;
   setPreviewMode: (enabled: boolean) => void;
   togglePreviewMode: () => void;
+  setMultiDeviceMode: (enabled: boolean) => void;
+  toggleMultiDeviceMode: () => void;
   setActionDebuggerOpen: (open: boolean) => void;
   toggleActionDebugger: () => void;
   addActionLog: (entry: Omit<ActionLogEntry, 'id' | 'timestamp'> & { id?: string; timestamp?: string }) => void;
@@ -247,6 +253,21 @@ export interface EditorState {
     merge?: boolean,
   ) => UpdateStyleResult;
   /**
+   * Reset a specific overridden style property on a breakpoint layer, falling back to inherited base (STORA-141).
+   */
+  resetNodeStyleProperty: (
+    nodeId: string,
+    property: string,
+    breakpoint: 'base' | 'desktop' | 'tablet' | 'mobile',
+  ) => UpdateStyleResult;
+  /**
+   * Reset all overridden style properties on a breakpoint layer, falling back entirely to base.
+   */
+  resetNodeViewportStyles: (
+    nodeId: string,
+    breakpoint: 'base' | 'desktop' | 'tablet' | 'mobile',
+  ) => UpdateStyleResult;
+  /**
    * Update a pseudo-state style layer (e.g. ':hover') on a node — STORA-221.
    * Writes to node.styles.states[state] without touching default values.
    */
@@ -280,6 +301,10 @@ export interface EditorState {
     index?: number,
   ) => PasteComponentResult;
   selectNode: (nodeId: string | null) => void;
+  selectMultipleNodes: (ids: string[]) => void;
+  toggleNodeSelection: (id: string, multi: boolean) => void;
+  wrapSelectedIntoFrame: () => { success: boolean; nodeId?: string; error?: string };
+  ungroupSelectedFrame: () => { success: boolean; unwrappedIds?: string[]; error?: string };
   selectParent: () => void;
   hoverNode: (nodeId: string | null) => void;
   setViewport: (viewport: Viewport) => void;
@@ -297,9 +322,15 @@ function selectionAfter(document: PageDocument, selectedNodeId: string | null): 
   return findNodeById(document.document, selectedNodeId) ? selectedNodeId : null;
 }
 
+function selectionAfterMultiple(document: PageDocument, selectedNodeIds: string[]): string[] {
+  if (!selectedNodeIds || selectedNodeIds.length === 0) return [];
+  return selectedNodeIds.filter((id) => !!findNodeById(document.document, id));
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   document: historyManager.document,
   selectedNodeId: null,
+  selectedNodeIds: [],
   hoveredNodeId: null,
   dragPayload: null,
   viewport: 'desktop',
@@ -312,6 +343,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   navigatorMode: 'floating',
   tableSpreadsheetMode: 'floating',
   previewMode: false,
+  multiDeviceMode: false,
   actionDebuggerOpen: false,
   actionLogs: [],
   liveFormState: null,
@@ -333,6 +365,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       previewMode: enabled,
       actionDebuggerOpen: enabled ? state.actionDebuggerOpen : false,
       selectedNodeId: enabled ? null : state.selectedNodeId,
+      selectedNodeIds: enabled ? [] : state.selectedNodeIds,
       hoveredNodeId: null,
     })),
   togglePreviewMode: () =>
@@ -342,9 +375,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         previewMode: next,
         actionDebuggerOpen: next ? state.actionDebuggerOpen : false,
         selectedNodeId: next ? null : state.selectedNodeId,
+        selectedNodeIds: next ? [] : state.selectedNodeIds,
         hoveredNodeId: null,
       };
     }),
+  setMultiDeviceMode: (enabled) => set({ multiDeviceMode: enabled }),
+  toggleMultiDeviceMode: () => set((state) => ({ multiDeviceMode: !state.multiDeviceMode })),
   setActionDebuggerOpen: (open) => set({ actionDebuggerOpen: open }),
   toggleActionDebugger: () => set((state) => ({ actionDebuggerOpen: !state.actionDebuggerOpen })),
   addActionLog: (entry) =>
@@ -367,6 +403,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       document: historyManager.document,
       isDirty: false,
       selectedNodeId: null,
+      selectedNodeIds: [],
       hoveredNodeId: null,
       dragPayload: null,
       clipboard: null,
@@ -379,13 +416,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   dispatch: (executor) => {
     const result = historyManager.execute(executor);
-    const { selectedNodeId, onChangeHandler } = get();
+    const { selectedNodeId, selectedNodeIds, onChangeHandler } = get();
+    const updatedIds = selectionAfterMultiple(result.document, selectedNodeIds);
+    const updatedPrimary =
+      selectionAfter(result.document, selectedNodeId) ?? (updatedIds.length > 0 ? updatedIds[0] : null);
     set({
       document: result.document,
       isDirty: true,
       canUndo: historyManager.canUndo,
       canRedo: historyManager.canRedo,
-      selectedNodeId: selectionAfter(result.document, selectedNodeId),
+      selectedNodeId: updatedPrimary,
+      selectedNodeIds: updatedIds,
     });
     onChangeHandler?.(result.document);
   },
@@ -626,6 +667,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return { success: true };
   },
 
+  resetNodeStyleProperty: (nodeId, property, breakpoint) => {
+    const state = get();
+    const node = findNodeById(state.document.document, nodeId);
+    if (!node) {
+      return { success: false, error: `Node "${nodeId}" was not found in the document.` };
+    }
+    const currentBp = { ...((node.styles?.[breakpoint] as StyleDefinition) || {}) };
+    delete currentBp[property];
+    return get().updateNodeStyle(nodeId, currentBp, breakpoint, false);
+  },
+
+  resetNodeViewportStyles: (nodeId, breakpoint) => {
+    const state = get();
+    const node = findNodeById(state.document.document, nodeId);
+    if (!node) {
+      return { success: false, error: `Node "${nodeId}" was not found in the document.` };
+    }
+    return get().updateNodeStyle(nodeId, {}, breakpoint, false);
+  },
+
   updateNodeStateStyle: (nodeId, styles, state, merge = true) => {
     try {
       get().dispatch((doc) => updateStyle(doc, { nodeId, styles, state, merge }));
@@ -669,13 +730,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   undo: () => {
     const restored = historyManager.undo();
     if (!restored) return;
-    const { selectedNodeId, onChangeHandler } = get();
+    const { selectedNodeId, selectedNodeIds, onChangeHandler } = get();
+    const updatedIds = selectionAfterMultiple(restored, selectedNodeIds);
+    const updatedPrimary =
+      selectionAfter(restored, selectedNodeId) ?? (updatedIds.length > 0 ? updatedIds[0] : null);
     set({
       document: restored,
       isDirty: true,
       canUndo: historyManager.canUndo,
       canRedo: historyManager.canRedo,
-      selectedNodeId: selectionAfter(restored, selectedNodeId),
+      selectedNodeId: updatedPrimary,
+      selectedNodeIds: updatedIds,
     });
     onChangeHandler?.(restored);
   },
@@ -683,13 +748,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   redo: () => {
     const restored = historyManager.redo();
     if (!restored) return;
-    const { selectedNodeId, onChangeHandler } = get();
+    const { selectedNodeId, selectedNodeIds, onChangeHandler } = get();
+    const updatedIds = selectionAfterMultiple(restored, selectedNodeIds);
+    const updatedPrimary =
+      selectionAfter(restored, selectedNodeId) ?? (updatedIds.length > 0 ? updatedIds[0] : null);
     set({
       document: restored,
       isDirty: true,
       canUndo: historyManager.canUndo,
       canRedo: historyManager.canRedo,
-      selectedNodeId: selectionAfter(restored, selectedNodeId),
+      selectedNodeId: updatedPrimary,
+      selectedNodeIds: updatedIds,
     });
     onChangeHandler?.(restored);
   },
@@ -743,13 +812,123 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return { success: true, nodeId: clonedNode.id };
   },
 
-  selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+  selectNode: (nodeId) =>
+    set({
+      selectedNodeId: nodeId,
+      selectedNodeIds: nodeId ? [nodeId] : [],
+    }),
+
+  selectMultipleNodes: (ids) => {
+    const validIds = Array.from(
+      new Set(ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)),
+    );
+    set({
+      selectedNodeIds: validIds,
+      selectedNodeId: validIds.length > 0 ? validIds[0] : null,
+    });
+  },
+
+  toggleNodeSelection: (id, multi) => {
+    if (!id) return;
+    if (!multi) {
+      set({
+        selectedNodeId: id,
+        selectedNodeIds: [id],
+      });
+      return;
+    }
+    const { selectedNodeIds } = get();
+    if (selectedNodeIds.includes(id)) {
+      const next = selectedNodeIds.filter((nodeId) => nodeId !== id);
+      set({
+        selectedNodeIds: next,
+        selectedNodeId: next.length > 0 ? next[0] : null,
+      });
+    } else {
+      const next = [...selectedNodeIds, id];
+      set({
+        selectedNodeIds: next,
+        selectedNodeId: next[0],
+      });
+    }
+  },
+
+  wrapSelectedIntoFrame: () => {
+    const { selectedNodeIds, selectedNodeId, document } = get();
+    const rawIds =
+      selectedNodeIds.length > 0
+        ? selectedNodeIds
+        : selectedNodeId
+          ? [selectedNodeId]
+          : [];
+    const targetIds = Array.from(
+      new Set(rawIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)),
+    );
+    if (targetIds.length === 0) {
+      return { success: false, error: 'Cannot wrap nodes: At least one node ID must be provided.' };
+    }
+    if (targetIds.includes(document.document.id)) {
+      return { success: false, error: 'Cannot wrap the root page node.' };
+    }
+
+    try {
+      let frameId: string | undefined;
+      get().dispatch((doc) => {
+        const result = wrapNodeIntoFrame(doc, { nodeIds: targetIds });
+        frameId = result.event.nodeId;
+        return result;
+      });
+      if (frameId) {
+        get().selectNode(frameId);
+      }
+      return { success: true, nodeId: frameId };
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+  },
+
+  ungroupSelectedFrame: () => {
+    const { selectedNodeId, document } = get();
+    if (!selectedNodeId) {
+      return { success: false, error: 'Invalid nodeId: Node ID must be a non-empty string.' };
+    }
+    if (selectedNodeId === document.document.id) {
+      return { success: false, error: 'Cannot ungroup the root page node.' };
+    }
+
+    const node = findNodeById(document.document, selectedNodeId);
+    if (!node || node.type !== 'flex') {
+      return {
+        success: false,
+        error: `Cannot ungroup node: Node "${selectedNodeId}" is not a flex container (type is "${node?.type}").`,
+      };
+    }
+
+    try {
+      let unwrappedIds: string[] = [];
+      get().dispatch((doc) => {
+        const result = ungroupNodeFrame(doc, { nodeId: selectedNodeId });
+        unwrappedIds =
+          (result.event.payload as { unwrappedChildIds?: string[] })?.unwrappedChildIds ?? [];
+        return result;
+      });
+      if (unwrappedIds.length > 0) {
+        get().selectMultipleNodes(unwrappedIds);
+      } else {
+        get().selectNode(null);
+      }
+      return { success: true, unwrappedIds };
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+  },
+
   selectParent: () => {
     const { document, selectedNodeId } = get();
     if (!selectedNodeId) return;
     const parentId = getParentNodeId(document.document, selectedNodeId);
     if (parentId) {
-      set({ selectedNodeId: parentId });
+      set({ selectedNodeId: parentId, selectedNodeIds: [parentId] });
     }
   },
   hoverNode: (nodeId) => set({ hoveredNodeId: nodeId }),

@@ -147,6 +147,27 @@ export function renderLayoutNode(options: RenderNodeContentOptions): React.React
           {childrenElements}
         </div>
       );
+    case 'flex':
+    case 'grid': {
+      const ariaLabel =
+        typeof resolvedProps.ariaLabel === 'string'
+          ? resolvedProps.ariaLabel
+          : typeof props.ariaLabel === 'string'
+          ? props.ariaLabel
+          : undefined;
+
+      return (
+        <div
+          id={domId}
+          style={styles}
+          onClick={handleClick}
+          data-kubuild-node={node.id}
+          aria-label={ariaLabel}
+        >
+          {childrenElements}
+        </div>
+      );
+    }
     default:
       return null;
   }

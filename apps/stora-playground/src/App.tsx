@@ -691,7 +691,19 @@ export function App() {
       <main className="flex-1 overflow-hidden min-h-0">
         {activeTab === 'editor' && (
           <KubuildEditor
-            key={activePage.id}
+            pages={pages}
+            activePageId={activePageId}
+            onActivePageChange={setActivePageId}
+            onPagesChange={(nextPages) => {
+              setPages(
+                nextPages.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  slug: p.slug ?? '',
+                  document: p.document,
+                })),
+              );
+            }}
             initialDocument={activePage.document}
             onChange={handleDocChange}
             registry={registry}

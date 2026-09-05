@@ -71,21 +71,47 @@ describe('STORA-323: Built-in Action Runners: Navigation & Utilities (navigate, 
 
     globalThis.window = mockWindow;
     globalThis.document = mockDocument;
-    globalThis.navigator = mockNavigator;
+    const setNavigator = (val: any) => {
+      try {
+        Object.defineProperty(globalThis, 'navigator', {
+          value: val,
+          configurable: true,
+          writable: true,
+        });
+      } catch {
+        (globalThis as any).navigator = val;
+      }
+    };
+
+    setNavigator(mockNavigator);
   });
 
   afterEach(() => {
     globalThis.window = originalWindow;
     globalThis.document = originalDocument;
-    globalThis.navigator = originalNavigator;
+    try {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: originalNavigator,
+        configurable: true,
+        writable: true,
+      });
+    } catch {
+      (globalThis as any).navigator = originalNavigator;
+    }
   });
 
   describe('copyToClipboard helper', () => {
     it('uses navigator.clipboard.writeText when available', async () => {
       const writeTextMock = vi.fn().mockResolvedValue(undefined);
-      globalThis.navigator = {
-        clipboard: { writeText: writeTextMock },
-      } as any;
+      try {
+        Object.defineProperty(globalThis, 'navigator', {
+          value: { clipboard: { writeText: writeTextMock } },
+          configurable: true,
+          writable: true,
+        });
+      } catch {
+        (globalThis as any).navigator = { clipboard: { writeText: writeTextMock } };
+      }
 
       const success = await copyToClipboard('Hello World');
 
@@ -94,11 +120,23 @@ describe('STORA-323: Built-in Action Runners: Navigation & Utilities (navigate, 
     });
 
     it('falls back to document.execCommand when navigator.clipboard fails', async () => {
-      globalThis.navigator = {
-        clipboard: {
-          writeText: vi.fn().mockRejectedValue(new Error('Permission denied')),
-        },
-      } as any;
+      try {
+        Object.defineProperty(globalThis, 'navigator', {
+          value: {
+            clipboard: {
+              writeText: vi.fn().mockRejectedValue(new Error('Permission denied')),
+            },
+          },
+          configurable: true,
+          writable: true,
+        });
+      } catch {
+        (globalThis as any).navigator = {
+          clipboard: {
+            writeText: vi.fn().mockRejectedValue(new Error('Permission denied')),
+          },
+        };
+      }
 
       const execCommandMock = vi.fn().mockReturnValue(true);
       globalThis.document.execCommand = execCommandMock;

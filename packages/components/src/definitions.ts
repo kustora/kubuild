@@ -67,7 +67,7 @@ import {
  * appear nested inside another node, and content nodes can never become the root
  * (enforced separately by the schema's RootPageNodeSchema refinement).
  */
-const LAYOUT_PARENTS = ['page', 'section', 'container', 'columns'];
+const LAYOUT_PARENTS = ['page', 'section', 'container', 'columns', 'flex', 'grid'];
 const CONTENT_CHILD_TYPES = [
   'heading',
   'text',
@@ -120,7 +120,7 @@ export const sectionDefinition: ComponentDefinition = {
   category: 'layout',
   icon: 'rows',
   acceptsChildren: true,
-  allowedChildren: ['container', 'columns', ...CONTENT_CHILD_TYPES],
+  allowedChildren: ['container', 'columns', 'flex', 'grid', ...CONTENT_CHILD_TYPES],
   defaultProps: {},
   traits: [
     idTrait(),
@@ -152,7 +152,7 @@ export const containerDefinition: ComponentDefinition = {
   category: 'layout',
   icon: 'box',
   acceptsChildren: true,
-  allowedChildren: ['columns', ...CONTENT_CHILD_TYPES],
+  allowedChildren: ['columns', 'flex', 'grid', ...CONTENT_CHILD_TYPES],
   defaultProps: { maxWidth: '1200px' },
   traits: [
     idTrait(),
@@ -180,7 +180,7 @@ export const columnsDefinition: ComponentDefinition = {
   category: 'layout',
   icon: 'columns',
   acceptsChildren: true,
-  allowedChildren: ['container', ...CONTENT_CHILD_TYPES],
+  allowedChildren: ['container', 'flex', 'grid', ...CONTENT_CHILD_TYPES],
   defaultProps: { columns: 2, gap: '16px' },
   traits: [
     idTrait(),
@@ -198,6 +198,69 @@ export const columnsDefinition: ComponentDefinition = {
     mobile: {
       gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
       gap: '12px',
+    },
+  },
+};
+
+/**
+ * Flex Frame Component Definition (STORA-102)
+ * Auto Layout Flexbox container supporting any child with default column direction and 16px gap.
+ */
+export const flexDefinition: ComponentDefinition = {
+  type: 'flex',
+  label: 'Flex',
+  category: 'layout',
+  icon: 'flex',
+  acceptsChildren: true,
+  allowedChildren: ['*'],
+  disallowedParents: ['page'],
+  defaultProps: {},
+  traits: [
+    idTrait(),
+    ariaLabelTrait({ description: 'Accessible name for the flex container.' }),
+  ],
+  defaultStyles: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+    },
+  },
+};
+
+/**
+ * CSS Grid Component Definition (STORA-111)
+ * Visual CSS Grid container with default 3 equal columns and 16px gap.
+ */
+export const gridDefinition: ComponentDefinition = {
+  type: 'grid',
+  label: 'Grid',
+  category: 'layout',
+  icon: 'grid',
+  acceptsChildren: true,
+  allowedChildren: ['*'],
+  disallowedParents: ['page'],
+  defaultProps: {
+    columns: 3,
+    gap: '16px',
+  },
+  traits: [
+    idTrait(),
+    ariaLabelTrait({ description: 'Accessible name for the grid container.' }),
+  ],
+  defaultStyles: {
+    base: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+      gap: '16px',
+    },
+    tablet: {
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      gap: '16px',
+    },
+    mobile: {
+      gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
+      gap: '16px',
     },
   },
 };
@@ -2224,6 +2287,8 @@ export const coreComponentDefinitions: ComponentDefinition[] = [
   sectionDefinition,
   containerDefinition,
   columnsDefinition,
+  flexDefinition,
+  gridDefinition,
   headingDefinition,
   textDefinition,
   paragraphDefinition,

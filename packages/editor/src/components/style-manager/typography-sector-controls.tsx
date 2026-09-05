@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DimensionUnitInput } from './dimension-sector-controls';
+import { InheritanceIndicator, Breakpoint } from './inheritance-indicator';
 import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
 
 export interface FontOption {
@@ -59,10 +60,15 @@ export const GOOGLE_FONTS: FontOption[] = [
     category: 'display',
     googleFontName: 'Space Grotesk',
   },
-  { label: 'Syne', value: '"Syne", sans-serif', category: 'display', googleFontName: 'Syne' },
+  {
+    label: 'Syne',
+    value: '"Syne", sans-serif',
+    category: 'display',
+    googleFontName: 'Syne',
+  },
   { label: 'Bebas Neue', value: '"Bebas Neue", sans-serif', category: 'display', googleFontName: 'Bebas Neue' },
 
-  // Monospace Google Fonts
+  // Monospace Fonts
   {
     label: 'JetBrains Mono',
     value: '"JetBrains Mono", monospace',
@@ -96,6 +102,9 @@ export interface TypographySectorControlsProps {
   onChange: (property: string, value: string) => void;
   disabled?: boolean;
   className?: string;
+  baseStyles?: Record<string, unknown>;
+  breakpoint?: Breakpoint;
+  onResetProperty?: (property: string) => void;
 }
 
 export const TypographySectorControls: React.FC<TypographySectorControlsProps> = ({
@@ -103,6 +112,9 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
   onChange,
   disabled = false,
   className = '',
+  baseStyles,
+  breakpoint,
+  onResetProperty,
 }) => {
   const currentFont = typeof styles.fontFamily === 'string' ? styles.fontFamily : '';
   const [isCustomFont, setIsCustomFont] = useState(false);
@@ -147,7 +159,19 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
       {/* Font Family (Google Fonts) */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-[11px] font-medium text-slate-600">Font Family (Google Fonts)</label>
+          <div className="flex items-center gap-1.5">
+            <label className="block text-[11px] font-medium text-slate-600">Font Family (Google Fonts)</label>
+            {breakpoint && (
+              <InheritanceIndicator
+                property="fontFamily"
+                activeBreakpoint={breakpoint}
+                activeStyles={styles}
+                baseStyles={baseStyles}
+                onResetToInherited={onResetProperty}
+                compact
+              />
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setIsCustomFont(!isCustomFont)}
@@ -230,10 +254,26 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
           allowedUnits={['px', 'rem', 'em', 'vw', 'vh']}
           placeholder="16px"
           disabled={disabled}
+          baseStyles={baseStyles}
+          activeStyles={styles}
+          breakpoint={breakpoint}
+          onResetToInherited={onResetProperty}
         />
 
         <div>
-          <label className="block text-[11px] font-medium text-slate-600 mb-1">Font Weight</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-[11px] font-medium text-slate-600">Font Weight</label>
+            {breakpoint && (
+              <InheritanceIndicator
+                property="fontWeight"
+                activeBreakpoint={breakpoint}
+                activeStyles={styles}
+                baseStyles={baseStyles}
+                onResetToInherited={onResetProperty}
+                compact
+              />
+            )}
+          </div>
           <select
             data-testid="typography-select-font-weight"
             aria-label="Font Weight"
@@ -265,6 +305,10 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
           allowedUnits={['px', 'rem', 'em', '%', 'auto']}
           placeholder="1.5"
           disabled={disabled}
+          baseStyles={baseStyles}
+          activeStyles={styles}
+          breakpoint={breakpoint}
+          onResetToInherited={onResetProperty}
         />
         <DimensionUnitInput
           property="letterSpacing"
@@ -274,13 +318,29 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
           allowedUnits={['px', 'rem', 'em', 'auto']}
           placeholder="0px"
           disabled={disabled}
+          baseStyles={baseStyles}
+          activeStyles={styles}
+          breakpoint={breakpoint}
+          onResetToInherited={onResetProperty}
         />
       </div>
 
       {/* Color & Text Align */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-[11px] font-medium text-slate-600 mb-1">Text Color</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-[11px] font-medium text-slate-600">Text Color</label>
+            {breakpoint && (
+              <InheritanceIndicator
+                property="color"
+                activeBreakpoint={breakpoint}
+                activeStyles={styles}
+                baseStyles={baseStyles}
+                onResetToInherited={onResetProperty}
+                compact
+              />
+            )}
+          </div>
           <div className="flex items-center rounded border border-slate-300 bg-white p-0.5 focus-within:ring-1 focus-within:ring-blue-500 shadow-2xs">
             <input
               type="color"

@@ -5,6 +5,12 @@ import { BoxModelEditor } from './box-model-editor';
 import { DimensionSectorControls } from './dimension-sector-controls';
 import { TypographySectorControls } from './typography-sector-controls';
 import { MotionSectorControls } from './motion-sector-controls';
+import { AutoLayoutControls } from './auto-layout-controls';
+import { GridControls, GridItemControls } from './grid-controls';
+import { EffectsSectorControls } from './effects-sector-controls';
+import { ColorGradientPicker } from './color-gradient-picker';
+import { DesignTokensPanel } from './design-tokens-panel';
+import { InheritanceIndicator, InheritanceSummaryBar } from './inheritance-indicator';
 
 export type StyleSectorId = 'dimension' | 'spacing' | 'typography' | 'decorations' | 'flex' | 'motion';
 
@@ -56,7 +62,21 @@ export const STYLE_SECTORS: StyleSectorDefinition[] = [
     label: 'Decorations',
     icon: 'decorations',
     description: 'Background, borders, radius, shadow & opacity',
-    properties: ['backgroundColor', 'backgroundImage', 'borderStyle', 'borderWidth', 'borderColor', 'borderRadius', 'boxShadow', 'opacity'],
+    properties: [
+      'backgroundColor',
+      'backgroundImage',
+      'borderStyle',
+      'borderWidth',
+      'borderColor',
+      'borderRadius',
+      'borderTopLeftRadius',
+      'borderTopRightRadius',
+      'borderBottomRightRadius',
+      'borderBottomLeftRadius',
+      'boxShadow',
+      'backdropFilter',
+      'opacity',
+    ],
   },
   {
     id: 'flex',
@@ -155,6 +175,16 @@ export interface StyleManagerAccordionProps {
   initialState?: Partial<Record<StyleSectorId, boolean>>;
   /** Optional filter for allowed style sectors. If omitted, all sectors are displayed. */
   allowedSectors?: StyleSectorId[];
+  /** Type of the node currently inspected (e.g. 'flex', 'grid', 'container') */
+  nodeType?: string;
+  /** Whether the parent of the currently selected node is a grid container */
+  isParentGrid?: boolean;
+  /** Base styles layer for evaluating inheritance indicators (STORA-140) */
+  baseStyles?: Record<string, unknown>;
+  /** Reset callback for a single style property override (STORA-141) */
+  onResetProperty?: (property: string) => void;
+  /** Reset callback for all overrides in active viewport */
+  onResetAllOverrides?: () => void;
 }
 
 export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
@@ -170,7 +200,18 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
   className = '',
   initialState,
   allowedSectors,
+  nodeType,
+  isParentGrid = false,
+  baseStyles = {},
+  onResetProperty,
+  onResetAllOverrides,
 }) => {
+  const isFlexNode = styles.display === 'flex' || styles.display === 'inline-flex' || nodeType === 'flex';
+  const isGridNode = styles.display === 'grid' || styles.display === 'inline-grid' || nodeType === 'grid';
+  const hasGridParent = Boolean(isParentGrid || styles.gridColumn || styles.colSpan);
+
+  const [showTokens, setShowTokens] = useState(false);
+
   const visibleSectors = React.useMemo(() => {
     if (!allowedSectors || allowedSectors.length === 0) return STYLE_SECTORS;
     return STYLE_SECTORS.filter((sector) => allowedSectors.includes(sector.id));
@@ -178,6 +219,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
 
   const [openState, setOpenState] = useState<Record<StyleSectorId, boolean>>(() => ({
     ...loadAccordionState(),
+    ...(isFlexNode ? { flex: true } : {}),
     ...initialState,
   }));
 
@@ -287,8 +329,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
 
   return (
     <div className={`flex flex-col gap-2 w-full min-w-0 max-w-full ${className}`} data-testid="style-manager-accordion">
-      {/* Top Header Controls — stacked in two rows so the narrow inspector
-          panel (w-72) never overflows: title+badge on top, actions below. */}
+      {/* Top Header Controls */}
       <div className="flex flex-col gap-1 px-1 py-0.5 min-w-0">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide min-w-0">
           <span className="truncate">Style Manager</span>
@@ -330,6 +371,16 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
             </>
           )}
         </div>
+        {/* STORA-140 & STORA-141: Active Viewport Inheritance Summary Bar */}
+        {breakpoint !== 'base' && (
+          <InheritanceSummaryBar
+            activeBreakpoint={breakpoint}
+            activeStyles={styles}
+            baseStyles={baseStyles}
+            onResetAllOverrides={onResetAllOverrides}
+            className="mt-1"
+          />
+        )}
       </div>
 
       {/* Accordion Sectors List */}
@@ -414,20 +465,41 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           {['marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map(
-                            (prop) => (
-                              <div key={prop} className="flex items-center justify-between gap-1 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                                <span className="text-[11px] text-slate-500 font-medium truncate">
-                                  {prop.replace(/([A-Z])/g, ' $1').toLowerCase()}
-                                </span>
-                                <input
-                                  type="text"
-                                  placeholder="0"
-                                  value={String(styles[prop] ?? '')}
-                                  onChange={(e) => onCommitStyle(prop, e.target.value)}
-                                  className="w-14 text-right font-mono text-[11px] bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-                            ),
+                            (prop) => {
+                              const isInherited =
+                                breakpoint !== 'base' &&
+                                (styles[prop] === undefined || styles[prop] === null || styles[prop] === '') &&
+                                baseStyles?.[prop] !== undefined &&
+                                baseStyles?.[prop] !== '';
+                              const effectivePlaceholder = isInherited ? String(baseStyles[prop]) : '0';
+
+                              return (
+                                <div key={prop} className="flex items-center justify-between gap-1 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                                  <div className="flex items-center gap-1 min-w-0">
+                                    <span className="text-[11px] text-slate-500 font-medium truncate">
+                                      {prop.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                                    </span>
+                                    {breakpoint !== 'base' && (
+                                      <InheritanceIndicator
+                                        property={prop}
+                                        activeBreakpoint={breakpoint}
+                                        activeStyles={styles}
+                                        baseStyles={baseStyles}
+                                        onResetToInherited={onResetProperty}
+                                        compact
+                                      />
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder={effectivePlaceholder}
+                                    value={String(styles[prop] ?? '')}
+                                    onChange={(e) => onCommitStyle(prop, e.target.value)}
+                                    className="w-14 text-right font-mono text-[11px] bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </div>
+                              );
+                            },
                           )}
                         </div>
                       </div>
@@ -435,57 +507,61 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                   )}
 
                   {sector.id === 'dimension' && (
-                    <DimensionSectorControls
-                      styles={styles}
-                      onChange={onCommitStyle}
-                    />
+                    <div className="flex flex-col gap-3">
+                      <DimensionSectorControls
+                        styles={styles}
+                        onChange={onCommitStyle}
+                        baseStyles={baseStyles}
+                        breakpoint={breakpoint}
+                        onResetProperty={onResetProperty}
+                      />
+                      {/* STORA-113: Child Column Span & Row Span Controls when in Grid */}
+                      {hasGridParent && (
+                        <GridItemControls
+                          styles={styles}
+                          onChange={onCommitStyle}
+                        />
+                      )}
+                    </div>
                   )}
 
                   {sector.id === 'typography' && (
                     <TypographySectorControls
                       styles={styles}
                       onChange={onCommitStyle}
+                      baseStyles={baseStyles}
+                      breakpoint={breakpoint}
+                      onResetProperty={onResetProperty}
                     />
                   )}
 
                   {sector.id === 'decorations' && (
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-3">
+                      {/* Background Color & Gradient Picker (STORA-151) */}
                       <div>
-                        <label className="block text-[11px] font-medium text-slate-600 mb-1">Background Color</label>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="color"
-                            value={typeof styles.backgroundColor === 'string' && styles.backgroundColor.startsWith('#') ? styles.backgroundColor : '#ffffff'}
-                            onChange={(e) => onCommitStyle('backgroundColor', e.target.value)}
-                            className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0.5"
-                          />
-                          <input
-                            type="text"
-                            placeholder="transparent / #ffffff"
-                            value={String(styles.backgroundColor ?? '')}
-                            onChange={(e) => onCommitStyle('backgroundColor', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono"
-                          />
-                        </div>
+                        <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                          Background Color & Gradient
+                        </label>
+                        <ColorGradientPicker
+                          value={String(styles.backgroundImage || styles.backgroundColor || '#ffffff')}
+                          onChange={(val) => {
+                            if (val.includes('gradient')) {
+                              onCommitStyle('backgroundImage', val);
+                            } else {
+                              onCommitStyle('backgroundColor', val);
+                            }
+                          }}
+                        />
                       </div>
 
+                      {/* Border Style and Border Color */}
                       <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Border Radius</label>
-                          <input
-                            type="text"
-                            placeholder="0px"
-                            value={String(styles.borderRadius ?? '')}
-                            onChange={(e) => onCommitStyle('borderRadius', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
                         <div>
                           <label className="block text-[11px] font-medium text-slate-600 mb-1">Border Style</label>
                           <select
                             value={String(styles.borderStyle ?? 'none')}
                             onChange={(e) => onCommitStyle('borderStyle', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs cursor-pointer"
                           >
                             <option value="none">None</option>
                             <option value="solid">Solid</option>
@@ -493,9 +569,6 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                             <option value="dotted">Dotted</option>
                           </select>
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[11px] font-medium text-slate-600 mb-1">Border Color</label>
                           <input
@@ -503,96 +576,19 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                             placeholder="#e2e8f0"
                             value={String(styles.borderColor ?? '')}
                             onChange={(e) => onCommitStyle('borderColor', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Box Shadow</label>
-                          <input
-                            type="text"
-                            placeholder="none"
-                            value={String(styles.boxShadow ?? '')}
-                            onChange={(e) => onCommitStyle('boxShadow', e.target.value)}
-                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono"
+                            className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none font-mono shadow-2xs"
                           />
                         </div>
                       </div>
+
+                      {/* STORA-150: Independent 4-Corner Radius & STORA-152: Shadows & Blur */}
+                      <EffectsSectorControls styles={styles} onChange={onCommitStyle} />
                     </div>
                   )}
 
                   {sector.id === 'flex' && (
-                    <div className="flex flex-col gap-2.5">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Direction</label>
-                          <select
-                            value={String(styles.flexDirection ?? 'row')}
-                            onChange={(e) => onCommitStyle('flexDirection', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="row">Row (Horizontal)</option>
-                            <option value="column">Column (Vertical)</option>
-                            <option value="row-reverse">Row Reverse</option>
-                            <option value="column-reverse">Column Reverse</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Wrap</label>
-                          <select
-                            value={String(styles.flexWrap ?? 'nowrap')}
-                            onChange={(e) => onCommitStyle('flexWrap', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="nowrap">No Wrap</option>
-                            <option value="wrap">Wrap</option>
-                            <option value="wrap-reverse">Wrap Reverse</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Justify Content</label>
-                          <select
-                            value={String(styles.justifyContent ?? 'flex-start')}
-                            onChange={(e) => onCommitStyle('justifyContent', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="flex-start">Start</option>
-                            <option value="center">Center</option>
-                            <option value="flex-end">End</option>
-                            <option value="space-between">Space Between</option>
-                            <option value="space-around">Space Around</option>
-                            <option value="space-evenly">Space Evenly</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Align Items</label>
-                          <select
-                            value={String(styles.alignItems ?? 'stretch')}
-                            onChange={(e) => onCommitStyle('alignItems', e.target.value)}
-                            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="stretch">Stretch</option>
-                            <option value="flex-start">Start</option>
-                            <option value="center">Center</option>
-                            <option value="flex-end">End</option>
-                            <option value="baseline">Baseline</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-medium text-slate-600 mb-1">Gap</label>
-                        <input
-                          type="text"
-                          placeholder="0px / 1rem"
-                          value={String(styles.gap ?? '')}
-                          onChange={(e) => onCommitStyle('gap', e.target.value)}
-                          className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                        />
-                      </div>
-                    </div>
+                    // STORA-103: Auto Layout Inspector Panel with 9-Point Alignment Matrix
+                    <AutoLayoutControls styles={styles} onChange={onCommitStyle} />
                   )}
 
                   {sector.id === 'motion' && (
@@ -607,6 +603,68 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
             </div>
           );
         })}
+
+        {/* STORA-112: Visual Grid Track Builder when selected node is Grid */}
+        {isGridNode && (
+          <div
+            data-testid="sector-grid"
+            className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs"
+          >
+            <div className="px-3 py-2 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">
+                  <ComponentIcon iconOrType="grid" size={14} />
+                </span>
+                <span className="text-xs font-semibold text-slate-700">Grid Track Builder</span>
+                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-blue-100 text-blue-700 rounded-full border border-blue-200">
+                  CSS Grid
+                </span>
+              </div>
+            </div>
+            <div className="p-3 bg-white">
+              <GridControls styles={styles} onChange={onCommitStyle} />
+            </div>
+          </div>
+        )}
+
+        {/* STORA-154: Global Design Tokens Accordion Section */}
+        <div
+          data-testid="sector-tokens"
+          className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs"
+        >
+          <button
+            type="button"
+            data-testid="tokens-accordion-toggle"
+            onClick={() => setShowTokens((prev) => !prev)}
+            className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-slate-500">
+                <ComponentIcon iconOrType="palette" size={14} />
+              </span>
+              <span className="text-xs font-semibold text-slate-700">Global Design Tokens</span>
+            </div>
+            <span
+              className={`text-slate-400 transform transition-transform duration-200 ${
+                showTokens ? 'rotate-180' : 'rotate-0'
+              }`}
+            >
+              <ComponentIcon iconOrType="chevron-down" size={13} />
+            </span>
+          </button>
+          {showTokens && (
+            <div className="p-3 border-t border-slate-100 bg-white" data-testid="tokens-accordion-content">
+              <DesignTokensPanel
+                onApplyColor={(prop, val) => onCommitStyle(prop, val)}
+                onApplyTypography={(typoStyles) => {
+                  Object.entries(typoStyles).forEach(([prop, val]) => {
+                    onCommitStyle(prop, val);
+                  });
+                }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

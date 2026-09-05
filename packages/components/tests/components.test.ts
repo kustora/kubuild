@@ -6,6 +6,8 @@ import {
   sectionDefinition,
   containerDefinition,
   columnsDefinition,
+  flexDefinition,
+  gridDefinition,
   headingDefinition,
   textDefinition,
   paragraphDefinition,
@@ -2019,6 +2021,79 @@ describe('STORA-335: Unit Tests Komponen Form di Component Registry', () => {
         expect(validation.valid).toBe(true);
         expect(validation.errors).toEqual([]);
       });
+    });
+  });
+
+  describe('STORA-102: flexDefinition Component Specification', () => {
+    it('is registered in default component registry with category layout and icon flex', () => {
+      const registry = createDefaultComponentRegistry();
+      expect(registry.has('flex')).toBe(true);
+
+      const flexDef = registry.get('flex');
+      expect(flexDef).toBeDefined();
+      expect(flexDef?.type).toBe('flex');
+      expect(flexDef?.category).toBe('layout');
+      expect(flexDef?.icon).toBe('flex');
+      expect(flexDef?.acceptsChildren).toBe(true);
+    });
+
+    it('has default styles with display: flex, flexDirection: column, and gap: 16px', () => {
+      expect(flexDefinition.defaultStyles?.base?.display).toBe('flex');
+      expect(flexDefinition.defaultStyles?.base?.flexDirection).toBe('column');
+      expect(flexDefinition.defaultStyles?.base?.gap).toBe('16px');
+    });
+
+    it('validates child insertion under section, container, columns, and nested flex', () => {
+      const registry = createDefaultComponentRegistry();
+
+      expect(registry.canInsertChild('section', 'flex').valid).toBe(true);
+      expect(registry.canInsertChild('container', 'flex').valid).toBe(true);
+      expect(registry.canInsertChild('columns', 'flex').valid).toBe(true);
+      expect(registry.canInsertChild('flex', 'button').valid).toBe(true);
+      expect(registry.canInsertChild('flex', 'text').valid).toBe(true);
+      expect(registry.canInsertChild('flex', 'image').valid).toBe(true);
+      expect(registry.canInsertChild('flex', 'flex').valid).toBe(true);
+    });
+
+    it('disallows page inside flex', () => {
+      const registry = createDefaultComponentRegistry();
+      expect(registry.canInsertChild('flex', 'page').valid).toBe(false);
+    });
+  });
+
+  describe('STORA-111: gridDefinition Component Specification', () => {
+    it('is registered in default component registry with category layout and icon grid', () => {
+      const registry = createDefaultComponentRegistry();
+      expect(registry.has('grid')).toBe(true);
+
+      const gridDef = registry.get('grid');
+      expect(gridDef).toBeDefined();
+      expect(gridDef?.type).toBe('grid');
+      expect(gridDef?.category).toBe('layout');
+      expect(gridDef?.icon).toBe('grid');
+      expect(gridDef?.acceptsChildren).toBe(true);
+    });
+
+    it('has default 3 columns (repeat(3, minmax(0, 1fr))) and gap 16px', () => {
+      expect(gridDefinition.defaultStyles?.base?.display).toBe('grid');
+      expect(gridDefinition.defaultStyles?.base?.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+      expect(gridDefinition.defaultStyles?.base?.gap).toBe('16px');
+      expect(gridDefinition.defaultProps?.columns).toBe(3);
+    });
+
+    it('validates child insertion under section, container, and flex', () => {
+      const registry = createDefaultComponentRegistry();
+
+      expect(registry.canInsertChild('section', 'grid').valid).toBe(true);
+      expect(registry.canInsertChild('container', 'grid').valid).toBe(true);
+      expect(registry.canInsertChild('flex', 'grid').valid).toBe(true);
+      expect(registry.canInsertChild('grid', 'container').valid).toBe(true);
+      expect(registry.canInsertChild('grid', 'heading').valid).toBe(true);
+    });
+
+    it('disallows page inside grid', () => {
+      const registry = createDefaultComponentRegistry();
+      expect(registry.canInsertChild('grid', 'page').valid).toBe(false);
     });
   });
 });
