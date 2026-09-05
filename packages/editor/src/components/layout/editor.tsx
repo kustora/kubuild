@@ -16,7 +16,7 @@ import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/tab
 import { HierarchyBreadcrumbs } from '../canvas/breadcrumbs';
 import { LeftSidebar } from '../panels/left-sidebar';
 import { ActionDebuggerPanel } from '../panels/action-debugger-panel';
-import { EditorConfig, resolveEditorConfig } from '../../config';
+import { EditorConfig, resolveEditorConfig, AiEditorConfig, resolveAiEditorConfig } from '../../config';
 import {
   Monitor,
   Tablet,
@@ -39,6 +39,12 @@ export interface KubuildEditorProps {
   onChange?: (doc: PageDocument) => void;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   config?: EditorConfig;
+  /**
+   * AI provider integration (STORA-501). Opt-in only — when omitted, `KubuildEditor`
+   * renders with zero AI UI and zero behavioral difference from a build without AI.
+   * The host (consumer) always supplies its own provider adapter/endpoint/API key.
+   */
+  ai?: AiEditorConfig;
   className?: string;
 }
 
@@ -50,6 +56,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   onChange,
   onDiagnostic,
   config,
+  ai,
   className,
 }) => {
   const {
@@ -128,9 +135,14 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   };
 
   const resolvedConfig = useMemo(() => resolveEditorConfig(config), [config]);
+  // Resolved but not yet wired into any panel UI — the chat/generate panel lands in a
+  // later epic (EPIC-51+). Resolving here keeps `ai` a validated, always-safe-to-pass prop
+  // today; `data-ai-enabled` lets tests confirm the prop is opt-in with zero UI impact.
+  const resolvedAiConfig = useMemo(() => resolveAiEditorConfig(ai), [ai]);
 
   return (
     <div
+      data-ai-enabled={resolvedAiConfig.enabled}
       className={`flex flex-col h-full bg-slate-100 text-slate-900 relative overflow-hidden ${className || ''}`}
     >
       {/* Floating Navigator */}
