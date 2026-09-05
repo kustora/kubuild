@@ -7,17 +7,30 @@ export interface UseAiChatOptions extends AiClientOptions {
   initialMessages?: AiChatMessage[];
   onMessage?: (message: AiChatMessage) => void;
   onError?: (error: Error) => void;
+  /**
+   * Fired for every partial token/chunk of a streaming chat response (STORA-516),
+   * mirroring `useAiGenerator`'s `AiStreamCallbacks` naming convention. Optional — the
+   * `messages` array already updates incrementally on its own, this is only for hosts
+   * that want a side-channel (e.g. custom rendering, telemetry) into the raw chunks.
+   */
+  onChunk?: (delta: string, content: string) => void;
 }
 
 export interface SendMessageOptions {
   currentDocument?: PageDocument;
   selectedNodeId?: string;
   systemPrompt?: string;
+  /**
+   * Opt out of token-level streaming for this call (STORA-515/516 default to `true`).
+   * When `false`, behaves exactly like the pre-streaming single request/response call.
+   */
+  stream?: boolean;
 }
 
 export function useAiChat(options: UseAiChatOptions) {
   const [messages, setMessages] = useState<AiChatMessage[]>(options.initialMessages || []);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -25,9 +38,12 @@ export function useAiChat(options: UseAiChatOptions) {
 
   const cancel = useCallback(() => {
     if (abortControllerRef.current) {
+      // Aborts the underlying fetch (and, for a streaming request, the in-flight
+      // ReadableStream read) — not just local UI state (STORA-516 AC).
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
+      setIsStreaming(false);
     }
   }, []);
 
@@ -55,7 +71,52 @@ export function useAiChat(options: UseAiChatOptions) {
       setIsLoading(true);
       setError(null);
 
+      const useStream = sendOptions?.stream !== false;
+
       try {
+        if (useStream) {
+          setIsStreaming(true);
+
+          // Placeholder assistant message, filled in incrementally as chunks arrive.
+          let assistantIndex = -1;
+          setMessages((prev) => {
+            assistantIndex = prev.length;
+            return [...prev, { role: 'assistant', content: '', timestamp: Date.now() }];
+          });
+
+          const finalMessage = await clientRef.current.chatStream(
+            {
+              messages: updatedHistory,
+              currentDocument: sendOptions?.currentDocument,
+              selectedNodeId: sendOptions?.selectedNodeId,
+              systemPrompt: sendOptions?.systemPrompt,
+            },
+            {
+              onChatChunk: (delta, contentSoFar) => {
+                options.onChunk?.(delta, contentSoFar);
+                setMessages((prev) => {
+                  if (assistantIndex < 0 || assistantIndex >= prev.length) return prev;
+                  const next = prev.slice();
+                  next[assistantIndex] = { ...next[assistantIndex], content: contentSoFar };
+                  return next;
+                });
+              },
+              onChatComplete: (message) => {
+                setMessages((prev) => {
+                  if (assistantIndex < 0 || assistantIndex >= prev.length) return prev;
+                  const next = prev.slice();
+                  next[assistantIndex] = message;
+                  return next;
+                });
+              },
+            },
+            { signal: ac.signal },
+          );
+
+          options.onMessage?.(finalMessage);
+          return finalMessage;
+        }
+
         const response: AiChatResponse = await clientRef.current.chat(
           {
             messages: updatedHistory,
@@ -79,6 +140,7 @@ export function useAiChat(options: UseAiChatOptions) {
       } finally {
         if (abortControllerRef.current === ac) {
           setIsLoading(false);
+          setIsStreaming(false);
           abortControllerRef.current = null;
         }
       }
@@ -90,6 +152,8 @@ export function useAiChat(options: UseAiChatOptions) {
     messages,
     sendMessage,
     isLoading,
+    /** Whether the in-flight `sendMessage` call is a token-level stream (STORA-516). */
+    isStreaming,
     error,
     cancel,
     clearMessages,

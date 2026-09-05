@@ -206,6 +206,66 @@ export function createAiHandler(engine: KubuildAiEngine) {
 
       // Handle opt-in SSE Streaming
       if (body && typeof body === 'object' && body.stream === true) {
+        const mode = body.mode || 'full-page';
+
+        // Token-level chat streaming (STORA-515) — routed separately from full-page
+        // streaming below since it needs `messages`, not `prompt`.
+        if (mode === 'chat') {
+          if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: {
+                  code: 'INVALID_CHAT_PARAMS',
+                  message: '"messages" array is required and must not be empty for chat mode',
+                },
+              }),
+              {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            );
+          }
+
+          const encoder = new TextEncoder();
+          const readable = new ReadableStream({
+            async start(controller) {
+              try {
+                for await (const event of engine.chatStream(
+                  {
+                    messages: body.messages!,
+                    currentDocument: body.currentDocument,
+                    selectedNodeId: body.selectedNodeId,
+                  },
+                  { signal: request.signal },
+                )) {
+                  controller.enqueue(
+                    encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
+                  );
+                }
+              } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err);
+                controller.enqueue(
+                  encoder.encode(
+                    `event: error\ndata: ${JSON.stringify({ type: 'error', error: { code: 'CHAT_STREAM_ERROR', message } })}\n\n`,
+                  ),
+                );
+              } finally {
+                controller.close();
+              }
+            },
+          });
+
+          return new Response(readable, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache, no-transform',
+              Connection: 'keep-alive',
+            },
+          });
+        }
+
         if (!body.prompt || typeof body.prompt !== 'string') {
           return new Response(
             JSON.stringify({
