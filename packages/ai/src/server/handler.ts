@@ -8,7 +8,7 @@ import type {
 } from '../types';
 
 export interface AiApiRequestBody {
-  mode: AiGenerationMode;
+  mode?: AiGenerationMode;
   prompt?: string;
   stylePreference?: string;
   tone?: string;
@@ -18,6 +18,7 @@ export interface AiApiRequestBody {
   parentContext?: string;
   node?: AiRefactorNodeRequest['node'];
   instruction?: string;
+  stream?: boolean;
 }
 
 export async function processAiRequest(
@@ -138,7 +139,8 @@ export async function processAiRequest(
 }
 
 /**
- * Creates a standard Web Fetch API Request handler.
+ * Creates a standard Web Fetch API Request handler with optional SSE streaming support.
+ *
  * Plug-and-play for Next.js App Router (route.ts), SvelteKit, Remix, Astro, Bun, etc.
  *
  * Example:
@@ -168,7 +170,68 @@ export function createAiHandler(engine: KubuildAiEngine) {
         );
       }
 
-      const body = await request.json().catch(() => null);
+      const body = (await request.json().catch(() => null)) as AiApiRequestBody | null;
+
+      // Handle opt-in SSE Streaming
+      if (body && typeof body === 'object' && body.stream === true) {
+        if (!body.prompt || typeof body.prompt !== 'string') {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: {
+                code: 'INVALID_PROMPT',
+                message: '"prompt" is required for streaming generation',
+              },
+            }),
+            {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          );
+        }
+
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const event of engine.streamPage(
+                {
+                  prompt: body.prompt!,
+                  stylePreference: body.stylePreference,
+                  tone: body.tone,
+                  locale: body.locale,
+                  metadata: body.metadata,
+                },
+                { signal: request.signal },
+              )) {
+                controller.enqueue(
+                  encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
+                );
+              }
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : String(err);
+              controller.enqueue(
+                encoder.encode(
+                  `event: error\ndata: ${JSON.stringify({ type: 'error', error: { code: 'STREAM_ERROR', message } })}\n\n`,
+                ),
+              );
+            } finally {
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(readable, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache, no-transform',
+            Connection: 'keep-alive',
+          },
+        });
+      }
+
+      // Default: Standard non-streaming JSON response (Backward-compatible)
       const { status, response } = await processAiRequest(
         engine,
         body,

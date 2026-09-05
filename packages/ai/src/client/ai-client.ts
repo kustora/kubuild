@@ -4,6 +4,8 @@ import type {
   AiGenerateSectionRequest,
   AiRefactorNodeRequest,
   AiGenerateResponse,
+  AiStreamCallbacks,
+  AiStreamEvent,
 } from '../types';
 
 export interface AiClientOptions {
@@ -65,6 +67,9 @@ export class KubuildAiClient {
     return json.data;
   }
 
+  /**
+   * Standard single-pass full page generator (non-streaming).
+   */
   async generatePage(
     params: AiGeneratePageRequest,
     options?: { signal?: AbortSignal },
@@ -76,6 +81,96 @@ export class KubuildAiClient {
       },
       options?.signal,
     );
+  }
+
+  /**
+   * Progressive section streamer (SSE).
+   * Calls callbacks on each event (status, metadata, section, complete).
+   */
+  async streamPage(
+    params: AiGeneratePageRequest,
+    callbacks?: AiStreamCallbacks,
+    options?: { signal?: AbortSignal },
+  ): Promise<PageDocument> {
+    const dynamicHeaders = await this.resolveHeaders();
+
+    const res = await this.fetchFn(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...dynamicHeaders,
+      },
+      body: JSON.stringify({
+        mode: 'full-page',
+        stream: true,
+        ...params,
+      }),
+      signal: options?.signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      const err = new Error(`Streaming failed [${res.status} ${res.statusText}]: ${errText}`);
+      callbacks?.onError?.(err);
+      throw err;
+    }
+
+    if (!res.body) {
+      const err = new Error('Response body is null, cannot stream');
+      callbacks?.onError?.(err);
+      throw err;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalDoc: PageDocument | null = null;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+
+        for (const part of parts) {
+          const lines = part.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const event = JSON.parse(line.slice(6).trim()) as AiStreamEvent;
+                if (event.type === 'status') {
+                  callbacks?.onStatus?.(event.message);
+                } else if (event.type === 'metadata') {
+                  callbacks?.onMetadata?.(event.metadata, event.rootPageNode);
+                } else if (event.type === 'section') {
+                  callbacks?.onSection?.(event.section, event.index, event.total);
+                } else if (event.type === 'complete') {
+                  finalDoc = event.document;
+                  callbacks?.onComplete?.(event.document);
+                } else if (event.type === 'error') {
+                  const err = new Error(event.error.message);
+                  callbacks?.onError?.(err);
+                  throw err;
+                }
+              } catch (e) {
+                if (e instanceof Error && e.message.includes('STREAM_ERROR')) throw e;
+              }
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (!finalDoc) {
+      throw new Error('Stream ended without receiving complete document');
+    }
+
+    return finalDoc;
   }
 
   async generateSection(

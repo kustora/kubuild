@@ -9,6 +9,7 @@ export interface AiGeneratePageRequest {
   tone?: string;
   locale?: string;
   metadata?: Partial<DocumentMetadata>;
+  stream?: boolean;
 }
 
 export interface AiGenerateSectionRequest {
@@ -22,6 +23,21 @@ export interface AiRefactorNodeRequest {
   node: Node;
   instruction: string;
   stylePreference?: string;
+}
+
+export type AiStreamEvent =
+  | { type: 'status'; message: string }
+  | { type: 'metadata'; metadata: DocumentMetadata; rootPageNode: Node }
+  | { type: 'section'; index: number; total: number; section: Node }
+  | { type: 'complete'; document: PageDocument }
+  | { type: 'error'; error: { code: string; message: string } };
+
+export interface AiStreamCallbacks {
+  onStatus?: (message: string) => void;
+  onMetadata?: (metadata: DocumentMetadata, rootPage: Node) => void;
+  onSection?: (section: Node, index: number, total: number) => void;
+  onComplete?: (document: PageDocument) => void;
+  onError?: (error: Error) => void;
 }
 
 export interface AiErrorDetail {
