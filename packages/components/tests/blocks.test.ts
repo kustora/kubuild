@@ -258,7 +258,7 @@ describe('STARTER_BLOCKS & STORA-350 Starter Form Templates', () => {
       expect(block?.icon).toBe('layout');
     });
 
-    it('generates a valid navbar tree with Brand heading, navigation links, and CTA button', () => {
+    it('generates a valid navbar tree with Brand heading, desktop links, CTA, hamburger button, and mobile dropdown', () => {
       const block = STARTER_BLOCKS.find((b) => b.id === 'navbar')!;
       const tree = block.createNodeTree();
 
@@ -271,22 +271,44 @@ describe('STARTER_BLOCKS & STORA-350 Starter Form Templates', () => {
       expect(brandHeading).toBeDefined();
       expect(brandHeading?.props?.text).toBe('Brand');
 
-      // Nav link flex container
+      // Flex containers (Desktop Links, Desktop CTA, Mobile Dropdown)
       const flexes = container?.children?.filter((c) => c.type === 'flex') ?? [];
-      expect(flexes.length).toBe(2);
+      expect(flexes.length).toBe(3);
 
+      // Desktop nav links (hidden on mobile)
       const navLinksFlex = flexes[0];
+      expect((navLinksFlex.styles as any)?.mobile?.display).toBe('none');
       const links = navLinksFlex.children?.filter((c) => c.type === 'link') ?? [];
       expect(links.length).toBeGreaterThanOrEqual(3);
       expect(links.map((l) => l.props?.text)).toContain('Home');
       expect(links.map((l) => l.props?.text)).toContain('Features');
       expect(links.map((l) => l.props?.text)).toContain('Pricing');
 
-      // CTA buttons flex
-      const ctaFlex = flexes[1];
-      const ctaBtn = ctaFlex.children?.find((c) => c.type === 'button');
+      // Desktop CTA buttons flex (hidden on mobile)
+      const desktopCtaFlex = flexes[1];
+      expect((desktopCtaFlex.styles as any)?.mobile?.display).toBe('none');
+      const ctaBtn = desktopCtaFlex.children?.find((c) => c.type === 'button');
       expect(ctaBtn).toBeDefined();
       expect(ctaBtn?.props?.label).toBe('Get Started');
+
+      // Mobile Hamburger button (hidden on desktop, visible on mobile with open_modal action)
+      const hamburgerBtn = container?.children?.find(
+        (c) => c.type === 'button' && (c.styles as any)?.base?.display === 'none'
+      );
+      expect(hamburgerBtn).toBeDefined();
+      expect((hamburgerBtn?.styles as any)?.mobile?.display).toBe('inline-flex');
+      expect(hamburgerBtn?.props?.label).toBe('☰');
+      expect(hamburgerBtn?.props?.activeLabel).toBe('✕');
+      expect(hamburgerBtn?.props?.isEditable).toBe(false);
+      expect(hamburgerBtn?.actions?.[0].trigger).toBe('click');
+      expect(hamburgerBtn?.actions?.[0].steps[0].type).toBe('open_modal');
+      expect(hamburgerBtn?.actions?.[0].steps[0].payload?.toggle).toBe(true);
+
+      // Mobile dropdown container (hidden on desktop, flex on mobile, controlled by modalId)
+      const mobileDropdownFlex = flexes[2];
+      expect(mobileDropdownFlex.props?.modalId).toBe('mobile-nav-drawer');
+      expect((mobileDropdownFlex.styles as any)?.base?.display).toBe('none');
+      expect((mobileDropdownFlex.styles as any)?.mobile?.display).toBe('flex');
     });
 
     it('inserts cleanly into document and passes full schema & registry validation', () => {

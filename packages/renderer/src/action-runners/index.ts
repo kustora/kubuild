@@ -4,7 +4,7 @@ import {
   createApiRequestHandler,
   type ApiRequestRunnerOptions,
 } from './api-request';
-import { showToastRunner, openModalRunner, closeModalRunner } from './ui-feedback';
+import { showToastRunner, openModalRunner, closeModalRunner, toggleModalRunner } from './ui-feedback';
 import { navigateRunner, copyClipboardRunner, resetFormRunner } from './navigation-utils';
 
 export * from './api-request';
@@ -37,6 +37,7 @@ export function createDefaultActionRunners(
     show_toast: showToastRunner,
     open_modal: openModalRunner,
     close_modal: closeModalRunner,
+    toggle_modal: toggleModalRunner,
     navigate: navigateRunner,
     copy_clipboard: copyClipboardRunner,
     reset_form: resetFormRunner,

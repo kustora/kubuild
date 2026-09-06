@@ -173,6 +173,15 @@ export function useModal(
   close: () => void;
   toggle: () => boolean;
 } {
+  if (!modalId) {
+    return {
+      isOpen: false,
+      open: () => {},
+      close: () => {},
+      toggle: () => false,
+    };
+  }
+
   const [isOpen, setIsOpen] = useState<boolean>(() => manager.isModalOpen(modalId));
 
   useEffect(() => {

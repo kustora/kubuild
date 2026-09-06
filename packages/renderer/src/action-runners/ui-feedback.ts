@@ -86,22 +86,42 @@ export const openModalRunner: PipelineStepHandler = (
   }
 
   const targetManager: ModalManager = (context.modalManager as ModalManager) || modalManager;
-  targetManager.openModal(modalId);
+  const shouldToggle = Boolean(payload.toggle);
+  const nextOpen = shouldToggle ? targetManager.toggleModal(modalId) : (targetManager.openModal(modalId), true);
 
   // Sync to runtime execution context state & variables
   if (context.state && typeof context.state === 'object') {
     const existingModals = (context.state.modals as Record<string, boolean>) || {};
-    context.state.modals = { ...existingModals, [modalId]: true };
-    context.state[modalId] = true;
+    context.state.modals = { ...existingModals, [modalId]: nextOpen };
+    context.state[modalId] = nextOpen;
   }
   if (context.variables && typeof context.variables === 'object') {
-    context.variables[`modal_${modalId}_open`] = true;
+    context.variables[`modal_${modalId}_open`] = nextOpen;
   }
 
   return {
     modalId,
-    open: true,
+    open: nextOpen,
   };
+};
+
+/**
+ * Action Runner for `toggle_modal`.
+ */
+export const toggleModalRunner: PipelineStepHandler = (
+  step: ActionStep,
+  context: PipelineExecutionContext,
+): ModalActionResult => {
+  return (openModalRunner as (s: ActionStep, c: PipelineExecutionContext) => ModalActionResult)(
+    {
+      ...step,
+      payload: {
+        ...(step.payload || {}),
+        toggle: true,
+      },
+    },
+    context,
+  );
 };
 
 /**

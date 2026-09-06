@@ -315,6 +315,36 @@ describe('STORA-322: Built-in Action Runners: UI Feedback (show_toast, open_moda
       expect(modalManager.isModalOpen('node_modal_789')).toBe(true);
     });
 
+    it('supports toggle: true in open_modal runner to toggle open and closed states', () => {
+      const context: Record<string, any> = { state: {}, variables: {} };
+
+      // 1. First call toggles it open (false -> true)
+      const resOpen = openModalRunner(
+        {
+          id: 'step_toggle_1',
+          type: 'open_modal',
+          payload: { modalId: 'mobile_menu', toggle: true },
+        },
+        context,
+      );
+      expect(resOpen).toEqual({ modalId: 'mobile_menu', open: true });
+      expect(modalManager.isModalOpen('mobile_menu')).toBe(true);
+      expect(context.state.mobile_menu).toBe(true);
+
+      // 2. Second call toggles it closed (true -> false)
+      const resClose = openModalRunner(
+        {
+          id: 'step_toggle_2',
+          type: 'open_modal',
+          payload: { modalId: 'mobile_menu', toggle: true },
+        },
+        context,
+      );
+      expect(resClose).toEqual({ modalId: 'mobile_menu', open: false });
+      expect(modalManager.isModalOpen('mobile_menu')).toBe(false);
+      expect(context.state.mobile_menu).toBe(false);
+    });
+
     it('throws error when open_modal has no modalId or modalNodeId', () => {
       expect(() =>
         openModalRunner(

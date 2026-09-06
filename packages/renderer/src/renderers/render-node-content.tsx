@@ -53,6 +53,7 @@ export interface RenderNodeContentOptions {
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
   instanceSuffix?: string;
+  isModalOpen?: boolean;
   renderChildNode: (child: Node, instanceSuffix?: string, itemContext?: RenderContext) => React.ReactElement;
 }
 
@@ -855,7 +856,9 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
 
   switch (node.type) {
     case 'button': {
-      const label = String(resolvedProps.label ?? resolvedProps.text ?? resolvedProps.content ?? props.label ?? props.text ?? props.content ?? 'Button');
+      const baseLabel = resolvedProps.label ?? resolvedProps.text ?? resolvedProps.content ?? props.label ?? props.text ?? props.content ?? 'Button';
+      const activeLabel = resolvedProps.activeLabel ?? props.activeLabel;
+      const label = String(options.isModalOpen && activeLabel ? activeLabel : baseLabel);
       const href = typeof resolvedProps.href === 'string' ? resolvedProps.href : (typeof props.href === 'string' ? props.href : undefined);
       const target = typeof resolvedProps.target === 'string' ? resolvedProps.target : (typeof props.target === 'string' ? props.target : undefined);
       const rawButtonType = resolvedProps.buttonType ?? resolvedProps.type ?? props.buttonType ?? props.type;
@@ -866,7 +869,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
           : 'button';
       const disabled = resolvedProps.disabled === true || props.disabled === true;
       const ariaLabel = typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : undefined;
-      const isEditable = mode === 'editor' && !isVariableBinding(props.label) && !isVariableBinding(props.text);
+      const isEditable = mode === 'editor' && props.isEditable !== false && !isVariableBinding(props.label) && !isVariableBinding(props.text);
 
       const computedRel =
         typeof resolvedProps.rel === 'string'

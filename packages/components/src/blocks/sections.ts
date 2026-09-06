@@ -10,7 +10,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
     name: 'Navbar',
     category: 'sections',
     categoryLabel: 'Navigation & Headers',
-    description: 'Responsive top navigation bar with brand logo, nav links, and call-to-action button',
+    description: 'Responsive top navigation bar with brand logo, nav links, CTA button, and mobile hamburger menu',
     icon: 'layout',
     createNodeTree: (gen = defaultGenId) => ({
       id: gen('section'),
@@ -24,6 +24,12 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
           backgroundColor: '#ffffff',
           borderBottom: '1px solid #e2e8f0',
           width: '100%',
+        },
+        mobile: {
+          paddingLeft: '16px',
+          paddingRight: '16px',
+          paddingTop: '12px',
+          paddingBottom: '12px',
         },
       },
       children: [
@@ -39,9 +45,11 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
               alignItems: 'center',
               justifyContent: 'space-between',
               width: '100%',
+              flexWrap: 'wrap',
             },
           },
           children: [
+            // 1. Brand Logo
             {
               id: gen('heading'),
               type: 'heading',
@@ -55,6 +63,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
                 },
               },
             },
+            // 2. Desktop Navigation Links (hidden on mobile)
             {
               id: gen('flex'),
               type: 'flex',
@@ -64,6 +73,9 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: '24px',
+                },
+                mobile: {
+                  display: 'none',
                 },
               },
               children: [
@@ -121,6 +133,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
                 },
               ],
             },
+            // 3. Desktop CTA Buttons (hidden on mobile)
             {
               id: gen('flex'),
               type: 'flex',
@@ -130,6 +143,9 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: '12px',
+                },
+                mobile: {
+                  display: 'none',
                 },
               },
               children: [
@@ -160,6 +176,157 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
                       fontSize: '14px',
                       fontWeight: '600',
                       display: 'inline-block',
+                    },
+                    states: {
+                      ':hover': { backgroundColor: '#1d4ed8' },
+                    },
+                  } as unknown as ResponsiveStyles,
+                },
+              ],
+            },
+            // 4. Mobile Hamburger Button (hidden on desktop, visible on mobile)
+            {
+              id: gen('button'),
+              type: 'button',
+              props: {
+                label: '☰',
+                activeLabel: '✕',
+                isEditable: false,
+                modalId: 'mobile-nav-drawer',
+                ariaLabel: 'Toggle navigation menu',
+                variant: 'secondary',
+              },
+              styles: {
+                base: {
+                  display: 'none',
+                },
+                mobile: {
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px 12px',
+                  fontSize: '18px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  color: '#0f172a',
+                  cursor: 'pointer',
+                },
+              },
+              actions: [
+                {
+                  id: gen('pipeline'),
+                  trigger: 'click',
+                  label: 'Toggle Mobile Menu',
+                  enabled: true,
+                  steps: [
+                    {
+                      id: gen('step'),
+                      type: 'open_modal',
+                      label: 'Toggle Navigation Drawer',
+                      payload: {
+                        modalId: 'mobile-nav-drawer',
+                        toggle: true,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            // 5. Mobile Navigation Dropdown (hidden on desktop, stacked on mobile)
+            {
+              id: gen('flex'),
+              type: 'flex',
+              props: {
+                modalId: 'mobile-nav-drawer',
+                ariaLabel: 'Mobile navigation menu',
+              },
+              styles: {
+                base: {
+                  display: 'none',
+                },
+                mobile: {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  width: '100%',
+                  gap: '8px',
+                  paddingTop: '16px',
+                  marginTop: '12px',
+                  borderTop: '1px solid #f1f5f9',
+                },
+              },
+              children: [
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'Home', href: '#home' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#0f172a',
+                      textDecoration: 'none',
+                      padding: '6px 0',
+                    },
+                  },
+                },
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'Features', href: '#features' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#64748b',
+                      textDecoration: 'none',
+                      padding: '6px 0',
+                    },
+                  },
+                },
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'Pricing', href: '#pricing' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#64748b',
+                      textDecoration: 'none',
+                      padding: '6px 0',
+                    },
+                  },
+                },
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'About', href: '#about' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#64748b',
+                      textDecoration: 'none',
+                      padding: '6px 0',
+                    },
+                  },
+                },
+                {
+                  id: gen('button'),
+                  type: 'button',
+                  props: { label: 'Get Started', href: '#signup' },
+                  styles: {
+                    base: {
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      textAlign: 'center',
+                      display: 'block',
+                      marginTop: '8px',
                     },
                     states: {
                       ':hover': { backgroundColor: '#1d4ed8' },

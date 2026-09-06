@@ -170,6 +170,7 @@ export const OpenModalStepPayloadSchema = z
   .object({
     modalId: z.string().optional(),
     modalNodeId: z.string().optional(),
+    toggle: z.boolean().optional(),
   })
   .refine((data) => Boolean(data.modalId || data.modalNodeId), {
     message: 'Modal ID or Modal Node ID cannot be empty',

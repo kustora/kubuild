@@ -80,14 +80,23 @@ export const BlockThumbnail: React.FC<{ block: BlockDefinition }> = ({ block }) 
       );
     case 'navbar':
       return (
-        <div className="w-full h-12 bg-white border border-slate-200 rounded flex items-center justify-between px-2 shadow-xs">
-          <div className="w-5 h-2 bg-slate-800 rounded-xs" />
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-1 bg-slate-400 rounded-full" />
-            <div className="w-3 h-1 bg-slate-400 rounded-full" />
-            <div className="w-3 h-1 bg-slate-400 rounded-full" />
+        <div className="w-full h-12 bg-white border border-slate-200 rounded flex flex-col justify-between p-1.5 shadow-xs">
+          <div className="flex items-center justify-between w-full">
+            <div className="w-5 h-2 bg-slate-800 rounded-xs" />
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-1 bg-slate-400 rounded-full" />
+              <div className="w-2.5 h-1 bg-slate-400 rounded-full" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-2 bg-blue-600 rounded-xs" />
+              <div className="flex flex-col gap-0.5 justify-center">
+                <div className="w-2.5 h-0.5 bg-slate-500 rounded-full" />
+                <div className="w-2.5 h-0.5 bg-slate-500 rounded-full" />
+                <div className="w-2.5 h-0.5 bg-slate-500 rounded-full" />
+              </div>
+            </div>
           </div>
-          <div className="w-5 h-2 bg-blue-600 rounded-xs" />
+          <div className="w-full h-0.5 bg-slate-100 rounded" />
         </div>
       );
     case 'hero-section':

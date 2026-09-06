@@ -20,6 +20,7 @@ import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
 import { renderNodeContent } from './renderers';
 import { ToastContainer } from './action-runners/toast-container';
+import { useModal, modalManager, type ModalManager } from './action-runners';
 import { executeNodeActions, useNodeLoadActions } from './action-dispatcher';
 
 // Re-export all nodes and media utilities for backward compatibility
@@ -57,6 +58,28 @@ export interface NodeRendererProps {
    * template produces unique DOM ids per iteration instead of duplicates.
    */
   instanceSuffix?: string;
+}
+
+function useSafeModalOpen(modalId: string | undefined, manager: ModalManager): boolean {
+  if (!modalId) return false;
+  try {
+    const r = React as unknown as Record<string, unknown>;
+    const internals = (r.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
+      r.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) as Record<string, unknown> | undefined;
+    const hasDispatcher = Boolean(
+      internals &&
+        (internals['H'] ||
+          (internals['ReactCurrentDispatcher'] as Record<string, unknown> | undefined)?.['current']),
+    );
+    if (hasDispatcher) {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const { isOpen } = useModal(modalId, manager);
+      return isOpen;
+    }
+  } catch {
+    // Fallback if called directly as function outside React tree
+  }
+  return manager.isModalOpen(modalId);
 }
 
 export function NodeRenderer({
@@ -164,6 +187,19 @@ export function NodeRenderer({
     />
   );
 
+  const modalId = (props.modalId || props.modalNodeId || props.targetModalId) as string | undefined;
+  const isModalOpen = useSafeModalOpen(
+    modalId,
+    ((context as unknown as Record<string, unknown> | undefined)?.modalManager as ModalManager) || modalManager,
+  );
+
+  const effectiveStyles: React.CSSProperties = { ...styles };
+  // If this node is a modal/drawer container (not an interactive trigger button/link), hide it when closed
+  const isModalContainer = Boolean(props.modalId || props.modalNodeId) && node.type !== 'button' && node.type !== 'link';
+  if (isModalContainer && !isModalOpen) {
+    effectiveStyles.display = 'none';
+  }
+
   let content: React.ReactElement;
   try {
     content = renderNodeContent({
@@ -173,7 +209,7 @@ export function NodeRenderer({
       context,
       viewport,
       mode,
-      styles,
+      styles: effectiveStyles,
       props,
       resolvedProps,
       definition,
@@ -185,6 +221,7 @@ export function NodeRenderer({
       onActionDispatch,
       onNodePropChange,
       instanceSuffix,
+      isModalOpen,
       renderChildNode,
     });
   } catch (error) {

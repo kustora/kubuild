@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { KubuildRenderer } from '../src/renderer';
-import { createDefaultComponentRegistry, ComponentRegistry } from '@kubuild/components';
+import { modalManager } from '../src/action-runners';
+import { createDefaultComponentRegistry, ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
 import { createBlankDocument } from '@kubuild/core';
 import { ActionHandler, RuntimeContext } from '@kubuild/core';
 import { Node, PageDocument, starterPageFixture } from '@kubuild/schema';
@@ -1566,6 +1567,112 @@ describe('STORA-052: Collection rendering', () => {
       expect(html).toContain('border-bottom-right-radius:4px');
       expect(html).toContain('border-bottom-left-radius:4px');
       expect(html).toContain('background-image:linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.2))');
+    });
+  });
+
+  describe('Modal-Aware Node Visibility & Toggle Support', () => {
+    it('hides node when modalId is specified and modal is closed, shows it when opened', () => {
+      const doc = createBlankDocument('Modal Visibility Page');
+      doc.document.children = [
+        {
+          id: 'mobile-nav-drawer',
+          type: 'flex',
+          props: { modalId: 'mobile-nav-drawer' },
+          styles: {
+            base: {
+              display: 'flex',
+              flexDirection: 'column',
+            },
+          },
+          children: [
+            { id: 'link-1', type: 'link', props: { text: 'Home', href: '#' } },
+          ],
+        },
+      ];
+
+      modalManager.closeModal('mobile-nav-drawer');
+
+      // 1. Closed state: display is overridden to 'none'
+      const htmlClosed = renderToString(
+        <KubuildRenderer document={doc} registry={registry} mode="runtime" />
+      );
+      expect(htmlClosed).toContain('display:none');
+
+      // 2. Open state: display renders its regular style ('flex')
+      modalManager.openModal('mobile-nav-drawer');
+      const htmlOpen = renderToString(
+        <KubuildRenderer document={doc} registry={registry} mode="runtime" />
+      );
+      expect(htmlOpen).toContain('display:flex');
+      expect(htmlOpen).not.toContain('display:none');
+
+      modalManager.closeModal('mobile-nav-drawer');
+    });
+
+    it('renders button activeLabel when modal is open and reverts to label when closed', () => {
+      const doc = createBlankDocument('Button ActiveLabel Page');
+      doc.document.children = [
+        {
+          id: 'hamburger-btn',
+          type: 'button',
+          props: {
+            label: '☰',
+            activeLabel: '✕',
+            modalId: 'test-drawer',
+          },
+        },
+      ];
+
+      modalManager.closeModal('test-drawer');
+
+      // Closed -> label '☰', button remains visible (NOT display:none)
+      const htmlClosed = renderToString(
+        <KubuildRenderer document={doc} registry={registry} mode="runtime" />
+      );
+      expect(htmlClosed).toContain('☰');
+      expect(htmlClosed).not.toContain('✕');
+      expect(htmlClosed).not.toContain('display:none');
+
+      // Open -> activeLabel '✕'
+      modalManager.openModal('test-drawer');
+      const htmlOpen = renderToString(
+        <KubuildRenderer document={doc} registry={registry} mode="runtime" />
+      );
+      expect(htmlOpen).toContain('✕');
+
+      modalManager.closeModal('test-drawer');
+    });
+
+    it('renders Navbar starter block in mobile viewport with visible hamburger and toggleable dropdown', () => {
+      const navbarBlock = STARTER_BLOCKS.find((b) => b.id === 'navbar')!;
+      const tree = navbarBlock.createNodeTree();
+
+      const doc = createBlankDocument('Navbar Mobile Test');
+      doc.document.children = [tree];
+
+      modalManager.closeModal('mobile-nav-drawer');
+
+      // 1. Mobile viewport: closed state
+      const htmlClosed = renderToString(
+        <KubuildRenderer document={doc} registry={registry} viewport="mobile" mode="runtime" />
+      );
+      // Hamburger button must be rendered with display:inline-flex and label '☰'
+      expect(htmlClosed).toContain('☰');
+      expect(htmlClosed).toContain('display:inline-flex');
+      // Dropdown menu must be hidden (display:none)
+      expect(htmlClosed).toContain('display:none');
+
+      // 2. Open state: user clicked hamburger button
+      modalManager.openModal('mobile-nav-drawer');
+      const htmlOpen = renderToString(
+        <KubuildRenderer document={doc} registry={registry} viewport="mobile" mode="runtime" />
+      );
+      // Button changes to '✕'
+      expect(htmlOpen).toContain('✕');
+      // Mobile dropdown links ('Home', 'Features', 'Pricing') are visible
+      expect(htmlOpen).toContain('Features');
+
+      modalManager.closeModal('mobile-nav-drawer');
     });
   });
 });
