@@ -31,6 +31,7 @@ import {
   Wand2,
   Check,
   LayoutTemplate,
+  GripVertical,
 } from 'lucide-react';
 
 export interface AiChatPanelProps {
@@ -267,6 +268,93 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Floating panel draggable state
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{ startX: number; startY: number; posX: number; posY: number }>({
+    startX: 0,
+    startY: 0,
+    posX: 0,
+    posY: 0,
+  });
+
+  const handleHeaderPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, select, textarea, a')) return;
+    if (e.button !== undefined && e.button !== 0) return;
+
+    setIsDragging(true);
+
+    const rect = panelRef.current?.getBoundingClientRect();
+    const currentX = pos ? pos.x : (rect ? rect.left : 16);
+    const currentY = pos ? pos.y : (rect ? rect.top : 16);
+
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      posX: currentX,
+      posY: currentY,
+    };
+
+    if (!pos) {
+      setPos({ x: currentX, y: currentY });
+    }
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const dx = e.clientX - dragStartRef.current.startX;
+      const dy = e.clientY - dragStartRef.current.startY;
+      const panelWidth = panelRef.current?.offsetWidth || 360;
+      const panelHeight = panelRef.current?.offsetHeight || 520;
+      const maxX = Math.max(0, window.innerWidth - panelWidth);
+      const maxY = Math.max(0, window.innerHeight - panelHeight);
+
+      setPos({
+        x: Math.max(0, Math.min(maxX, dragStartRef.current.posX + dx)),
+        y: Math.max(0, Math.min(maxY, dragStartRef.current.posY + dy)),
+      });
+    };
+
+    const handlePointerUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (!pos || mode !== 'floating') return;
+
+    const handleResize = () => {
+      const panelWidth = panelRef.current?.offsetWidth || 360;
+      const panelHeight = panelRef.current?.offsetHeight || 520;
+      const maxX = Math.max(0, window.innerWidth - panelWidth);
+      const maxY = Math.max(0, window.innerHeight - panelHeight);
+
+      setPos((prev) => {
+        if (!prev) return prev;
+        const clampedX = Math.max(0, Math.min(maxX, prev.x));
+        const clampedY = Math.max(0, Math.min(maxY, prev.y));
+        if (clampedX === prev.x && clampedY === prev.y) return prev;
+        return { x: clampedX, y: clampedY };
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [pos, mode]);
+
   // Re-attach context automatically whenever the canvas selection itself changes
   // (STORA-506) — a dismissal only ever applies to the message it was dismissed for.
   useEffect(() => {
@@ -480,9 +568,19 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   };
 
   const header = (
-    <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-slate-50 shrink-0">
+    <div
+      data-testid="ai-chat-header"
+      onPointerDown={mode === 'floating' ? handleHeaderPointerDown : undefined}
+      style={{ touchAction: mode === 'floating' ? 'none' : 'auto' }}
+      className={`flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-slate-50 shrink-0 select-none ${
+        mode === 'floating' ? 'cursor-grab active:cursor-grabbing touch-none' : ''
+      }`}
+    >
       <div className="flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-blue-600" />
+        {mode === 'floating' && (
+          <GripVertical className="w-3.5 h-3.5 text-slate-400 -mr-0.5 shrink-0" aria-hidden="true" />
+        )}
+        <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
         <span className="font-bold text-xs text-slate-800">AI Assistant</span>
       </div>
       <div className="flex items-center gap-1">
@@ -736,9 +834,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   if (mode === 'floating') {
     return (
       <div
+        ref={panelRef}
         data-testid="ai-chat-panel"
         data-mode="floating"
-        className={`fixed bottom-4 right-4 z-40 w-[360px] max-w-[92vw] h-[520px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden ${className || ''}`}
+        style={
+          pos
+            ? {
+                left: `${pos.x}px`,
+                top: `${pos.y}px`,
+                bottom: 'auto',
+                right: 'auto',
+              }
+            : undefined
+        }
+        className={`fixed bottom-4 right-4 z-40 w-[360px] max-w-[92vw] h-[520px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden ${
+          isDragging ? 'select-none pointer-events-auto' : ''
+        } ${className || ''}`}
       >
         {header}
         {body}

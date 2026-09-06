@@ -100,6 +100,19 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
       expect(html).not.toContain('fixed bottom-4 right-4');
     });
 
+    it('renders draggable header with touch-none and grab cursor in floating mode', () => {
+      const floatingHtml = renderToString(<AiChatPanel aiConfig={enabledConfig} mode="floating" />);
+      expect(floatingHtml).toContain('data-testid="ai-chat-header"');
+      expect(floatingHtml).toContain('cursor-grab');
+      expect(floatingHtml).toContain('touch-none');
+      expect(floatingHtml).toContain('touch-action:none');
+
+      const dockedHtml = renderToString(<AiChatPanel aiConfig={enabledConfig} mode="docked" />);
+      expect(dockedHtml).toContain('data-testid="ai-chat-header"');
+      expect(dockedHtml).not.toContain('cursor-grab');
+      expect(dockedHtml).not.toContain('touch-none');
+    });
+
     it("'hidden' mode is the caller's responsibility: KubuildEditor renders zero ai-chat-panel nodes by default (store's true initial aiChatMode is 'hidden')", () => {
       const html = renderToString(
         <KubuildEditor
