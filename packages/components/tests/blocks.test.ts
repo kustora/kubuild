@@ -247,5 +247,59 @@ describe('STARTER_BLOCKS & STORA-350 Starter Form Templates', () => {
       });
     });
   });
+
+  describe('Navbar Starter Block (navbar)', () => {
+    it('is registered in STARTER_BLOCKS with correct metadata', () => {
+      const block = STARTER_BLOCKS.find((b) => b.id === 'navbar');
+      expect(block).toBeDefined();
+      expect(block?.name).toBe('Navbar');
+      expect(block?.category).toBe('sections');
+      expect(block?.description).toBeDefined();
+      expect(block?.icon).toBe('layout');
+    });
+
+    it('generates a valid navbar tree with Brand heading, navigation links, and CTA button', () => {
+      const block = STARTER_BLOCKS.find((b) => b.id === 'navbar')!;
+      const tree = block.createNodeTree();
+
+      expect(tree.type).toBe('section');
+      const container = tree.children?.[0];
+      expect(container?.type).toBe('container');
+
+      // Brand heading
+      const brandHeading = container?.children?.find((c) => c.type === 'heading');
+      expect(brandHeading).toBeDefined();
+      expect(brandHeading?.props?.text).toBe('Brand');
+
+      // Nav link flex container
+      const flexes = container?.children?.filter((c) => c.type === 'flex') ?? [];
+      expect(flexes.length).toBe(2);
+
+      const navLinksFlex = flexes[0];
+      const links = navLinksFlex.children?.filter((c) => c.type === 'link') ?? [];
+      expect(links.length).toBeGreaterThanOrEqual(3);
+      expect(links.map((l) => l.props?.text)).toContain('Home');
+      expect(links.map((l) => l.props?.text)).toContain('Features');
+      expect(links.map((l) => l.props?.text)).toContain('Pricing');
+
+      // CTA buttons flex
+      const ctaFlex = flexes[1];
+      const ctaBtn = ctaFlex.children?.find((c) => c.type === 'button');
+      expect(ctaBtn).toBeDefined();
+      expect(ctaBtn?.props?.label).toBe('Get Started');
+    });
+
+    it('inserts cleanly into document and passes full schema & registry validation', () => {
+      const block = STARTER_BLOCKS.find((b) => b.id === 'navbar')!;
+      const tree = block.createNodeTree();
+
+      let doc = createBlankDocument('Navbar Page');
+      doc = insertNode(doc, { parentId: doc.document.id, node: tree }).document;
+
+      const validation = validateDocument(doc, { componentRegistry: registry });
+      expect(validation.valid).toBe(true);
+      expect(validation.errors).toEqual([]);
+    });
+  });
 });
 

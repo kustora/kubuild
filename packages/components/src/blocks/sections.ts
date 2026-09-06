@@ -6,6 +6,174 @@ import { BlockDefinition, defaultGenId } from './types';
  */
 export const UI_STARTER_BLOCKS: BlockDefinition[] = [
   {
+    id: 'navbar',
+    name: 'Navbar',
+    category: 'sections',
+    categoryLabel: 'Navigation & Headers',
+    description: 'Responsive top navigation bar with brand logo, nav links, and call-to-action button',
+    icon: 'layout',
+    createNodeTree: (gen = defaultGenId) => ({
+      id: gen('section'),
+      type: 'section',
+      styles: {
+        base: {
+          paddingTop: '16px',
+          paddingBottom: '16px',
+          paddingLeft: '24px',
+          paddingRight: '24px',
+          backgroundColor: '#ffffff',
+          borderBottom: '1px solid #e2e8f0',
+          width: '100%',
+        },
+      },
+      children: [
+        {
+          id: gen('container'),
+          type: 'container',
+          props: { tag: 'div' },
+          styles: {
+            base: {
+              maxWidth: '1200px',
+              margin: '0 auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+            },
+          },
+          children: [
+            {
+              id: gen('heading'),
+              type: 'heading',
+              props: { text: 'Brand', level: 3 },
+              styles: {
+                base: {
+                  fontSize: '20px',
+                  fontWeight: '800',
+                  color: '#0f172a',
+                  margin: '0',
+                },
+              },
+            },
+            {
+              id: gen('flex'),
+              type: 'flex',
+              styles: {
+                base: {
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: '24px',
+                },
+              },
+              children: [
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'Home', href: '#home' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#0f172a',
+                      textDecoration: 'none',
+                    },
+                  },
+                },
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'Features', href: '#features' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#64748b',
+                      textDecoration: 'none',
+                    },
+                  },
+                },
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'Pricing', href: '#pricing' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#64748b',
+                      textDecoration: 'none',
+                    },
+                  },
+                },
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'About', href: '#about' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#64748b',
+                      textDecoration: 'none',
+                    },
+                  },
+                },
+              ],
+            },
+            {
+              id: gen('flex'),
+              type: 'flex',
+              styles: {
+                base: {
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: '12px',
+                },
+              },
+              children: [
+                {
+                  id: gen('link'),
+                  type: 'link',
+                  props: { text: 'Sign In', href: '#signin' },
+                  styles: {
+                    base: {
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#475569',
+                      textDecoration: 'none',
+                      padding: '8px 12px',
+                    },
+                  },
+                },
+                {
+                  id: gen('button'),
+                  type: 'button',
+                  props: { label: 'Get Started', href: '#signup' },
+                  styles: {
+                    base: {
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      display: 'inline-block',
+                    },
+                    states: {
+                      ':hover': { backgroundColor: '#1d4ed8' },
+                    },
+                  } as unknown as ResponsiveStyles,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  },
+  {
     id: 'hero-section',
     name: 'Hero Section',
     category: 'sections',

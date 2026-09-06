@@ -32,6 +32,7 @@ describe('Block Manager & Pre-composed Templates (STORA-240)', () => {
       expect(html).toContain('1 Column');
       expect(html).toContain('2 Columns (50/50)');
       expect(html).toContain('3 Columns');
+      expect(html).toContain('Navbar');
       expect(html).toContain('Hero Section');
       expect(html).toContain('Feature Card');
       expect(html).toContain('Pricing Table');

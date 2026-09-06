@@ -78,6 +78,18 @@ export const BlockThumbnail: React.FC<{ block: BlockDefinition }> = ({ block }) 
           </div>
         </div>
       );
+    case 'navbar':
+      return (
+        <div className="w-full h-12 bg-white border border-slate-200 rounded flex items-center justify-between px-2 shadow-xs">
+          <div className="w-5 h-2 bg-slate-800 rounded-xs" />
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-1 bg-slate-400 rounded-full" />
+            <div className="w-3 h-1 bg-slate-400 rounded-full" />
+            <div className="w-3 h-1 bg-slate-400 rounded-full" />
+          </div>
+          <div className="w-5 h-2 bg-blue-600 rounded-xs" />
+        </div>
+      );
     case 'hero-section':
       return (
         <div className="w-full h-12 bg-slate-100 border border-slate-200 rounded flex flex-col items-center justify-center p-1.5 gap-1">
