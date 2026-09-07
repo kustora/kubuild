@@ -20,18 +20,30 @@ export function collectDocumentNodes(
 }
 
 /**
- * Scans a document for modal or dialog nodes.
+ * Scans a document for modal, drawer, collapsible, dialog, or any other node carrying a
+ * `modalId` prop — the same set the renderer treats as toggleable via open_modal/close_modal
+ * (see `isModalContainer` in packages/renderer/src/renderer.tsx). Returns each target's
+ * `modalId` prop value (falling back to its Node ID only if it has none), because that prop
+ * value — not the structural Node ID — is what open_modal/close_modal actions must target.
  */
 export function collectDocumentModals(doc?: PageDocument): Array<{ id: string; label: string }> {
   if (!doc?.document) return [];
   const nodes = collectDocumentNodes(
     doc.document,
-    (n) => n.type === 'modal' || n.type === 'dialog' || n.id.toLowerCase().includes('modal'),
+    (n) =>
+      Boolean(n.props?.modalId) ||
+      n.type === 'modal' ||
+      n.type === 'drawer' ||
+      n.type === 'collapsible' ||
+      n.type === 'dialog',
   );
-  return nodes.map((n) => ({
-    id: n.id,
-    label: (n.props?.title as string) || (n.props?.label as string) || `<${n.type}> #${n.id}`,
-  }));
+  return nodes.map((n) => {
+    const targetId = (n.props?.modalId as string) || n.id;
+    return {
+      id: targetId,
+      label: (n.props?.title as string) || (n.props?.label as string) || `<${n.type}> #${targetId}`,
+    };
+  });
 }
 
 /**

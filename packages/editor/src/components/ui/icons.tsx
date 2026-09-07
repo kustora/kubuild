@@ -57,6 +57,23 @@ export const ComponentIcon: React.FC<ComponentIconProps> = ({
           <path d="M12 3v18" />
         </svg>
       );
+    case 'modal':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M3 9h18" />
+          <circle cx="6" cy="6" r="1" fill="currentColor" />
+          <circle cx="9" cy="6" r="1" fill="currentColor" />
+        </svg>
+      );
+    case 'drawer':
+    case 'sidebar':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M15 3v18" />
+        </svg>
+      );
     case 'heading':
       return (
         <svg {...iconProps}>

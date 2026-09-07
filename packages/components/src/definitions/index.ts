@@ -52,6 +52,13 @@ export * from './typography';
 export * from './media';
 export * from './data';
 export * from './form';
+export * from './interactive';
+
+import {
+  modalDefinition,
+  drawerDefinition,
+  collapsibleDefinition,
+} from './interactive';
 
 export const coreComponentDefinitions: ComponentDefinition[] = [
   pageDefinition,
@@ -89,6 +96,9 @@ export const coreComponentDefinitions: ComponentDefinition[] = [
   tableDefinition,
   tableRowDefinition,
   tableCellDefinition,
+  modalDefinition,
+  drawerDefinition,
+  collapsibleDefinition,
 ];
 
 export function createDefaultComponentRegistry(): ComponentRegistry {

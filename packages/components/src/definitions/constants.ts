@@ -5,7 +5,7 @@
  * appear nested inside another node, and content nodes can never become the root
  * (enforced separately by the schema's RootPageNodeSchema refinement).
  */
-export const LAYOUT_PARENTS = ['page', 'section', 'container', 'columns', 'flex', 'grid'];
+export const LAYOUT_PARENTS = ['page', 'section', 'container', 'columns', 'flex', 'grid', 'modal', 'drawer', 'collapsible'];
 
 export const CONTENT_CHILD_TYPES = [
   'heading',
@@ -35,5 +35,8 @@ export const CONTENT_CHILD_TYPES = [
   'table',
   'collection',
   'custom',
+  'modal',
+  'drawer',
+  'collapsible',
 ];
 

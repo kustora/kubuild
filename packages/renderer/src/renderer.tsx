@@ -188,15 +188,19 @@ export function NodeRenderer({
   );
 
   const modalId = (props.modalId || props.modalNodeId || props.targetModalId) as string | undefined;
-  const isModalOpen = useSafeModalOpen(
-    modalId,
-    ((context as unknown as Record<string, unknown> | undefined)?.modalManager as ModalManager) || modalManager,
-  );
+  const modalManagerInstance =
+    ((context as unknown as Record<string, unknown> | undefined)?.modalManager as ModalManager) || modalManager;
+  const hasModalState = modalId ? modalManagerInstance.hasState(modalId) : false;
+  const rawIsModalOpen = useSafeModalOpen(modalId, modalManagerInstance);
+  // Fall back to the node's `defaultOpen` prop only when the manager has never seen this id,
+  // so an untouched collapsible/modal can start open without a mutation-during-render hack.
+  const isModalOpen = hasModalState ? rawIsModalOpen : Boolean(props.defaultOpen);
 
   const effectiveStyles: React.CSSProperties = { ...styles };
-  // If this node is a modal/drawer container (not an interactive trigger button/link), hide it when closed
+  // If this node is a modal/drawer container (not an interactive trigger button/link), hide it when closed.
+  // Only in runtime mode — editor mode always keeps it visible/selectable/editable on canvas.
   const isModalContainer = Boolean(props.modalId || props.modalNodeId) && node.type !== 'button' && node.type !== 'link';
-  if (isModalContainer && !isModalOpen) {
+  if (mode === 'runtime' && isModalContainer && !isModalOpen) {
     effectiveStyles.display = 'none';
   }
 

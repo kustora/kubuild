@@ -221,7 +221,7 @@ describe('STORA-341: Action Step Parameter Configuration Forms', () => {
         />,
       );
 
-      expect(openHtml).toContain('Target Modal Node ID');
+      expect(openHtml).toContain('Target ID');
       expect(openHtml).toContain('Contact Us Modal (#contact-modal)');
       expect(openHtml).toContain('open');
 

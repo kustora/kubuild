@@ -108,6 +108,15 @@ export class ModalManager {
   }
 
   /**
+   * Checks whether a modal id has ever been explicitly opened/closed,
+   * distinguishing "never touched" from "explicitly closed".
+   */
+  public hasState(modalId: string): boolean {
+    if (!modalId) return false;
+    return this.modals.has(modalId.trim());
+  }
+
+  /**
    * Returns a snapshot map of all modal states.
    */
   public getState(): ModalState {

@@ -134,22 +134,22 @@ export const STEP_TYPE_OPTIONS: StepTypeMeta[] = [
   },
   {
     type: 'open_modal',
-    label: 'Open Modal Dialog',
-    description: 'Open and reveal a modal overlay component by Node ID',
+    label: 'Open Modal / Drawer / Collapsible',
+    description: "Open (or toggle) a modal, drawer, or collapsible by its Target ID prop",
     category: 'ui',
     icon: Maximize2,
     defaultPayload: {
-      modalNodeId: 'modal-1',
+      modalId: 'modal-dialog',
     },
   },
   {
     type: 'close_modal',
-    label: 'Close Modal Dialog',
-    description: 'Dismiss an active modal overlay component',
+    label: 'Close Modal / Drawer / Collapsible',
+    description: 'Dismiss an active modal, drawer, or collapsible by its Target ID prop',
     category: 'ui',
     icon: Minimize2,
     defaultPayload: {
-      modalNodeId: 'modal-1',
+      modalId: 'modal-dialog',
     },
   },
   {
@@ -246,7 +246,7 @@ export function formatStepSummary(step: ActionStep): string {
     }
     case 'open_modal': {
       const targetId = (payload.modalNodeId as string) || (payload.modalId as string) || '';
-      return `Open Modal #${targetId}`;
+      return payload.toggle ? `Toggle #${targetId}` : `Open Modal #${targetId}`;
     }
     case 'close_modal': {
       const targetId = (payload.modalNodeId as string) || (payload.modalId as string) || '';

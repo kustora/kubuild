@@ -63,7 +63,7 @@ export const ACTION_TYPES: ActionTypeMeta[] = [
     type: 'open_modal',
     label: 'Open Modal Dialog',
     shortLabel: 'Open Modal',
-    description: 'Open a dialog or popup modal by Node ID',
+    description: "Open a dialog, drawer, or collapsible by its Target ID prop",
     badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     icon: Maximize2,
     defaultPayload: { modalNodeId: '' },

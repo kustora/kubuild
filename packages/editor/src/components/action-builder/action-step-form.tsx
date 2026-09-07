@@ -860,7 +860,7 @@ export const ModalStepForm: React.FC<{
     <div className="flex flex-col gap-3.5 text-xs">
       <div>
         <label className="block text-xs font-semibold text-slate-300 mb-1">
-          Target Modal Node ID <span className="text-red-400">*</span>
+          Target ID (the component's "Modal Target ID" / "Target ID" prop) <span className="text-red-400">*</span>
         </label>
 
         {detectedModals.length > 0 && (
@@ -892,9 +892,21 @@ export const ModalStepForm: React.FC<{
           className="w-full text-xs font-mono bg-slate-950 text-slate-100 placeholder:text-slate-500 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <span className="text-[10px] text-slate-500 mt-1 block">
-          Specify the unique Node ID of the modal component to {isOpenAction ? 'open' : 'close'}.
+          Must match the target component's own Target ID prop (not its internal Node ID) to {isOpenAction ? 'open' : 'close'} it.
         </span>
       </div>
+
+      {isOpenAction && (
+        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={Boolean(payload.toggle)}
+            onChange={(e) => onChange({ ...payload, toggle: e.target.checked })}
+            className="cursor-pointer"
+          />
+          Toggle instead of always opening (closes it if already open — use this for drawer/collapsible triggers)
+        </label>
+      )}
     </div>
   );
 };

@@ -33,6 +33,7 @@ import {
   getVimeoId,
   aspectRatioToCss,
 } from '../nodes';
+import { renderInteractiveNode } from './interactive-renderers';
 
 export interface RenderNodeContentOptions {
   node: Node;
@@ -1401,6 +1402,10 @@ export function renderNodeContent(options: RenderNodeContentOptions): React.Reac
   const collection = renderCollectionNode(options);
   if (collection) return collection;
 
-  // 9. Fallback for unknown / custom elements without custom renderers
+  // 9. Interactive nodes: modal, drawer, collapsible
+  const interactive = renderInteractiveNode(options);
+  if (interactive) return interactive;
+
+  // 10. Fallback for unknown / custom elements without custom renderers
   return renderFallbackNode(options);
 }
