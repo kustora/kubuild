@@ -234,12 +234,19 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
               ],
             },
             // 5. Mobile Navigation Dropdown (hidden on desktop, stacked on mobile)
+            // A `collapsible`, not a plain flex: this is an in-flow disclosure that expands
+            // inside the navbar (its width/border styles depend on staying there), so it must
+            // not be treated as a floating overlay. The dedicated renderer also keeps it
+            // visible while editing, so the menu's links stay reachable on the canvas, and
+            // only honours the open/closed state at runtime.
             {
-              id: gen('flex'),
-              type: 'flex',
+              id: gen('collapsible'),
+              type: 'collapsible',
               props: {
                 modalId: 'mobile-nav-drawer',
                 ariaLabel: 'Mobile navigation menu',
+                defaultOpen: false,
+                animated: true,
               },
               styles: {
                 base: {

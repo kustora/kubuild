@@ -9,8 +9,8 @@ import {
 } from '../src/artboard-portal-host';
 import { createRenderContext } from '../src/render-context';
 import { PreviewViewportAdapter } from '../src/preview-adapter';
-import { ModalManager } from '../src/action-runners';
-import { createDefaultComponentRegistry } from '@kubuild/components';
+import { ModalManager, modalManager as modalManagerSingleton } from '../src/action-runners';
+import { createDefaultComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
 import { createBlankDocument, createComponentArtboard, createPageArtboard } from '@kubuild/core';
 import { ARTBOARD_REFERENCE_NODE_TYPE, type Artboard, type Node } from '@kubuild/schema';
 
@@ -307,6 +307,73 @@ describe('isolated component surface rendering', () => {
     expect(html).not.toContain('rgba(15, 23, 42, 0.5)');
     expect(html).toContain('min-height:240px');
     expect(html).toContain('Drawer body');
+  });
+});
+
+describe('Navbar block mobile menu visibility', () => {
+  function navbarDoc() {
+    const tree = STARTER_BLOCKS.find((block) => block.id === 'navbar')!.createNodeTree();
+    const doc = createBlankDocument('Navbar');
+    doc.document.children = [tree as never];
+    return doc;
+  }
+
+  function menuDisplay(html: string): string {
+    const tag = /<div[^>]*data-kubuild-collapsible="mobile-nav-drawer"[^>]*>/.exec(html)?.[0];
+    if (!tag) return '(absent)';
+    return /display:([^;"]*)/.exec(tag)?.[1] ?? '(unset)';
+  }
+
+  it('stays visible while editing at the mobile breakpoint, so its links are reachable', () => {
+    // Explicitly closed: editing visibility must not depend on the menu having been opened.
+    modalManagerSingleton.closeModal('mobile-nav-drawer');
+
+    const html = renderToString(
+      <KubuildRenderer document={navbarDoc()} registry={registry} mode="editor" viewport="mobile" />,
+    );
+
+    expect(menuDisplay(html)).toBe('flex');
+  });
+
+  it('is hidden while editing at desktop, where the desktop nav is shown instead', () => {
+    const html = renderToString(
+      <KubuildRenderer document={navbarDoc()} registry={registry} mode="editor" viewport="desktop" />,
+    );
+
+    expect(menuDisplay(html)).toBe('none');
+  });
+
+  it('is closed by default at runtime and opens when its trigger fires', () => {
+    const doc = navbarDoc();
+
+    modalManagerSingleton.closeModal('mobile-nav-drawer');
+    expect(
+      menuDisplay(
+        renderToString(
+          <KubuildRenderer document={doc} registry={registry} mode="runtime" viewport="mobile" />,
+        ),
+      ),
+    ).toBe('none');
+
+    modalManagerSingleton.openModal('mobile-nav-drawer');
+    expect(
+      menuDisplay(
+        renderToString(
+          <KubuildRenderer document={doc} registry={registry} mode="runtime" viewport="mobile" />,
+        ),
+      ),
+    ).toBe('flex');
+
+    // The hamburger only exists on mobile, so an open menu must not leak onto desktop
+    expect(
+      menuDisplay(
+        renderToString(
+          <KubuildRenderer document={doc} registry={registry} mode="runtime" viewport="desktop" />,
+        ),
+      ),
+    ).toBe('none');
+
+    modalManagerSingleton.closeModal('mobile-nav-drawer');
   });
 });
 

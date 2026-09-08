@@ -271,9 +271,10 @@ describe('STARTER_BLOCKS & STORA-350 Starter Form Templates', () => {
       expect(brandHeading).toBeDefined();
       expect(brandHeading?.props?.text).toBe('Brand');
 
-      // Flex containers (Desktop Links, Desktop CTA, Mobile Dropdown)
+      // Flex containers (Desktop Links, Desktop CTA). The mobile dropdown is a
+      // `collapsible`, not a flex — see the dedicated assertions below.
       const flexes = container?.children?.filter((c) => c.type === 'flex') ?? [];
-      expect(flexes.length).toBe(3);
+      expect(flexes.length).toBe(2);
 
       // Desktop nav links (hidden on mobile)
       const navLinksFlex = flexes[0];
@@ -304,11 +305,25 @@ describe('STARTER_BLOCKS & STORA-350 Starter Form Templates', () => {
       expect(hamburgerBtn?.actions?.[0].steps[0].type).toBe('open_modal');
       expect(hamburgerBtn?.actions?.[0].steps[0].payload?.toggle).toBe(true);
 
-      // Mobile dropdown container (hidden on desktop, flex on mobile, controlled by modalId)
-      const mobileDropdownFlex = flexes[2];
-      expect(mobileDropdownFlex.props?.modalId).toBe('mobile-nav-drawer');
-      expect((mobileDropdownFlex.styles as any)?.base?.display).toBe('none');
-      expect((mobileDropdownFlex.styles as any)?.mobile?.display).toBe('flex');
+      // Mobile dropdown: a `collapsible` (in-flow disclosure), hidden on desktop, flex on
+      // mobile, and controlled by the same modalId the hamburger toggles. Using the
+      // dedicated type is what keeps it visible/editable on the canvas while still being
+      // closed by default at runtime — a plain flex + modalId is treated as a generic
+      // modal container and hidden whenever it's closed.
+      const mobileMenu = container?.children?.find((c) => c.type === 'collapsible');
+      expect(mobileMenu).toBeDefined();
+      expect(mobileMenu?.props?.modalId).toBe('mobile-nav-drawer');
+      expect(mobileMenu?.props?.defaultOpen).toBe(false);
+      expect((mobileMenu?.styles as any)?.base?.display).toBe('none');
+      expect((mobileMenu?.styles as any)?.mobile?.display).toBe('flex');
+
+      // The hamburger targets exactly this menu
+      expect(hamburgerBtn?.actions?.[0].steps[0].payload?.modalId).toBe(mobileMenu?.props?.modalId);
+
+      // It still carries the stacked nav links + CTA
+      const menuLinks = mobileMenu?.children?.filter((c) => c.type === 'link') ?? [];
+      expect(menuLinks.map((l) => l.props?.text)).toContain('Home');
+      expect(mobileMenu?.children?.some((c) => c.type === 'button')).toBe(true);
     });
 
     it('inserts cleanly into document and passes full schema & registry validation', () => {

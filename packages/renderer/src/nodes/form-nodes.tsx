@@ -909,6 +909,85 @@ export const FormRadioNode: React.FC<FormRadioNodeProps> = ({
   );
 };
 
+export interface FormButtonClickOptions {
+  event: React.MouseEvent;
+  buttonType: 'submit' | 'button' | 'reset';
+  disabled?: boolean;
+  formRuntime?: {
+    handleFormSubmit: (e: React.MouseEvent) => Promise<boolean> | boolean;
+    resetForm: () => void;
+  } | null;
+  /** Owner of the click-action pipeline, when one was supplied by the caller. */
+  onClick?: (e: React.MouseEvent) => void;
+  node?: Node;
+  actions?: ActionPipeline[];
+  document?: PageDocument;
+  renderContext?: RenderContext;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
+  /** Injectable for tests. */
+  executeActions?: typeof executeNodeActions;
+}
+
+/**
+ * Click behaviour for a rendered button node: run the form's submit/reset semantics first,
+ * then hand off to whoever owns the click-action pipeline.
+ *
+ * The hand-off matters. `NodeRenderer`'s own `handleClick` already executes `node.actions`
+ * for every node type, so if this component executed them too, every pipeline on a
+ * non-editable button would fire **twice** per click — which silently cancels any toggling
+ * action (e.g. `open_modal` with `toggle: true` opens then immediately closes). So the
+ * pipeline runs here only when no `onClick` owner was supplied, i.e. standalone usage.
+ *
+ * Submit gating is preserved either way: when validation fails, neither path runs.
+ */
+export async function handleFormButtonClick(options: FormButtonClickOptions): Promise<void> {
+  const {
+    event,
+    buttonType,
+    disabled,
+    formRuntime,
+    onClick,
+    node,
+    actions,
+    document,
+    renderContext,
+    onDiagnostic,
+    onActionDispatch,
+    executeActions = executeNodeActions,
+  } = options;
+
+  if (disabled) return;
+
+  if (buttonType === 'submit') {
+    if (formRuntime) {
+      const isValid = await formRuntime.handleFormSubmit(event);
+      // Validation failed: do not proceed with click action pipelines.
+      if (!isValid) return;
+    }
+  } else if (buttonType === 'reset') {
+    formRuntime?.resetForm();
+  }
+
+  if (onClick) {
+    onClick(event);
+    return;
+  }
+
+  const targetNode = node || (actions ? { id: 'button', type: 'button', actions } : undefined);
+  if (targetNode?.actions && targetNode.actions.length > 0) {
+    await executeActions({
+      node: targetNode,
+      trigger: 'click',
+      document: document as PageDocument,
+      context: renderContext,
+      formContext: formRuntime as never,
+      onDiagnostic,
+      onActionDispatch,
+    });
+  }
+}
+
 export interface FormSubmitButtonNodeProps {
   id?: string;
   buttonType: 'submit' | 'button' | 'reset';
@@ -949,45 +1028,18 @@ export const FormSubmitButtonNode: React.FC<FormSubmitButtonNodeProps> = ({
   const isEffectivelyDisabled = disabled || (buttonType === 'submit' && isSubmitting);
 
   const handleClick = async (e: React.MouseEvent) => {
-    if (isEffectivelyDisabled) return;
-
-    // 1. Submit validation & execution
-    if (buttonType === 'submit') {
-      if (formRuntime) {
-        const isValid = await formRuntime.handleFormSubmit(e);
-        if (!isValid) {
-          // Validation failed: do not proceed with click action pipelines
-          return;
-        }
-      }
-    } else if (buttonType === 'reset') {
-      if (formRuntime) {
-        formRuntime.resetForm();
-      }
-    }
-
-    // 2. Execute button node action pipelines if any
-    const targetNode = node || {
-      id: dataKubuildNode || id || 'button',
-      type: 'button',
-      actions,
-    };
-
-    if (targetNode.actions && targetNode.actions.length > 0) {
-      await executeNodeActions({
-        node: targetNode,
-        trigger: 'click',
-        document,
-        context: renderContext,
-        formContext: formRuntime,
-        onDiagnostic,
-        onActionDispatch,
-      });
-    }
-
-    if (onClick) {
-      onClick(e);
-    }
+    await handleFormButtonClick({
+      event: e,
+      buttonType,
+      disabled: isEffectivelyDisabled,
+      formRuntime,
+      onClick,
+      node: node || (actions ? { id: dataKubuildNode || id || 'button', type: 'button', actions } : undefined),
+      document,
+      renderContext,
+      onDiagnostic,
+      onActionDispatch,
+    });
   };
 
   return (
