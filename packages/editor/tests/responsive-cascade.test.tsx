@@ -362,8 +362,10 @@ describe('Responsive Cascade & Fluid Breakpoint Specialist (Agent 4)', () => {
       expect(html).toContain('aria-valuenow="768"');
       expect(html).toContain(`aria-valuemin="${DEFAULT_MIN_WIDTH}"`);
       expect(html).toContain(`aria-valuemax="${DEFAULT_MAX_WIDTH}"`);
-      expect(html).toContain('data-testid="viewport-resizer-badge"');
-      expect(html).toContain('768px • Tablet');
+      // The handle carries no dimension badge — it would overlap the header controls of
+      // the artboard to its right. The readout lives in the artboard header instead.
+      expect(html).not.toContain('data-testid="viewport-resizer-badge"');
+      expect(html).not.toContain('768px • Tablet');
     });
 
     it('renders ViewportResizer container with resolution badge, preset buttons, and children', () => {

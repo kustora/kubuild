@@ -84,7 +84,9 @@ describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
     // The artboard frame holds the fluid width directly
     expect(html).toContain('data-testid="viewport-resizer-frame"');
     expect(html).toContain('1024px');
-    expect(html).toContain('data-testid="viewport-resizer-badge"');
+    // Width/breakpoint is reported by the artboard header badge, not by the resize handle.
+    expect(html).toContain('data-testid="viewport-resolution-badge"');
+    expect(html).not.toContain('data-testid="viewport-resizer-badge"');
   });
 
   it('maintains independent responsive settings per page simultaneously on canvas', () => {

@@ -66,7 +66,6 @@ export interface ViewportResizerHandleProps {
   onBreakpointChange?: (breakpoint: FluidBreakpoint) => void;
   disabled?: boolean;
   className?: string;
-  showBadge?: boolean;
   zoom?: number;
 }
 
@@ -82,7 +81,6 @@ export const ViewportResizerHandle: React.FC<ViewportResizerHandleProps> = ({
   onBreakpointChange,
   disabled = false,
   className = '',
-  showBadge = true,
   zoom = 1,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -184,18 +182,9 @@ export const ViewportResizerHandle: React.FC<ViewportResizerHandleProps> = ({
       >
         <GripVertical className="w-2.5 h-2.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
-
-      {/* Live Dimension & Breakpoint Badge Overlay during hover or drag (STORA-142) */}
-      {showBadge && (
-        <div
-          data-testid="viewport-resizer-badge"
-          className={`absolute -top-8 right-1/2 translate-x-1/2 px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold border shadow-md whitespace-nowrap pointer-events-none transition-all duration-150 ${
-            bpInfo.colorClass
-          } ${isDragging ? 'opacity-100 scale-105 ring-2 ring-blue-400' : 'opacity-80 group-hover:opacity-100'}`}
-        >
-          {bpInfo.badgeText}
-        </div>
-      )}
+      {/* No dimension badge here: it sat on the handle's own column, which overlaps the
+          header controls (including Delete) of whichever artboard sits to the right. The
+          live width/breakpoint readout lives in the artboard header's own resolution badge. */}
     </div>
   );
 };
