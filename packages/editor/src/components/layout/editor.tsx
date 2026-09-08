@@ -85,7 +85,6 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     viewport,
     setViewport,
     selectedNodeId,
-    navigatorMode,
     tableSpreadsheetMode,
     setTableSpreadsheetMode,
     aiChatMode,
@@ -264,7 +263,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   const aiFeatureEnabled = isAnyAiFeatureEnabled(resolvedAiConfig);
 
   // Seed the panel mode from config once at mount (STORA-503) — after that, the store's
-  // own toggle/setAiChatMode actions are the single source of truth, same as navigatorMode.
+  // own toggle/setAiChatMode actions are the single source of truth.
   const didSeedAiChatMode = React.useRef(false);
   // Intentionally mount-only: re-running this when `resolvedAiConfig` changes would fight
   // the store's own setAiChatMode/toggleAiChat actions on every subsequent render.
@@ -279,9 +278,6 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
       data-ai-enabled={resolvedAiConfig.enabled}
       className={`flex flex-col h-full bg-slate-100 text-slate-900 relative overflow-hidden ${className || ''}`}
     >
-      {/* Floating Navigator */}
-      {navigatorMode === 'floating' && <LayersPanel registry={registry} />}
-
       {/* Floating AI Chat Panel (STORA-503) — never mounted when AI is fully disabled */}
       {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'floating') && (
         <AiChatPanel
@@ -473,12 +469,6 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         {resolvedConfig.sidebar.enabled && (
           <div className="hidden lg:flex w-80 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex-col min-h-0 h-full">
             <LeftSidebar registry={registry} config={resolvedConfig.sidebar} />
-          </div>
-        )}
-
-        {navigatorMode === 'docked' && (
-          <div className="hidden lg:flex w-60 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex-col min-h-0 h-full">
-            <LayersPanel registry={registry} />
           </div>
         )}
 

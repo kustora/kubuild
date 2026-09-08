@@ -21,8 +21,6 @@ export type ComponentCategoryFilter = ComponentCategory | (string & {});
 export interface EditorToolbarConfig {
   /** Display page title & status badge in toolbar. Default: true */
   showTitle?: boolean;
-  /** Display Navigator (element tree) toggle button. Default: true */
-  showNavigatorToggle?: boolean;
   /**
    * Display the AI Chat toggle button (STORA-504). Default: true.
    * The button is still hidden when AI is disabled entirely in `AiEditorConfig`
@@ -140,7 +138,6 @@ export interface ResolvedEditorConfig {
   toolbar: {
     enabled: boolean;
     showTitle: boolean;
-    showNavigatorToggle: boolean;
     showAiChatToggle: boolean;
     showHistory: boolean;
     showClipboard: boolean;
@@ -202,7 +199,6 @@ export function resolveEditorConfig(config?: EditorConfig): ResolvedEditorConfig
     toolbar: {
       enabled: toolbarEnabled,
       showTitle: toolbarCfg.showTitle ?? true,
-      showNavigatorToggle: toolbarCfg.showNavigatorToggle ?? true,
       showAiChatToggle: toolbarCfg.showAiChatToggle ?? true,
       showHistory: toolbarCfg.showHistory ?? true,
       showClipboard: toolbarCfg.showClipboard ?? true,

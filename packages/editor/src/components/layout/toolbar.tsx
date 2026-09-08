@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ComponentRegistry } from '@kubuild/components';
 import { useEditorStore } from '../../store';
 import { ImportModal } from '../modals/import-modal';
@@ -40,15 +41,33 @@ const ToolbarIconButton: React.FC<ToolbarIconButtonProps> = ({
   danger = false,
   'data-testid': testId,
 }) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Tooltip is rendered in a portal with fixed positioning: the toolbar row is
+  // `overflow-x-auto`, which per spec forces `overflow-y` to `auto` as well, so an
+  // absolutely positioned tooltip inside the row gets clipped instead of floating.
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+
+  const showTooltip = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setTooltipPos({ top: rect.bottom + 6, left: rect.left + rect.width / 2 });
+  }, []);
+
+  const hideTooltip = useCallback(() => setTooltipPos(null), []);
+
   return (
-    <div className="relative group flex items-center justify-center">
+    <div className="relative flex items-center justify-center">
       <button
+        ref={buttonRef}
         type="button"
         data-testid={testId}
         disabled={disabled}
         onClick={onClick}
+        onMouseEnter={showTooltip}
+        onMouseLeave={hideTooltip}
+        onFocus={showTooltip}
+        onBlur={hideTooltip}
         aria-label={`${label}${shortcut ? ` (${shortcut})` : ''}`}
-        title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
         className={`p-1.5 rounded border border-slate-200 bg-white transition flex items-center justify-center cursor-pointer ${
           danger
             ? 'text-slate-700 hover:border-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-slate-700 disabled:hover:border-slate-200'
@@ -58,17 +77,23 @@ const ToolbarIconButton: React.FC<ToolbarIconButtonProps> = ({
         {icon}
       </button>
 
-      {/* Floating tooltip on hover */}
-      <div
-        role="tooltip"
-        className="pointer-events-none absolute bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 animate-fadeIn select-none"
-      >
-        <div className="bg-slate-900 text-white text-[11px] font-medium px-2 py-0.5 rounded shadow-md whitespace-nowrap flex items-center gap-1.5">
-          <span>{label}</span>
-          {shortcut && <span className="text-slate-400 text-[10px] font-mono">{shortcut}</span>}
-        </div>
-        <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mt-1" />
-      </div>
+      {/* Floating tooltip on hover, portalled out of the clipping toolbar row */}
+      {tooltipPos &&
+        typeof globalThis.document !== 'undefined' &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ top: tooltipPos.top, left: tooltipPos.left }}
+            className="pointer-events-none fixed -translate-x-1/2 flex flex-col items-center z-[9999] select-none"
+          >
+            <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mb-1" />
+            <div className="bg-slate-900 text-white text-[11px] font-medium px-2 py-0.5 rounded shadow-md whitespace-nowrap flex items-center gap-1.5">
+              <span>{label}</span>
+              {shortcut && <span className="text-slate-400 text-[10px] font-mono">{shortcut}</span>}
+            </div>
+          </div>,
+          globalThis.document.body
+        )}
     </div>
   );
 };
@@ -87,8 +112,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     clipboard,
     canUndo,
     canRedo,
-    navigatorMode,
-    toggleNavigator,
     aiChatMode,
     toggleAiChat,
     duplicateComponent,
@@ -107,7 +130,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [isCodeViewerModalOpen, setIsCodeViewerModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
-  const showNavigatorToggle = config?.showNavigatorToggle !== false;
   const showAiChatToggle = config?.showAiChatToggle !== false && aiEnabled;
   const showHistory = config?.showHistory !== false;
   const showClipboard = config?.showClipboard !== false;
@@ -187,36 +209,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </div>
         )}
 
-        {showNavigatorToggle && (
-          <button
-            type="button"
-            title={`Navigator / Element Tree (${navigatorMode !== 'hidden' ? 'Open' : 'Hidden'})`}
-            onClick={toggleNavigator}
-            className={`hidden sm:flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
-              navigatorMode !== 'hidden'
-                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
-                : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
-            }`}
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="8" y1="6" x2="21" y2="6" />
-              <line x1="8" y1="12" x2="21" y2="12" />
-              <line x1="8" y1="18" x2="21" y2="18" />
-              <line x1="3" y1="6" x2="3.01" y2="6" />
-              <line x1="3" y1="12" x2="3.01" y2="12" />
-              <line x1="3" y1="18" x2="3.01" y2="18" />
-            </svg>
-            <span>Navigator</span>
-          </button>
-        )}
-
         {showAiChatToggle && (
           <button
             type="button"
@@ -235,7 +227,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </button>
         )}
 
-        {(showNavigatorToggle || showAiChatToggle) &&
+        {showAiChatToggle &&
           (showClipboard || showHistory || showCodeViewer || showExportImport) && (
             <div className="hidden sm:block h-4 w-px bg-slate-200 mx-1" />
           )}

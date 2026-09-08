@@ -53,9 +53,8 @@ import {
 import type { AiGenerationPlaceholderStatus } from '../ai/generate-page';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
-export type NavigatorMode = 'docked' | 'floating' | 'hidden';
 export type TableSpreadsheetMode = 'floating' | 'docked' | 'hidden';
-/** Panel mode for the AI Chat Panel (STORA-503), following the `NavigatorMode` pattern. */
+/** Panel mode for the AI Chat Panel (STORA-503), following the `TableSpreadsheetMode` pattern. */
 export type AiChatPanelMode = 'docked' | 'floating' | 'hidden';
 
 export interface ActionLogEntry {
@@ -236,7 +235,6 @@ export interface EditorState {
   onChangeHandler: ((doc: PageDocument) => void) | null;
   /** Host-declared bindable variables + editor/preview-only sample values (STORA-053). Never serialized to the document. */
   variableCatalog: VariableCatalog;
-  navigatorMode: NavigatorMode;
   tableSpreadsheetMode: TableSpreadsheetMode;
   /** UI-only panel mode for the AI Chat Panel (STORA-503/504). Never serialized into `PageDocument`. */
   aiChatMode: AiChatPanelMode;
@@ -274,8 +272,6 @@ export interface EditorState {
   setDocument: (document: PageDocument) => void;
   setDragPayload: (payload: DragPayload | null) => void;
   setVariableCatalog: (catalog: VariableCatalog) => void;
-  setNavigatorMode: (mode: NavigatorMode) => void;
-  toggleNavigator: () => void;
   setTableSpreadsheetMode: (mode: TableSpreadsheetMode) => void;
   toggleTableSpreadsheet: () => void;
   setAiChatMode: (mode: AiChatPanelMode) => void;
@@ -479,7 +475,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clipboard: null,
   onChangeHandler: null,
   variableCatalog: [],
-  navigatorMode: 'floating',
   tableSpreadsheetMode: 'floating',
   aiChatMode: 'hidden',
   aiChatFocusRequestId: 0,
@@ -495,11 +490,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setDragPayload: (payload) => set({ dragPayload: payload }),
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
-  setNavigatorMode: (mode) => set({ navigatorMode: mode }),
-  toggleNavigator: () =>
-    set((state) => ({
-      navigatorMode: state.navigatorMode === 'hidden' ? 'floating' : 'hidden',
-    })),
   setTableSpreadsheetMode: (mode) => set({ tableSpreadsheetMode: mode }),
   toggleTableSpreadsheet: () =>
     set((state) => ({
