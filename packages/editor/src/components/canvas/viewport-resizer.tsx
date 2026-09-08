@@ -229,6 +229,12 @@ export interface ViewportResizerProps {
   onDelete?: () => void;
   /** Name shown in the delete confirmation, e.g. the artboard's own name. */
   deleteLabel?: string;
+  /**
+   * Render without page chrome: no white card, no shadow, no page-height floor, no viewport
+   * presets or width handle — the surface hugs the content so what you see on the canvas is
+   * the component's own shape. Used for component artboards, which aren't pages.
+   */
+  bare?: boolean;
 }
 
 const ARTBOARD_TYPE_BADGES: Record<'page' | 'component', { label: string; colorClass: string }> = {
@@ -266,6 +272,7 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
   artboardType = 'page',
   onDelete,
   deleteLabel,
+  bare = false,
 }) => {
   const bpInfo = getBreakpointFromWidth(width);
   const artboardBadge = ARTBOARD_TYPE_BADGES[artboardType];
@@ -276,6 +283,7 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
       className={`flex flex-col items-start shrink-0 ${className}`}
       style={{ width: `${width}px` }}
       data-testid="viewport-resizer-container"
+      data-bare={bare ? 'true' : undefined}
     >
       {/* Top Presets & Resolution Badge Bar */}
       {showPresets && (
@@ -313,17 +321,22 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
                 {slug}
               </span>
             )}
-            <span
-              data-testid="viewport-resolution-badge"
-              className={`px-2 py-0.5 rounded-md text-xs font-mono font-semibold border shadow-2xs transition-colors shrink-0 ${bpInfo.colorClass}`}
-            >
-              {bpInfo.badgeText}
-            </span>
+            {/* Breakpoint/resolution only means something for a page-sized surface */}
+            {!bare && (
+              <span
+                data-testid="viewport-resolution-badge"
+                className={`px-2 py-0.5 rounded-md text-xs font-mono font-semibold border shadow-2xs transition-colors shrink-0 ${bpInfo.colorClass}`}
+              >
+                {bpInfo.badgeText}
+              </span>
+            )}
           </div>
 
           {/* Quick Preset Buttons */}
           <div
-            className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0"
+            className={`flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0 ${
+              bare ? 'hidden' : ''
+            }`}
             onPointerDown={(e) => e.stopPropagation()}
           >
             {VIEWPORT_PRESETS.map((preset) => {
@@ -419,13 +432,25 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
       <div
         ref={frameRef}
         data-testid="viewport-resizer-frame"
-        style={{ width: `${width}px`, maxWidth: '100%' }}
+        // A bare surface shows the component's own shape: no page card, no white ground, no
+        // enforced page height — just a selection outline so it stays clickable.
+        // Bare surfaces are still explicitly sized so they can be resized like any other
+        // artboard — what "bare" drops is the page card, not the ability to set a width.
+        style={bare ? { width: `${width}px` } : { width: `${width}px`, maxWidth: '100%' }}
         onClick={isActive ? undefined : onSelect}
-        className={`relative bg-white shadow-xl rounded-xl overflow-visible border transition-[width] duration-75 min-h-[500px] ${
-          isActive
-            ? 'border-blue-400 ring-4 ring-blue-500/10'
-            : 'border-slate-200 hover:border-blue-400/80 hover:shadow-2xl cursor-pointer'
-        }`}
+        className={
+          bare
+            ? `relative overflow-visible rounded-md transition ${
+                isActive
+                  ? 'outline outline-2 outline-blue-400/70 outline-offset-4'
+                  : 'outline outline-1 outline-dashed outline-slate-300 outline-offset-4 hover:outline-blue-400/70 cursor-pointer'
+              }`
+            : `relative bg-white shadow-xl rounded-xl overflow-visible border transition-[width] duration-75 min-h-[500px] ${
+                isActive
+                  ? 'border-blue-400 ring-4 ring-blue-500/10'
+                  : 'border-slate-200 hover:border-blue-400/80 hover:shadow-2xl cursor-pointer'
+              }`
+        }
       >
         {children}
 

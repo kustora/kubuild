@@ -348,6 +348,199 @@ describe('Canvas rendering of artboards', () => {
   });
 });
 
+describe('Component artboards render without page chrome', () => {
+  beforeEach(() => {
+    resetStore(docWithModal());
+  });
+
+  it('renders a component surface bare: no page card, no width handle, no breakpoint badge', () => {
+    useEditorStore.getState().detachNodeToArtboard('modal-1', { name: 'Sign in modal' });
+    const { document, componentArtboards } = useEditorStore.getState();
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        document={document}
+        componentArtboards={componentArtboards}
+        activeArtboardId={null}
+      />,
+    );
+
+    expect(html).toContain('data-bare="true"');
+    // Two surfaces on the canvas (the page and the detached component), but only the page
+    // gets the card chrome — the component surface shows the component's own shape.
+    expect(html.match(/data-testid="viewport-resizer-container"/g)).toHaveLength(2);
+    expect(html.match(/bg-white shadow-xl rounded-xl/g)).toHaveLength(1);
+    expect(html.match(/data-bare="true"/g)).toHaveLength(1);
+  });
+
+  it('keeps page chrome for page surfaces', () => {
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        document={createBlankDocument('Home')}
+        componentArtboards={[]}
+      />,
+    );
+
+    expect(html).not.toContain('data-bare="true"');
+    expect(html).toContain('bg-white shadow-xl rounded-xl');
+    expect(html).toContain('data-testid="viewport-resolution-badge"');
+  });
+
+  it('ViewportResizer drops the breakpoint badge when bare but keeps the width handle', () => {
+    const bare = renderToString(
+      <ViewportResizer width={640} onWidthChange={() => {}} title="Modal" isActive bare>
+        <div />
+      </ViewportResizer>,
+    );
+    const full = renderToString(
+      <ViewportResizer width={1200} onWidthChange={() => {}} title="Home" isActive>
+        <div />
+      </ViewportResizer>,
+    );
+
+    expect(bare).not.toContain('data-testid="viewport-resolution-badge"');
+    expect(full).toContain('data-testid="viewport-resolution-badge"');
+    // A bare surface is still explicitly sized and resizable — "bare" drops the page card,
+    // not the ability to set a width.
+    expect(bare).toContain('width:640px');
+    expect(bare).toContain('data-testid="viewport-resizer-handle"');
+  });
+});
+
+describe('Component artboard width', () => {
+  beforeEach(() => {
+    resetStore(docWithModal());
+  });
+
+  it('starts at a component-sized default, not a page width', () => {
+    useEditorStore.getState().detachNodeToArtboard('modal-1');
+    const { document, componentArtboards } = useEditorStore.getState();
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        document={document}
+        componentArtboards={componentArtboards}
+        activeArtboardId={null}
+      />,
+    );
+
+    expect(html).toContain('width:640px');
+  });
+
+  it('persists a resized width on the artboard', () => {
+    const detached = useEditorStore.getState().detachNodeToArtboard('modal-1');
+    useEditorStore.getState().setComponentArtboardWidth(detached.artboardId!, 820);
+
+    const stored = useEditorStore.getState().componentArtboards[0];
+    expect(stored.width).toBe(820);
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        document={useEditorStore.getState().document}
+        componentArtboards={useEditorStore.getState().componentArtboards}
+        activeArtboardId={null}
+      />,
+    );
+
+    expect(html).toContain('width:820px');
+  });
+
+  it('rounds and floors the stored width', () => {
+    const detached = useEditorStore.getState().detachNodeToArtboard('modal-1');
+
+    useEditorStore.getState().setComponentArtboardWidth(detached.artboardId!, 512.4);
+    expect(useEditorStore.getState().componentArtboards[0].width).toBe(512);
+
+    useEditorStore.getState().setComponentArtboardWidth(detached.artboardId!, -50);
+    expect(useEditorStore.getState().componentArtboards[0].width).toBe(1);
+  });
+});
+
+describe('Canvas free artboard positioning', () => {
+  beforeEach(() => {
+    resetStore(docWithModal());
+  });
+
+  it('places unpositioned artboards in a fallback row', () => {
+    const pages = [
+      { id: 'page-home', name: 'Home', slug: '/', document: createBlankDocument('Home'), width: 1200 },
+      { id: 'page-about', name: 'About', slug: '/about', document: createBlankDocument('About'), width: 1200 },
+    ];
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        pages={pages}
+        activePageId="page-home"
+        componentArtboards={[]}
+      />,
+    );
+
+    // Absolutely placed on a sized surface, first at the padding offset, second past it
+    expect(html).toContain('data-testid="canvas-artboard-surface"');
+    expect(html).toContain('left:48px');
+    expect(html).toContain('left:1312px'); // 48 + 1200 + 64 gap
+  });
+
+  it('honours a stored position instead of the row fallback', () => {
+    const pages = [
+      {
+        id: 'page-home',
+        name: 'Home',
+        slug: '/',
+        document: createBlankDocument('Home'),
+        width: 1200,
+        position: { x: 900, y: 320 },
+      },
+    ];
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        pages={pages}
+        activePageId="page-home"
+        componentArtboards={[]}
+      />,
+    );
+
+    expect(html).toContain('left:900px');
+    expect(html).toContain('top:320px');
+  });
+
+  it('places a component artboard at its stored position too', () => {
+    const detached = useEditorStore.getState().detachNodeToArtboard('modal-1');
+    useEditorStore
+      .getState()
+      .setComponentArtboardPosition(detached.artboardId!, { x: 640, y: 200 });
+    const { document, componentArtboards } = useEditorStore.getState();
+
+    expect(componentArtboards[0].position).toEqual({ x: 640, y: 200 });
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        document={document}
+        componentArtboards={componentArtboards}
+        activeArtboardId={null}
+      />,
+    );
+
+    expect(html).toContain('left:640px');
+    expect(html).toContain('top:200px');
+  });
+});
+
 describe('Canvas delete-artboard control', () => {
   beforeEach(() => {
     resetStore(docWithModal());

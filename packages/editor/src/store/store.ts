@@ -319,6 +319,10 @@ export interface EditorState {
    * artboard's content goes with it (the stub removal is undoable, the artboard itself is not).
    */
   removeComponentArtboard: (artboardId: string) => RemoveArtboardResult;
+  /** Persist a component artboard's free position on the builder canvas (unscaled px). */
+  setComponentArtboardPosition: (artboardId: string, position: { x: number; y: number }) => void;
+  /** Persist a component artboard's surface width in px. */
+  setComponentArtboardWidth: (artboardId: string, width: number) => void;
   insertComponent: (
     type: string,
     registry: ComponentRegistry,
@@ -744,6 +748,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     return { success: true, removedReferenceCount: stubs.length };
   },
+
+  setComponentArtboardPosition: (artboardId, position) =>
+    set((current) => ({
+      componentArtboards: current.componentArtboards.map((artboard) =>
+        artboard.id === artboardId ? { ...artboard, position } : artboard,
+      ),
+    })),
+
+  setComponentArtboardWidth: (artboardId, width) =>
+    set((current) => ({
+      componentArtboards: current.componentArtboards.map((artboard) =>
+        artboard.id === artboardId ? { ...artboard, width: Math.max(1, Math.round(width)) } : artboard,
+      ),
+    })),
 
   setOnChangeHandler: (handler) => set({ onChangeHandler: handler }),
 

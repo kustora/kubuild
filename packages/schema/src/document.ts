@@ -368,6 +368,16 @@ export const ArtboardSchema = z.object({
   viewport: z.enum(['desktop', 'tablet', 'mobile']).optional(),
   /** Persisted artboard width in px, matching the canvas ViewportResizer's `width`. */
   width: z.number().positive().optional(),
+  /**
+   * Free position on the builder's infinite canvas, in unscaled canvas px. Absent means
+   * "not placed yet" — the canvas then falls back to laying the artboard out in a row.
+   */
+  position: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+    })
+    .optional(),
   document: PageDocumentSchema,
 });
 

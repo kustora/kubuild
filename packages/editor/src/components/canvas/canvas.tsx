@@ -43,6 +43,11 @@ export interface EditorPageItem {
   artboardType?: ArtboardType;
   /** Component artboards only: the id `open_modal` / `close_modal` actions target. */
   triggerId?: string;
+  /**
+   * Free position on the infinite canvas, in unscaled canvas px. Absent means the artboard
+   * hasn't been placed yet and the canvas lays it out in a row instead.
+   */
+  position?: { x: number; y: number };
 }
 
 export interface EditorCanvasProps {
@@ -94,6 +99,17 @@ interface DropTarget {
   position: 'before' | 'after' | 'inside';
   rect: CanvasRect;
 }
+
+/** Fallback row layout constants for artboards the author hasn't positioned yet. */
+const ARTBOARD_SURFACE_PADDING = 48;
+const ARTBOARD_GAP = 64;
+/** Only used to size the scrollable surface, not to constrain any artboard's real height. */
+const ARTBOARD_ASSUMED_HEIGHT = 900;
+/**
+ * Starting width for a component surface that has never been sized. Roughly a medium modal
+ * (560px) plus breathing room — a page-sized default would dwarf the component.
+ */
+const COMPONENT_ARTBOARD_DEFAULT_WIDTH = 640;
 
 function rectFor(container: HTMLElement, nodeId: string | null, zoom = 1): CanvasRect | null {
   if (!nodeId) return null;
@@ -162,6 +178,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     activeArtboardId: storeActiveArtboardId,
     activateArtboard,
     removeComponentArtboard,
+    setComponentArtboardPosition,
+    setComponentArtboardWidth,
   } = useEditorStore();
 
   const document = propDoc ?? storeDoc;
@@ -201,6 +219,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       triggerId: artboard.triggerId,
       ...(artboard.width !== undefined ? { width: artboard.width } : {}),
       ...(artboard.viewport ? { viewport: artboard.viewport } : {}),
+      ...(artboard.position ? { position: artboard.position } : {}),
     }));
     return [...pageArtboards, ...componentItems];
   }, [pageArtboards, componentArtboards, activeArtboardId, document]);
@@ -279,7 +298,13 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   }, [pages]);
 
   useEffect(() => {
-    if (effectiveActivePageId) {
+    // `fluidWidth`/`viewport` describe the page breakpoint being authored. A component
+    // surface keeps its own width, so syncing them onto it would snap it to a page width
+    // the moment it becomes the active artboard.
+    const activeIsComponentSurface = componentArtboards.some(
+      (artboard) => artboard.id === effectiveActivePageId,
+    );
+    if (effectiveActivePageId && !activeIsComponentSurface) {
       setPageResponsiveMap((prev) => {
         const cur = prev[effectiveActivePageId];
         const newW = fluidWidth ?? cur?.width;
@@ -298,10 +323,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         return prev;
       });
     }
-  }, [effectiveActivePageId, fluidWidth, viewport]);
+  }, [effectiveActivePageId, fluidWidth, viewport, componentArtboards]);
 
   const getPageWidth = useCallback(
     (p: EditorPageItem): number => {
+      // Component surfaces have their own width and are not tied to the page breakpoint
+      // being edited, so the shared `fluidWidth`/breakpoint defaults don't apply to them.
+      if (p.artboardType === 'component') {
+        return pageResponsiveMap[p.id]?.width ?? p.width ?? COMPONENT_ARTBOARD_DEFAULT_WIDTH;
+      }
       if (p.id === effectiveActivePageId && fluidWidth !== undefined) {
         return fluidWidth;
       }
@@ -330,6 +360,19 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   const handlePageWidthChange = useCallback(
     (pageId: string, newWidth: number) => {
+      const isComponentSurface = componentArtboards.some((artboard) => artboard.id === pageId);
+
+      // A component surface's width is its own; it must not move the page breakpoint the
+      // rest of the editor is authoring at, and it persists to the artboard, not to `pages`.
+      if (isComponentSurface) {
+        setPageResponsiveMap((prev) => ({
+          ...prev,
+          [pageId]: { width: newWidth, viewport: prev[pageId]?.viewport ?? 'desktop' },
+        }));
+        setComponentArtboardWidth(pageId, newWidth);
+        return;
+      }
+
       const newBp = getBreakpointFromWidth(newWidth);
       setPageResponsiveMap((prev) => ({
         ...prev,
@@ -349,7 +392,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         );
       }
     },
-    [effectiveActivePageId, onFluidWidthChange, onBreakpointChange, onPagesChange, pages],
+    [
+      effectiveActivePageId,
+      onFluidWidthChange,
+      onBreakpointChange,
+      onPagesChange,
+      pages,
+      componentArtboards,
+      setComponentArtboardWidth,
+    ],
   );
 
   const handlePageBreakpointChange = useCallback(
@@ -454,6 +505,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const [activeGuides, setActiveGuides] = useState<GuideLine[]>([]);
   const [isAltPressed, setIsAltPressed] = useState<boolean>(false);
   const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
+  const [draggingArtboardId, setDraggingArtboardId] = useState<string | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
 
   const marqueeDragRef = useRef<{
     startX: number;
@@ -1027,6 +1080,134 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     setDragPayload(null);
   };
 
+  /**
+   * Where each artboard sits on the canvas. A stored `position` wins; anything unplaced
+   * falls back to the original left-to-right row, so existing projects look unchanged until
+   * the author actually drags something. Live drag offsets are applied on top.
+   */
+  const artboardLayout = useMemo<Record<string, { x: number; y: number }>>(() => {
+    const layout: Record<string, { x: number; y: number }> = {};
+    let flowX = ARTBOARD_SURFACE_PADDING;
+
+    for (const item of allPages) {
+      const width = getPageWidth(item);
+      if (item.position) {
+        layout[item.id] = item.position;
+      } else {
+        layout[item.id] = { x: flowX, y: ARTBOARD_SURFACE_PADDING };
+        flowX += width + ARTBOARD_GAP;
+      }
+    }
+
+    if (draggingArtboardId && dragPosition) {
+      layout[draggingArtboardId] = dragPosition;
+    }
+    return layout;
+  }, [allPages, getPageWidth, draggingArtboardId, dragPosition]);
+
+  /**
+   * The scrollable extent of the artboard surface. Absolutely-positioned children don't
+   * contribute to their parent's size, so it's measured from the layout — otherwise
+   * pan/fit and scrolling would have nothing to work against.
+   */
+  const artboardSurfaceSize = useMemo(() => {
+    let maxRight = 0;
+    let maxBottom = 0;
+    for (const item of allPages) {
+      const spot = artboardLayout[item.id];
+      if (!spot) continue;
+      maxRight = Math.max(maxRight, spot.x + getPageWidth(item));
+      // Real heights vary (bare component surfaces hug their content), so assume a
+      // page-ish height purely for extent purposes.
+      maxBottom = Math.max(maxBottom, spot.y + ARTBOARD_ASSUMED_HEIGHT);
+    }
+    return {
+      width: `${Math.max(maxRight + ARTBOARD_SURFACE_PADDING, 1200)}px`,
+      height: `${Math.max(maxBottom + ARTBOARD_SURFACE_PADDING, 800)}px`,
+    };
+  }, [allPages, artboardLayout, getPageWidth]);
+
+  /**
+   * Drag an artboard by its header, Figma-style. Panning gestures (hand tool, held space,
+   * middle-click) still pan the canvas, so the header keeps working as a pan grip too.
+   */
+  const handleArtboardHeaderPointerDown = useCallback(
+    (e: React.PointerEvent, item: EditorPageItem) => {
+      const wantsPan = toolMode === 'hand' || isSpacePressed || e.button === 1;
+      if (previewMode || wantsPan || e.button !== 0) {
+        handlePanPointerDown(e);
+        return;
+      }
+
+      const start = artboardLayout[item.id] ?? { x: 0, y: 0 };
+      const originX = e.clientX;
+      const originY = e.clientY;
+      let moved = false;
+
+      setDraggingArtboardId(item.id);
+      setDragPosition(start);
+
+      const scale = zoom > 0 ? zoom : 1;
+
+      const onMove = (moveEvent: PointerEvent) => {
+        const next = {
+          x: start.x + (moveEvent.clientX - originX) / scale,
+          y: start.y + (moveEvent.clientY - originY) / scale,
+        };
+        moved = true;
+        setDragPosition(next);
+      };
+
+      const onUp = (upEvent: PointerEvent) => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+
+        const committed = {
+          x: start.x + (upEvent.clientX - originX) / scale,
+          y: start.y + (upEvent.clientY - originY) / scale,
+        };
+        setDraggingArtboardId(null);
+        setDragPosition(null);
+
+        // A click without movement is a selection, not a move. The header title has its own
+        // onClick, so only act here when this artboard isn't already the active one —
+        // re-selecting the active page would needlessly reload its document and reset history.
+        if (!moved) {
+          if (item.id !== effectiveActivePageId) {
+            handleSelectPage(item.id);
+          }
+          return;
+        }
+
+        if (item.artboardType === 'component') {
+          setComponentArtboardPosition(item.id, committed);
+          return;
+        }
+        if (pages && onPagesChange) {
+          onPagesChange(
+            pages.map((page) => (page.id === item.id ? { ...page, position: committed } : page)),
+          );
+        }
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [
+      artboardLayout,
+      zoom,
+      toolMode,
+      isSpacePressed,
+      previewMode,
+      handlePanPointerDown,
+      handleSelectPage,
+      effectiveActivePageId,
+      setComponentArtboardPosition,
+      pages,
+      onPagesChange,
+    ],
+  );
+
   const isMultiSelecting = selectedNodeIds.length > 1;
 
   if (multiDeviceMode) {
@@ -1082,22 +1263,40 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           boxSizing: 'border-box',
         }}
       >
-        {/* Figma Multi-Page Artboards Container */}
-        <div className="inline-flex items-start gap-16 p-12 select-none" style={{ minWidth: 'max-content' }}>
+        {/* Figma-style artboard surface: every artboard is absolutely placed, so it can be
+            dragged anywhere. Artboards with no stored position fall back to a row layout. */}
+        <div
+          data-testid="canvas-artboard-surface"
+          className="relative select-none"
+          style={{ width: artboardSurfaceSize.width, height: artboardSurfaceSize.height }}
+        >
           {allPages.map((pageItem) => {
             const isActive = pageItem.id === effectiveActivePageId;
             const pageWidth = getPageWidth(pageItem);
             const pageViewport = getPageViewport(pageItem);
+            const spot = artboardLayout[pageItem.id] ?? { x: 0, y: 0 };
+            const isBare = pageItem.artboardType === 'component';
 
             return (
-              <ViewportResizer
+              <div
                 key={pageItem.id}
+                data-testid={`canvas-artboard-slot-${pageItem.id}`}
+                style={{
+                  position: 'absolute',
+                  left: `${spot.x}px`,
+                  top: `${spot.y}px`,
+                  // The one being dragged rides above the others.
+                  zIndex: draggingArtboardId === pageItem.id ? 30 : isActive ? 20 : 10,
+                }}
+              >
+              <ViewportResizer
                 width={pageWidth}
                 onWidthChange={(newW) => handlePageWidthChange(pageItem.id, newW)}
                 onBreakpointChange={(newBp) => handlePageBreakpointChange(pageItem.id, newBp as Viewport)}
                 title={pageItem.name}
                 slug={pageItem.slug}
                 artboardType={pageItem.artboardType ?? 'page'}
+                bare={isBare}
                 onDelete={
                   !previewMode && canDeleteArtboard(pageItem)
                     ? () => handleDeleteArtboard(pageItem)
@@ -1109,7 +1308,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 zoom={zoom}
                 showPresets={true}
                 frameRef={isActive ? activeArtboardRef : undefined}
-                onHeaderPointerDown={handlePanPointerDown}
+                onHeaderPointerDown={(e) => handleArtboardHeaderPointerDown(e, pageItem)}
                 className="shrink-0"
               >
                 {isActive ? (
@@ -1396,6 +1595,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                   </div>
                 )}
               </ViewportResizer>
+              </div>
             );
           })}
         </div>
