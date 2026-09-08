@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Smartphone, Tablet, Monitor, Maximize2, GripVertical } from 'lucide-react';
+import { Smartphone, Tablet, Monitor, Maximize2, GripVertical, Trash2 } from 'lucide-react';
 
 export type FluidBreakpoint = 'mobile' | 'tablet' | 'desktop';
 
@@ -222,6 +222,13 @@ export interface ViewportResizerProps {
    * detached component surface are distinguishable at a glance. Defaults to 'page'.
    */
   artboardType?: 'page' | 'component';
+  /**
+   * When provided, a delete control appears in the header. Deleting is destructive, so the
+   * control asks for confirmation before invoking this.
+   */
+  onDelete?: () => void;
+  /** Name shown in the delete confirmation, e.g. the artboard's own name. */
+  deleteLabel?: string;
 }
 
 const ARTBOARD_TYPE_BADGES: Record<'page' | 'component', { label: string; colorClass: string }> = {
@@ -257,9 +264,12 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
   className = '',
   onHeaderPointerDown,
   artboardType = 'page',
+  onDelete,
+  deleteLabel,
 }) => {
   const bpInfo = getBreakpointFromWidth(width);
   const artboardBadge = ARTBOARD_TYPE_BADGES[artboardType];
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   return (
     <div
@@ -347,6 +357,61 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
               );
             })}
           </div>
+
+          {/* Delete Artboard — two-step, since the artboard's content goes with it */}
+          {onDelete && (
+            <div
+              className="flex items-center gap-1 shrink-0"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              {confirmingDelete ? (
+                <>
+                  <span className="text-[10px] text-slate-500 max-w-[140px] truncate">
+                    {`Delete ${deleteLabel || 'this frame'}?`}
+                  </span>
+                  <button
+                    type="button"
+                    data-testid="artboard-delete-confirm"
+                    title="Delete this frame and its content"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmingDelete(false);
+                      onDelete();
+                    }}
+                    className="px-2 py-1 rounded text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition cursor-pointer"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="artboard-delete-cancel"
+                    title="Keep this frame"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmingDelete(false);
+                    }}
+                    className="px-2 py-1 rounded text-xs font-medium text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  data-testid="artboard-delete"
+                  title="Delete this frame"
+                  aria-label="Delete this frame"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmingDelete(true);
+                  }}
+                  className="flex items-center justify-center p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

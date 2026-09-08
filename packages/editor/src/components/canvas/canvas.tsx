@@ -161,6 +161,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     componentArtboards: storeComponentArtboards,
     activeArtboardId: storeActiveArtboardId,
     activateArtboard,
+    removeComponentArtboard,
   } = useEditorStore();
 
   const document = propDoc ?? storeDoc;
@@ -411,6 +412,38 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       useEditorStore.getState().setViewport(getPageViewport(targetPage));
     },
     [allPages, onActivePageChange, getPageViewport, activateArtboard, activeArtboardId],
+  );
+
+  /**
+   * Delete an artboard. Component artboards belong to the store, which also cleans up the
+   * reference stubs pointing at them; page artboards belong to the host, so removal is
+   * reported through `onPagesChange` and refused when it would leave no pages behind.
+   */
+  const handleDeleteArtboard = useCallback(
+    (item: EditorPageItem) => {
+      if (item.artboardType === 'component') {
+        removeComponentArtboard(item.id);
+        return;
+      }
+
+      if (!pages || !onPagesChange || pages.length <= 1) return;
+
+      const remaining = pages.filter((page) => page.id !== item.id);
+      if (item.id === effectiveActivePageId && remaining[0]) {
+        handleSelectPage(remaining[0].id);
+      }
+      onPagesChange(remaining);
+    },
+    [removeComponentArtboard, pages, onPagesChange, effectiveActivePageId, handleSelectPage],
+  );
+
+  /** A page artboard is only deletable when the host owns more than one page. */
+  const canDeleteArtboard = useCallback(
+    (item: EditorPageItem): boolean => {
+      if (item.artboardType === 'component') return true;
+      return Boolean(pages && onPagesChange && pages.length > 1);
+    },
+    [pages, onPagesChange],
   );
 
   const [selectedRect, setSelectedRect] = useState<CanvasRect | null>(null);
@@ -1065,6 +1098,12 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 title={pageItem.name}
                 slug={pageItem.slug}
                 artboardType={pageItem.artboardType ?? 'page'}
+                onDelete={
+                  !previewMode && canDeleteArtboard(pageItem)
+                    ? () => handleDeleteArtboard(pageItem)
+                    : undefined
+                }
+                deleteLabel={pageItem.name}
                 isActive={isActive}
                 onSelect={() => handleSelectPage(pageItem.id)}
                 zoom={zoom}

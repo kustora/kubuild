@@ -2,10 +2,16 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { EditorCanvas } from '../src/components/canvas/canvas';
+import { ViewportResizer } from '../src/components/canvas/viewport-resizer';
 import { useEditorStore } from '../src/store';
 import { assertNoDetachedArtboardReferences } from '../src/utils/export-utils';
 import { createDefaultComponentRegistry } from '@kubuild/components';
-import { createBlankDocument, findNodeById } from '@kubuild/core';
+import {
+  createBlankDocument,
+  findNodeById,
+  insertNode,
+  collectArtboardReferenceNodes,
+} from '@kubuild/core';
 import { ARTBOARD_REFERENCE_NODE_TYPE, type PageDocument } from '@kubuild/schema';
 
 const registry = createDefaultComponentRegistry();
@@ -157,6 +163,68 @@ describe('Editor store: activateArtboard', () => {
   });
 });
 
+describe('Editor store: deleting a component artboard', () => {
+  beforeEach(() => {
+    resetStore(docWithModal());
+  });
+
+  it('removes the artboard and the reference stub that pointed at it', () => {
+    const detached = useEditorStore.getState().detachNodeToArtboard('modal-1');
+    expect(findNodeById(useEditorStore.getState().document.document, detached.stubNodeId!)).not.toBeNull();
+
+    const result = useEditorStore.getState().removeComponentArtboard(detached.artboardId!);
+
+    expect(result).toMatchObject({ success: true, removedReferenceCount: 1 });
+    expect(useEditorStore.getState().componentArtboards).toHaveLength(0);
+    // No stub left behind opening an artboard that no longer exists
+    expect(findNodeById(useEditorStore.getState().document.document, detached.stubNodeId!)).toBeNull();
+    expect(collectArtboardReferenceNodes(useEditorStore.getState().document.document)).toEqual([]);
+  });
+
+  it('reports an unknown artboard instead of throwing', () => {
+    expect(useEditorStore.getState().removeComponentArtboard('ghost')).toMatchObject({
+      success: false,
+    });
+  });
+
+  it('cleans the page stub even when a different artboard is being edited', () => {
+    // Two detached artboards, then edit the second one and delete the first.
+    const first = useEditorStore.getState().detachNodeToArtboard('modal-1');
+    useEditorStore.getState().dispatch((doc) =>
+      insertNode(doc, {
+        parentId: 'section-1',
+        node: { id: 'modal-2', type: 'modal', props: { modalId: 'second-modal' }, children: [] },
+      }),
+    );
+    const second = useEditorStore.getState().detachNodeToArtboard('modal-2');
+    useEditorStore.getState().activateArtboard(second.artboardId!);
+
+    const result = useEditorStore.getState().removeComponentArtboard(first.artboardId!);
+
+    expect(result).toMatchObject({ success: true, removedReferenceCount: 1 });
+    // Deleting returns to the page so the stub is reachable, and only the deleted
+    // artboard's stub goes away
+    expect(useEditorStore.getState().activeArtboardId).toBeNull();
+    const remainingRefs = collectArtboardReferenceNodes(useEditorStore.getState().document.document);
+    expect(remainingRefs).toHaveLength(1);
+    expect(remainingRefs[0].artboardId).toBe(second.artboardId);
+    expect(useEditorStore.getState().componentArtboards.map((a) => a.id)).toEqual([
+      second.artboardId,
+    ]);
+  });
+
+  it('keeps the deletion undoable on the page side', () => {
+    const detached = useEditorStore.getState().detachNodeToArtboard('modal-1');
+    useEditorStore.getState().removeComponentArtboard(detached.artboardId!);
+    expect(collectArtboardReferenceNodes(useEditorStore.getState().document.document)).toEqual([]);
+
+    useEditorStore.getState().undo();
+
+    // The stub comes back (the artboard itself does not — documented Phase 1 limitation)
+    expect(collectArtboardReferenceNodes(useEditorStore.getState().document.document)).toHaveLength(1);
+  });
+});
+
 describe('Editor store: document ownership while editing an artboard', () => {
   beforeEach(() => {
     resetStore(docWithModal());
@@ -277,6 +345,80 @@ describe('Canvas rendering of artboards', () => {
 
     expect(html).toContain('data-artboard-type="page"');
     expect(html).not.toContain('data-artboard-type="component"');
+  });
+});
+
+describe('Canvas delete-artboard control', () => {
+  beforeEach(() => {
+    resetStore(docWithModal());
+  });
+
+  it('offers delete on a component artboard', () => {
+    useEditorStore.getState().detachNodeToArtboard('modal-1', { name: 'Sign in modal' });
+    const { document, componentArtboards } = useEditorStore.getState();
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        document={document}
+        componentArtboards={componentArtboards}
+        activeArtboardId={null}
+      />,
+    );
+
+    expect(html).toContain('data-testid="artboard-delete"');
+    // Two-step: the confirm button only appears after the trash is clicked
+    expect(html).not.toContain('data-testid="artboard-delete-confirm"');
+  });
+
+  it('does not offer delete for a lone page artboard', () => {
+    const doc = createBlankDocument('Only page');
+
+    const html = renderToString(
+      <EditorCanvas registry={registry} viewport="desktop" document={doc} componentArtboards={[]} />,
+    );
+
+    expect(html).not.toContain('data-testid="artboard-delete"');
+  });
+
+  it('offers delete for page artboards once the host owns more than one', () => {
+    const pages = [
+      { id: 'page-home', name: 'Home', slug: '/', document: createBlankDocument('Home') },
+      { id: 'page-about', name: 'About', slug: '/about', document: createBlankDocument('About') },
+    ];
+
+    const html = renderToString(
+      <EditorCanvas
+        registry={registry}
+        viewport="desktop"
+        pages={pages}
+        activePageId="page-home"
+        onPagesChange={() => {}}
+        componentArtboards={[]}
+      />,
+    );
+
+    expect(html).toContain('data-testid="artboard-delete"');
+  });
+
+  // The canvas withholds `onDelete` in preview mode; this asserts the resizer's own
+  // contract, since `previewMode` lives in the store and `renderToString` serves zustand's
+  // initial snapshot rather than mutations.
+  it('renders no delete control when the artboard is given no onDelete handler', () => {
+    const withHandler = renderToString(
+      <ViewportResizer width={1200} onWidthChange={() => {}} title="Frame" onDelete={() => {}}>
+        <div />
+      </ViewportResizer>,
+    );
+    const withoutHandler = renderToString(
+      <ViewportResizer width={1200} onWidthChange={() => {}} title="Frame">
+        <div />
+      </ViewportResizer>,
+    );
+
+    expect(withHandler).toContain('data-testid="artboard-delete"');
+    expect(withoutHandler).not.toContain('data-testid="artboard-delete"');
   });
 });
 

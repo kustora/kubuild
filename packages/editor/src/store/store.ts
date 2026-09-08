@@ -42,6 +42,7 @@ import {
   ungroupNodeFrame,
   extractNodeToArtboard,
   findArtboardById,
+  collectArtboardReferenceNodes,
 } from '@kubuild/core';
 import {
   ComponentRegistry,
@@ -104,6 +105,13 @@ export interface DetachArtboardResult {
   stubNodeId?: string;
   /** Trigger id `open_modal` / `close_modal` actions should target. */
   triggerId?: string;
+  error?: string;
+}
+
+export interface RemoveArtboardResult {
+  success: boolean;
+  /** How many `artboard-reference` stubs were removed along with the artboard. */
+  removedReferenceCount?: number;
   error?: string;
 }
 
@@ -306,7 +314,11 @@ export interface EditorState {
    * to the page artboard. Commits the current document back into its artboard first.
    */
   activateArtboard: (artboardId: string | null) => void;
-  removeComponentArtboard: (artboardId: string) => void;
+  /**
+   * Delete a component artboard and the reference stubs pointing at it. Destructive: the
+   * artboard's content goes with it (the stub removal is undoable, the artboard itself is not).
+   */
+  removeComponentArtboard: (artboardId: string) => RemoveArtboardResult;
   insertComponent: (
     type: string,
     registry: ComponentRegistry,
@@ -695,12 +707,42 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   removeComponentArtboard: (artboardId) => {
     const state = get();
-    if (state.activeArtboardId === artboardId) {
+    const target = state.componentArtboards.find((artboard) => artboard.id === artboardId);
+    if (!target) {
+      return { success: false, error: `Artboard "${artboardId}" was not found.` };
+    }
+
+    // Return to the page before deleting. Needed even when a *different* artboard is
+    // active: the store holds one document at a time, so the page has to be the loaded one
+    // for its reference stubs to be reachable — otherwise deleting would strand a stub
+    // pointing at an artboard that no longer exists. Pending edits in the artboard being
+    // left are committed by activateArtboard, so nothing is lost.
+    if (state.activeArtboardId) {
       get().activateArtboard(null);
     }
+
+    // Remove the reference stubs that pointed at it, otherwise the page keeps a chip
+    // opening an artboard that no longer exists (and validateProject flags it as dangling).
+    // Grouped into one undo entry so removing an artboard is a single step.
+    const stubs = collectArtboardReferenceNodes(get().document.document).filter(
+      (ref) => ref.artboardId === artboardId,
+    );
+    if (stubs.length > 0) {
+      get().beginHistoryTransaction();
+      try {
+        for (const stub of stubs) {
+          get().dispatch((doc) => removeNode(doc, { nodeId: stub.nodeId }));
+        }
+      } finally {
+        get().endHistoryTransaction();
+      }
+    }
+
     set((current) => ({
       componentArtboards: current.componentArtboards.filter((artboard) => artboard.id !== artboardId),
     }));
+
+    return { success: true, removedReferenceCount: stubs.length };
   },
 
   setOnChangeHandler: (handler) => set({ onChangeHandler: handler }),
