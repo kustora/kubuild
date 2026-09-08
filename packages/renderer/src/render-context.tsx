@@ -10,7 +10,13 @@ import type {
   RenderContext,
   RuntimeContext,
 } from '@kubuild/core';
-import { isVariableBinding, isActionBinding, ActionBinding, PageDocument } from '@kubuild/schema';
+import {
+  isVariableBinding,
+  isActionBinding,
+  ActionBinding,
+  Artboard,
+  PageDocument,
+} from '@kubuild/schema';
 
 export type { RenderContext, RuntimeContext, ActionDiagnostic, Diagnostic };
 
@@ -33,18 +39,38 @@ export function createRenderContext(options?: {
   assetProvider?: AssetProvider;
   actionRegistry?: ActionRegistry;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
+  /**
+   * Component artboards reachable from this render. Passing them lets a trigger in one
+   * artboard open content that physically lives in another (see ArtboardPortalHost).
+   * A default `resolveArtboard` is derived from this list when one isn't supplied.
+   */
+  componentArtboards?: readonly Artboard[];
+  resolveArtboard?: (triggerId: string) => Artboard | undefined;
 }): RenderContext {
   if (!options) {
     return DEFAULT_RENDER_CONTEXT;
   }
 
   const frozenVariables = options.variables ? Object.freeze({ ...options.variables }) : undefined;
+  const componentArtboards = options.componentArtboards
+    ? Object.freeze([...options.componentArtboards])
+    : undefined;
+  const resolveArtboard =
+    options.resolveArtboard ??
+    (componentArtboards
+      ? (triggerId: string) =>
+          componentArtboards.find(
+            (artboard) => artboard.artboardType === 'component' && artboard.triggerId === triggerId,
+          )
+      : undefined);
 
   return Object.freeze({
     variables: frozenVariables,
     ...(options.assetProvider ? { assetProvider: options.assetProvider } : {}),
     ...(options.actionRegistry ? { actionRegistry: options.actionRegistry } : {}),
     ...(options.onDiagnostic ? { onDiagnostic: options.onDiagnostic } : {}),
+    ...(componentArtboards ? { componentArtboards } : {}),
+    ...(resolveArtboard ? { resolveArtboard } : {}),
   });
 }
 

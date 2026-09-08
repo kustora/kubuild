@@ -321,7 +321,76 @@ export const PageDocumentSchema = z.object({
 
 export type PageDocument = z.infer<typeof PageDocumentSchema>;
 
+export const PROJECT_SCHEMA_NAME = 'stora.project' as const;
+export const CURRENT_PROJECT_SCHEMA_VERSION = '1.0.0' as const;
 
+/**
+ * Node type used as the in-tree placeholder left behind when a subtree is detached
+ * into its own artboard. It carries no children — the real content lives in the
+ * artboard named by `props.artboardId`.
+ */
+export const ARTBOARD_REFERENCE_NODE_TYPE = 'artboard-reference' as const;
+
+/**
+ * Artboard Type Schema
+ * - 'page': a routable page surface (has a slug)
+ * - 'component': a detached surface rendered as an overlay/portal at runtime
+ *   (modal, drawer, collapsible, or any block the author detached), reached by `triggerId`
+ */
+export const ArtboardTypeSchema = z.enum(['page', 'component']);
+
+export type ArtboardType = z.infer<typeof ArtboardTypeSchema>;
+
+/**
+ * Artboard Schema
+ * One top-level surface on the builder canvas. Each artboard embeds a complete
+ * PageDocument so that every existing document command, tree utility, validator,
+ * and history engine keeps operating on exactly the shape it already understands.
+ *
+ * Component artboards always wrap their detached node as the sole child of a
+ * synthetic `type: 'page'` root, so the root-type constraint never has to be relaxed.
+ */
+export const ArtboardSchema = z.object({
+  id: z.string().min(1, 'Artboard ID is required'),
+  name: z.string().min(1, 'Artboard name is required'),
+  artboardType: ArtboardTypeSchema,
+  /** Route for page artboards (e.g. "/about"). */
+  slug: z.string().optional(),
+  /**
+   * For component artboards: the id that `open_modal` / `close_modal` actions target.
+   * Mirrors the detached node's own `props.modalId` so ModalManager keeps working unchanged.
+   */
+  triggerId: z.string().optional(),
+  /**
+   * Viewport/breakpoint this artboard is currently authored at. Declared inline
+   * (rather than imported) because viewport is otherwise an editor/renderer concept.
+   */
+  viewport: z.enum(['desktop', 'tablet', 'mobile']).optional(),
+  /** Persisted artboard width in px, matching the canvas ViewportResizer's `width`. */
+  width: z.number().positive().optional(),
+  document: PageDocumentSchema,
+});
+
+export type Artboard = z.infer<typeof ArtboardSchema>;
+
+/**
+ * Project Document Schema
+ * Root portable structure holding many artboards:
+ * - schema: strictly "stora.project" (distinct from the single-page "stora.page")
+ * - version: project schema version string
+ * - metadata: serializable metadata
+ * - artboards: one or more page/component surfaces
+ * - activeArtboardId: which artboard the editor should open
+ */
+export const ProjectDocumentSchema = z.object({
+  schema: z.literal(PROJECT_SCHEMA_NAME),
+  version: z.string().min(1, 'Schema version is required').default(CURRENT_PROJECT_SCHEMA_VERSION),
+  metadata: DocumentMetadataSchema.optional(),
+  artboards: z.array(ArtboardSchema).min(1, 'A project needs at least one artboard'),
+  activeArtboardId: z.string().optional(),
+});
+
+export type ProjectDocument = z.infer<typeof ProjectDocumentSchema>;
 
 /**
  * Type guards
@@ -340,6 +409,29 @@ export function isActionBinding(value: unknown): value is ActionBinding {
 
 export function isAnimationConfig(value: unknown): value is AnimationConfig {
   return AnimationConfigSchema.safeParse(value).success;
+}
+
+export function isProjectDocument(value: unknown): value is ProjectDocument {
+  return ProjectDocumentSchema.safeParse(value).success;
+}
+
+/**
+ * Cheap structural sniff used by the loader to route a raw payload to either the
+ * project pipeline or the legacy single-page pipeline, before any parsing happens.
+ * Intentionally does not validate — a malformed project must still be routed to the
+ * project parser so its own errors surface, rather than being silently treated as a page.
+ */
+export function looksLikeProjectDocument(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as { schema?: unknown; artboards?: unknown };
+  return candidate.schema === PROJECT_SCHEMA_NAME || Array.isArray(candidate.artboards);
+}
+
+/**
+ * Node type guard for the in-tree placeholder that points at a detached artboard.
+ */
+export function isArtboardReferenceNode(node: Node): boolean {
+  return node.type === ARTBOARD_REFERENCE_NODE_TYPE;
 }
 
 /**

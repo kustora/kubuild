@@ -1,4 +1,5 @@
 import React from 'react';
+import { ARTBOARD_REFERENCE_NODE_TYPE } from '@kubuild/schema';
 import type { RenderNodeContentOptions } from './render-node-content';
 import { modalManager, type ModalManager } from '../action-runners';
 
@@ -240,6 +241,50 @@ export function renderInteractiveNode(options: RenderNodeContentOptions): React.
           data-kubuild-collapsible={modalId}
         >
           {childrenElements}
+        </div>
+      );
+    }
+
+    case ARTBOARD_REFERENCE_NODE_TYPE: {
+      // A stub left behind when a subtree was detached into its own artboard.
+      // Runtime: nothing renders here — ArtboardPortalHost puts the real content on screen
+      // when its trigger fires. Editor: a compact, selectable chip so the author keeps a
+      // visible anchor for "this surface opens artboard X".
+      if (mode === 'runtime') {
+        return <React.Fragment />;
+      }
+
+      const referencedArtboardId =
+        typeof props.artboardId === 'string' ? props.artboardId : undefined;
+      const label =
+        (typeof props.label === 'string' && props.label.trim().length > 0
+          ? props.label
+          : referencedArtboardId) || 'artboard';
+
+      return (
+        <div
+          id={domId}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 10px',
+            border: '1px dashed #94a3b8',
+            borderRadius: '6px',
+            backgroundColor: '#f8fafc',
+            color: '#475569',
+            fontSize: '12px',
+            fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+            cursor: 'pointer',
+            ...styles,
+          }}
+          onClick={handleClick}
+          data-kubuild-node={node.id}
+          data-kubuild-artboard-reference={referencedArtboardId}
+          title={`Opens artboard "${label}" — edit it on its own canvas surface`}
+        >
+          <span aria-hidden="true">⧉</span>
+          <span>{`Opens: ${label}`}</span>
         </div>
       );
     }

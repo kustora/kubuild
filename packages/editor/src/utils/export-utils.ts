@@ -1,5 +1,24 @@
 import { PageDocument } from '@kubuild/schema';
-import { exportPackage, ExportPackageOptions } from '@kubuild/core';
+import { exportPackage, ExportPackageOptions, collectArtboardReferenceNodes } from '@kubuild/core';
+
+/**
+ * Refuse to export a page that depends on content living in a separate component artboard.
+ *
+ * `.stora` packaging is still single-`PageDocument` shaped, so such an export would silently
+ * omit the detached artboards and re-import as dead triggers with no error anywhere. Blocking
+ * is the honest behaviour until multi-artboard packaging lands.
+ */
+export function assertNoDetachedArtboardReferences(doc: PageDocument): void {
+  const refs = collectArtboardReferenceNodes(doc.document);
+  if (refs.length === 0) return;
+
+  const names = refs.map((ref) => ref.artboardId ?? ref.nodeId).join(', ');
+  throw new Error(
+    `Export blocked: this page references ${refs.length} detached component frame(s) (${names}) ` +
+      `that the .stora format cannot carry yet. Multi-frame export is not implemented — ` +
+      `re-attach the content or export without it for now.`,
+  );
+}
 
 /**
  * Clean a page title into a safe download filename slug
@@ -44,6 +63,7 @@ export async function downloadDocumentAsStora(
   filename?: string,
   options?: ExportPackageOptions
 ): Promise<Uint8Array> {
+  assertNoDetachedArtboardReferences(doc);
   const result = await exportPackage(doc, {
     allowExternalFallback: true,
     ...options,
@@ -62,6 +82,7 @@ export async function downloadDocumentAsStora(
  * Exports a PageDocument as a formatted JSON document and initiates browser download.
  */
 export function downloadDocumentAsJson(doc: PageDocument, filename?: string): void {
+  assertNoDetachedArtboardReferences(doc);
   const name = filename || sanitizeDocumentFilename(doc.metadata?.title || 'page', 'json');
   const jsonStr = JSON.stringify(doc, null, 2);
   downloadFile(jsonStr, name, 'application/json');

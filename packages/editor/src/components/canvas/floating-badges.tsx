@@ -1,8 +1,8 @@
 import React from 'react';
-import { PageDocument } from '@kubuild/schema';
+import { PageDocument, ARTBOARD_REFERENCE_NODE_TYPE } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getParentNodeId } from '@kubuild/core';
-import { ArrowUp, Move, Copy, Trash2 } from 'lucide-react';
+import { ArrowUp, Move, Copy, Trash2, ExternalLink } from 'lucide-react';
 import { useEditorStore } from '../../store';
 
 export interface FloatingActionBadgesProps {
@@ -34,7 +34,14 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
   selectedRect,
   onDragStart,
 }) => {
-  const { selectNode, duplicateComponent, deleteComponent } = useEditorStore();
+  const {
+    selectNode,
+    duplicateComponent,
+    deleteComponent,
+    detachNodeToArtboard,
+    activateArtboard,
+    activeArtboardId,
+  } = useEditorStore();
 
   const node = findNodeById(document.document, selectedNodeId);
   if (!node) return null;
@@ -107,6 +114,34 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+      )}
+
+      {/* Detach to its own artboard — works on any node type, not just overlays */}
+      {!isRoot && !activeArtboardId && node.type !== ARTBOARD_REFERENCE_NODE_TYPE && (
+        <button
+          type="button"
+          data-testid="floating-badge-detach-artboard"
+          title="Detach to its own frame (edit it on a separate canvas surface)"
+          aria-label="Detach to its own frame"
+          onClick={() => detachNodeToArtboard(node.id, { name: label })}
+          className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
+        >
+          <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+      )}
+
+      {/* Jump to the artboard a reference stub points at */}
+      {node.type === ARTBOARD_REFERENCE_NODE_TYPE && typeof node.props?.artboardId === 'string' && (
+        <button
+          type="button"
+          data-testid="floating-badge-open-artboard"
+          title="Edit the frame this opens"
+          aria-label="Edit the frame this opens"
+          onClick={() => activateArtboard(node.props?.artboardId as string)}
+          className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
+        >
+          <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       )}
 

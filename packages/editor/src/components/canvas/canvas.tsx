@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { PageDocument } from '@kubuild/schema';
+import { PageDocument, type Artboard, type ArtboardType } from '@kubuild/schema';
 import { ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
-import { KubuildRenderer } from '@kubuild/renderer';
+import { KubuildRenderer, ArtboardPortalHost } from '@kubuild/renderer';
 import {
   RuntimeContext,
   Diagnostic,
@@ -35,6 +35,14 @@ export interface EditorPageItem {
   document: PageDocument;
   width?: number;
   viewport?: Viewport;
+  /**
+   * Which kind of surface this artboard is. Page artboards come from the host's `pages`
+   * prop; component artboards (detached modals/drawers/blocks) come from the editor store
+   * and are rendered side by side with pages on the same canvas. Defaults to 'page'.
+   */
+  artboardType?: ArtboardType;
+  /** Component artboards only: the id `open_modal` / `close_modal` actions target. */
+  triggerId?: string;
 }
 
 export interface EditorCanvasProps {
@@ -58,6 +66,13 @@ export interface EditorCanvasProps {
   activePageId?: string;
   onActivePageChange?: (pageId: string) => void;
   onPagesChange?: (pages: EditorPageItem[]) => void;
+  /**
+   * Overrides the store's `componentArtboards` for this render — same store-override
+   * pattern as the `document` and `aiGenerationStatus` props above.
+   */
+  componentArtboards?: Artboard[];
+  /** Overrides the store's `activeArtboardId` for this render. */
+  activeArtboardId?: string | null;
   className?: string;
 }
 
@@ -110,6 +125,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   activePageId,
   onActivePageChange,
   onPagesChange,
+  componentArtboards: propComponentArtboards,
+  activeArtboardId: propActiveArtboardId,
   className,
 }) => {
   const {
@@ -141,34 +158,62 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     addActionLog,
     setLiveFormState,
     aiGenerationStatus: storeAiGenerationStatus,
+    componentArtboards: storeComponentArtboards,
+    activeArtboardId: storeActiveArtboardId,
+    activateArtboard,
   } = useEditorStore();
 
   const document = propDoc ?? storeDoc;
   const aiGenerationStatus = propAiGenerationStatus ?? storeAiGenerationStatus;
+  const componentArtboards = propComponentArtboards ?? storeComponentArtboards;
+  const activeArtboardId =
+    propActiveArtboardId !== undefined ? propActiveArtboardId : storeActiveArtboardId;
   const showFloatingBadges = config?.showFloatingBadges !== false && !previewMode;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const activeArtboardRef = useRef<HTMLDivElement>(null);
 
-  const allPages = useMemo<EditorPageItem[]>(() => {
-    if (pages && pages.length > 0) return pages;
+  const pageArtboards = useMemo<EditorPageItem[]>(() => {
+    if (pages && pages.length > 0) {
+      return pages.map((page) => ({ ...page, artboardType: page.artboardType ?? 'page' }));
+    }
     return [
       {
         id: 'default',
         name: document.metadata?.title || 'Page 1',
         slug: '/',
         document,
+        artboardType: 'page',
       },
     ];
   }, [pages, document]);
 
+  // Component artboards sit on the same canvas as pages, so a detached modal/drawer is
+  // edited on its own surface instead of covering the page it belongs to.
+  const allPages = useMemo<EditorPageItem[]>(() => {
+    const componentItems: EditorPageItem[] = componentArtboards.map((artboard) => ({
+      id: artboard.id,
+      name: artboard.name,
+      document: activeArtboardId === artboard.id ? document : artboard.document,
+      artboardType: 'component',
+      triggerId: artboard.triggerId,
+      ...(artboard.width !== undefined ? { width: artboard.width } : {}),
+      ...(artboard.viewport ? { viewport: artboard.viewport } : {}),
+    }));
+    return [...pageArtboards, ...componentItems];
+  }, [pageArtboards, componentArtboards, activeArtboardId, document]);
+
   const effectiveActivePageId = useMemo(() => {
+    // A component artboard being edited takes precedence: it is what `document` holds.
+    if (activeArtboardId && allPages.some((p) => p.id === activeArtboardId)) {
+      return activeArtboardId;
+    }
     if (activePageId && allPages.some((p) => p.id === activePageId)) {
       return activePageId;
     }
     return allPages[0]?.id || 'default';
-  }, [activePageId, allPages]);
+  }, [activeArtboardId, activePageId, allPages]);
 
   const activeDoc = useMemo(() => {
     return allPages.find((p) => p.id === effectiveActivePageId)?.document || document;
@@ -332,15 +377,27 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   const handleSelectPage = useCallback(
     (pageId: string) => {
-      onActivePageChange?.(pageId);
       const targetPage = allPages.find((p) => p.id === pageId);
-      if (targetPage) {
-        useEditorStore.getState().setDocument(targetPage.document);
-        const targetViewport = getPageViewport(targetPage);
-        useEditorStore.getState().setViewport(targetViewport);
+      if (!targetPage) return;
+
+      // Component artboards are owned by the store, so switching to (or away from) one
+      // goes through activateArtboard, which commits the current document back into its
+      // own artboard before loading the target.
+      if (targetPage.artboardType === 'component') {
+        activateArtboard(pageId);
+        useEditorStore.getState().setViewport(getPageViewport(targetPage));
+        return;
       }
+
+      if (activeArtboardId) {
+        activateArtboard(null);
+      }
+
+      onActivePageChange?.(pageId);
+      useEditorStore.getState().setDocument(targetPage.document);
+      useEditorStore.getState().setViewport(getPageViewport(targetPage));
     },
-    [allPages, onActivePageChange, getPageViewport],
+    [allPages, onActivePageChange, getPageViewport, activateArtboard, activeArtboardId],
   );
 
   const [selectedRect, setSelectedRect] = useState<CanvasRect | null>(null);
@@ -994,6 +1051,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 onBreakpointChange={(newBp) => handlePageBreakpointChange(pageItem.id, newBp as Viewport)}
                 title={pageItem.name}
                 slug={pageItem.slug}
+                artboardType={pageItem.artboardType ?? 'page'}
                 isActive={isActive}
                 onSelect={() => handleSelectPage(pageItem.id)}
                 zoom={zoom}
@@ -1086,6 +1144,21 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                             : 'Generating page...')}
                       </span>
                     </div>
+                  )}
+
+                  {/* Detached component artboards behave like real overlays in Preview mode:
+                      their content is portal-rendered when a trigger opens it, exactly as it
+                      will on a published page. While editing, they stay on their own canvas
+                      surfaces instead, so nothing covers the page being worked on. */}
+                  {previewMode && componentArtboards.length > 0 && (
+                    <ArtboardPortalHost
+                      artboards={componentArtboards}
+                      registry={registry}
+                      context={context}
+                      viewport={pageViewport}
+                      mode="runtime"
+                      onDiagnostic={onDiagnostic}
+                    />
                   )}
 
                   {/* Overlays on Active Artboard */}

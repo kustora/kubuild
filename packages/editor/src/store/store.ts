@@ -2,11 +2,15 @@ import { create } from 'zustand';
 import {
   PageDocument,
   Node,
+  Artboard,
+  ProjectDocument,
   StyleDefinition,
   TemplateRecord,
   AnimationConfig,
   ActionPipeline,
   FormConfig,
+  PROJECT_SCHEMA_NAME,
+  CURRENT_PROJECT_SCHEMA_VERSION,
 } from '@kubuild/schema';
 import {
   createBlankDocument,
@@ -36,6 +40,8 @@ import {
   CloneTemplateOptions,
   wrapNodeIntoFrame,
   ungroupNodeFrame,
+  extractNodeToArtboard,
+  findArtboardById,
 } from '@kubuild/core';
 import {
   ComponentRegistry,
@@ -89,6 +95,29 @@ export interface InsertComponentResult {
   nodeId?: string;
   error?: string;
 }
+
+export interface DetachArtboardResult {
+  success: boolean;
+  /** Id of the newly created component artboard. */
+  artboardId?: string;
+  /** Id of the `artboard-reference` stub left behind in the page. */
+  stubNodeId?: string;
+  /** Trigger id `open_modal` / `close_modal` actions should target. */
+  triggerId?: string;
+  error?: string;
+}
+
+/**
+ * Node types that are overlay surfaces by nature: inserting one inline would cover the page
+ * being edited, so they get their own component artboard plus a pre-wired trigger instead.
+ */
+export const OVERLAY_COMPONENT_TYPES = ['modal', 'drawer'] as const;
+
+/**
+ * Synthetic artboard id standing for "the page document currently loaded in the store",
+ * used when assembling a transient project for project-level commands.
+ */
+export const ACTIVE_PAGE_ARTBOARD_ID = 'active-page-artboard';
 
 export interface MoveComponentResult {
   success: boolean;
@@ -220,6 +249,19 @@ export interface EditorState {
    * into the document. `null` when no generation is in flight.
    */
   aiGenerationStatus: AiGenerationPlaceholderStatus | null;
+  /**
+   * Component artboards (detached modals/drawers/collapsibles, or any block the author
+   * detached) belonging to the project currently open. Page artboards stay owned by the
+   * host app's `pages` prop; only these live in the store for now.
+   */
+  componentArtboards: Artboard[];
+  /**
+   * Id of the component artboard `document` currently represents, or null while a page
+   * artboard is being edited. The store still holds exactly one PageDocument at a time.
+   */
+  activeArtboardId: string | null;
+  /** Page document stashed while editing a component artboard, restored on return. */
+  artboardReturnDocument: PageDocument | null;
 
   setDocument: (document: PageDocument) => void;
   setDragPayload: (payload: DragPayload | null) => void;
@@ -252,6 +294,19 @@ export interface EditorState {
   beginHistoryTransaction: () => void;
   endHistoryTransaction: () => void;
   setAiGenerationStatus: (status: AiGenerationPlaceholderStatus | null) => void;
+  setComponentArtboards: (artboards: Artboard[]) => void;
+  /**
+   * Detach a node's subtree into its own component artboard, leaving an
+   * `artboard-reference` stub in the page. Works for any node type — this is the generic
+   * "give this block its own surface" action, not a modal-only path.
+   */
+  detachNodeToArtboard: (nodeId: string, options?: { name?: string; activate?: boolean }) => DetachArtboardResult;
+  /**
+   * Switch which artboard the single in-store `document` represents. Pass null to return
+   * to the page artboard. Commits the current document back into its artboard first.
+   */
+  activateArtboard: (artboardId: string | null) => void;
+  removeComponentArtboard: (artboardId: string) => void;
   insertComponent: (
     type: string,
     registry: ComponentRegistry,
@@ -370,6 +425,31 @@ function selectionAfterMultiple(document: PageDocument, selectedNodeIds: string[
   return selectedNodeIds.filter((id) => !!findNodeById(document.document, id));
 }
 
+/**
+ * Route a committed document to whichever surface actually owns it.
+ *
+ * The store holds exactly one PageDocument, which may belong either to the host's active
+ * page or to a component artboard. Handing a component artboard's document to
+ * `onChangeHandler` would make the host save it over the page it was detached from, so
+ * artboard edits are written back into `componentArtboards` instead.
+ */
+function commitDocumentToOwner(
+  get: () => EditorState,
+  set: (partial: Partial<EditorState>) => void,
+  document: PageDocument,
+): void {
+  const { activeArtboardId, componentArtboards, onChangeHandler } = get();
+  if (activeArtboardId) {
+    set({
+      componentArtboards: componentArtboards.map((artboard) =>
+        artboard.id === activeArtboardId ? { ...artboard, document } : artboard,
+      ),
+    });
+    return;
+  }
+  onChangeHandler?.(document);
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   document: historyManager.document,
   selectedNodeId: null,
@@ -393,6 +473,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   actionLogs: [],
   liveFormState: null,
   aiGenerationStatus: null,
+  componentArtboards: [],
+  activeArtboardId: null,
+  artboardReturnDocument: null,
 
   setDragPayload: (payload) => set({ dragPayload: payload }),
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
@@ -463,14 +546,168 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       canUndo: false,
       canRedo: false,
       aiGenerationStatus: null,
+      // A wholesale document swap (e.g. the host switching pages) means we are editing a
+      // page again, so any component-artboard editing session is no longer in effect.
+      activeArtboardId: null,
+      artboardReturnDocument: null,
     });
+  },
+
+  setComponentArtboards: (artboards) => set({ componentArtboards: artboards }),
+
+  detachNodeToArtboard: (nodeId, options = {}) => {
+    const state = get();
+    if (state.activeArtboardId) {
+      return {
+        success: false,
+        error: 'Detaching is only available while editing a page artboard.',
+      };
+    }
+    if (!findNodeById(state.document.document, nodeId)) {
+      return { success: false, error: `Node "${nodeId}" was not found in the document.` };
+    }
+
+    // The store holds a single PageDocument, so assemble a transient project around it:
+    // the active page plus the component artboards already known. extractNodeToArtboard
+    // then enforces project-wide id uniqueness for us.
+    const pageArtboardId = ACTIVE_PAGE_ARTBOARD_ID;
+    const project: ProjectDocument = {
+      schema: PROJECT_SCHEMA_NAME,
+      version: CURRENT_PROJECT_SCHEMA_VERSION,
+      artboards: [
+        {
+          id: pageArtboardId,
+          name: state.document.metadata?.title ?? 'Page',
+          artboardType: 'page',
+          document: state.document,
+        },
+        ...state.componentArtboards,
+      ],
+      activeArtboardId: pageArtboardId,
+    };
+
+    let result;
+    try {
+      result = extractNodeToArtboard(project, {
+        artboardId: pageArtboardId,
+        nodeId,
+        ...(options.name ? { name: options.name } : {}),
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    const updatedPage = findArtboardById(result.project, pageArtboardId)?.document;
+    const newArtboard = findArtboardById(result.project, result.event.artboardId);
+    if (!updatedPage || !newArtboard) {
+      return { success: false, error: 'Detaching produced an unexpected project shape.' };
+    }
+
+    const stubNodeId = result.event.payload?.stubNodeId as string | undefined;
+
+    // Commit the page-side change through dispatch so it lands in the normal undo stack.
+    // Undo caveat (Phase 1): history is per-document, so undoing this restores the page tree
+    // but leaves the new artboard in place — it can be removed explicitly.
+    get().dispatch(() => ({
+      document: updatedPage,
+      event: {
+        type: 'NODE_REMOVED',
+        timestamp: new Date().toISOString(),
+        nodeId,
+        payload: {
+          reason: 'detached-to-artboard',
+          artboardId: newArtboard.id,
+          stubNodeId,
+        },
+      },
+    }));
+
+    set((current) => ({ componentArtboards: [...current.componentArtboards, newArtboard] }));
+
+    if (options.activate) {
+      get().activateArtboard(newArtboard.id);
+    } else if (stubNodeId) {
+      get().selectNode(stubNodeId);
+    }
+
+    return {
+      success: true,
+      artboardId: newArtboard.id,
+      stubNodeId,
+      triggerId: newArtboard.triggerId,
+    };
+  },
+
+  activateArtboard: (artboardId) => {
+    const state = get();
+    if (artboardId === state.activeArtboardId) return;
+
+    // Commit whatever is currently loaded back into its owning artboard first.
+    let artboards = state.componentArtboards;
+    if (state.activeArtboardId) {
+      artboards = artboards.map((artboard) =>
+        artboard.id === state.activeArtboardId
+          ? { ...artboard, document: state.document }
+          : artboard,
+      );
+    }
+
+    if (artboardId === null) {
+      const pageDocument = state.artboardReturnDocument ?? state.document;
+      historyManager = new DocumentHistoryManager(pageDocument);
+      set({
+        componentArtboards: artboards,
+        activeArtboardId: null,
+        artboardReturnDocument: null,
+        document: historyManager.document,
+        selectedNodeId: null,
+        selectedNodeIds: [],
+        hoveredNodeId: null,
+        dragPayload: null,
+        canUndo: false,
+        canRedo: false,
+      });
+      return;
+    }
+
+    const target = artboards.find((artboard) => artboard.id === artboardId);
+    if (!target) return;
+
+    historyManager = new DocumentHistoryManager(target.document);
+    set({
+      componentArtboards: artboards,
+      activeArtboardId: artboardId,
+      // Only stash the page document when leaving a page, never when hopping
+      // between two component artboards.
+      artboardReturnDocument: state.activeArtboardId ? state.artboardReturnDocument : state.document,
+      document: historyManager.document,
+      selectedNodeId: null,
+      selectedNodeIds: [],
+      hoveredNodeId: null,
+      dragPayload: null,
+      canUndo: false,
+      canRedo: false,
+    });
+  },
+
+  removeComponentArtboard: (artboardId) => {
+    const state = get();
+    if (state.activeArtboardId === artboardId) {
+      get().activateArtboard(null);
+    }
+    set((current) => ({
+      componentArtboards: current.componentArtboards.filter((artboard) => artboard.id !== artboardId),
+    }));
   },
 
   setOnChangeHandler: (handler) => set({ onChangeHandler: handler }),
 
   dispatch: (executor) => {
     const result = historyManager.execute(executor);
-    const { selectedNodeId, selectedNodeIds, onChangeHandler } = get();
+    const { selectedNodeId, selectedNodeIds } = get();
     const updatedIds = selectionAfterMultiple(result.document, selectedNodeIds);
     const updatedPrimary =
       selectionAfter(result.document, selectedNodeId) ?? (updatedIds.length > 0 ? updatedIds[0] : null);
@@ -482,7 +719,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedNodeId: updatedPrimary,
       selectedNodeIds: updatedIds,
     });
-    onChangeHandler?.(result.document);
+    commitDocumentToOwner(get, set, result.document);
   },
 
   beginHistoryTransaction: () => {
@@ -549,6 +786,50 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
 
     get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node, index }));
+
+    // Overlay surfaces (modal, drawer) would blanket the page while it's being edited, so
+    // they immediately move onto their own artboard, leaving a reference stub plus a
+    // pre-wired trigger button in the page. Everything else stays inline as before.
+    if (!state.activeArtboardId && (OVERLAY_COMPONENT_TYPES as readonly string[]).includes(type)) {
+      const detached = get().detachNodeToArtboard(nodeId, { name: definition.label });
+      if (detached.success && detached.triggerId && detached.stubNodeId) {
+        const triggerId = detached.triggerId;
+        const stubNodeId = detached.stubNodeId;
+        const triggerNodeId = generateComponentNodeId('button', collectNodeIdSet(get().document.document));
+        const triggerNode: Node = {
+          id: triggerNodeId,
+          type: 'button',
+          props: {
+            label: `Open ${definition.label}`,
+            modalId: triggerId,
+            variant: 'primary',
+          },
+          actions: [
+            {
+              id: `${triggerNodeId}-pipeline`,
+              trigger: 'click',
+              label: `Open ${definition.label}`,
+              enabled: true,
+              steps: [
+                {
+                  id: `${triggerNodeId}-step`,
+                  type: 'open_modal',
+                  label: `Open ${definition.label}`,
+                  payload: { modalId: triggerId, modalNodeId: triggerId, toggle: true },
+                },
+              ],
+            },
+          ] as ActionPipeline[],
+        };
+
+        const stubParentId =
+          getParentNodeId(get().document.document, stubNodeId) ?? get().document.document.id;
+        get().dispatch((doc) => insertNode(doc, { parentId: stubParentId, node: triggerNode }));
+        get().selectNode(triggerNodeId);
+        return { success: true, nodeId: triggerNodeId };
+      }
+    }
+
     get().selectNode(nodeId);
 
     return { success: true, nodeId };
@@ -833,7 +1114,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   undo: () => {
     const restored = historyManager.undo();
     if (!restored) return;
-    const { selectedNodeId, selectedNodeIds, onChangeHandler } = get();
+    const { selectedNodeId, selectedNodeIds } = get();
     const updatedIds = selectionAfterMultiple(restored, selectedNodeIds);
     const updatedPrimary =
       selectionAfter(restored, selectedNodeId) ?? (updatedIds.length > 0 ? updatedIds[0] : null);
@@ -845,13 +1126,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedNodeId: updatedPrimary,
       selectedNodeIds: updatedIds,
     });
-    onChangeHandler?.(restored);
+    commitDocumentToOwner(get, set, restored);
   },
 
   redo: () => {
     const restored = historyManager.redo();
     if (!restored) return;
-    const { selectedNodeId, selectedNodeIds, onChangeHandler } = get();
+    const { selectedNodeId, selectedNodeIds } = get();
     const updatedIds = selectionAfterMultiple(restored, selectedNodeIds);
     const updatedPrimary =
       selectionAfter(restored, selectedNodeId) ?? (updatedIds.length > 0 ? updatedIds[0] : null);
@@ -863,7 +1144,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedNodeId: updatedPrimary,
       selectedNodeIds: updatedIds,
     });
-    onChangeHandler?.(restored);
+    commitDocumentToOwner(get, set, restored);
   },
 
   markSaved: () => set({ isDirty: false }),

@@ -1,4 +1,4 @@
-import { PageDocument } from '@kubuild/schema';
+import { Artboard, PageDocument } from '@kubuild/schema';
 
 export interface AssetInfo {
   id: string;
@@ -82,6 +82,14 @@ export type RenderContext = Readonly<{
   assetProvider?: AssetProvider;
   actionRegistry?: ActionRegistry;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
+  /**
+   * Resolves the component artboard an `open_modal`/`close_modal` action targets, so a
+   * trigger living in one artboard can open content stored in another. Supplied by the
+   * host that owns the multi-artboard project; absent for single-document rendering.
+   */
+  resolveArtboard?: (triggerId: string) => Artboard | undefined;
+  /** Every component artboard available for portal rendering at runtime. */
+  componentArtboards?: readonly Artboard[];
 }>;
 
 export type RuntimeContext = RenderContext;

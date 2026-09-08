@@ -1,4 +1,5 @@
 export * from './renderer';
+export * from './artboard-portal-host';
 export * from './styles';
 export * from './render-context';
 export * from './form-context';

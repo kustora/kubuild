@@ -197,10 +197,18 @@ export function NodeRenderer({
   const isModalOpen = hasModalState ? rawIsModalOpen : Boolean(props.defaultOpen);
 
   const effectiveStyles: React.CSSProperties = { ...styles };
-  // If this node is a modal/drawer container (not an interactive trigger button/link), hide it when closed.
-  // Only in runtime mode — editor mode always keeps it visible/selectable/editable on canvas.
-  const isModalContainer = Boolean(props.modalId || props.modalNodeId) && node.type !== 'button' && node.type !== 'link';
-  if (mode === 'runtime' && isModalContainer && !isModalOpen) {
+  // A plain container (e.g. a navbar's mobile dropdown) that's linked to a modalId toggle should hide
+  // when closed in both editor and runtime mode, so clicking its trigger is visibly reactive while
+  // editing, not just after publishing. Dedicated 'modal'/'drawer'/'collapsible' node types are excluded:
+  // they render through interactive-renderers.tsx, which already forces itself open in editor mode so
+  // its content stays editable — applying this gate on top of that would hide it again.
+  const isDedicatedInteractiveNode = node.type === 'modal' || node.type === 'drawer' || node.type === 'collapsible';
+  const isModalContainer =
+    Boolean(props.modalId || props.modalNodeId) &&
+    node.type !== 'button' &&
+    node.type !== 'link' &&
+    !isDedicatedInteractiveNode;
+  if (isModalContainer && !isModalOpen) {
     effectiveStyles.display = 'none';
   }
 

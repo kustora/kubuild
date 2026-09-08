@@ -217,7 +217,23 @@ export interface ViewportResizerProps {
   children: React.ReactNode;
   className?: string;
   onHeaderPointerDown?: (e: React.PointerEvent) => void;
+  /**
+   * Which kind of surface this artboard is, shown as a badge in the header so a page and a
+   * detached component surface are distinguishable at a glance. Defaults to 'page'.
+   */
+  artboardType?: 'page' | 'component';
 }
+
+const ARTBOARD_TYPE_BADGES: Record<'page' | 'component', { label: string; colorClass: string }> = {
+  page: {
+    label: 'PAGE',
+    colorClass: 'bg-slate-100 text-slate-600 border-slate-300/70',
+  },
+  component: {
+    label: 'COMPONENT',
+    colorClass: 'bg-violet-100 text-violet-700 border-violet-300/70',
+  },
+};
 
 /**
  * Canvas Viewport Resizer Frame Container (STORA-142).
@@ -240,8 +256,10 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
   children,
   className = '',
   onHeaderPointerDown,
+  artboardType = 'page',
 }) => {
   const bpInfo = getBreakpointFromWidth(width);
+  const artboardBadge = ARTBOARD_TYPE_BADGES[artboardType];
 
   return (
     <div
@@ -268,6 +286,18 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
                 {title}
               </span>
             )}
+            <span
+              data-testid="artboard-type-badge"
+              data-artboard-type={artboardType}
+              className={`text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded border shrink-0 ${artboardBadge.colorClass}`}
+              title={
+                artboardType === 'component'
+                  ? 'Component surface — opens as an overlay at runtime'
+                  : 'Page surface'
+              }
+            >
+              {artboardBadge.label}
+            </span>
             {slug && (
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-600 border border-slate-300/60 shrink-0">
                 {slug}
