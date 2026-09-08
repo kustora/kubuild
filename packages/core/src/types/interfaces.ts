@@ -1,4 +1,4 @@
-import { Artboard, PageDocument } from '@kubuild/schema';
+import { Artboard, ArtboardType, PageDocument } from '@kubuild/schema';
 
 export interface AssetInfo {
   id: string;
@@ -90,6 +90,13 @@ export type RenderContext = Readonly<{
   resolveArtboard?: (triggerId: string) => Artboard | undefined;
   /** Every component artboard available for portal rendering at runtime. */
   componentArtboards?: readonly Artboard[];
+  /**
+   * What kind of surface this render represents. On a 'component' surface the node is being
+   * authored in isolation on its own artboard, so overlay chrome that only makes sense over
+   * a real page (a modal's full-bleed backdrop, a drawer pinned to the viewport edge) is
+   * suppressed and the node sits directly on the canvas instead.
+   */
+  artboardSurface?: ArtboardType;
 }>;
 
 export type RuntimeContext = RenderContext;

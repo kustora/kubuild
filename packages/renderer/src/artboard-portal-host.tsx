@@ -117,17 +117,25 @@ export const ArtboardPortalHost: React.FC<ArtboardPortalHostProps> = ({
         if (!contentNode) return null;
 
         return ReactDOM.createPortal(
-          <NodeRenderer
+          // `pointerEvents: auto` restores interaction for hosts that mark the portal
+          // container `pointer-events: none` so an empty container can't swallow clicks
+          // meant for the page underneath.
+          <div
             key={artboard.id}
-            node={contentNode}
-            document={artboard.document}
-            registry={resolvedRegistry}
-            context={context}
-            viewport={viewport}
-            mode="runtime"
-            onDiagnostic={onDiagnostic}
-            onActionDispatch={onActionDispatch}
-          />,
+            data-kubuild-artboard-portal={artboard.id}
+            style={{ pointerEvents: 'auto' }}
+          >
+            <NodeRenderer
+              node={contentNode}
+              document={artboard.document}
+              registry={resolvedRegistry}
+              context={context}
+              viewport={viewport}
+              mode="runtime"
+              onDiagnostic={onDiagnostic}
+              onActionDispatch={onActionDispatch}
+            />
+          </div>,
           target,
           artboard.id,
         );

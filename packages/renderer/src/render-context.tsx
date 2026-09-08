@@ -15,6 +15,7 @@ import {
   isActionBinding,
   ActionBinding,
   Artboard,
+  ArtboardType,
   PageDocument,
 } from '@kubuild/schema';
 
@@ -46,6 +47,8 @@ export function createRenderContext(options?: {
    */
   componentArtboards?: readonly Artboard[];
   resolveArtboard?: (triggerId: string) => Artboard | undefined;
+  /** 'component' when this render is a node being authored alone on its own artboard. */
+  artboardSurface?: ArtboardType;
 }): RenderContext {
   if (!options) {
     return DEFAULT_RENDER_CONTEXT;
@@ -71,6 +74,7 @@ export function createRenderContext(options?: {
     ...(options.onDiagnostic ? { onDiagnostic: options.onDiagnostic } : {}),
     ...(componentArtboards ? { componentArtboards } : {}),
     ...(resolveArtboard ? { resolveArtboard } : {}),
+    ...(options.artboardSurface ? { artboardSurface: options.artboardSurface } : {}),
   });
 }
 

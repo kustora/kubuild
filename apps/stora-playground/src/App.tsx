@@ -4,6 +4,7 @@ import {
   ImportModal,
   downloadDocumentAsStora,
   downloadDocumentAsJson,
+  useEditorStore,
   Viewport,
   AiEditorConfig,
 } from '@kubuild/editor';
@@ -159,6 +160,9 @@ export function App() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const registry = useMemo(() => createDefaultComponentRegistry(), []);
+  // Detached component surfaces (modals/drawers) live in the editor store; Preview needs
+  // them so a trigger on the page can actually open its overlay here.
+  const componentArtboards = useEditorStore((state) => state.componentArtboards);
 
   // Talks to the kubuild-test reference backend (apps/server), which proxies
   // @kubuild/ai's engine + holds the provider API key server-side. Point
@@ -748,6 +752,7 @@ export function App() {
               document={activePage.document}
               registry={registry}
               context={renderContext}
+              componentArtboards={componentArtboards}
               viewport={previewViewport}
               onViewportChange={setPreviewViewport}
               showChrome={true}

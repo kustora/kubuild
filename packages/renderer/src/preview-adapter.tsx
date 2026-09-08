@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
-import { PageDocument } from '@kubuild/schema';
+import React, { useMemo, useState } from 'react';
+import { PageDocument, type Artboard } from '@kubuild/schema';
 import type { ComponentRegistry } from '@kubuild/components';
 import { RenderContext, Diagnostic } from './render-context';
 import { KubuildRenderer } from './renderer';
+import { ArtboardPortalHost } from './artboard-portal-host';
 
 /**
  * Standard supported viewport devices
@@ -186,6 +187,13 @@ export interface PreviewViewportAdapterProps {
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   /** Optional action dispatch handler */
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
+  /**
+   * Component artboards (detached modals/drawers) belonging to the same project as
+   * `document`. Passing them lets a trigger in the page open its detached overlay inside
+   * this preview, exactly as it will on a published page. Defaults to
+   * `context.componentArtboards`.
+   */
+  componentArtboards?: readonly Artboard[];
 }
 
 /**
@@ -215,7 +223,12 @@ export const PreviewViewportAdapter: React.FC<PreviewViewportAdapterProps> = ({
   onNodeClick,
   onDiagnostic,
   onActionDispatch,
+  componentArtboards,
 }) => {
+  // Callback ref (not useRef) so the portal host re-renders once the container exists.
+  const [overlayHost, setOverlayHost] = useState<HTMLDivElement | null>(null);
+  const overlayArtboards = componentArtboards ?? context?.componentArtboards;
+
   const currentConfig = useMemo(
     () => resolveViewportDimensions(viewport, viewportConfigs),
     [viewport, viewportConfigs],
@@ -348,6 +361,42 @@ export const PreviewViewportAdapter: React.FC<PreviewViewportAdapterProps> = ({
           onDiagnostic={onDiagnostic}
           onActionDispatch={onActionDispatch}
         />
+
+        {/* Detached component artboards (modals/drawers) open into this frame.
+            The `transform` makes this element a containing block, so the overlay's
+            `position: fixed` resolves against the previewed device frame instead of the
+            whole browser window — runtime CSS stays identical, it's just scoped.
+            `pointer-events: none` keeps the empty container from eating page clicks;
+            ArtboardPortalHost re-enables them on the content it portals in. */}
+        {overlayArtboards && overlayArtboards.length > 0 && (
+          <>
+            <div
+              ref={setOverlayHost}
+              data-kubuild-preview-overlay-host
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                transform: 'translate3d(0, 0, 0)',
+                pointerEvents: 'none',
+              }}
+            />
+            {overlayHost && (
+              <ArtboardPortalHost
+                artboards={overlayArtboards}
+                registry={registry}
+                context={context}
+                viewport={viewport}
+                mode={mode}
+                container={overlayHost}
+                onDiagnostic={onDiagnostic}
+                onActionDispatch={onActionDispatch}
+              />
+            )}
+          </>
+        )}
 
         {/* Non-destructive Editor Overlay Slot */}
         {editorOverlay && (

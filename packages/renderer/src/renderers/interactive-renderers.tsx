@@ -26,6 +26,14 @@ export function renderInteractiveNode(options: RenderNodeContentOptions): React.
     ((context as unknown as Record<string, unknown> | undefined)?.modalManager as ModalManager) ||
     modalManager;
 
+  /**
+   * True while this node is being authored alone on its own component artboard. The
+   * backdrop and viewport-pinned positioning exist to sit over a real page; on an isolated
+   * surface they'd just paint the whole artboard, hiding the canvas the author is working
+   * on, so the node is laid out in flow instead and the overlay chrome is dropped.
+   */
+  const isIsolatedComponentSurface = mode === 'editor' && context?.artboardSurface === 'component';
+
   switch (node.type) {
     case 'modal': {
       // If closed in runtime mode, render empty element so it does not fall through to unknown node fallback
@@ -48,20 +56,32 @@ export function renderInteractiveNode(options: RenderNodeContentOptions): React.
         <div
           id={`${domId}-overlay`}
           data-kubuild-overlay={modalId}
-          style={{
-            position: mode === 'editor' ? 'absolute' : 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: showBackdrop ? 'rgba(15, 23, 42, 0.65)' : 'transparent',
-            backdropFilter: showBackdrop ? 'blur(4px)' : 'none',
-            display: 'flex',
-            alignItems: size === 'fullscreen' ? 'stretch' : 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: size === 'fullscreen' ? '0' : '16px',
-          }}
+          data-kubuild-isolated={isIsolatedComponentSurface ? 'true' : undefined}
+          style={
+            isIsolatedComponentSurface
+              ? {
+                  // In flow on its own artboard: no backdrop, no viewport pinning.
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'center',
+                  padding: size === 'fullscreen' ? '0' : '16px',
+                }
+              : {
+                  position: mode === 'editor' ? 'absolute' : 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: showBackdrop ? 'rgba(15, 23, 42, 0.65)' : 'transparent',
+                  backdropFilter: showBackdrop ? 'blur(4px)' : 'none',
+                  display: 'flex',
+                  alignItems: size === 'fullscreen' ? 'stretch' : 'center',
+                  justifyContent: 'center',
+                  zIndex: 9999,
+                  padding: size === 'fullscreen' ? '0' : '16px',
+                }
+          }
           onClick={(e) => {
             if (e.target === e.currentTarget && closeOnBackdrop && mode === 'runtime') {
               targetManager.closeModal(modalId);
@@ -148,21 +168,45 @@ export function renderInteractiveNode(options: RenderNodeContentOptions): React.
         <div
           id={`${domId}-overlay`}
           data-kubuild-overlay={modalId}
-          style={{
-            position: mode === 'editor' ? 'absolute' : 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: showBackdrop ? 'rgba(15, 23, 42, 0.5)' : 'transparent',
-            backdropFilter: showBackdrop ? 'blur(2px)' : 'none',
-            display: 'flex',
-            justifyContent:
-              placement === 'left' ? 'flex-start' : placement === 'right' ? 'flex-end' : 'center',
-            alignItems:
-              placement === 'top' ? 'flex-start' : placement === 'bottom' ? 'flex-end' : 'stretch',
-            zIndex: 9999,
-          }}
+          data-kubuild-isolated={isIsolatedComponentSurface ? 'true' : undefined}
+          style={
+            isIsolatedComponentSurface
+              ? {
+                  position: 'relative',
+                  display: 'flex',
+                  justifyContent:
+                    placement === 'left'
+                      ? 'flex-start'
+                      : placement === 'right'
+                        ? 'flex-end'
+                        : 'center',
+                  alignItems: 'flex-start',
+                  padding: '16px',
+                }
+              : {
+                  position: mode === 'editor' ? 'absolute' : 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: showBackdrop ? 'rgba(15, 23, 42, 0.5)' : 'transparent',
+                  backdropFilter: showBackdrop ? 'blur(2px)' : 'none',
+                  display: 'flex',
+                  justifyContent:
+                    placement === 'left'
+                      ? 'flex-start'
+                      : placement === 'right'
+                        ? 'flex-end'
+                        : 'center',
+                  alignItems:
+                    placement === 'top'
+                      ? 'flex-start'
+                      : placement === 'bottom'
+                        ? 'flex-end'
+                        : 'stretch',
+                  zIndex: 9999,
+                }
+          }
           onClick={(e) => {
             if (e.target === e.currentTarget && closeOnBackdrop && mode === 'runtime') {
               targetManager.closeModal(modalId);
@@ -175,9 +219,12 @@ export function renderInteractiveNode(options: RenderNodeContentOptions): React.
               ...styles,
               position: 'relative',
               boxSizing: 'border-box',
-              height: isVertical ? 'auto' : '100%',
+              // Isolated: size to content instead of filling a viewport-sized overlay,
+              // which would otherwise collapse to zero height in flow.
+              height: isIsolatedComponentSurface ? 'auto' : isVertical ? 'auto' : '100%',
+              ...(isIsolatedComponentSurface ? { minHeight: '240px' } : {}),
               width: isVertical ? '100%' : (styles.width || '320px'),
-              maxHeight: isVertical ? '80vh' : '100%',
+              maxHeight: isIsolatedComponentSurface ? 'none' : isVertical ? '80vh' : '100%',
               overflowY: 'auto',
             }}
             onClick={handleClick}

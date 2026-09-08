@@ -375,6 +375,19 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     [effectiveActivePageId, onFluidWidthChange, onBreakpointChange, onPagesChange, pages],
   );
 
+  /**
+   * Tag the render context with the surface kind so a modal/drawer authored alone on its own
+   * artboard drops the runtime backdrop and sits on the canvas, instead of painting the whole
+   * surface dark and hiding what's being edited.
+   */
+  const contextForArtboard = useCallback(
+    (item: EditorPageItem): RuntimeContext | undefined => {
+      if (item.artboardType !== 'component') return context;
+      return { ...(context ?? {}), artboardSurface: 'component' };
+    },
+    [context],
+  );
+
   const handleSelectPage = useCallback(
     (pageId: string) => {
       const targetPage = allPages.find((p) => p.id === pageId);
@@ -1065,7 +1078,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     <KubuildRenderer
                       document={activeDoc}
                       registry={registry}
-                      context={context}
+                      context={contextForArtboard(pageItem)}
                       viewport={pageViewport}
                       mode={previewMode ? 'runtime' : 'editor'}
                     onNodeClick={(id: string, e?: React.MouseEvent) => {
@@ -1323,14 +1336,24 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     <div className="absolute top-2 right-2 z-10 opacity-0 group-hover/artboard:opacity-100 transition-opacity bg-slate-900/80 text-white text-[11px] font-medium px-2 py-1 rounded shadow pointer-events-none">
                       Click to edit
                     </div>
-                    <KubuildRenderer
-                      document={pageItem.document}
-                      registry={registry}
-                      context={context}
-                      viewport={pageViewport}
-                      mode="runtime"
-                      onNodeClick={() => handleSelectPage(pageItem.id)}
-                    />
+                    {/* An inactive component artboard is previewed in editor mode: in runtime
+                        mode a closed modal/drawer renders nothing, which would leave the
+                        surface looking empty. Pointer events are disabled so clicks reach the
+                        click-to-edit wrapper instead of the (contenteditable) content. */}
+                    <div
+                      style={
+                        pageItem.artboardType === 'component' ? { pointerEvents: 'none' } : undefined
+                      }
+                    >
+                      <KubuildRenderer
+                        document={pageItem.document}
+                        registry={registry}
+                        context={contextForArtboard(pageItem)}
+                        viewport={pageViewport}
+                        mode={pageItem.artboardType === 'component' ? 'editor' : 'runtime'}
+                        onNodeClick={() => handleSelectPage(pageItem.id)}
+                      />
+                    </div>
                   </div>
                 )}
               </ViewportResizer>

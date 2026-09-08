@@ -8,6 +8,7 @@ import {
   selectOpenComponentArtboards,
 } from '../src/artboard-portal-host';
 import { createRenderContext } from '../src/render-context';
+import { PreviewViewportAdapter } from '../src/preview-adapter';
 import { ModalManager } from '../src/action-runners';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument, createComponentArtboard, createPageArtboard } from '@kubuild/core';
@@ -173,6 +174,139 @@ describe('createRenderContext artboard resolution', () => {
 
     expect(context.resolveArtboard).toBeUndefined();
     expect(context.componentArtboards).toBeUndefined();
+  });
+});
+
+describe('PreviewViewportAdapter overlay host', () => {
+  function pageWithTrigger() {
+    const doc = createBlankDocument('Preview page');
+    doc.document.children = [
+      {
+        id: 'trigger-1',
+        type: 'button',
+        props: { label: 'Click Me', modalId: 'auth-modal' },
+        actions: [
+          {
+            id: 'p1',
+            trigger: 'click',
+            label: 'Open',
+            enabled: true,
+            steps: [{ id: 's1', type: 'open_modal', label: 'Open', payload: { modalId: 'auth-modal' } }],
+          },
+        ],
+      },
+    ];
+    return doc;
+  }
+
+  it('mounts a containing-block overlay host when component artboards are supplied', () => {
+    const html = renderToString(
+      <PreviewViewportAdapter
+        document={pageWithTrigger()}
+        registry={registry}
+        componentArtboards={[componentArtboard()]}
+      />,
+    );
+
+    expect(html).toContain('data-kubuild-preview-overlay-host');
+    // The transform is what scopes the overlay's `position: fixed` to the device frame
+    expect(html).toContain('translate3d(0, 0, 0)');
+    // Empty host must not swallow clicks meant for the page
+    expect(html).toContain('pointer-events:none');
+    expect(html).toContain('Click Me');
+  });
+
+  it('mounts no overlay host when there are no component artboards', () => {
+    const html = renderToString(
+      <PreviewViewportAdapter document={pageWithTrigger()} registry={registry} />,
+    );
+
+    expect(html).not.toContain('data-kubuild-preview-overlay-host');
+  });
+
+  it('falls back to component artboards carried on the render context', () => {
+    const context = createRenderContext({ componentArtboards: [componentArtboard()] });
+
+    const html = renderToString(
+      <PreviewViewportAdapter document={pageWithTrigger()} registry={registry} context={context} />,
+    );
+
+    expect(html).toContain('data-kubuild-preview-overlay-host');
+  });
+});
+
+describe('isolated component surface rendering', () => {
+  function modalDoc() {
+    const doc = createBlankDocument('Modal surface');
+    doc.document.children = [modalNode('modal-1', 'auth-modal')];
+    return doc;
+  }
+
+  it('drops the backdrop when a modal is authored alone on a component artboard', () => {
+    const context = createRenderContext({ artboardSurface: 'component' });
+
+    const html = renderToString(
+      <KubuildRenderer document={modalDoc()} registry={registry} mode="editor" context={context} />,
+    );
+
+    expect(html).toContain('data-kubuild-isolated="true"');
+    // No dark full-bleed backdrop painting over the surface being edited
+    expect(html).not.toContain('rgba(15, 23, 42, 0.65)');
+    expect(html).not.toContain('backdrop-filter:blur(4px)');
+    // The overlay element itself is in flow, not pinned over the artboard
+    const overlayStyle = /data-kubuild-overlay="auth-modal"[^>]*style="([^"]*)"/.exec(html)?.[1] ?? '';
+    expect(overlayStyle).toContain('position:relative');
+    expect(overlayStyle).not.toContain('position:absolute');
+    expect(overlayStyle).not.toContain('z-index');
+    // The dialog content is still there and still editable
+    expect(html).toContain('Please sign in');
+  });
+
+  it('keeps the backdrop on a page surface in editor mode', () => {
+    const html = renderToString(
+      <KubuildRenderer document={modalDoc()} registry={registry} mode="editor" />,
+    );
+
+    expect(html).not.toContain('data-kubuild-isolated');
+    expect(html).toContain('rgba(15, 23, 42, 0.65)');
+    const overlayStyle = /data-kubuild-overlay="auth-modal"[^>]*style="([^"]*)"/.exec(html)?.[1] ?? '';
+    expect(overlayStyle).toContain('position:absolute');
+  });
+
+  it('keeps the real overlay at runtime even when a component surface is declared', () => {
+    const manager = new ModalManager();
+    const context = createRenderContext({ artboardSurface: 'component' });
+    const doc = modalDoc();
+
+    // Runtime rendering is what a published page does; isolation is an editor-only affordance.
+    manager.openModal('auth-modal');
+    const html = renderToString(
+      <KubuildRenderer document={doc} registry={registry} mode="runtime" context={context} />,
+    );
+
+    expect(html).not.toContain('data-kubuild-isolated');
+  });
+
+  it('sizes a drawer to its content instead of a viewport-sized overlay when isolated', () => {
+    const doc = createBlankDocument('Drawer surface');
+    doc.document.children = [
+      {
+        id: 'drawer-1',
+        type: 'drawer',
+        props: { modalId: 'nav-drawer', title: 'Menu', placement: 'right' },
+        children: [{ id: 'drawer-1-text', type: 'text', props: { content: 'Drawer body' } }],
+      },
+    ];
+    const context = createRenderContext({ artboardSurface: 'component' });
+
+    const html = renderToString(
+      <KubuildRenderer document={doc} registry={registry} mode="editor" context={context} />,
+    );
+
+    expect(html).toContain('data-kubuild-isolated="true"');
+    expect(html).not.toContain('rgba(15, 23, 42, 0.5)');
+    expect(html).toContain('min-height:240px');
+    expect(html).toContain('Drawer body');
   });
 });
 
