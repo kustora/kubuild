@@ -174,7 +174,9 @@ export function App() {
         endpoint: import.meta.env.VITE_AI_API_ENDPOINT || 'http://localhost:4000/api/ai/handler',
       },
       features: { chat: true, generate: true, enhance: true },
-      defaultPanelMode: 'floating',
+      // Start closed — the chat window covers the canvas, so it opens on demand
+      // from the toolbar's AI Chat toggle.
+      defaultPanelMode: 'hidden',
     }),
     [],
   );

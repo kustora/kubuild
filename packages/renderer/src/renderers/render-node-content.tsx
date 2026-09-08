@@ -661,9 +661,13 @@ export function renderMediaNode(options: RenderNodeContentOptions): React.ReactE
       const height = typeof resolvedProps.height === 'number' ? resolvedProps.height : undefined;
       const safeSrc = src ? sanitizeUrl(src, '') : undefined;
 
+      // `objectFit` is a style property (set from the Dimension sector, per breakpoint).
+      // The legacy `fit` prop stays supported for imported documents, but only fills in
+      // when the style leaves it unset — otherwise the style control would silently no-op.
+      const styleObjectFit = (styles as React.CSSProperties | undefined)?.objectFit;
       const imgStyles: React.CSSProperties = {
         ...styles,
-        ...(fit ? { objectFit: fit } : {}),
+        ...(fit && styleObjectFit === undefined ? { objectFit: fit } : {}),
       };
 
       const role = alt === '' ? 'presentation' : undefined;

@@ -133,6 +133,11 @@ export interface StyleDefinition extends Record<string, StyleValue> {
   minHeight?: string | number;
   maxHeight?: string | number;
 
+  // Replaced-element fitting — how an image/video fills its own box. Portable and
+  // per-breakpoint overridable like any other style property.
+  objectFit?: 'fill' | 'contain' | 'cover' | 'none' | 'scale-down' | (string & {});
+  objectPosition?: string;
+
   // Effects & Rounded Corners (STORA-101)
   borderRadius?: string | number;
   borderTopLeftRadius?: string | number;

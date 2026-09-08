@@ -349,6 +349,51 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
         </div>
       </div>
 
+      {/* Object Fit & Position — how a replaced element (image/video) fills its own box.
+          Only meaningful once the element has a size, so it sits next to the sizing controls. */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[11px] font-medium text-slate-600 mb-1">Object Fit</label>
+          <select
+            data-testid="dimension-select-object-fit"
+            aria-label="Object Fit"
+            value={String(styles.objectFit ?? '')}
+            disabled={disabled}
+            onChange={(e) => onChange('objectFit', e.target.value)}
+            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs cursor-pointer hover:border-slate-400 transition"
+          >
+            <option value="">Default (fill)</option>
+            <option value="contain">Contain</option>
+            <option value="cover">Cover</option>
+            <option value="fill">Fill</option>
+            <option value="none">None</option>
+            <option value="scale-down">Scale Down</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium text-slate-600 mb-1">Object Position</label>
+          <select
+            data-testid="dimension-select-object-position"
+            aria-label="Object Position"
+            value={String(styles.objectPosition ?? '')}
+            disabled={disabled}
+            onChange={(e) => onChange('objectPosition', e.target.value)}
+            className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs cursor-pointer hover:border-slate-400 transition"
+          >
+            <option value="">Default (center)</option>
+            <option value="top left">Top Left</option>
+            <option value="top">Top</option>
+            <option value="top right">Top Right</option>
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+            <option value="bottom left">Bottom Left</option>
+            <option value="bottom">Bottom</option>
+            <option value="bottom right">Bottom Right</option>
+          </select>
+        </div>
+      </div>
+
       {/* Sizing Mode Controls (Hug / Fill / Fixed) - STORA-104 */}
       <div className="flex flex-col gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
         <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
