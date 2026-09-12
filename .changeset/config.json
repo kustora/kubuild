@@ -5,7 +5,17 @@
     { "repo": "kustora/kubuild" }
   ],
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@kubuild/ai",
+      "@kubuild/components",
+      "@kubuild/core",
+      "@kubuild/editor",
+      "@kubuild/react",
+      "@kubuild/renderer",
+      "@kubuild/schema"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",

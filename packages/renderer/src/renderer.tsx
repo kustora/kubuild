@@ -72,7 +72,6 @@ function useSafeModalOpen(modalId: string | undefined, manager: ModalManager): b
           (internals['ReactCurrentDispatcher'] as Record<string, unknown> | undefined)?.['current']),
     );
     if (hasDispatcher) {
-      // eslint-disable-next-line react-hooks/rules-of-hooks
       const { isOpen } = useModal(modalId, manager);
       return isOpen;
     }

@@ -1,5 +1,60 @@
 # @kubuild/ai
 
+## 0.3.0
+
+### Minor Changes
+
+- # v0.3.0 Minor Release
+
+  ### @kubuild/ai
+  - **Initial release on npm registry**
+  - Multi-provider AI adapter layer supporting OpenAI, Anthropic, Gemini, and Ollama
+  - Token-level streaming with Server-Sent Events (SSE) for real-time page generation
+  - In-editor AI generation engine supporting full-page generation and section refactoring
+  - Selection-aware context generation for Ask & Enhance workflow
+  - Security guardrails: authentication hooks, rate-limiting, and chat history persistence
+
+  ### @kubuild/components
+  - Modularized architecture with subpath exports: `@kubuild/components/definitions`, `@kubuild/components/traits`, and `@kubuild/components/blocks`
+  - Added interactive components: `modal`, `drawer`, and `collapsible`
+  - Enhanced `Navbar` component with responsive mobile support, hamburger menu, and expandable dropdowns
+  - Added Navbar starter blocks and metadata
+
+  ### @kubuild/core
+  - Reorganized codebase into modular domain directories
+  - Added canvas artboards support with multi-artboard free positioning and coordinate calculations
+  - Integrated AI prompt-to-page generation command pipelines
+  - Enhanced state store and runtime variable handling
+
+  ### @kubuild/editor
+  - Built-in floating AI Chat Panel with draggable header, prompt-to-page generation, and chat history
+  - Selection-aware AI Ask & Enhance workflow
+  - Visual `ActionPropControl` replacing plain JSON textareas for action configuration
+  - Canvas Artboards support: free positioning, drag manipulation, and artboard deletion with confirmation
+  - Dimension Sector Controls: added `object-fit` and `object-position` controls
+  - Responsive settings with viewport manager and custom viewport presets
+  - Component filtering and customization options in left sidebar
+
+  ### @kubuild/renderer
+  - Full runtime and editor support for interactive components (`modal`, `drawer`, `collapsible`)
+  - `ArtboardPortalHost` for rendering component artboards on isolated surfaces and overlays
+  - Mobile navigation menu handling and safe modal state execution
+
+  ### @kubuild/schema
+  - Added schemas for artboards and canvas positioning
+  - Added responsive settings and viewport schemas
+  - Added action schemas and interactive component validation
+
+  ### @kubuild/react
+  - Re-exported AI modules and integrated with latest `@kubuild/ai` and `@kubuild/editor`
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/components@0.3.0
+  - @kubuild/core@0.3.0
+  - @kubuild/schema@0.3.0
+
 ## Unreleased
 
 ### Minor Changes
