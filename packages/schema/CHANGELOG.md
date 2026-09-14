@@ -1,5 +1,21 @@
 # @kubuild/schema
 
+## 0.3.1
+
+### Patch Changes
+
+- [`7ca7b20`](https://github.com/kustora/kubuild/commit/7ca7b2093ec9c739bb683c571491436e4574a019) Thanks [@riziqalbab](https://github.com/riziqalbab)! - - **Pinch-to-zoom & Two-finger Pan**: Implemented natural multi-touch gestures on the editor canvas for mobile and tablet devices.
+  - **Mobile Floating Action Pill**: Added a compact bottom action bar when an element is selected on mobile screens, providing quick access to Move Up, Move Down, Quick Edit, and Delete.
+  - **Move Up / Down Hierarchy Controls**: Added `moveComponentUp` and `moveComponentDown` in the editor store and floating action badges to allow effortless reordering without dragging.
+  - **Smart Component Insertion**: Intelligently inserts new components as siblings after the active leaf node if the selected element cannot accept children.
+
+  - **Auto-close Mobile Drawers**: Automatically dismisses the mobile component/block sidebar when an item is added to the canvas (`onItemInserted`).
+  - **Touch & Small Screen Optimization**:
+    - Disabled resource-heavy radial grid canvas background and snapping indicators on small touch screens.
+    - Disabled hover states for coarse pointer devices to avoid sticky selection states.
+    - Throttled bounding-box recomputation during window resize and canvas scroll using `requestAnimationFrame`.
+    - Configured proper CSS `touch-action` styles to prevent native browser gesture collisions.
+
 ## 0.3.0
 
 ### Minor Changes
