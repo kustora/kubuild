@@ -325,6 +325,7 @@ export const ResizeHandles: React.FC<ResizeHandlesProps> = ({
             borderRadius: '1px',
             boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)',
             pointerEvents: 'auto',
+            touchAction: 'none',
             cursor,
             zIndex: 51,
             boxSizing: 'border-box',

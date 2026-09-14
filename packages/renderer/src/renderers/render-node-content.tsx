@@ -53,6 +53,7 @@ export interface RenderNodeContentOptions {
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
+  selectedNodeId?: string | null;
   instanceSuffix?: string;
   isModalOpen?: boolean;
   renderChildNode: (child: Node, instanceSuffix?: string, itemContext?: RenderContext) => React.ReactElement;
@@ -189,14 +190,16 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
     handleClick,
     onNodePropChange,
     childrenElements,
+    selectedNodeId,
   } = options;
+  const isNodeSelected = node.id === selectedNodeId;
 
   switch (node.type) {
     case 'heading': {
       const level = typeof resolvedProps.level === 'number' ? resolvedProps.level : 1;
       const Tag = (`h${Math.min(Math.max(level, 1), 6)}` as keyof React.JSX.IntrinsicElements) || 'h1';
       const text = String(resolvedProps.text ?? resolvedProps.content ?? props.text ?? props.content ?? '');
-      const isEditable = mode === 'editor' && !isVariableBinding(props.text) && !isVariableBinding(props.content);
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && !isVariableBinding(props.content);
 
       return (
         <EditableText
@@ -225,7 +228,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
           : (props.content !== undefined || resolvedProps.content !== undefined) && props.text === undefined && resolvedProps.text === undefined
           ? 'p'
           : 'span';
-      const isEditable = mode === 'editor' && !isVariableBinding(props.text) && !isVariableBinding(props.content);
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && !isVariableBinding(props.content);
 
       return (
         <EditableText
@@ -242,7 +245,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
     }
     case 'paragraph': {
       const text = String(resolvedProps.text ?? resolvedProps.content ?? props.text ?? props.content ?? '');
-      const isEditable = mode === 'editor' && !isVariableBinding(props.text) && !isVariableBinding(props.content);
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && !isVariableBinding(props.content);
 
       return (
         <EditableText
@@ -263,6 +266,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
       const target = typeof resolvedProps.target === 'string' ? resolvedProps.target : undefined;
       const isEditable =
         mode === 'editor' &&
+        isNodeSelected &&
         !isVariableBinding(props.text) &&
         !isVariableBinding(props.label) &&
         !isVariableBinding(props.content);
@@ -330,7 +334,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
           ? props.text
           : undefined;
       const cite = typeof resolvedProps.cite === 'string' ? resolvedProps.cite : (typeof props.cite === 'string' ? props.cite : undefined);
-      const isEditable = mode === 'editor' && !isVariableBinding(props.quote) && !isVariableBinding(props.text);
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.quote) && !isVariableBinding(props.text);
 
       const defaultBlockquoteStyle: React.CSSProperties = {
         borderLeft: '4px solid #cbd5e1',
@@ -377,7 +381,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
     case 'badge': {
       const text = String(resolvedProps.text ?? resolvedProps.label ?? props.text ?? props.label ?? '');
       const variant = typeof resolvedProps.variant === 'string' ? resolvedProps.variant : (typeof props.variant === 'string' ? props.variant : 'default');
-      const isEditable = mode === 'editor' && !isVariableBinding(props.text) && !isVariableBinding(props.label);
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && !isVariableBinding(props.label);
 
       return (
         <span
@@ -451,7 +455,8 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
  * List nodes: list, list-item
  */
 export function renderListNode(options: RenderNodeContentOptions): React.ReactElement | null {
-  const { node, domId, styles, resolvedProps, props, mode, handleClick, onNodePropChange, childrenElements } = options;
+  const { node, domId, styles, resolvedProps, props, mode, handleClick, onNodePropChange, childrenElements, selectedNodeId } = options;
+  const isNodeSelected = node.id === selectedNodeId;
 
   switch (node.type) {
     case 'list': {
@@ -493,7 +498,7 @@ export function renderListNode(options: RenderNodeContentOptions): React.ReactEl
           : props.text !== undefined
           ? String(props.text)
           : undefined;
-      const isEditable = mode === 'editor' && !isVariableBinding(props.text) && text !== undefined;
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && text !== undefined;
 
       return (
         <li
@@ -528,7 +533,8 @@ export function renderListNode(options: RenderNodeContentOptions): React.ReactEl
  * Table nodes: table, table-row, table-cell
  */
 export function renderTableNode(options: RenderNodeContentOptions): React.ReactElement | null {
-  const { node, domId, styles, resolvedProps, props, mode, handleClick, onNodePropChange, childrenElements } = options;
+  const { node, domId, styles, resolvedProps, props, mode, handleClick, onNodePropChange, childrenElements, selectedNodeId } = options;
+  const isNodeSelected = node.id === selectedNodeId;
 
   switch (node.type) {
     case 'table': {
@@ -599,7 +605,7 @@ export function renderTableNode(options: RenderNodeContentOptions): React.ReactE
           : props.text !== undefined
           ? String(props.text)
           : undefined;
-      const isEditable = mode === 'editor' && !isVariableBinding(props.text) && text !== undefined;
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && text !== undefined;
 
       return (
         <Tag
@@ -857,7 +863,9 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
     handleClick,
     onNodePropChange,
     childrenElements,
+    selectedNodeId,
   } = options;
+  const isNodeSelected = node.id === selectedNodeId;
 
   switch (node.type) {
     case 'button': {
@@ -874,7 +882,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
           : 'button';
       const disabled = resolvedProps.disabled === true || props.disabled === true;
       const ariaLabel = typeof resolvedProps.ariaLabel === 'string' ? resolvedProps.ariaLabel : undefined;
-      const isEditable = mode === 'editor' && props.isEditable !== false && !isVariableBinding(props.label) && !isVariableBinding(props.text);
+      const isEditable = mode === 'editor' && isNodeSelected && props.isEditable !== false && !isVariableBinding(props.label) && !isVariableBinding(props.text);
 
       const computedRel =
         typeof resolvedProps.rel === 'string'
@@ -1147,7 +1155,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
       const disabled = resolvedProps.disabled === true;
       const rules = (node.formConfig?.rules as ValidationRule[]) || (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
       const validateOn = (resolvedProps.validateOn as ValidateOnEvent) || (props.validateOn as ValidateOnEvent);
-      const isEditable = mode === 'editor' && !isVariableBinding(props.label);
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.label);
 
       return (
         <FormCheckboxNode
@@ -1183,7 +1191,7 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
       const disabled = resolvedProps.disabled === true;
       const rules = (resolvedProps.rules as ValidationRule[]) || (props.rules as ValidationRule[]) || [];
       const validateOn = (resolvedProps.validateOn as ValidateOnEvent) || (props.validateOn as ValidateOnEvent);
-      const isEditable = mode === 'editor' && !isVariableBinding(props.label);
+      const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.label);
 
       return (
         <FormRadioNode

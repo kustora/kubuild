@@ -1263,7 +1263,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         overflow: 'hidden',
         cursor: cursorStyle,
         backgroundColor: '#f1f5f9',
-        touchAction: toolMode === 'hand' ? 'none' : 'pan-x pan-y',
+        // App owns single-finger pan and two-finger pinch-zoom on this container itself,
+        // so native browser pan/zoom must stay fully off to avoid the two fighting.
+        touchAction: 'none',
         backgroundImage:
           isSmallScreen && isTouchDevice
             ? undefined
@@ -1354,6 +1356,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       context={contextForArtboard(pageItem)}
                       viewport={pageViewport}
                       mode={previewMode ? 'runtime' : 'editor'}
+                      selectedNodeId={selectedNodeId}
                     onNodeClick={(id: string, e?: React.MouseEvent) => {
                       if (!previewMode) {
                         if (e?.shiftKey) {

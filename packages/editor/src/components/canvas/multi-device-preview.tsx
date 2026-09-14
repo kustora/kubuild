@@ -276,6 +276,7 @@ export const MultiDevicePreview: React.FC<MultiDevicePreviewProps> = ({
                       context={context}
                       viewport={device.id}
                       mode={previewMode ? 'runtime' : 'editor'}
+                      selectedNodeId={selectedNodeId}
                       onNodeClick={(id) => {
                         selectNode(id);
                         setViewport(device.id);

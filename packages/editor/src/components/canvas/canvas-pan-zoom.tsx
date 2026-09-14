@@ -253,6 +253,7 @@ export function useCanvasPanZoom({
   isSpacePressedRef.current = isSpacePressed;
 
   const dragStartRef = useRef<{ startX: number; startY: number; initialPanX: number; initialPanY: number } | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
 
   // Keyboard Space listener for Pan mode + H/V shortcuts (STORA-130)
   useEffect(() => {
@@ -346,6 +347,17 @@ export function useCanvasPanZoom({
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
+        // A second finger just landed — surrender any single-finger pan drag
+        // that may have started on the first finger's pointerdown, otherwise
+        // both gesture systems fight over pan/zoom state from mismatched baselines.
+        activePointerIdRef.current = null;
+        dragStartRef.current = null;
+        pendingPanRef.current = null;
+        if (rafPanRef.current !== null) {
+          cancelAnimationFrame(rafPanRef.current);
+          rafPanRef.current = null;
+        }
+
         const t1 = e.touches[0];
         const t2 = e.touches[1];
         touchStartDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -420,6 +432,10 @@ export function useCanvasPanZoom({
       if (!enabled) return;
       // Space + left click OR middle click (button 1) OR hand tool mode with left click / touch OR forcePan
       const isTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
+      // Ignore non-primary touch pointers (a second/third finger landing) so they
+      // never hijack or restart the single-finger drag baseline — the two-finger
+      // pinch effect above takes over once a second touch is detected.
+      if (isTouch && e.isPrimary === false) return;
       const isMiddleClick = e.button === 1;
       const isSpacePan = isSpacePressedRef.current && e.button === 0;
       const isHandMode = toolModeRef.current === 'hand' && (e.button === 0 || isTouch);
@@ -428,6 +444,7 @@ export function useCanvasPanZoom({
         e.preventDefault();
         e.stopPropagation();
         setIsPanning(true);
+        activePointerIdRef.current = e.pointerId;
         dragStartRef.current = {
           startX: e.clientX,
           startY: e.clientY,
@@ -442,6 +459,7 @@ export function useCanvasPanZoom({
   const handlePointerMove = useCallback((e: PointerEvent) => {
     const drag = dragStartRef.current;
     if (!drag) return;
+    if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
 
     const deltaX = e.clientX - drag.startX;
     const deltaY = e.clientY - drag.startY;
@@ -461,7 +479,8 @@ export function useCanvasPanZoom({
     }
   }, []);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: PointerEvent) => {
+    if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
     if (rafPanRef.current !== null) {
       cancelAnimationFrame(rafPanRef.current);
       rafPanRef.current = null;
@@ -470,6 +489,7 @@ export function useCanvasPanZoom({
       setPan(pendingPanRef.current);
       pendingPanRef.current = null;
     }
+    activePointerIdRef.current = null;
     if (dragStartRef.current) {
       dragStartRef.current = null;
       setIsPanning(false);

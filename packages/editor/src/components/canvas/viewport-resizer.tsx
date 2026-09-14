@@ -277,7 +277,7 @@ export const ViewportResizer: React.FC<ViewportResizerProps> = ({
       {/* Top Presets & Resolution Badge Bar */}
       {showPresets && (
         <div
-          className="flex items-center justify-between gap-2 w-full px-1 py-1 mb-2 select-none text-xs"
+          className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 w-full px-1 py-1 mb-2 select-none text-xs"
           onPointerDown={onHeaderPointerDown}
         >
           {/* Live Resolution & Breakpoint Badge + Title */}

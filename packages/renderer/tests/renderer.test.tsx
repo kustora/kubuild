@@ -685,7 +685,7 @@ describe('STORA-052: Collection rendering', () => {
     ];
 
     const editorHtml = renderToString(
-      <KubuildRenderer document={doc} registry={registry} mode="editor" />
+      <KubuildRenderer document={doc} registry={registry} mode="editor" selectedNodeId="heading-1" />
     );
     expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
     expect(editorHtml).toContain('Direct Heading Edit');
@@ -814,7 +814,7 @@ describe('STORA-052: Collection rendering', () => {
       ];
 
       const editorHtml = renderToString(
-        <KubuildRenderer document={doc} registry={registry} mode="editor" />
+        <KubuildRenderer document={doc} registry={registry} mode="editor" selectedNodeId="item-edit" />
       );
       expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
       expect(editorHtml).toContain('Editable List Item');
@@ -928,7 +928,7 @@ describe('STORA-052: Collection rendering', () => {
       expect(runtimeHtml).toContain('Cell:');
       expect(runtimeHtml).toContain('Action');
 
-      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" selectedNodeId="cell-with-btn" />);
       expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
     });
   });
@@ -952,7 +952,7 @@ describe('STORA-052: Collection rendering', () => {
       expect(runtimeHtml).toContain('color:#334155');
       expect(runtimeHtml).not.toContain('contenteditable');
 
-      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" selectedNodeId="p-1" />);
       expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
       expect(editorHtml).toContain('Pure semantic paragraph.');
     });
@@ -991,7 +991,7 @@ describe('STORA-052: Collection rendering', () => {
       expect(runtimeHtml).toContain('href="#"');
       expect(runtimeHtml).toContain('rel="nofollow"');
 
-      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" selectedNodeId="link-safe" />);
       // In editor mode, href is omitted to avoid accidental navigation while editing
       expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
       expect(editorHtml).toContain('Visit Google');
@@ -1029,7 +1029,7 @@ describe('STORA-052: Collection rendering', () => {
       expect(runtimeHtml).toContain('border-left-width:4px');
       expect(runtimeHtml).toContain('Nested paragraph inside blockquote');
 
-      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" selectedNodeId="quote-1" />);
       expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
     });
 
@@ -1051,7 +1051,7 @@ describe('STORA-052: Collection rendering', () => {
       expect(runtimeHtml).toContain('Active');
       expect(runtimeHtml).toContain('border-radius:9999px');
 
-      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" />);
+      const editorHtml = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" selectedNodeId="badge-1" />);
       expect(editorHtml.toLowerCase()).toContain('contenteditable="true"');
       expect(editorHtml).toContain('Active');
     });

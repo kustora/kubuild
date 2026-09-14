@@ -39,6 +39,12 @@ export interface KubuildRendererProps {
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
+  /**
+   * Id of the currently-selected node (editor mode only). Typography/button/form-label
+   * nodes only become `contentEditable` once they're already selected, so a first tap/click
+   * always just selects instead of immediately opening edit mode underneath it.
+   */
+  selectedNodeId?: string | null;
 }
 
 export interface NodeRendererProps {
@@ -52,6 +58,7 @@ export interface NodeRendererProps {
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
   onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
+  selectedNodeId?: string | null;
   /**
    * Suffix appended to the HTML `id` attribute (never to `data-kubuild-node`, the
    * canonical template-node reference) so a `collection` node's repeated child
@@ -92,6 +99,7 @@ export function NodeRenderer({
   onDiagnostic,
   onActionDispatch,
   onNodePropChange,
+  selectedNodeId,
   instanceSuffix = '',
 }: NodeRendererProps): React.ReactElement {
   const context = propContext || DEFAULT_RENDER_CONTEXT;
@@ -161,6 +169,7 @@ export function NodeRenderer({
       onDiagnostic={onDiagnostic}
       onActionDispatch={onActionDispatch}
       onNodePropChange={onNodePropChange}
+      selectedNodeId={selectedNodeId}
       instanceSuffix={instanceSuffix}
     />
   ));
@@ -182,6 +191,7 @@ export function NodeRenderer({
       onDiagnostic={onDiagnostic}
       onActionDispatch={onActionDispatch}
       onNodePropChange={onNodePropChange}
+      selectedNodeId={selectedNodeId}
       instanceSuffix={`${instanceSuffix}${childInstanceSuffix}`}
     />
   );
@@ -231,6 +241,7 @@ export function NodeRenderer({
       onDiagnostic,
       onActionDispatch,
       onNodePropChange,
+      selectedNodeId,
       instanceSuffix,
       isModalOpen,
       renderChildNode,
@@ -298,6 +309,7 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
   onDiagnostic,
   onActionDispatch,
   onNodePropChange,
+  selectedNodeId,
 }) => {
   if (!document || !document.document) {
     return <div className={className}>Empty Document</div>;
@@ -330,6 +342,7 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
           onDiagnostic={onDiagnostic}
           onActionDispatch={onActionDispatch}
           onNodePropChange={onNodePropChange}
+          selectedNodeId={selectedNodeId}
         />
         {showToastContainer && <ToastContainer />}
       </div>
