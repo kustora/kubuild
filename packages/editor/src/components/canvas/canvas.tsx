@@ -828,14 +828,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
     if (isDirectCanvasBg && !e.shiftKey) {
       // In Figma, clicking empty canvas background without holding Shift starts panning!
-      handlePanPointerDown(e);
+      handlePanPointerDown(e, true);
       return;
     }
 
-    // Touch devices: do not initiate marquee drag selection (prevents 60-120fps re-render freeze during touch)
+    // Touch devices: touching empty canvas space or page background starts panning
     if (e.pointerType === 'touch' || e.pointerType === 'pen') {
       if (isRootOrEmpty) {
         selectNode(null);
+        handlePanPointerDown(e, true);
       }
       return;
     }

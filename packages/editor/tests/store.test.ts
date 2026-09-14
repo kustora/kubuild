@@ -1021,4 +1021,65 @@ describe('Editor Store', () => {
       expect(result.error).toContain('not found');
     });
   });
+
+  describe('moveComponentUp and moveComponentDown', () => {
+    function docWithSiblings(): PageDocument {
+      const doc = createBlankDocument('Test Doc');
+      doc.document.children = [
+        { id: 'node-1', type: 'section', props: {}, children: [
+          { id: 'child-1', type: 'heading', props: { text: 'One' } },
+          { id: 'child-2', type: 'text', props: { content: 'Two' } },
+          { id: 'child-3', type: 'button', props: { label: 'Three' } },
+        ]},
+      ];
+      return doc;
+    }
+
+    it('moves a child up among its siblings', () => {
+      useEditorStore.getState().setDocument(docWithSiblings());
+      const result = useEditorStore.getState().moveComponentUp('child-2');
+      expect(result.success).toBe(true);
+
+      const section = useEditorStore.getState().document.document.children?.[0];
+      expect(section?.children?.map((c) => c.id)).toEqual(['child-2', 'child-1', 'child-3']);
+    });
+
+    it('returns error when trying to move up the first sibling', () => {
+      useEditorStore.getState().setDocument(docWithSiblings());
+      const result = useEditorStore.getState().moveComponentUp('child-1');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('already at the top');
+    });
+
+    it('moves a child down among its siblings', () => {
+      useEditorStore.getState().setDocument(docWithSiblings());
+      const result = useEditorStore.getState().moveComponentDown('child-2');
+      expect(result.success).toBe(true);
+
+      const section = useEditorStore.getState().document.document.children?.[0];
+      expect(section?.children?.map((c) => c.id)).toEqual(['child-1', 'child-3', 'child-2']);
+    });
+
+    it('returns error when trying to move down the last sibling', () => {
+      useEditorStore.getState().setDocument(docWithSiblings());
+      const result = useEditorStore.getState().moveComponentDown('child-3');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('already at the bottom');
+    });
+
+    it('smart insertComponent places node into active section when leaf or root is selected', () => {
+      const registry = createDefaultComponentRegistry();
+      useEditorStore.getState().setDocument(docWithSiblings());
+
+      // Select child-2 (a leaf node that cannot hold button)
+      useEditorStore.getState().selectNode('child-2');
+      const result = useEditorStore.getState().insertComponent('button', registry);
+      expect(result.success).toBe(true);
+
+      const section = useEditorStore.getState().document.document.children?.[0];
+      // Should be inserted as sibling after child-2
+      expect(section?.children?.[2]?.type).toBe('button');
+    });
+  });
 });
+

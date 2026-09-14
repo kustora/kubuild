@@ -10,6 +10,7 @@ export interface BlocksPanelProps {
   blocks?: BlockDefinition[];
   className?: string;
   onInsertBlock?: (block: BlockDefinition) => void;
+  onItemInserted?: () => void;
 }
 
 /**
@@ -201,6 +202,7 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
   blocks = STARTER_BLOCKS,
   className,
   onInsertBlock,
+  onItemInserted,
 }) => {
   const { document, selectedNodeId, dispatch, selectNode } = useEditorStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -226,6 +228,7 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
   const handleInsert = (block: BlockDefinition) => {
     if (onInsertBlock) {
       onInsertBlock(block);
+      onItemInserted?.();
       return;
     }
 
@@ -246,10 +249,12 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
     try {
       dispatch((doc) => insertNode(doc, { parentId: targetParentId, node: nodeTree }));
       selectNode(nodeTree.id);
+      onItemInserted?.();
     } catch {
       // Fallback: insert at page root
       dispatch((doc) => insertNode(doc, { parentId: document.document.id, node: nodeTree }));
       selectNode(nodeTree.id);
+      onItemInserted?.();
     }
   };
 

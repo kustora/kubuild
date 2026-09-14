@@ -2,7 +2,7 @@ import React from 'react';
 import { PageDocument, ARTBOARD_REFERENCE_NODE_TYPE } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getParentNodeId } from '@kubuild/core';
-import { ArrowUp, Move, Copy, Trash2, ExternalLink } from 'lucide-react';
+import { ArrowUp, ChevronUp, ChevronDown, Move, Copy, Trash2, ExternalLink } from 'lucide-react';
 import { useEditorStore } from '../../store';
 
 export interface FloatingActionBadgesProps {
@@ -23,6 +23,7 @@ export interface FloatingActionBadgesProps {
  * Includes:
  *  - Component Type / Tag Badge
  *  - Select Parent (ArrowUp)
+ *  - Move Up / Move Down (ChevronUp / ChevronDown)
  *  - Move Handle (Move)
  *  - Duplicate (Copy)
  *  - Delete (Trash2)
@@ -38,6 +39,8 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
     selectNode,
     duplicateComponent,
     deleteComponent,
+    moveComponentUp,
+    moveComponentDown,
     detachNodeToArtboard,
     activateArtboard,
     activeArtboardId,
@@ -101,6 +104,34 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
         >
           <Move className="w-3.5 h-3.5" aria-hidden="true" />
         </div>
+      )}
+
+      {/* Move Up Button */}
+      {!isRoot && (
+        <button
+          type="button"
+          data-testid="floating-badge-move-up"
+          title="Move Up"
+          aria-label="Move Up"
+          onClick={() => moveComponentUp(node.id, registry)}
+          className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
+        >
+          <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+      )}
+
+      {/* Move Down Button */}
+      {!isRoot && (
+        <button
+          type="button"
+          data-testid="floating-badge-move-down"
+          title="Move Down"
+          aria-label="Move Down"
+          onClick={() => moveComponentDown(node.id, registry)}
+          className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
+        >
+          <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
       )}
 
       {/* Duplicate Button */}

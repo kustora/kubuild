@@ -86,8 +86,9 @@ describe('Canvas Navigation (STORA-230, STORA-231, STORA-232)', () => {
       expect(html).toContain('data-testid="floating-action-badges"');
       expect(html).toContain('data-testid="floating-badge-label"');
       expect(html).toContain('Button');
-      expect(html).toContain('data-testid="floating-badge-select-parent"');
       expect(html).toContain('data-testid="floating-badge-move"');
+      expect(html).toContain('data-testid="floating-badge-move-up"');
+      expect(html).toContain('data-testid="floating-badge-move-down"');
       expect(html).toContain('data-testid="floating-badge-duplicate"');
       expect(html).toContain('data-testid="floating-badge-delete"');
     });
@@ -201,8 +202,25 @@ describe('Canvas Navigation (STORA-230, STORA-231, STORA-232)', () => {
           registry={registry}
         />,
       );
-
       expect(html).toContain('data-testid="hierarchy-breadcrumbs"');
+    });
+
+    it('renders mobile selected node action pill when a node is selected', () => {
+      const doc = createTestDoc();
+      useEditorStore.getState().setDocument(doc);
+      useEditorStore.getState().selectNode('btn-1');
+
+      const html = renderToString(
+        <KubuildEditor
+          initialDocument={doc}
+          registry={registry}
+          selectedNodeId="btn-1"
+        />,
+      );
+
+      expect(html).toContain('data-testid="mobile-selected-node-actions"');
+      expect(html).toContain('Edit (#btn-1)');
     });
   });
 });
+

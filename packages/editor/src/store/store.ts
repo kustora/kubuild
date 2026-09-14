@@ -333,9 +333,11 @@ export interface EditorState {
   moveComponent: (
     nodeId: string,
     targetParentId: string,
-    registry: ComponentRegistry,
+    registry?: ComponentRegistry,
     index?: number,
   ) => MoveComponentResult;
+  moveComponentUp: (nodeId: string, registry?: ComponentRegistry) => MoveComponentResult;
+  moveComponentDown: (nodeId: string, registry?: ComponentRegistry) => MoveComponentResult;
   duplicateComponent: (nodeId: string, registry: ComponentRegistry) => DuplicateComponentResult;
   deleteComponent: (nodeId: string) => DeleteComponentResult;
   updateNodeProps: (
@@ -790,13 +792,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   insertComponent: (type, registry, parentId, index) => {
     const state = get();
-    const targetParentId = parentId ?? state.selectedNodeId ?? state.document.document.id;
-    const parentNode = findNodeById(state.document.document, targetParentId);
+    let targetParentId = parentId ?? state.selectedNodeId ?? state.document.document.id;
+    let targetIndex = index;
+    let parentNode = findNodeById(state.document.document, targetParentId);
     if (!parentNode) {
-      return {
-        success: false,
-        error: `Insertion target "${targetParentId}" was not found in the document.`,
-      };
+      targetParentId = state.document.document.id;
+      parentNode = state.document.document;
     }
 
     const definition = registry.get(type);
@@ -804,7 +805,51 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return { success: false, error: `Unknown component type "${type}".` };
     }
 
-    const policy = registry.canInsertChild(parentNode.type, type);
+    let policy = registry.canInsertChild(parentNode.type, type);
+
+    // If target parent cannot accept this component type and parentId was not explicitly forced,
+    // resolve a valid container / sibling target automatically (e.g. inserting into active section/container)
+    if (!policy.valid && !parentId) {
+      // 1. If currently selected target is a leaf node, try inserting as a sibling in its parent
+      const loc = findNodeLocation(state.document.document, targetParentId);
+      if (loc && loc.parent) {
+        const parentPolicy = registry.canInsertChild(loc.parent.type, type);
+        if (parentPolicy.valid) {
+          targetParentId = loc.parent.id;
+          targetIndex = loc.index + 1;
+          parentNode = loc.parent;
+          policy = parentPolicy;
+        }
+      }
+
+      // 2. If target is page and component is not section, find the last section or container in page
+      if (!policy.valid && parentNode.type === 'page' && type !== 'section') {
+        const sections = parentNode.children?.filter((c) => c.type === 'section') ?? [];
+        const lastSection = sections[sections.length - 1];
+        if (lastSection) {
+          const sectionPolicy = registry.canInsertChild(lastSection.type, type);
+          if (sectionPolicy.valid) {
+            targetParentId = lastSection.id;
+            targetIndex = lastSection.children?.length ?? 0;
+            parentNode = lastSection;
+            policy = sectionPolicy;
+          } else {
+            const containers = lastSection.children?.filter((c) => c.type === 'container') ?? [];
+            const lastContainer = containers[containers.length - 1];
+            if (lastContainer) {
+              const containerPolicy = registry.canInsertChild(lastContainer.type, type);
+              if (containerPolicy.valid) {
+                targetParentId = lastContainer.id;
+                targetIndex = lastContainer.children?.length ?? 0;
+                parentNode = lastContainer;
+                policy = containerPolicy;
+              }
+            }
+          }
+        }
+      }
+    }
+
     if (!policy.valid) {
       return { success: false, error: policy.errors.join(' ') };
     }
@@ -835,7 +880,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...(children ? { children } : {}),
     };
 
-    get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node, index }));
+    get().dispatch((doc) => insertNode(doc, { parentId: targetParentId, node, index: targetIndex }));
 
     // Overlay surfaces (modal, drawer) would blanket the page while it's being edited, so
     // they immediately move onto their own artboard, leaving a reference stub plus a
@@ -958,9 +1003,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       };
     }
 
-    const policy = registry.canInsertChild(targetParent.type, sourceLocation.node.type);
-    if (!policy.valid) {
-      return { success: false, error: policy.errors.join(' ') };
+    if (registry) {
+      const policy = registry.canInsertChild(targetParent.type, sourceLocation.node.type);
+      if (!policy.valid) {
+        return { success: false, error: policy.errors.join(' ') };
+      }
     }
 
     // Reordering within the same parent: the source slot is removed before the
@@ -975,6 +1022,28 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().dispatch((doc) => moveNode(doc, { nodeId, targetParentId, index: adjustedIndex }));
 
     return { success: true };
+  },
+
+  moveComponentUp: (nodeId, registry) => {
+    const state = get();
+    const loc = findNodeLocation(state.document.document, nodeId);
+    if (!loc || !loc.parent || loc.index <= 0) {
+      return { success: false, error: 'Cannot move up: already at the top.' };
+    }
+    return get().moveComponent(nodeId, loc.parent.id, registry, loc.index - 1);
+  },
+
+  moveComponentDown: (nodeId, registry) => {
+    const state = get();
+    const loc = findNodeLocation(state.document.document, nodeId);
+    if (!loc || !loc.parent) {
+      return { success: false, error: 'Node parent not found.' };
+    }
+    const siblingCount = loc.parent.children?.length ?? 1;
+    if (loc.index >= siblingCount - 1) {
+      return { success: false, error: 'Cannot move down: already at the bottom.' };
+    }
+    return get().moveComponent(nodeId, loc.parent.id, registry, loc.index + 2);
   },
 
   duplicateComponent: (nodeId, _registry) => {

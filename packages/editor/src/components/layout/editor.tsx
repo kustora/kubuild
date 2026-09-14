@@ -38,12 +38,16 @@ import {
   Redo2,
   X,
   Boxes,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
 } from 'lucide-react';
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
   pages?: EditorPageItem[];
   activePageId?: string;
+  selectedNodeId?: string | null;
   onActivePageChange?: (pageId: string) => void;
   onPagesChange?: (pages: EditorPageItem[]) => void;
   registry?: ComponentRegistry;
@@ -66,6 +70,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   initialDocument,
   pages,
   activePageId,
+  selectedNodeId: propSelectedNodeId,
   onActivePageChange,
   onPagesChange,
   registry = createDefaultComponentRegistry(),
@@ -83,7 +88,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   const setVariableCatalog = useEditorStore((state) => state.setVariableCatalog);
   const viewport = useEditorStore((state) => state.viewport);
   const setViewport = useEditorStore((state) => state.setViewport);
-  const selectedNodeId = useEditorStore((state) => state.selectedNodeId);
+  const storeSelectedNodeId = useEditorStore((state) => state.selectedNodeId);
+  const selectedNodeId = propSelectedNodeId !== undefined ? propSelectedNodeId : storeSelectedNodeId;
   const tableSpreadsheetMode = useEditorStore((state) => state.tableSpreadsheetMode);
   const setTableSpreadsheetMode = useEditorStore((state) => state.setTableSpreadsheetMode);
   const aiChatMode = useEditorStore((state) => state.aiChatMode);
@@ -96,6 +102,9 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   const multiDeviceMode = useEditorStore((state) => state.multiDeviceMode);
   const toggleMultiDeviceMode = useEditorStore((state) => state.toggleMultiDeviceMode);
   const actionDebuggerOpen = useEditorStore((state) => state.actionDebuggerOpen);
+  const moveComponentUp = useEditorStore((state) => state.moveComponentUp);
+  const moveComponentDown = useEditorStore((state) => state.moveComponentDown);
+  const deleteComponent = useEditorStore((state) => state.deleteComponent);
   const lastLoadedDocRef = React.useRef<PageDocument | undefined>(undefined);
 
   // Mobile drawer states
@@ -321,7 +330,11 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
               </button>
             </div>
             <div className="flex-1 overflow-hidden min-h-0">
-              <LeftSidebar registry={registry} config={resolvedConfig.sidebar} />
+              <LeftSidebar
+                registry={registry}
+                config={resolvedConfig.sidebar}
+                onItemInserted={() => setIsMobileSidebarOpen(false)}
+              />
             </div>
           </div>
         </div>
@@ -498,14 +511,45 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
 
           {/* Quick Edit Selected Floating Action Pill (Mobile only) */}
           {selectedNodeId && !isMobileInspectorOpen && resolvedConfig.inspector.enabled && (
-            <div className="lg:hidden fixed bottom-14 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-bottom-2">
+            <div
+              data-testid="mobile-selected-node-actions"
+              className="lg:hidden fixed bottom-14 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-bottom-2 flex items-center bg-slate-900/90 text-white rounded-full shadow-2xl backdrop-blur-md border border-slate-700/60 p-1 gap-1"
+            >
+              <button
+                type="button"
+                onClick={() => moveComponentUp(selectedNodeId, registry)}
+                title="Move Up"
+                aria-label="Move Up"
+                className="p-1.5 rounded-full hover:bg-slate-800 active:bg-slate-700 text-slate-200 hover:text-white transition cursor-pointer"
+              >
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveComponentDown(selectedNodeId, registry)}
+                title="Move Down"
+                aria-label="Move Down"
+                className="p-1.5 rounded-full hover:bg-slate-800 active:bg-slate-700 text-slate-200 hover:text-white transition cursor-pointer"
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+              </button>
+              <div className="w-px h-3.5 bg-slate-700 mx-0.5" />
               <button
                 type="button"
                 onClick={() => setIsMobileInspectorOpen(true)}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xl border border-blue-400/40 active:scale-95 transition"
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md active:scale-95 transition cursor-pointer"
               >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Edit Element (#{selectedNodeId})</span>
+                <Sliders className="w-3 h-3" />
+                <span>{`Edit (#${selectedNodeId})`}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteComponent(selectedNodeId)}
+                title="Delete"
+                aria-label="Delete"
+                className="p-1.5 rounded-full hover:bg-red-900/40 text-red-400 hover:text-red-300 transition active:scale-95 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           )}

@@ -14,6 +14,7 @@ export interface LeftSidebarProps {
   availableTabs?: LeftSidebarTab[];
   config?: EditorSidebarConfig;
   className?: string;
+  onItemInserted?: () => void;
 }
 
 /**
@@ -25,6 +26,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   availableTabs: propAvailableTabs,
   config,
   className,
+  onItemInserted,
 }) => {
   const tabsList = config?.availableTabs ?? propAvailableTabs ?? ['components', 'blocks', 'layers'];
   const initialTabCandidate = config?.defaultTab ?? propDefaultTab ?? 'components';
@@ -117,12 +119,12 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       <div className="flex-1 overflow-hidden min-h-0">
         {activeTab === 'components' && tabsList.includes('components') && (
           <div role="tabpanel" id="tabpanel-components" aria-labelledby="tab-components" className="h-full">
-            <ComponentPanel registry={registry} config={config} />
+            <ComponentPanel registry={registry} config={config} onItemInserted={onItemInserted} />
           </div>
         )}
         {activeTab === 'blocks' && tabsList.includes('blocks') && (
           <div role="tabpanel" id="tabpanel-blocks" aria-labelledby="tab-blocks" className="h-full">
-            <BlocksPanel registry={registry} />
+            <BlocksPanel registry={registry} onItemInserted={onItemInserted} />
           </div>
         )}
         {activeTab === 'layers' && tabsList.includes('layers') && (

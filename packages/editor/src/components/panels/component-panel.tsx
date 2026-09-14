@@ -8,6 +8,7 @@ export interface ComponentPanelProps {
   registry: ComponentRegistry;
   config?: EditorSidebarConfig;
   className?: string;
+  onItemInserted?: () => void;
 }
 
 const CATEGORY_ORDER: ComponentCategory[] = [
@@ -30,7 +31,12 @@ const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   custom: 'Custom',
 };
 
-export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, config, className }) => {
+export const ComponentPanel: React.FC<ComponentPanelProps> = ({
+  registry,
+  config,
+  className,
+  onItemInserted,
+}) => {
   const insertComponent = useEditorStore((s) => s.insertComponent);
   const setDragPayload = useEditorStore((s) => s.setDragPayload);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +74,12 @@ export const ComponentPanel: React.FC<ComponentPanelProps> = ({ registry, config
 
   const handleInsert = (definition: ComponentDefinition) => {
     const result = insertComponent(definition.type, registry);
-    setError(result.success ? null : (result.error ?? `Could not insert "${definition.label}".`));
+    if (result.success) {
+      setError(null);
+      onItemInserted?.();
+    } else {
+      setError(result.error ?? `Could not insert "${definition.label}".`);
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, definition: ComponentDefinition) => {

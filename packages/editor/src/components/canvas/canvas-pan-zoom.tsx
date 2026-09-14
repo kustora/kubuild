@@ -332,17 +332,99 @@ export function useCanvasPanZoom({
   const rafPanRef = useRef<number | null>(null);
   const pendingPanRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Native touch gestures for Pinch-to-Zoom and Two-Finger Pan on mobile touch screens
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !enabled) return;
+
+    let touchStartDistance = 0;
+    let touchStartZoom = 1.0;
+    let touchStartPan = { x: 0, y: 0 };
+    let touchStartMid = { x: 0, y: 0 };
+    let isPinching = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        touchStartDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        touchStartZoom = zoomRef.current;
+        touchStartPan = { ...panRef.current };
+        touchStartMid = {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2,
+        };
+        isPinching = true;
+        setIsPanning(true);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && isPinching && touchStartDistance > 0) {
+        e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const currentDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const scale = currentDistance / touchStartDistance;
+        const nextZoom = clampZoom(touchStartZoom * scale);
+
+        const currentMidX = (t1.clientX + t2.clientX) / 2;
+        const currentMidY = (t1.clientY + t2.clientY) / 2;
+
+        const rect = container.getBoundingClientRect();
+        const midContainerX = touchStartMid.x - rect.left;
+        const midContainerY = touchStartMid.y - rect.top;
+
+        const newPanX =
+          midContainerX - (midContainerX - touchStartPan.x) * (nextZoom / touchStartZoom) +
+          (currentMidX - touchStartMid.x);
+        const newPanY =
+          midContainerY - (midContainerY - touchStartPan.y) * (nextZoom / touchStartZoom) +
+          (currentMidY - touchStartMid.y);
+
+        if (rafPanRef.current === null) {
+          rafPanRef.current = requestAnimationFrame(() => {
+            setZoom(nextZoom);
+            setPan({ x: Math.round(newPanX), y: Math.round(newPanY) });
+            rafPanRef.current = null;
+          });
+        }
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (isPinching && e.touches.length < 2) {
+        isPinching = false;
+        touchStartDistance = 0;
+        setIsPanning(false);
+      }
+    };
+
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd, { passive: false });
+    container.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+      container.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [containerRef, enabled]);
+
   // Pointer event handlers for panning
   const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
+    (e: React.PointerEvent, forcePan = false) => {
       if (!enabled) return;
-      // Space + left click OR middle click (button 1) OR hand tool mode with left click / touch
+      // Space + left click OR middle click (button 1) OR hand tool mode with left click / touch OR forcePan
       const isTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
       const isMiddleClick = e.button === 1;
       const isSpacePan = isSpacePressedRef.current && e.button === 0;
       const isHandMode = toolModeRef.current === 'hand' && (e.button === 0 || isTouch);
 
-      if (isMiddleClick || isSpacePan || isHandMode) {
+      if (forcePan || isMiddleClick || isSpacePan || isHandMode) {
         e.preventDefault();
         e.stopPropagation();
         setIsPanning(true);
