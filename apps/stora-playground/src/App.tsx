@@ -42,21 +42,25 @@ export interface ProjectPage {
   viewport?: Viewport;
 }
 
+const isMobileClient = typeof window !== 'undefined' && window.innerWidth < 768;
+const defaultInitialWidth = isMobileClient ? 375 : 1200;
+const defaultInitialViewport: Viewport = isMobileClient ? 'mobile' : 'desktop';
+
 const INITIAL_PAGES: ProjectPage[] = [
   {
     id: 'page-home',
     name: 'Home',
     slug: '/',
     document: starterPageFixture,
-    width: 1200,
-    viewport: 'desktop',
+    width: defaultInitialWidth,
+    viewport: defaultInitialViewport,
   },
   {
     id: 'page-about',
     name: 'About Us',
     slug: '/about',
-    width: 1200,
-    viewport: 'desktop',
+    width: defaultInitialWidth,
+    viewport: defaultInitialViewport,
     document: {
       schema: 'stora.page',
       version: '1.0.0',
@@ -147,7 +151,9 @@ export function App() {
   const [pages, setPages] = useState<ProjectPage[]>(INITIAL_PAGES);
   const [activePageId, setActivePageId] = useState<string>('page-home');
   const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'json'>('editor');
-  const [previewViewport, setPreviewViewport] = useState<ViewportDevice>('desktop');
+  const [previewViewport, setPreviewViewport] = useState<ViewportDevice>(() =>
+    isMobileClient ? 'mobile' : 'desktop',
+  );
   const [isImportOpen, setIsImportOpen] = useState<boolean>(false);
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState<boolean>(false);
   const [isMobileActionsOpen, setIsMobileActionsOpen] = useState<boolean>(false);

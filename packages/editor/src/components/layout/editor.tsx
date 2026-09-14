@@ -77,27 +77,25 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   ai,
   className,
 }) => {
-  const {
-    document,
-    setDocument,
-    setOnChangeHandler,
-    setVariableCatalog,
-    viewport,
-    setViewport,
-    selectedNodeId,
-    tableSpreadsheetMode,
-    setTableSpreadsheetMode,
-    aiChatMode,
-    setAiChatMode,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    previewMode,
-    multiDeviceMode,
-    toggleMultiDeviceMode,
-    actionDebuggerOpen,
-  } = useEditorStore();
+  const document = useEditorStore((state) => state.document);
+  const setDocument = useEditorStore((state) => state.setDocument);
+  const setOnChangeHandler = useEditorStore((state) => state.setOnChangeHandler);
+  const setVariableCatalog = useEditorStore((state) => state.setVariableCatalog);
+  const viewport = useEditorStore((state) => state.viewport);
+  const setViewport = useEditorStore((state) => state.setViewport);
+  const selectedNodeId = useEditorStore((state) => state.selectedNodeId);
+  const tableSpreadsheetMode = useEditorStore((state) => state.tableSpreadsheetMode);
+  const setTableSpreadsheetMode = useEditorStore((state) => state.setTableSpreadsheetMode);
+  const aiChatMode = useEditorStore((state) => state.aiChatMode);
+  const setAiChatMode = useEditorStore((state) => state.setAiChatMode);
+  const undo = useEditorStore((state) => state.undo);
+  const redo = useEditorStore((state) => state.redo);
+  const canUndo = useEditorStore((state) => state.canUndo);
+  const canRedo = useEditorStore((state) => state.canRedo);
+  const previewMode = useEditorStore((state) => state.previewMode);
+  const multiDeviceMode = useEditorStore((state) => state.multiDeviceMode);
+  const toggleMultiDeviceMode = useEditorStore((state) => state.toggleMultiDeviceMode);
+  const actionDebuggerOpen = useEditorStore((state) => state.actionDebuggerOpen);
   const lastLoadedDocRef = React.useRef<PageDocument | undefined>(undefined);
 
   // Mobile drawer states

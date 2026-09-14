@@ -286,7 +286,7 @@ export function NodeRenderer({
   );
 }
 
-export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
+const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
   document,
   registry = createDefaultComponentRegistry(),
   context,
@@ -303,19 +303,22 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
     return <div className={className}>Empty Document</div>;
   }
 
+  const stateStylesCss = React.useMemo(
+    () => collectStateStylesCss(document),
+    [document],
+  );
+  const animStylesCss = React.useMemo(
+    () => collectAnimationStylesCss(document),
+    [document],
+  );
+
   return (
     <RenderContextProvider value={context}>
       <div className={`kubuild-canvas-root ${className || ''}`}>
         {/* Compiled pseudo-state CSS (:hover/:active/:focus) — STORA-222 */}
-        {(() => {
-          const css = collectStateStylesCss(document);
-          return css ? <style data-kubuild-state-styles>{css}</style> : null;
-        })()}
+        {stateStylesCss ? <style data-kubuild-state-styles>{stateStylesCss}</style> : null}
         {/* Compiled animation & hover micro-interactions CSS — STORA-264 */}
-        {(() => {
-          const animCss = collectAnimationStylesCss(document);
-          return animCss ? <style data-kubuild-animation-styles>{animCss}</style> : null;
-        })()}
+        {animStylesCss ? <style data-kubuild-animation-styles>{animStylesCss}</style> : null}
         <NodeRenderer
           node={document.document}
           document={document}
@@ -333,3 +336,5 @@ export const KubuildRenderer: React.FC<KubuildRendererProps> = ({
     </RenderContextProvider>
   );
 };
+
+export const KubuildRenderer = React.memo(KubuildRendererComponent);

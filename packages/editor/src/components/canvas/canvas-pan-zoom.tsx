@@ -329,14 +329,18 @@ export function useCanvasPanZoom({
     return () => container.removeEventListener('wheel', onWheel);
   }, [containerRef, enabled]);
 
+  const rafPanRef = useRef<number | null>(null);
+  const pendingPanRef = useRef<{ x: number; y: number } | null>(null);
+
   // Pointer event handlers for panning
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!enabled) return;
-      // Space + left click OR middle click (button 1) OR hand tool mode with left click
+      // Space + left click OR middle click (button 1) OR hand tool mode with left click / touch
+      const isTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
       const isMiddleClick = e.button === 1;
       const isSpacePan = isSpacePressedRef.current && e.button === 0;
-      const isHandMode = toolModeRef.current === 'hand' && e.button === 0;
+      const isHandMode = toolModeRef.current === 'hand' && (e.button === 0 || isTouch);
 
       if (isMiddleClick || isSpacePan || isHandMode) {
         e.preventDefault();
@@ -360,13 +364,30 @@ export function useCanvasPanZoom({
     const deltaX = e.clientX - drag.startX;
     const deltaY = e.clientY - drag.startY;
 
-    setPan({
+    pendingPanRef.current = {
       x: Math.round(drag.initialPanX + deltaX),
       y: Math.round(drag.initialPanY + deltaY),
-    });
+    };
+
+    if (rafPanRef.current === null) {
+      rafPanRef.current = requestAnimationFrame(() => {
+        if (pendingPanRef.current) {
+          setPan(pendingPanRef.current);
+        }
+        rafPanRef.current = null;
+      });
+    }
   }, []);
 
   const handlePointerUp = useCallback(() => {
+    if (rafPanRef.current !== null) {
+      cancelAnimationFrame(rafPanRef.current);
+      rafPanRef.current = null;
+    }
+    if (pendingPanRef.current) {
+      setPan(pendingPanRef.current);
+      pendingPanRef.current = null;
+    }
     if (dragStartRef.current) {
       dragStartRef.current = null;
       setIsPanning(false);
@@ -380,6 +401,10 @@ export function useCanvasPanZoom({
       return () => {
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerUp);
+        if (rafPanRef.current !== null) {
+          cancelAnimationFrame(rafPanRef.current);
+          rafPanRef.current = null;
+        }
       };
     }
   }, [isPanning, handlePointerMove, handlePointerUp]);

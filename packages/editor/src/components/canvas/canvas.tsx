@@ -145,42 +145,34 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   activeArtboardId: propActiveArtboardId,
   className,
 }) => {
-  const {
-    document: storeDoc,
-    selectedNodeId,
-    selectedNodeIds,
-    hoveredNodeId,
-    dragPayload,
-    selectNode,
-    selectMultipleNodes,
-    toggleNodeSelection,
-    wrapSelectedIntoFrame,
-    ungroupSelectedFrame,
-    hoverNode,
-    updateNodeProps,
-    setDragPayload,
-    insertComponent,
-    insertBlock,
-    moveComponent,
-    deleteComponent,
-    duplicateComponent,
-    copyNode,
-    pasteNode,
-    undo,
-    redo,
-    previewMode,
-    multiDeviceMode,
-    toggleMultiDeviceMode,
-    addActionLog,
-    setLiveFormState,
-    aiGenerationStatus: storeAiGenerationStatus,
-    componentArtboards: storeComponentArtboards,
-    activeArtboardId: storeActiveArtboardId,
-    activateArtboard,
-    removeComponentArtboard,
-    setComponentArtboardPosition,
-    setComponentArtboardWidth,
-  } = useEditorStore();
+  const storeDoc = useEditorStore((s) => s.document);
+  const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
+  const selectedNodeIds = useEditorStore((s) => s.selectedNodeIds);
+  const hoveredNodeId = useEditorStore((s) => s.hoveredNodeId);
+  const dragPayload = useEditorStore((s) => s.dragPayload);
+  const selectNode = useEditorStore((s) => s.selectNode);
+  const selectMultipleNodes = useEditorStore((s) => s.selectMultipleNodes);
+  const toggleNodeSelection = useEditorStore((s) => s.toggleNodeSelection);
+  const hoverNode = useEditorStore((s) => s.hoverNode);
+  const updateNodeProps = useEditorStore((s) => s.updateNodeProps);
+  const setDragPayload = useEditorStore((s) => s.setDragPayload);
+  const insertComponent = useEditorStore((s) => s.insertComponent);
+  const insertBlock = useEditorStore((s) => s.insertBlock);
+  const moveComponent = useEditorStore((s) => s.moveComponent);
+  const deleteComponent = useEditorStore((s) => s.deleteComponent);
+  const duplicateComponent = useEditorStore((s) => s.duplicateComponent);
+  const previewMode = useEditorStore((s) => s.previewMode);
+  const multiDeviceMode = useEditorStore((s) => s.multiDeviceMode);
+  const toggleMultiDeviceMode = useEditorStore((s) => s.toggleMultiDeviceMode);
+  const addActionLog = useEditorStore((s) => s.addActionLog);
+  const setLiveFormState = useEditorStore((s) => s.setLiveFormState);
+  const storeAiGenerationStatus = useEditorStore((s) => s.aiGenerationStatus);
+  const storeComponentArtboards = useEditorStore((s) => s.componentArtboards);
+  const storeActiveArtboardId = useEditorStore((s) => s.activeArtboardId);
+  const activateArtboard = useEditorStore((s) => s.activateArtboard);
+  const removeComponentArtboard = useEditorStore((s) => s.removeComponentArtboard);
+  const setComponentArtboardPosition = useEditorStore((s) => s.setComponentArtboardPosition);
+  const setComponentArtboardWidth = useEditorStore((s) => s.setComponentArtboardWidth);
 
   const document = propDoc ?? storeDoc;
   const aiGenerationStatus = propAiGenerationStatus ?? storeAiGenerationStatus;
@@ -514,6 +506,19 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     shiftKey: boolean;
   } | null>(null);
 
+  const isTouchDevice = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+      'ontouchstart' in window
+    );
+  }, []);
+
+  const isSmallScreen = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  }, []);
+
   // Pan & Zoom controls (STORA-130, STORA-131)
   const {
     pan,
@@ -627,14 +632,24 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     };
 
     recompute();
+    let rafId: number | null = null;
+    const throttledRecompute = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        recompute();
+        rafId = null;
+      });
+    };
+
     const container = containerRef.current;
-    window.addEventListener('resize', recompute);
-    window.addEventListener('scroll', recompute, true);
-    container?.addEventListener('input', recompute);
+    window.addEventListener('resize', throttledRecompute);
+    window.addEventListener('scroll', throttledRecompute, { passive: true, capture: true });
+    container?.addEventListener('input', throttledRecompute);
     return () => {
-      window.removeEventListener('resize', recompute);
-      window.removeEventListener('scroll', recompute, true);
-      container?.removeEventListener('input', recompute);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', throttledRecompute);
+      window.removeEventListener('scroll', throttledRecompute, true);
+      container?.removeEventListener('input', throttledRecompute);
     };
   }, [activeDoc, selectedNodeId, selectedNodeIds, hoveredNodeId, viewport, zoom, pan, fluidWidth, effectiveActivePageId]);
 
@@ -756,6 +771,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   // Candidate rects for smart snapping
   const candidateRects = useMemo(() => {
+    if (isTouchDevice && isSmallScreen) return [];
     const layer = layerRef.current;
     if (!layer || !selectedNodeId) return [];
     const elements = layer.querySelectorAll<HTMLElement>('[data-kubuild-node]');
@@ -776,14 +792,18 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       }
     });
     return results;
-  }, [document, selectedNodeId, zoom]);
+  }, [document, selectedNodeId, zoom, isTouchDevice, isSmallScreen]);
 
   const handleMouseOver = (e: React.MouseEvent) => {
+    if (isTouchDevice) return;
     const el = (e.target as HTMLElement).closest('[data-kubuild-node]');
     if (el) hoverNode(el.getAttribute('data-kubuild-node'));
   };
 
-  const handleMouseLeave = () => hoverNode(null);
+  const handleMouseLeave = () => {
+    if (isTouchDevice) return;
+    hoverNode(null);
+  };
 
   // Marquee Drag Selection Handlers (STORA-133) & Canvas Pan Handlers (STORA-130)
   const handleCanvasPointerDown = (e: React.PointerEvent) => {
@@ -809,6 +829,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     if (isDirectCanvasBg && !e.shiftKey) {
       // In Figma, clicking empty canvas background without holding Shift starts panning!
       handlePanPointerDown(e);
+      return;
+    }
+
+    // Touch devices: do not initiate marquee drag selection (prevents 60-120fps re-render freeze during touch)
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+      if (isRootOrEmpty) {
+        selectNode(null);
+      }
       return;
     }
 
@@ -1234,9 +1262,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         overflow: 'hidden',
         cursor: cursorStyle,
         backgroundColor: '#f1f5f9',
-        backgroundImage: `radial-gradient(circle, #cbd5e1 ${Math.max(0.75, Math.min(2.5, 1.2 * zoom))}px, transparent ${Math.max(0.75, Math.min(2.5, 1.2 * zoom))}px)`,
-        backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
-        backgroundPosition: `${pan.x}px ${pan.y}px`,
+        touchAction: toolMode === 'hand' ? 'none' : 'pan-x pan-y',
+        backgroundImage:
+          isSmallScreen && isTouchDevice
+            ? undefined
+            : `radial-gradient(circle, #cbd5e1 ${Math.max(0.75, Math.min(2.5, 1.2 * zoom))}px, transparent ${Math.max(0.75, Math.min(2.5, 1.2 * zoom))}px)`,
+        backgroundSize:
+          isSmallScreen && isTouchDevice ? undefined : `${24 * zoom}px ${24 * zoom}px`,
+        backgroundPosition:
+          isSmallScreen && isTouchDevice ? undefined : `${pan.x}px ${pan.y}px`,
       }}
       onPointerDown={handleCanvasPointerDown}
       onPointerMove={handleCanvasPointerMove}
@@ -1481,6 +1515,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
                   {!previewMode &&
                     !isMultiSelecting &&
+                    !(isTouchDevice && isSmallScreen) &&
                     selectedRect &&
                     selectedNodeId &&
                     selectedNodeId !== activeDoc.document.id && (
@@ -1495,6 +1530,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
                   {!previewMode &&
                     !isMultiSelecting &&
+                    !(isTouchDevice && isSmallScreen) &&
                     selectedRect &&
                     selectedNodeId &&
                     selectedNodeId !== activeDoc.document.id && (
