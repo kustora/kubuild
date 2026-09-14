@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host --port 3031",
     "build": "tsc && vite build",
-    "preview": "vite preview --port 3031",
+    "preview": "vite preview --port 3031 --host",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run"
