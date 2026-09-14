@@ -17,7 +17,12 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 3031,
     open: false,
+    allowedHosts: ['demo.stora.page'],
+  },
+  preview: {
+    port: 3031,
+    allowedHosts: ['demo.stora.page'],
   },
 });
