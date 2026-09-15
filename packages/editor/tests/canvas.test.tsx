@@ -26,6 +26,7 @@ describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
   it('renders contenteditable text elements in EditorCanvas for direct on-canvas editing', () => {
     const doc = JSON.parse(JSON.stringify(starterPageFixture));
     useEditorStore.getState().setDocument(doc);
+    useEditorStore.getState().selectNode('hero-heading');
 
     const html = renderToString(
       <EditorCanvas document={doc} registry={registry} viewport="desktop" />

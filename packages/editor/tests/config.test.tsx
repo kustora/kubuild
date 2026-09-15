@@ -290,9 +290,8 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
 
       // Tab switcher bar with "Traits" button should not be rendered
       expect(html).not.toContain('>Traits</span>');
-      // But heading props and style manager are present (SSR injects <!-- --> between interpolated tokens)
-      expect(html).toContain('Heading');
-      expect(html).toContain('Props');
+      // Heading props and style manager are present
+      expect(html).toContain('Text Settings');
       expect(html).toContain('Style Manager');
     });
 

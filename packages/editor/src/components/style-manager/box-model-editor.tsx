@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from '../../i18n';
 
 export interface BoxModelValues {
   marginTop?: string | number;
@@ -178,6 +179,8 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
   className = '',
   disabled = false,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div
       className={`w-full max-w-full select-none rounded-lg p-2 bg-slate-50 border border-slate-200 text-slate-800 box-border overflow-hidden shadow-2xs ${className}`}
@@ -186,14 +189,14 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
       {/* MARGIN LAYER (Outer - Orange/Amber) */}
       <div className="relative w-full rounded-md border-2 border-dashed border-amber-400/80 bg-amber-500/10 p-2 box-border transition-colors">
         <span className="absolute top-1 left-1.5 text-[8px] font-black uppercase tracking-wider text-amber-700 pointer-events-none select-none">
-          Margin
+          {t.margin}
         </span>
 
         {/* Margin Top */}
         <div className="flex justify-center mb-1">
           <BoxSideInput
             property="marginTop"
-            label="Margin Top"
+            label={t.marginTop}
             value={values.marginTop}
             onChange={onChange}
             theme="margin"
@@ -207,7 +210,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
           <div className="shrink-0 flex items-center justify-center">
             <BoxSideInput
               property="marginLeft"
-              label="Margin Left"
+              label={t.marginLeft}
               value={values.marginLeft}
               onChange={onChange}
               theme="margin"
@@ -219,14 +222,14 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
           {/* BORDER LAYER (Middle - Slate/Gray) */}
           <div className="relative flex-1 min-w-0 rounded-md border-2 border-solid border-slate-300 bg-slate-200/50 p-2 box-border transition-colors">
             <span className="absolute top-1 left-1.5 text-[8px] font-black uppercase tracking-wider text-slate-600 pointer-events-none select-none">
-              Border
+              {t.border}
             </span>
 
             {/* Border Top */}
             <div className="flex justify-center mb-1">
               <BoxSideInput
                 property="borderTopWidth"
-                label="Border Top Width"
+                label={t.borderTopWidth}
                 value={values.borderTopWidth}
                 onChange={onChange}
                 theme="border"
@@ -239,7 +242,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
               <div className="shrink-0 flex items-center justify-center">
                 <BoxSideInput
                   property="borderLeftWidth"
-                  label="Border Left Width"
+                  label={t.borderLeftWidth}
                   value={values.borderLeftWidth}
                   onChange={onChange}
                   theme="border"
@@ -250,14 +253,14 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
               {/* PADDING LAYER (Inner - Emerald/Green) */}
               <div className="relative flex-1 min-w-0 rounded-md border-2 border-dashed border-emerald-400/80 bg-emerald-500/15 p-2 box-border transition-colors">
                 <span className="absolute top-1 left-1.5 text-[8px] font-black uppercase tracking-wider text-emerald-700 pointer-events-none select-none">
-                  Padding
+                  {t.padding}
                 </span>
 
                 {/* Padding Top */}
                 <div className="flex justify-center mb-1">
                   <BoxSideInput
                     property="paddingTop"
-                    label="Padding Top"
+                    label={t.paddingTop}
                     value={values.paddingTop}
                     onChange={onChange}
                     theme="padding"
@@ -270,7 +273,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
                   <div className="shrink-0 flex items-center justify-center">
                     <BoxSideInput
                       property="paddingLeft"
-                      label="Padding Left"
+                      label={t.paddingLeft}
                       value={values.paddingLeft}
                       onChange={onChange}
                       theme="padding"
@@ -281,7 +284,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
                   {/* CONTENT LAYER (Center - Blue/Neutral) */}
                   <div className="flex-1 min-w-0 flex items-center justify-center py-1 px-1 rounded bg-blue-500/15 border border-blue-300 text-blue-800 shadow-2xs">
                     <span className="text-[9px] font-bold tracking-wider uppercase text-blue-700 truncate">
-                      Content
+                      {t.content}
                     </span>
                   </div>
 
@@ -289,7 +292,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
                   <div className="shrink-0 flex items-center justify-center">
                     <BoxSideInput
                       property="paddingRight"
-                      label="Padding Right"
+                      label={t.paddingRight}
                       value={values.paddingRight}
                       onChange={onChange}
                       theme="padding"
@@ -302,7 +305,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
                 <div className="flex justify-center mt-1">
                   <BoxSideInput
                     property="paddingBottom"
-                    label="Padding Bottom"
+                    label={t.paddingBottom}
                     value={values.paddingBottom}
                     onChange={onChange}
                     theme="padding"
@@ -315,7 +318,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
               <div className="shrink-0 flex items-center justify-center">
                 <BoxSideInput
                   property="borderRightWidth"
-                  label="Border Right Width"
+                  label={t.borderRightWidth}
                   value={values.borderRightWidth}
                   onChange={onChange}
                   theme="border"
@@ -328,7 +331,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
             <div className="flex justify-center mt-1">
               <BoxSideInput
                 property="borderBottomWidth"
-                label="Border Bottom Width"
+                label={t.borderBottomWidth}
                 value={values.borderBottomWidth}
                 onChange={onChange}
                 theme="border"
@@ -341,7 +344,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
           <div className="shrink-0 flex items-center justify-center">
             <BoxSideInput
               property="marginRight"
-              label="Margin Right"
+              label={t.marginRight}
               value={values.marginRight}
               onChange={onChange}
               theme="margin"
@@ -355,7 +358,7 @@ export const BoxModelEditor: React.FC<BoxModelEditorProps> = ({
         <div className="flex justify-center mt-1">
           <BoxSideInput
             property="marginBottom"
-            label="Margin Bottom"
+            label={t.marginBottom}
             value={values.marginBottom}
             onChange={onChange}
             theme="margin"

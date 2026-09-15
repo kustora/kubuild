@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { InheritanceIndicator, Breakpoint } from './inheritance-indicator';
+import { useTranslation } from '../../i18n';
 
 export const DIMENSION_UNITS = ['px', '%', 'rem', 'em', 'vw', 'vh', 'auto', 'none', 'fit-content'] as const;
 export type DimensionUnit = (typeof DIMENSION_UNITS)[number];
@@ -274,6 +275,8 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
   breakpoint,
   onResetProperty,
 }) => {
+  const { t } = useTranslation();
+
   const widthMode = getWidthSizingMode(styles.width, styles.flex);
   const heightMode = getHeightSizingMode(styles.height);
 
@@ -290,6 +293,7 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
       if (currentVal === 'fit-content' || currentVal === '100%' || currentVal === 'auto' || !currentVal) {
         onChange('width', '200px');
       }
+      onChange('flex', '');
     }
   };
 
@@ -312,8 +316,15 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
       {/* Display & Overflow */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-[11px] font-medium text-slate-600 mb-1">Display</label>
+          <label
+            htmlFor="dimension-select-display"
+            title={t.displayTooltip}
+            className="block text-[11px] font-medium text-slate-600 mb-1 cursor-help"
+          >
+            {t.display}
+          </label>
           <select
+            id="dimension-select-display"
             data-testid="dimension-select-display"
             aria-label="Display"
             value={String(styles.display ?? 'block')}
@@ -321,19 +332,26 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
             onChange={(e) => onChange('display', e.target.value)}
             className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs cursor-pointer hover:border-slate-400 transition"
           >
-            <option value="block">Block</option>
-            <option value="flex">Flex</option>
-            <option value="inline-flex">Inline Flex</option>
-            <option value="inline-block">Inline Block</option>
-            <option value="inline">Inline</option>
-            <option value="grid">Grid</option>
-            <option value="inline-grid">Inline Grid</option>
-            <option value="none">None</option>
+            <option value="block">{t.displayBlock}</option>
+            <option value="flex">{t.displayFlex}</option>
+            <option value="inline-flex">{t.displayInlineFlex}</option>
+            <option value="inline-block">{t.displayInlineBlock}</option>
+            <option value="inline">{t.displayInline}</option>
+            <option value="grid">{t.displayGrid}</option>
+            <option value="inline-grid">{t.displayInlineGrid}</option>
+            <option value="none">{t.displayNone}</option>
           </select>
         </div>
         <div>
-          <label className="block text-[11px] font-medium text-slate-600 mb-1">Overflow</label>
+          <label
+            htmlFor="dimension-select-overflow"
+            title={t.overflowTooltip}
+            className="block text-[11px] font-medium text-slate-600 mb-1 cursor-help"
+          >
+            {t.overflow}
+          </label>
           <select
+            id="dimension-select-overflow"
             data-testid="dimension-select-overflow"
             aria-label="Overflow"
             value={String(styles.overflow ?? 'visible')}
@@ -341,10 +359,10 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
             onChange={(e) => onChange('overflow', e.target.value)}
             className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs cursor-pointer hover:border-slate-400 transition"
           >
-            <option value="visible">Visible</option>
-            <option value="hidden">Hidden</option>
-            <option value="scroll">Scroll</option>
-            <option value="auto">Auto</option>
+            <option value="visible">{t.overflowVisible}</option>
+            <option value="hidden">{t.overflowHidden}</option>
+            <option value="scroll">{t.overflowScroll}</option>
+            <option value="auto">{t.overflowAuto}</option>
           </select>
         </div>
       </div>
@@ -397,13 +415,13 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
       {/* Sizing Mode Controls (Hug / Fill / Fixed) - STORA-104 */}
       <div className="flex flex-col gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
         <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-          Sizing Modes
+          {t.sizingModes}
         </div>
 
         {/* Width Sizing Mode */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-600">Width Mode</span>
+            <span className="text-[11px] font-medium text-slate-600">{t.widthMode}</span>
             <span className="text-[10px] font-mono text-slate-400 uppercase">{widthMode}</span>
           </div>
           <div className="grid grid-cols-3 gap-1 bg-slate-200/60 p-0.5 rounded border border-slate-200 shadow-2xs">
@@ -412,42 +430,45 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
               data-testid="sizing-mode-width-hug"
               disabled={disabled}
               onClick={() => handleWidthModeSelect('hug')}
-              title="Hug Contents (fit-content)"
-              className={`py-1 text-xs rounded font-medium transition cursor-pointer ${
+              title={t.hugTooltip}
+              className={`py-1.5 px-1 text-xs rounded font-medium transition cursor-pointer text-center leading-tight ${
                 widthMode === 'hug'
                   ? 'bg-white text-blue-600 font-semibold shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
-              Hug
+              <span className="block font-semibold">{t.hug}</span>
+              {t.hugSub ? <span className="block text-[9px] opacity-75 font-normal">{t.hugSub}</span> : null}
             </button>
             <button
               type="button"
               data-testid="sizing-mode-width-fill"
               disabled={disabled}
               onClick={() => handleWidthModeSelect('fill')}
-              title="Fill Container (100% / flex: 1)"
-              className={`py-1 text-xs rounded font-medium transition cursor-pointer ${
+              title={t.fillTooltip}
+              className={`py-1.5 px-1 text-xs rounded font-medium transition cursor-pointer text-center leading-tight ${
                 widthMode === 'fill'
                   ? 'bg-white text-blue-600 font-semibold shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
-              Fill
+              <span className="block font-semibold">{t.fill}</span>
+              {t.fillSub ? <span className="block text-[9px] opacity-75 font-normal">{t.fillSub}</span> : null}
             </button>
             <button
               type="button"
               data-testid="sizing-mode-width-fixed"
               disabled={disabled}
               onClick={() => handleWidthModeSelect('fixed')}
-              title="Fixed Size (explicit px)"
-              className={`py-1 text-xs rounded font-medium transition cursor-pointer ${
+              title={t.fixedTooltip}
+              className={`py-1.5 px-1 text-xs rounded font-medium transition cursor-pointer text-center leading-tight ${
                 widthMode === 'fixed'
                   ? 'bg-white text-blue-600 font-semibold shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
-              Fixed
+              <span className="block font-semibold">{t.fixed}</span>
+              {t.fixedSub ? <span className="block text-[9px] opacity-75 font-normal">{t.fixedSub}</span> : null}
             </button>
           </div>
         </div>
@@ -455,7 +476,7 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
         {/* Height Sizing Mode */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-600">Height Mode</span>
+            <span className="text-[11px] font-medium text-slate-600">{t.heightMode}</span>
             <span className="text-[10px] font-mono text-slate-400 uppercase">{heightMode}</span>
           </div>
           <div className="grid grid-cols-3 gap-1 bg-slate-200/60 p-0.5 rounded border border-slate-200 shadow-2xs">
@@ -464,42 +485,45 @@ export const DimensionSectorControls: React.FC<DimensionSectorControlsProps> = (
               data-testid="sizing-mode-height-hug"
               disabled={disabled}
               onClick={() => handleHeightModeSelect('hug')}
-              title="Hug Contents (fit-content)"
-              className={`py-1 text-xs rounded font-medium transition cursor-pointer ${
+              title={t.hugTooltip}
+              className={`py-1.5 px-1 text-xs rounded font-medium transition cursor-pointer text-center leading-tight ${
                 heightMode === 'hug'
                   ? 'bg-white text-blue-600 font-semibold shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
-              Hug
+              <span className="block font-semibold">{t.hug}</span>
+              {t.hugSub ? <span className="block text-[9px] opacity-75 font-normal">{t.hugSub}</span> : null}
             </button>
             <button
               type="button"
               data-testid="sizing-mode-height-fill"
               disabled={disabled}
               onClick={() => handleHeightModeSelect('fill')}
-              title="Fill Container (100%)"
-              className={`py-1 text-xs rounded font-medium transition cursor-pointer ${
+              title={t.fillTooltip}
+              className={`py-1.5 px-1 text-xs rounded font-medium transition cursor-pointer text-center leading-tight ${
                 heightMode === 'fill'
                   ? 'bg-white text-blue-600 font-semibold shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
-              Fill
+              <span className="block font-semibold">{t.fill}</span>
+              {t.fillSub ? <span className="block text-[9px] opacity-75 font-normal">{t.fillSub}</span> : null}
             </button>
             <button
               type="button"
               data-testid="sizing-mode-height-fixed"
               disabled={disabled}
               onClick={() => handleHeightModeSelect('fixed')}
-              title="Fixed Size (explicit px)"
-              className={`py-1 text-xs rounded font-medium transition cursor-pointer ${
+              title={t.fixedTooltip}
+              className={`py-1.5 px-1 text-xs rounded font-medium transition cursor-pointer text-center leading-tight ${
                 heightMode === 'fixed'
                   ? 'bg-white text-blue-600 font-semibold shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
-              Fixed
+              <span className="block font-semibold">{t.fixed}</span>
+              {t.fixedSub ? <span className="block text-[9px] opacity-75 font-normal">{t.fixedSub}</span> : null}
             </button>
           </div>
         </div>

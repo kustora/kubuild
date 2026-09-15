@@ -53,6 +53,7 @@ import {
 import type { AiGenerationPlaceholderStatus } from '../ai/generate-page';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
+export type EditorLocale = 'en' | 'id';
 export type TableSpreadsheetMode = 'floating' | 'docked' | 'hidden';
 /** Panel mode for the AI Chat Panel (STORA-503), following the `TableSpreadsheetMode` pattern. */
 export type AiChatPanelMode = 'docked' | 'floating' | 'hidden';
@@ -268,6 +269,9 @@ export interface EditorState {
   activeArtboardId: string | null;
   /** Page document stashed while editing a component artboard, restored on return. */
   artboardReturnDocument: PageDocument | null;
+  /** Active UI locale for the editor and inspector panels (default: 'en'). */
+  locale: EditorLocale;
+  setLocale: (locale: EditorLocale) => void;
 
   setDocument: (document: PageDocument) => void;
   setDragPayload: (payload: DragPayload | null) => void;
@@ -489,7 +493,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   componentArtboards: [],
   activeArtboardId: null,
   artboardReturnDocument: null,
+  locale: 'en',
 
+  setLocale: (locale) => set({ locale }),
   setDragPayload: (payload) => set({ dragPayload: payload }),
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
   setTableSpreadsheetMode: (mode) => set({ tableSpreadsheetMode: mode }),

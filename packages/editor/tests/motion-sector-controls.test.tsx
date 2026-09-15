@@ -58,11 +58,11 @@ describe('Motion & Animation Sector Controls (STORA-261)', () => {
     expect(html).toContain('data-testid="motion-delay-slider"');
     expect(html).toContain('data-testid="motion-delay-input"');
     expect(html).toContain('value="0"');
-    expect(html).toContain('Easing Curve');
+    expect(html).toContain('Motion Curve');
     expect(html).toContain('data-testid="motion-easing-select"');
     expect(html).toContain('Trigger Once');
     expect(html).toContain('data-testid="motion-once-toggle"');
-    expect(html).toContain('Hover Micro-Interaction');
+    expect(html).toContain('Hover Effect');
     expect(html).toContain('data-testid="motion-hover-segmented"');
     expect(html).toContain('data-testid="motion-hover-lift"');
     expect(html).toContain('Loop Animation');
@@ -141,7 +141,7 @@ describe('Motion & Animation Sector Controls (STORA-261)', () => {
       />,
     );
 
-    expect(html).toContain('Motion / Animation');
+    expect(html).toContain('Motion &amp; Animation');
     expect(html).toContain('data-testid="motion-sector-controls"');
     expect(html).toContain('data-testid="motion-animation-type"');
     expect(html).toContain('data-testid="motion-duration-slider"');
@@ -241,7 +241,7 @@ describe('Motion & Animation Sector Controls (STORA-261)', () => {
       <InspectorPanel registry={registry} document={doc} selectedNodeId="card-1" />,
     );
 
-    expect(html).toContain('Motion / Animation');
+    expect(html).toContain('Motion &amp; Animation');
     expect(html).toContain('data-testid="sector-motion"');
   });
 });

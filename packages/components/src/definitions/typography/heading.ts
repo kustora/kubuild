@@ -13,10 +13,17 @@ export const headingDefinition: ComponentDefinition = {
     { name: 'text', label: 'Text', type: 'string', defaultValue: 'Heading Text' },
     {
       name: 'level',
-      label: 'Heading Level',
+      label: 'Title Size',
       type: 'select',
       defaultValue: 2,
-      options: [1, 2, 3, 4, 5, 6].map((level) => ({ label: `H${level}`, value: level })),
+      options: [
+        { label: 'H1 - Main Title (Extra Large)', value: 1 },
+        { label: 'H2 - Subtitle (Large)', value: 2 },
+        { label: 'H3 - Section Title (Medium)', value: 3 },
+        { label: 'H4 - Subsection Title (Small)', value: 4 },
+        { label: 'H5 - Small Title (Extra Small)', value: 5 },
+        { label: 'H6 - Micro Title (Smallest)', value: 6 },
+      ],
     },
   ],
   traits: [

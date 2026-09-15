@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../../i18n';
 
 export interface GradientStop {
   color: string;
@@ -201,6 +202,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
   disabled = false,
   className = '',
 }) => {
+  const { t } = useTranslation();
   const parsed = parseColorString(value);
   const [mode, setMode] = useState<ColorMode>(parsed.mode);
   const [color, setColor] = useState<string>(parsed.color.startsWith('#') ? parsed.color : '#3b82f6');
@@ -378,7 +380,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
           {/* Alpha / Opacity Slider */}
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium text-slate-500">Opacity (Alpha)</span>
+              <span className="text-[10px] font-medium text-slate-500">{t.opacity}</span>
               <span className="text-[10px] font-mono text-slate-500">{Math.round(alpha * 100)}%</span>
             </div>
             <div className="flex items-center gap-2">

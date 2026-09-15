@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../../i18n';
 
 export type AlignmentPointId =
   | 'top-left'
@@ -90,6 +91,8 @@ export const AutoLayoutControls: React.FC<AutoLayoutControlsProps> = ({
   disabled = false,
   className = '',
 }) => {
+  const { t } = useTranslation();
+
   const direction = String(styles.flexDirection ?? 'row');
   const isColumn = direction === 'column' || direction === 'column-reverse';
   const isWrapped = styles.flexWrap === 'wrap' || styles.flexWrap === 'wrap-reverse';
@@ -263,7 +266,9 @@ export const AutoLayoutControls: React.FC<AutoLayoutControlsProps> = ({
       {/* Gap Slider & Numeric Input */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-medium text-slate-600">Gap</label>
+          <label className="block text-[11px] font-medium text-slate-600" title="Jarak ruang antar elemen di dalam wadah">
+            {t.spacingGap}
+          </label>
           <span className="text-[10px] font-mono text-slate-500">
             {gapNum}
             {gapUnit}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { AnimationConfig, DEFAULT_ANIMATION_CONFIG } from '@kubuild/schema';
 import { ComponentIcon } from '../ui/icons';
+import { useTranslation } from '../../i18n';
 
 export interface MotionSectorControlsProps {
   animation?: Partial<AnimationConfig>;
@@ -78,6 +79,7 @@ export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
   onReplay,
   disabled = false,
 }) => {
+  const { t } = useTranslation();
   const currentConfig: AnimationConfig = {
     ...DEFAULT_ANIMATION_CONFIG,
     ...(animation ?? {}),
@@ -179,9 +181,14 @@ export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
         {/* Duration */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label htmlFor="motion-duration-slider" className="font-medium text-slate-600">
-              Duration
-            </label>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="motion-duration-slider" className="font-medium text-slate-600">
+                {t.duration}
+              </label>
+              <span className="text-[10px] text-blue-600 font-mono bg-blue-50 px-1 py-0.2 rounded border border-blue-100">
+                {(currentConfig.duration / 1000).toFixed(currentConfig.duration % 1000 === 0 ? 1 : 2).replace(/\.?0+$/, (m) => m === '.0' ? '.0' : '')}s
+              </span>
+            </div>
             <div className="flex items-center gap-1">
               <input
                 id="motion-duration-input"
@@ -215,9 +222,14 @@ export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
         {/* Delay */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label htmlFor="motion-delay-slider" className="font-medium text-slate-600">
-              Delay
-            </label>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="motion-delay-slider" className="font-medium text-slate-600">
+                {t.delay}
+              </label>
+              <span className="text-[10px] text-blue-600 font-mono bg-blue-50 px-1 py-0.2 rounded border border-blue-100">
+                {(currentConfig.delay / 1000).toFixed(currentConfig.delay % 1000 === 0 ? 1 : 2).replace(/\.?0+$/, (m) => m === '.0' ? '.0' : '')}s
+              </span>
+            </div>
             <div className="flex items-center gap-1">
               <input
                 id="motion-delay-input"
@@ -252,7 +264,7 @@ export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/80">
           <div className="flex flex-col gap-1">
             <label htmlFor="motion-easing-select" className="text-[11px] font-medium text-slate-500">
-              Easing Curve
+              {t.motionCurve}
             </label>
             <select
               id="motion-easing-select"
@@ -293,7 +305,7 @@ export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
       {/* 3. Hover Micro-Interactions (Segmented Buttons) */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <label className="font-semibold text-slate-600">Hover Micro-Interaction</label>
+          <label className="font-semibold text-slate-600">{t.hoverEffect}</label>
           {currentConfig.hoverEffect !== 'none' && (
             <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
               {currentConfig.hoverEffect}
@@ -302,7 +314,7 @@ export const MotionSectorControls: React.FC<MotionSectorControlsProps> = ({
         </div>
         <div
           role="radiogroup"
-          aria-label="Hover Micro-Interaction"
+          aria-label={t.hoverEffect}
           className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-lg flex-wrap"
           data-testid="motion-hover-segmented"
         >

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../../i18n';
 
 // ============================================================================
 // STORA-150: Independent 4-Corner Border Radius Control
@@ -17,6 +18,7 @@ export const BorderRadiusControl: React.FC<BorderRadiusControlProps> = ({
   disabled = false,
   className = '',
 }) => {
+  const { t } = useTranslation();
   const hasIndividualCorners = Boolean(
     styles.borderTopLeftRadius ||
     styles.borderTopRightRadius ||
@@ -39,7 +41,9 @@ export const BorderRadiusControl: React.FC<BorderRadiusControlProps> = ({
   return (
     <div className={`flex flex-col gap-2 ${className}`} data-testid="border-radius-control">
       <div className="flex items-center justify-between">
-        <label className="block text-[11px] font-medium text-slate-600">Border Radius</label>
+        <label className="block text-[11px] font-medium text-slate-600">
+          {t.cornerRadius}
+        </label>
         <button
           type="button"
           data-testid="border-radius-expand"
@@ -240,6 +244,7 @@ export const EffectsSectorControls: React.FC<EffectsSectorControlsProps> = ({
   disabled = false,
   className = '',
 }) => {
+  const { t } = useTranslation();
   const currentShadow = parseBoxShadow(styles.boxShadow);
   const currentBlur = parseBackdropBlur(styles.backdropFilter);
 
@@ -376,7 +381,7 @@ export const EffectsSectorControls: React.FC<EffectsSectorControlsProps> = ({
       <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-200">
         <div className="flex items-center justify-between">
           <label className="block text-[11px] font-medium text-slate-600">
-            Backdrop Blur (Glassmorphism)
+            {t.frostedBlur}
           </label>
           <span className="text-[10px] font-mono text-slate-500 font-bold">{currentBlur}px</span>
         </div>

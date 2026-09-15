@@ -11,6 +11,7 @@ import { EffectsSectorControls } from './effects-sector-controls';
 import { ColorGradientPicker } from './color-gradient-picker';
 import { DesignTokensPanel } from './design-tokens-panel';
 import { InheritanceIndicator, InheritanceSummaryBar } from './inheritance-indicator';
+import { useTranslation } from '../../i18n';
 
 export type StyleSectorId = 'dimension' | 'spacing' | 'typography' | 'decorations' | 'flex' | 'motion';
 
@@ -25,7 +26,7 @@ export interface StyleSectorDefinition {
 export const STYLE_SECTORS: StyleSectorDefinition[] = [
   {
     id: 'dimension',
-    label: 'Dimension',
+    label: 'Size',
     icon: 'dimension',
     description: 'Width, height, min/max limits, display, overflow & object fit',
     properties: [
@@ -43,7 +44,7 @@ export const STYLE_SECTORS: StyleSectorDefinition[] = [
   },
   {
     id: 'spacing',
-    label: 'Spacing (Box Model)',
+    label: 'Spacing',
     icon: 'spacing',
     description: 'Margin, border widths, padding & box dimensions',
     properties: [
@@ -91,14 +92,14 @@ export const STYLE_SECTORS: StyleSectorDefinition[] = [
   },
   {
     id: 'flex',
-    label: 'Flex / Alignment',
+    label: 'Layout & Align',
     icon: 'flex',
     description: 'Flex direction, alignment, wrapping & gap',
     properties: ['flexDirection', 'justifyContent', 'alignItems', 'flexWrap', 'gap', 'alignContent', 'flexGrow', 'flexShrink'],
   },
   {
     id: 'motion',
-    label: 'Motion / Animation',
+    label: 'Motion & Animation',
     icon: 'motion',
     description: 'Scroll entrance effects, duration, delay, hover & loop animations',
     properties: ['type', 'duration', 'delay', 'easing', 'once', 'hoverEffect', 'loopEffect'],
@@ -228,6 +229,27 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
     return STYLE_SECTORS.filter((sector) => allowedSectors.includes(sector.id));
   }, [allowedSectors]);
 
+  const { t } = useTranslation();
+
+  const getSectorLabel = (sectorId: StyleSectorId, fallback: string): string => {
+    switch (sectorId) {
+      case 'dimension':
+        return t.dimensionSector;
+      case 'spacing':
+        return t.spacingSector;
+      case 'typography':
+        return t.typographySector;
+      case 'decorations':
+        return t.decorationsSector;
+      case 'flex':
+        return t.flexSector;
+      case 'motion':
+        return t.motionSector;
+      default:
+        return fallback;
+    }
+  };
+
   const [openState, setOpenState] = useState<Record<StyleSectorId, boolean>>(() => ({
     ...loadAccordionState(),
     ...(isFlexNode ? { flex: true } : {}),
@@ -352,19 +374,19 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
           <button
             type="button"
             onClick={expandAll}
-            title="Expand All Sectors"
+            title={t.expandAll}
             className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition whitespace-nowrap"
           >
-            Expand All
+            {t.expandAll}
           </button>
           <span className="text-slate-300 text-xs">|</span>
           <button
             type="button"
             onClick={collapseAll}
-            title="Collapse All Sectors"
+            title={t.collapseAll}
             className="px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition whitespace-nowrap"
           >
-            Collapse All
+            {t.collapseAll}
           </button>
           {totalActiveStyles > 0 && (
             <>
@@ -373,11 +395,11 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                 type="button"
                 data-testid="style-manager-reset-all"
                 onClick={handleResetAll}
-                title="Reset all styles on active node"
+                title={t.resetStyleTooltip}
                 className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition whitespace-nowrap"
               >
                 <ComponentIcon iconOrType="reset" size={11} />
-                <span>Reset CSS</span>
+                <span>{t.resetStyle}</span>
               </button>
             </>
           )}
@@ -420,7 +442,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                     <ComponentIcon iconOrType={sector.icon} size={14} />
                   </span>
                   <span className="text-xs font-semibold text-slate-700 truncate">
-                    {sector.label}
+                    {getSectorLabel(sector.id, sector.label)}
                   </span>
                   {activeCount > 0 && (
                     <span
@@ -470,49 +492,76 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                       />
 
                       {/* Quick Field Grid */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                          Side Inputs
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {['marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map(
-                            (prop) => {
-                              const isInherited =
-                                breakpoint !== 'base' &&
-                                (styles[prop] === undefined || styles[prop] === null || styles[prop] === '') &&
-                                baseStyles?.[prop] !== undefined &&
-                                baseStyles?.[prop] !== '';
-                              const effectivePlaceholder = isInherited ? String(baseStyles[prop]) : '0';
+                      <div className="pt-2 border-t border-slate-100 flex flex-col gap-2.5">
+                        {[
+                          {
+                            groupLabel: t.outerSpaceGroup,
+                            props: [
+                              { prop: 'marginTop', label: t.top, fullLabel: `${t.top} (${t.marginTop})`, icon: '↑' },
+                              { prop: 'marginRight', label: t.right, fullLabel: `${t.right} (${t.marginRight})`, icon: '→' },
+                              { prop: 'marginBottom', label: t.bottom, fullLabel: `${t.bottom} (${t.marginBottom})`, icon: '↓' },
+                              { prop: 'marginLeft', label: t.left, fullLabel: `${t.left} (${t.marginLeft})`, icon: '←' },
+                            ],
+                          },
+                          {
+                            groupLabel: t.innerSpaceGroup,
+                            props: [
+                              { prop: 'paddingTop', label: t.top, fullLabel: `${t.top} (${t.paddingTop})`, icon: '↑' },
+                              { prop: 'paddingRight', label: t.right, fullLabel: `${t.right} (${t.paddingRight})`, icon: '→' },
+                              { prop: 'paddingBottom', label: t.bottom, fullLabel: `${t.bottom} (${t.paddingBottom})`, icon: '↓' },
+                              { prop: 'paddingLeft', label: t.left, fullLabel: `${t.left} (${t.paddingLeft})`, icon: '←' },
+                            ],
+                          },
+                        ].map((group) => (
+                          <div key={group.groupLabel} className="flex flex-col gap-1">
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                              {group.groupLabel}
+                            </span>
+                            <div className="grid grid-cols-4 gap-1.5 text-xs">
+                              {group.props.map((item) => {
+                                const prop = item.prop;
+                                const isInherited =
+                                  breakpoint !== 'base' &&
+                                  (styles[prop] === undefined || styles[prop] === null || styles[prop] === '') &&
+                                  baseStyles?.[prop] !== undefined &&
+                                  baseStyles?.[prop] !== '';
+                                const effectivePlaceholder = isInherited ? String(baseStyles[prop]) : '0';
 
-                              return (
-                                <div key={prop} className="flex items-center justify-between gap-1 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                                  <div className="flex items-center gap-1 min-w-0">
-                                    <span className="text-[11px] text-slate-500 font-medium truncate">
-                                      {prop.replace(/([A-Z])/g, ' $1').toLowerCase()}
-                                    </span>
-                                    {breakpoint !== 'base' && (
-                                      <InheritanceIndicator
-                                        property={prop}
-                                        activeBreakpoint={breakpoint}
-                                        activeStyles={styles}
-                                        baseStyles={baseStyles}
-                                        onResetToInherited={onResetProperty}
-                                        compact
-                                      />
-                                    )}
+                                return (
+                                  <div
+                                    key={prop}
+                                    title={`${item.fullLabel} (${prop})`}
+                                    className="flex flex-col items-center gap-1 bg-slate-50 p-1.5 rounded border border-slate-200"
+                                  >
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[10px] font-semibold text-slate-600">
+                                        {item.icon} {item.label}
+                                      </span>
+                                      {breakpoint !== 'base' && (
+                                        <InheritanceIndicator
+                                          property={prop}
+                                          activeBreakpoint={breakpoint}
+                                          activeStyles={styles}
+                                          baseStyles={baseStyles}
+                                          onResetToInherited={onResetProperty}
+                                          compact
+                                        />
+                                      )}
+                                    </div>
+                                    <input
+                                      type="text"
+                                      placeholder={effectivePlaceholder}
+                                      value={String(styles[prop] ?? '')}
+                                      onChange={(e) => onCommitStyle(prop, e.target.value)}
+                                      aria-label={`${item.fullLabel} - ${group.groupLabel}`}
+                                      className="w-full text-center font-mono text-[11px] bg-white border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
                                   </div>
-                                  <input
-                                    type="text"
-                                    placeholder={effectivePlaceholder}
-                                    value={String(styles[prop] ?? '')}
-                                    onChange={(e) => onCommitStyle(prop, e.target.value)}
-                                    className="w-14 text-right font-mono text-[11px] bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                  />
-                                </div>
-                              );
-                            },
-                          )}
-                        </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

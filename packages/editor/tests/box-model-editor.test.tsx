@@ -104,11 +104,21 @@ describe('Visual Box Model Component (STORA-201)', () => {
       <InspectorPanel registry={registry} document={doc} selectedNodeId={doc.document.id} />,
     );
 
-    expect(html).toContain('Spacing (Box Model)');
+    expect(html).toContain('Spacing');
     expect(html).toContain('Margin');
     expect(html).toContain('Border');
     expect(html).toContain('Padding');
     expect(html).toContain('Content');
+
+    useEditorStore.getState().setLocale('id');
+    const htmlId = renderToString(
+      <InspectorPanel registry={registry} document={doc} selectedNodeId={doc.document.id} />,
+    );
+    expect(htmlId).toContain('Jarak &amp; Ruang (Spacing)');
+    expect(htmlId).toContain('Jarak Luar (Margin)');
+    expect(htmlId).toContain('Garis Tepi (Border)');
+    expect(htmlId).toContain('Jarak Dalam (Padding)');
+    expect(htmlId).toContain('Konten (Content)');
   });
 
   it('renders disabled state when disabled prop is true', () => {

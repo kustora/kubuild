@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DimensionUnitInput } from './dimension-sector-controls';
 import { InheritanceIndicator, Breakpoint } from './inheritance-indicator';
 import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 
 export interface FontOption {
   label: string;
@@ -116,6 +117,7 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
   breakpoint,
   onResetProperty,
 }) => {
+  const { t } = useTranslation();
   const currentFont = typeof styles.fontFamily === 'string' ? styles.fontFamily : '';
   const [isCustomFont, setIsCustomFont] = useState(false);
   const [customFontText, setCustomFontText] = useState(currentFont);
@@ -193,7 +195,7 @@ export const TypographySectorControls: React.FC<TypographySectorControlsProps> =
             <optgroup label="System">
               {GOOGLE_FONTS.filter((f) => f.category === 'system').map((f) => (
                 <option key={f.label} value={f.value}>
-                  {f.label}
+                  {f.value === '' ? t.defaultFont : f.label}
                 </option>
               ))}
             </optgroup>

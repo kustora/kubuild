@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../../i18n';
 
 export const GRID_COLUMN_PRESETS = [2, 3, 4, 6, 12] as const;
 
@@ -42,6 +43,7 @@ export const GridControls: React.FC<GridControlsProps> = ({
   disabled = false,
   className = '',
 }) => {
+  const { t } = useTranslation();
   const currentColumnsStr = String(styles.gridTemplateColumns ?? 'repeat(2, minmax(0, 1fr))');
   const [columnsInput, setColumnsInput] = useState(currentColumnsStr);
   const currentColumnsCount = parseGridColumns(styles.gridTemplateColumns);
@@ -153,7 +155,9 @@ export const GridControls: React.FC<GridControlsProps> = ({
       {/* Row Gap and Column Gap Inputs */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-[11px] font-medium text-slate-600 mb-1">Row Gap</label>
+          <label className="block text-[11px] font-medium text-slate-600 mb-1">
+            {t.rowGap}
+          </label>
           <input
             type="text"
             data-testid="grid-row-gap"
@@ -165,7 +169,9 @@ export const GridControls: React.FC<GridControlsProps> = ({
           />
         </div>
         <div>
-          <label className="block text-[11px] font-medium text-slate-600 mb-1">Column Gap</label>
+          <label className="block text-[11px] font-medium text-slate-600 mb-1">
+            {t.columnGap}
+          </label>
           <input
             type="text"
             data-testid="grid-col-gap"

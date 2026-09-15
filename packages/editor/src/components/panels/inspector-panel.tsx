@@ -17,6 +17,8 @@ import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles }
 
 import { StyleSectorId } from '../style-manager/style-manager-accordion';
 import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config';
+import { useTranslation } from '../../i18n';
+import { LanguageSwitcher } from '../ui/language-switcher';
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
@@ -519,15 +521,27 @@ const SpacingControl: React.FC<SpacingControlProps> = ({
  * Amber warning badge shown above the style manager while editing a
  * non-default pseudo-state layer (e.g. `:hover`) — STORA-223.
  */
-export const StateEditingBadge: React.FC<{ state: string }> = ({ state }) => (
-  <div
-    data-testid="state-editing-badge"
-    className="flex items-center gap-1.5 mb-2 px-2 py-1.5 rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs font-medium"
-  >
-    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" aria-hidden="true" />
-    <span>Editing {state} State</span>
-  </div>
-);
+export const StateEditingBadge: React.FC<{ state: string }> = ({ state }) => {
+  const { t } = useTranslation();
+  const friendly =
+    state === ':hover'
+      ? t.hover
+      : state === ':active'
+      ? t.pressed
+      : state === ':focus'
+      ? t.focused
+      : state;
+
+  return (
+    <div
+      data-testid="state-editing-badge"
+      className="flex items-center gap-1.5 mb-2 px-2 py-1.5 rounded bg-amber-50 border border-amber-300 text-amber-800 text-xs font-medium"
+    >
+      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" aria-hidden="true" />
+      <span>{t.editingStateBadge(friendly, state)}</span>
+    </div>
+  );
+};
 
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   registry,
@@ -566,6 +580,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const showStyles = config?.showStyles !== false;
   const showStateSelector = config?.showStateSelector !== false;
   const allowedStyleSectors = config?.allowedStyleSectors;
+
+  const { t } = useTranslation();
 
   const initialTab = !showStyles && showTraits ? 'traits' : 'style';
 
@@ -646,11 +662,20 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             }}
             className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
-            {(field.options ?? []).map((opt) => (
-              <option key={String(opt.value)} value={String(opt.value)}>
-                {opt.label}
-              </option>
-            ))}
+            {(field.options ?? []).map((opt) => {
+              let optLabel = opt.label;
+              if (definition?.type === 'heading' && field.name === 'level') {
+                const lvlKey = `h${opt.value}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+                if (t[lvlKey]) {
+                  optLabel = t[lvlKey];
+                }
+              }
+              return (
+                <option key={String(opt.value)} value={String(opt.value)}>
+                  {optLabel}
+                </option>
+              );
+            })}
           </select>
         );
       case 'color':
@@ -825,32 +850,41 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         />
       )}
       {/* Tab bar: Style / Traits — STORA-211 */}
-      {showStyles && showTraits && (
-        <div className="flex shrink-0 border-b border-slate-200 bg-slate-50">
-          <button
-            type="button"
-            onClick={() => setActiveTab('style')}
-            className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
-              activeTab === 'style'
-                ? 'text-blue-600 border-blue-600 bg-white'
-                : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <Palette className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Style</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('traits')}
-            className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
-              activeTab === 'traits'
-                ? 'text-blue-600 border-blue-600 bg-white'
-                : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Traits</span>
-          </button>
+      {showStyles && showTraits ? (
+        <div className="flex shrink-0 border-b border-slate-200 bg-slate-50 items-center justify-between">
+          <div className="flex flex-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('style')}
+              className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
+                activeTab === 'style'
+                  ? 'text-blue-600 border-blue-600 bg-white'
+                  : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>{t.styleTab}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('traits')}
+              className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
+                activeTab === 'traits'
+                  ? 'text-blue-600 border-blue-600 bg-white'
+                  : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <Settings className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>{t.settingsTab}</span>
+            </button>
+          </div>
+          <div className="px-2">
+            <LanguageSwitcher />
+          </div>
+        </div>
+      ) : (
+        <div className="flex shrink-0 justify-end border-b border-slate-200 bg-slate-50 px-3 py-1.5">
+          <LanguageSwitcher />
         </div>
       )}
 
@@ -1131,15 +1165,21 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           {showProps && (
             <div>
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                {definition.label} Props
+                {definition.type === 'heading'
+                  ? t.textSettings
+                  : t.componentSettings(definition.label)}
               </div>
               <div className="flex flex-col gap-3">
                 {(definition.propFields ?? []).map((field) => {
                   const currentValue = node.props?.[field.name];
                   const bound = isVariableBinding(currentValue);
+                  const fieldLabel =
+                    definition.type === 'heading' && field.name === 'level'
+                      ? t.titleSize
+                      : field.label;
                   return (
                     <div key={field.name}>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">{field.label}</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">{fieldLabel}</label>
                       {!bound && renderPropControl(field)}
                       {isBindableField(field) && (
                         <VariableBindingControl
@@ -1169,7 +1209,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     htmlFor="style-state-selector"
                     className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0"
                   >
-                    State
+                    {t.stateLabel}
                   </label>
                   <select
                     id="style-state-selector"
@@ -1181,10 +1221,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                         : 'bg-white text-slate-900 border-slate-300 hover:border-slate-400 focus:ring-blue-500 focus:border-blue-500 shadow-xs'
                     }`}
                   >
-                    <option value="default">Default</option>
-                    <option value=":hover">:hover</option>
-                    <option value=":active">:active</option>
-                    <option value=":focus">:focus</option>
+                    <option value="default">{t.normal}</option>
+                    <option value=":hover">{t.hover}</option>
+                    <option value=":active">{t.pressed}</option>
+                    <option value=":focus">{t.focused}</option>
                   </select>
                 </div>
               )}
