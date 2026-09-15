@@ -1,4 +1,5 @@
 import type { KubuildAiEngine } from './engine';
+import type { KubuildAiAgent } from './agent';
 import type { PageDocument } from '@kubuild/schema';
 import type {
   AiGeneratePageRequest,
@@ -7,6 +8,7 @@ import type {
   AiChatMessage,
   AiGenerateResponse,
   AiGenerationMode,
+  AiStreamEvent,
 } from '../types';
 
 export interface AiApiRequestBody {
@@ -24,12 +26,16 @@ export interface AiApiRequestBody {
   messages?: AiChatMessage[];
   currentDocument?: PageDocument;
   selectedNodeId?: string;
+  /** Agent mode (STORA-530) — the snapshot the agent reads and patches. */
+  document?: PageDocument;
+  maxSteps?: number;
 }
 
 export async function processAiRequest(
   engine: KubuildAiEngine,
   body: unknown,
   signal?: AbortSignal,
+  agent?: KubuildAiAgent,
 ): Promise<{ status: number; response: AiGenerateResponse<unknown> }> {
   if (!body || typeof body !== 'object') {
     return {
@@ -158,22 +164,103 @@ export async function processAiRequest(
     };
   }
 
+  if (mode === 'agent') {
+    const validationError = validateAgentPayload(payload, agent);
+    if (validationError) {
+      return { status: validationError.status, response: validationError.response };
+    }
+
+    const result = await agent!.execute(
+      {
+        messages: payload.messages!,
+        document: payload.document!,
+        selectedNodeId: payload.selectedNodeId,
+        stylePreference: payload.stylePreference,
+        maxSteps: payload.maxSteps,
+      },
+      { signal },
+    );
+
+    return {
+      status: result.stoppedBy === 'error' ? 500 : 200,
+      response: { success: result.stoppedBy !== 'error', data: result },
+    };
+  }
+
   return {
     status: 400,
     response: {
       success: false,
       error: {
         code: 'UNKNOWN_MODE',
-        message: `Unsupported mode: ${String(mode)}. Supported modes: 'full-page', 'section', 'refactor', 'chat'`,
+        message: `Unsupported mode: ${String(mode)}. Supported modes: 'full-page', 'section', 'refactor', 'chat', 'agent'`,
       },
     },
   };
 }
 
 /**
+ * Shared validation for agent-mode requests (STORA-530) — used by both the JSON and the
+ * SSE paths so they can never disagree about what a valid agent request looks like.
+ * Returns `null` when the payload is good.
+ */
+function validateAgentPayload(
+  payload: AiApiRequestBody,
+  agent?: KubuildAiAgent,
+): { status: number; response: AiGenerateResponse<never> } | null {
+  if (!agent) {
+    return {
+      status: 501,
+      response: {
+        success: false,
+        error: {
+          code: 'AGENT_NOT_CONFIGURED',
+          message:
+            'Agent mode is not enabled on this endpoint. Pass a KubuildAiAgent to createAiHandler to enable it.',
+        },
+      },
+    };
+  }
+
+  if (!payload.messages || !Array.isArray(payload.messages) || payload.messages.length === 0) {
+    return {
+      status: 400,
+      response: {
+        success: false,
+        error: {
+          code: 'INVALID_AGENT_PARAMS',
+          message: '"messages" array is required and must not be empty for agent mode',
+        },
+      },
+    };
+  }
+
+  if (!payload.document || !payload.document.document) {
+    return {
+      status: 400,
+      response: {
+        success: false,
+        error: {
+          code: 'INVALID_AGENT_PARAMS',
+          message: '"document" (the current PageDocument) is required for agent mode',
+        },
+      },
+    };
+  }
+
+  return null;
+}
+
+/**
  * Options for {@link createAiHandler} (STORA-519).
  */
 export interface CreateAiHandlerOptions {
+  /**
+   * Enables agent mode (STORA-530) on this endpoint. Without it, `mode: 'agent'` requests
+   * are answered with a 501 rather than silently falling back to chat.
+   */
+  agent?: KubuildAiAgent;
+
   /**
    * Optional hook invoked with the raw incoming `Request` before it ever reaches the
    * engine/provider — the place to plug in host-owned auth and/or rate-limiting without
@@ -188,6 +275,50 @@ export interface CreateAiHandlerOptions {
    * Omitting this option entirely preserves the exact pre-STORA-519 behavior.
    */
   beforeRequest?: (request: Request) => Promise<Response | void> | Response | void;
+}
+
+/**
+ * Pipes an `AiStreamEvent` iterable out as an SSE response (STORA-530).
+ *
+ * All three streaming modes (`streamPage`, `chatStream`, agent `run`) emit the same event
+ * shape over the same transport, so they share one encoder instead of three near-identical
+ * `ReadableStream` blocks. A throw mid-stream is delivered as a final `error` event rather
+ * than tearing down the connection, so the client can render it in place.
+ */
+function sseResponse(
+  events: AsyncIterable<AiStreamEvent>,
+  errorCode: string,
+): Response {
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const event of events) {
+          controller.enqueue(
+            encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
+          );
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        controller.enqueue(
+          encoder.encode(
+            `event: error\ndata: ${JSON.stringify({ type: 'error', error: { code: errorCode, message } })}\n\n`,
+          ),
+        );
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(readable, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    },
+  });
 }
 
 /**
@@ -247,6 +378,32 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
       if (body && typeof body === 'object' && body.stream === true) {
         const mode = body.mode || 'full-page';
 
+        // Agent streaming (STORA-530) — emits agent-step/tool-call/tool-result events as
+        // the loop runs, then a terminal agent-complete carrying the ops to replay.
+        if (mode === 'agent') {
+          const validationError = validateAgentPayload(body, options?.agent);
+          if (validationError) {
+            return new Response(JSON.stringify(validationError.response), {
+              status: validationError.status,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+
+          return sseResponse(
+            options!.agent!.run(
+              {
+                messages: body.messages!,
+                document: body.document!,
+                selectedNodeId: body.selectedNodeId,
+                stylePreference: body.stylePreference,
+                maxSteps: body.maxSteps,
+              },
+              { signal: request.signal },
+            ),
+            'AGENT_STREAM_ERROR',
+          );
+        }
+
         // Token-level chat streaming (STORA-515) — routed separately from full-page
         // streaming below since it needs `messages`, not `prompt`.
         if (mode === 'chat') {
@@ -266,43 +423,17 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
             );
           }
 
-          const encoder = new TextEncoder();
-          const readable = new ReadableStream({
-            async start(controller) {
-              try {
-                for await (const event of engine.chatStream(
-                  {
-                    messages: body.messages!,
-                    currentDocument: body.currentDocument,
-                    selectedNodeId: body.selectedNodeId,
-                  },
-                  { signal: request.signal },
-                )) {
-                  controller.enqueue(
-                    encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
-                  );
-                }
-              } catch (err: unknown) {
-                const message = err instanceof Error ? err.message : String(err);
-                controller.enqueue(
-                  encoder.encode(
-                    `event: error\ndata: ${JSON.stringify({ type: 'error', error: { code: 'CHAT_STREAM_ERROR', message } })}\n\n`,
-                  ),
-                );
-              } finally {
-                controller.close();
-              }
-            },
-          });
-
-          return new Response(readable, {
-            status: 200,
-            headers: {
-              'Content-Type': 'text/event-stream',
-              'Cache-Control': 'no-cache, no-transform',
-              Connection: 'keep-alive',
-            },
-          });
+          return sseResponse(
+            engine.chatStream(
+              {
+                messages: body.messages!,
+                currentDocument: body.currentDocument,
+                selectedNodeId: body.selectedNodeId,
+              },
+              { signal: request.signal },
+            ),
+            'CHAT_STREAM_ERROR',
+          );
         }
 
         if (!body.prompt || typeof body.prompt !== 'string') {
@@ -321,45 +452,19 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
           );
         }
 
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const event of engine.streamPage(
-                {
-                  prompt: body.prompt!,
-                  stylePreference: body.stylePreference,
-                  tone: body.tone,
-                  locale: body.locale,
-                  metadata: body.metadata,
-                },
-                { signal: request.signal },
-              )) {
-                controller.enqueue(
-                  encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
-                );
-              }
-            } catch (err: unknown) {
-              const message = err instanceof Error ? err.message : String(err);
-              controller.enqueue(
-                encoder.encode(
-                  `event: error\ndata: ${JSON.stringify({ type: 'error', error: { code: 'STREAM_ERROR', message } })}\n\n`,
-                ),
-              );
-            } finally {
-              controller.close();
-            }
-          },
-        });
-
-        return new Response(readable, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache, no-transform',
-            Connection: 'keep-alive',
-          },
-        });
+        return sseResponse(
+          engine.streamPage(
+            {
+              prompt: body.prompt!,
+              stylePreference: body.stylePreference,
+              tone: body.tone,
+              locale: body.locale,
+              metadata: body.metadata,
+            },
+            { signal: request.signal },
+          ),
+          'STREAM_ERROR',
+        );
       }
 
       // Default: Standard non-streaming JSON response (Backward-compatible)
@@ -367,6 +472,7 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
         engine,
         body,
         request.signal,
+        options?.agent,
       );
 
       return new Response(JSON.stringify(response), {

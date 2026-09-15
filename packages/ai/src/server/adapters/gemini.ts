@@ -4,6 +4,7 @@ import type {
   AiProviderGenerateResult,
 } from '../../types';
 import { readSseDataLines } from './stream-utils';
+import { getMessageText } from '../../core/messages';
 
 export interface GeminiAdapterOptions {
   apiKey: string;
@@ -37,7 +38,7 @@ export class GeminiAdapter implements AiProviderAdapter {
     return chatMessages && chatMessages.length > 0
       ? chatMessages.map((m) => ({
           role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
+          parts: [{ text: getMessageText(m) }],
         }))
       : [
           {

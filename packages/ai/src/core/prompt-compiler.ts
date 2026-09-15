@@ -1,3 +1,4 @@
+import type { PageDocument } from '@kubuild/schema';
 import type {
   AiCompiledComponentSpec,
   AiCompiledComponentProp,
@@ -5,6 +6,11 @@ import type {
   ComponentDefinitionLike,
   AiGenerationMode,
 } from '../types';
+import {
+  buildSelectionContext,
+  formatSelectionContext,
+  summarizeDocument,
+} from './document-outline';
 
 export function compileComponentCatalog(
   registry?: ComponentRegistryLike,
@@ -208,4 +214,129 @@ export function buildJsonSchemaForMode(mode: AiGenerationMode): Record<string, u
   }
 
   return nodeSchema;
+}
+
+
+/**
+ * Renders the component catalog as the compact reference block shared by every prompt.
+ * Extracted from `buildSystemPrompt` so the agent prompt (STORA-530) reuses the exact
+ * same catalog rendering instead of drifting into a second format.
+ */
+export function formatComponentCatalog(catalog: AiCompiledComponentSpec[]): string {
+  return catalog
+    .map((c) => {
+      let desc = `- **${c.type}** (${c.category}): ${c.label}`;
+      if (c.description) desc += ` - ${c.description}`;
+      desc += ` | acceptsChildren: ${c.acceptsChildren}`;
+      if (c.allowedChildren && c.allowedChildren.length > 0) {
+        desc += ` | allowedChildren: [${c.allowedChildren.join(', ')}]`;
+      }
+      if (c.props && c.props.length > 0) {
+        const propList = c.props
+          .map((p) => {
+            let pStr = `${p.name} (${p.type})`;
+            if (p.options) pStr += `[${p.options.map(String).join('|')}]`;
+            return pStr;
+          })
+          .join(', ');
+        desc += ` | props: { ${propList} }`;
+      }
+      return desc;
+    })
+    .join('\n');
+}
+
+export interface BuildAgentSystemPromptOptions {
+  catalog: AiCompiledComponentSpec[];
+  document: PageDocument;
+  selectedNodeId?: string;
+  prefix?: string;
+  stylePreference?: string;
+  /** Extra host/product context appended verbatim. */
+  additionalContext?: string;
+}
+
+const AGENT_INSTRUCTIONS = `You are the KUBUILD page-editing agent. You edit an existing page by calling tools — you never output page JSON directly.
+
+### HOW YOU WORK
+1. The page outline below is your map. It shows every node's id, type and label, but not its props or styles.
+2. To see a node's actual props/styles, call read_node. To locate nodes by type or text, call find_nodes. Never guess a node id — every id you pass must come from the outline or from a tool result.
+3. Make the change with the smallest tool that expresses it, then stop and summarize what you changed, in the user's language.
+
+### SURGICAL EDIT RULE (the most important rule)
+Change only what the user asked for.
+- Changing text/label/href/src -> update_node_props on that one node.
+- Changing color/spacing/size/alignment -> update_node_styles on that one node.
+- Adding something new -> insert_component (a single element) or insert_section (a whole new section).
+- replace_node is a last resort, only when a node's children genuinely must be restructured. Never use it to change a prop or a style.
+- Never rebuild a section, and never touch nodes the user did not ask about. If an instruction is ambiguous about scope, edit the narrowest node that satisfies it and say so in your summary.
+
+### DESTRUCTIVE ACTIONS
+delete_node and replace_node destroy user content. Only call them when the user asked unambiguously (e.g. "hapus section harga"). If the request is broad or vague ("bersihkan halaman ini", "hapus yang tidak perlu"), do not call them — ask the user which nodes to remove instead.
+
+### STYLING RULES
+- styles values are CSS primitives (strings/numbers). Use breakpoint ('base' | 'desktop' | 'tablet' | 'mobile') for normal styling and state (':hover', ':focus', ':active') for interactive states. Never nest a pseudo-class inside a breakpoint layer.
+- Only use component types that exist in the catalog below, and respect acceptsChildren/allowedChildren.
+- Never emit scripts, javascript: URIs, or event-handler attributes.
+
+### WHEN A TOOL FAILS
+A tool result with "ok": false means your input was wrong (unknown node id, invalid type, disallowed nesting). Read the error, fix your arguments, and retry — do not repeat the identical call, and do not give up silently.`;
+
+/**
+ * System prompt for agent mode (STORA-530).
+ *
+ * Deliberately different from `buildSystemPrompt`: the agent does NOT emit document JSON.
+ * It reads the page through tools and edits through tools, so the prompt's job is to
+ * establish (a) the outline as the shared map, (b) the selection as the default target,
+ * and (c) the surgical-edit discipline — the whole point of the feature is that asking to
+ * recolor one button must not regenerate its section.
+ *
+ * The catalog goes before the volatile per-turn context so the stable prefix stays
+ * prompt-cacheable across the steps of a run.
+ */
+export function buildAgentSystemPrompt(options: BuildAgentSystemPromptOptions): string {
+  const { catalog, document, selectedNodeId, prefix, stylePreference, additionalContext } = options;
+
+  const selection = selectedNodeId
+    ? buildSelectionContext(document.document, selectedNodeId)
+    : null;
+
+  const sections: string[] = [];
+
+  if (prefix) sections.push(prefix);
+
+  sections.push(AGENT_INSTRUCTIONS);
+
+  sections.push(
+    `### REGISTERED COMPONENT CATALOG\n${
+      formatComponentCatalog(catalog) ||
+      '(Standard core components: page, section, container, columns, heading, paragraph, text, button, input, textarea, select, image, video, icon, badge, code-block)'
+    }`,
+  );
+
+  sections.push(`### CURRENT PAGE\n${summarizeDocument(document, { focusNodeId: selectedNodeId })}`);
+
+  if (selection) {
+    sections.push(formatSelectionContext(selection));
+  } else if (selectedNodeId) {
+    sections.push(
+      `### Selection\nThe editor reported node "${selectedNodeId}" as selected, but it is not present in the current page. Ignore it and ask the user what to target.`,
+    );
+  } else {
+    sections.push(
+      '### Selection\nNo component is selected on the canvas. If the user says "this", ask which component they mean instead of guessing.',
+    );
+  }
+
+  if (stylePreference) {
+    sections.push(
+      `### Style Preference\n"${stylePreference}" — follow this aesthetic for anything you create or restyle.`,
+    );
+  }
+
+  if (additionalContext) {
+    sections.push(`### Additional Context\n${additionalContext}`);
+  }
+
+  return sections.join('\n\n');
 }

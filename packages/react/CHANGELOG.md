@@ -1,5 +1,35 @@
 # @kubuild/react
 
+## 0.4.0
+
+### Minor Changes
+
+- Add agent mode: tool-calling AI that edits only the nodes it needs to (STORA-530).
+
+  **`@kubuild/ai`**
+  - `AiProviderAdapter` now supports tool calling: `tools`/`toolChoice` on `AiProviderGenerateParams`, `toolCalls`/`stopReason` on `AiProviderGenerateResult`, and a `supportsTools` capability flag. `AiChatMessage.content` widens from `string` to `string | AiContentBlock[]` so a conversation can carry `tool_use`/`tool_result` blocks — existing string call sites are unaffected, and `getMessageText()` is exported for anything that needs to flatten a message back to text.
+  - `OpenAiAdapter` implements tool calling in both `generate()` and `generateStream()` (fragmented `tool_calls` argument deltas are accumulated per index).
+  - New `KubuildAiAgent`: a multi-step loop that reads the page through tools and returns a list of surgical `AgentOp`s instead of a regenerated document. Guarded by `maxSteps`, a per-step tool-call cap, and abort signals.
+  - New document tool set (`createDocumentTools`): `get_page_outline`, `read_node`, `find_nodes`, `list_component_types`, `update_node_props`, `update_node_styles`, `insert_component`, `insert_section`, `move_node`, `duplicate_node`, `delete_node`, `replace_node`. Every write validates node ids, component types and nesting rules against the snapshot, and re-runs `validateDocumentSecurity` before its op is accepted; failures come back to the model as `tool_result` errors so it self-corrects.
+  - New `summarizeDocument`/`buildSelectionContext`/`buildAgentSystemPrompt`: the agent is grounded in a compact page outline plus the full selected node, its ancestors and its siblings — previously only a depth-1 section summary and a bare `selectedNodeId` were sent.
+  - `createAiHandler(engine, { agent })` serves `mode: 'agent'` over both JSON and SSE; new `agent-step`/`tool-call`/`tool-result`/`agent-complete` stream events, plus `KubuildAiClient.runAgent()` and the `useAiAgent()` React hook.
+
+  **`@kubuild/editor`**
+  - New `applyAgentOps`: replays an agent run through the same store actions manual editing uses, batched into one history transaction — a whole agent turn is a single undo.
+  - The AI panel gains an Agent action with a live tool-call timeline, an op-by-op review with Apply/Discard, and an opt-in auto-apply that never covers destructive ops.
+  - New `AiEditorConfig.features.agent` flag (defaults to `false`, like every other AI feature).
+  - New `insertNodeTree` store action for inserting an already-built subtree; `duplicateComponent` accepts an optional destination parent/index.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/ai@0.4.0
+  - @kubuild/editor@0.4.0
+  - @kubuild/components@0.4.0
+  - @kubuild/core@0.4.0
+  - @kubuild/renderer@0.4.0
+  - @kubuild/schema@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes

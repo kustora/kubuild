@@ -1,5 +1,7 @@
 import type { PageDocument, Node } from '@kubuild/schema';
 import type {
+  AiAgentRequest,
+  AiAgentRunResult,
   AiGeneratePageRequest,
   AiGenerateSectionRequest,
   AiRefactorNodeRequest,
@@ -17,12 +19,20 @@ export interface AiClientOptions {
     | Record<string, string>
     | (() => Promise<Record<string, string>> | Record<string, string>);
   fetch?: typeof fetch;
+  /**
+   * Forwarded to every request (STORA-530). Hosts whose AI endpoint authenticates with
+   * HttpOnly cookies rather than a bearer header need `'include'` here — cross-origin
+   * `fetch` omits cookies by default, so without it the proxy endpoint sees an
+   * unauthenticated request no matter what the browser has stored.
+   */
+  credentials?: RequestCredentials;
 }
 
 export class KubuildAiClient {
   private endpoint: string;
   private headers?: AiClientOptions['headers'];
   private fetchFn: typeof fetch;
+  private credentials?: RequestCredentials;
 
   constructor(options: AiClientOptions) {
     if (!options.endpoint) {
@@ -31,6 +41,7 @@ export class KubuildAiClient {
     this.endpoint = options.endpoint;
     this.headers = options.headers;
     this.fetchFn = options.fetch || globalThis.fetch.bind(globalThis);
+    this.credentials = options.credentials;
   }
 
   private async resolveHeaders(): Promise<Record<string, string>> {
@@ -54,6 +65,7 @@ export class KubuildAiClient {
         ...dynamicHeaders,
       },
       body: JSON.stringify(body),
+      credentials: this.credentials,
       signal,
     });
 
@@ -160,6 +172,7 @@ export class KubuildAiClient {
         stream: true,
         ...params,
       }),
+      credentials: this.credentials,
       signal: options?.signal,
     });
 
@@ -221,6 +234,7 @@ export class KubuildAiClient {
         stream: true,
         ...params,
       }),
+      credentials: this.credentials,
       signal: options?.signal,
     });
 
@@ -252,6 +266,78 @@ export class KubuildAiClient {
     }
 
     return finalMessage;
+  }
+
+  /**
+   * Runs an agent turn over SSE (STORA-530).
+   *
+   * Streams the agent's progress — each reasoning step, each tool call and its result —
+   * through `callbacks`, and resolves with the run's `AiAgentRunResult`. The resolved value
+   * carries the `ops` the editor replays; nothing is applied to any document by this call.
+   * Reuses the same `consumeSse` transport as `streamPage`/`chatStream`.
+   */
+  async runAgent(
+    params: AiAgentRequest,
+    callbacks?: Pick<
+      AiStreamCallbacks,
+      'onAgentStep' | 'onToolCall' | 'onToolResult' | 'onAgentComplete' | 'onError'
+    >,
+    options?: { signal?: AbortSignal },
+  ): Promise<AiAgentRunResult> {
+    const dynamicHeaders = await this.resolveHeaders();
+
+    const res = await this.fetchFn(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...dynamicHeaders,
+      },
+      body: JSON.stringify({
+        mode: 'agent',
+        stream: true,
+        ...params,
+      }),
+      credentials: this.credentials,
+      signal: options?.signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      const err = new Error(`Agent run failed [${res.status} ${res.statusText}]: ${errText}`);
+      callbacks?.onError?.(err);
+      throw err;
+    }
+
+    let finalResult: AiAgentRunResult | null = null;
+    let streamError: Error | null = null;
+
+    await this.consumeSse(res, (event) => {
+      if (event.type === 'agent-step') {
+        callbacks?.onAgentStep?.(event.step, event.maxSteps);
+      } else if (event.type === 'tool-call') {
+        callbacks?.onToolCall?.({ id: event.id, name: event.name, input: event.input });
+      } else if (event.type === 'tool-result') {
+        callbacks?.onToolResult?.({
+          id: event.id,
+          name: event.name,
+          ok: event.ok,
+          summary: event.summary,
+        });
+      } else if (event.type === 'agent-complete') {
+        finalResult = event.result;
+        callbacks?.onAgentComplete?.(event.result);
+      } else if (event.type === 'error') {
+        // The agent emits `agent-complete` before `error`, so ops produced before a
+        // mid-run failure survive. Record the error instead of throwing out of the SSE
+        // reader, and let the terminal result (if any) decide what the caller sees.
+        streamError = new Error(event.error.message || 'Agent error');
+        (streamError as unknown as { code?: string }).code = event.error.code;
+        callbacks?.onError?.(streamError);
+      }
+    });
+
+    if (finalResult) return finalResult;
+    throw streamError ?? new Error('Agent stream ended without a result');
   }
 
   async generateSection(

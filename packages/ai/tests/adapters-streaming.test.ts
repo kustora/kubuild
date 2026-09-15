@@ -61,7 +61,10 @@ describe('Provider Adapter Streaming (STORA-515)', () => {
     );
 
     expect(chunks).toEqual(['Hel', 'lo']);
-    expect(result).toEqual({ text: 'Hello', usage: { promptTokens: 4, completionTokens: 2 } });
+    // `toolCalls` stays undefined and `stopReason` falls back to 'unknown' when the stream
+    // carries no tool_calls deltas and no finish_reason (STORA-530).
+    expect(result).toMatchObject({ text: 'Hello', usage: { promptTokens: 4, completionTokens: 2 } });
+    expect(result.toolCalls).toBeUndefined();
   });
 
   it('AnthropicAdapter.generateStream yields text_delta fragments and returns accumulated text + usage', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "@kubuild/components",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Component registry and base definitions for KUBUILD",
   "type": "module",
   "main": "./dist/index.cjs",

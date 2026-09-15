@@ -4,6 +4,7 @@ import type {
   AiProviderGenerateResult,
 } from '../../types';
 import { readSseDataLines } from './stream-utils';
+import { getMessageText } from '../../core/messages';
 
 export interface AnthropicAdapterOptions {
   apiKey: string;
@@ -45,7 +46,7 @@ export class AnthropicAdapter implements AiProviderAdapter {
     return chatMessages && chatMessages.length > 0
       ? chatMessages
           .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+          .map((m) => ({ role: m.role as 'user' | 'assistant', content: getMessageText(m) }))
       : [
           {
             role: 'user' as const,

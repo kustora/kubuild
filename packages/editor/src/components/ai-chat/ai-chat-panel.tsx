@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { PageDocument } from '@kubuild/schema';
 import { findNodeById, type Diagnostic } from '@kubuild/core';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
-import { useAiChat, useAiGenerator } from '@kubuild/ai/react';
+import { useAiChat, useAiGenerator, useAiAgent } from '@kubuild/ai/react';
 import type { AiChatHistoryStorageAdapter } from '@kubuild/ai/react';
-import type { AiChatMessage } from '@kubuild/ai';
+import { getMessageText, type AiChatMessage, type AgentOpRecord } from '@kubuild/ai';
 import type { AiClientOptions } from '@kubuild/ai/client';
 import { useEditorStore } from '../../store';
 import { ResolvedAiEditorConfig } from '../../config';
@@ -16,6 +16,7 @@ import {
   type EnhanceCandidate,
 } from '../../ai/enhance-node';
 import { runStreamPageGeneration, type StreamPageGenerationSummary } from '../../ai/generate-page';
+import { applyAgentOps, partitionAutoApplicableOps } from '../../ai/apply-agent-ops';
 import {
   Bot,
   User,
@@ -32,6 +33,7 @@ import {
   Check,
   LayoutTemplate,
   GripVertical,
+  CircleSlash,
 } from 'lucide-react';
 
 export interface AiChatPanelProps {
@@ -89,9 +91,13 @@ export interface AiChatPanelProps {
  */
 function resolveEndpointOptions(
   provider: ResolvedAiEditorConfig['provider'],
-): Pick<AiClientOptions, 'endpoint' | 'headers'> | null {
+): Pick<AiClientOptions, 'endpoint' | 'headers' | 'credentials'> | null {
   if (provider && typeof provider === 'object' && 'endpoint' in provider) {
-    return { endpoint: provider.endpoint, headers: provider.headers };
+    return {
+      endpoint: provider.endpoint,
+      headers: provider.headers,
+      credentials: provider.credentials,
+    };
   }
   return null;
 }
@@ -152,7 +158,7 @@ export function AiChatBubble({ message }: { message: AiChatMessage }) {
             : 'bg-slate-100 text-slate-800 rounded-bl-sm'
         }`}
       >
-        {message.content}
+        {getMessageText(message)}
       </div>
     </div>
   );
@@ -215,6 +221,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     updateNodeStyle,
     updateNodeStateStyle,
     replaceNodeSubtree,
+    insertNodeTree,
+    moveComponent,
+    deleteComponent,
+    duplicateComponent,
     beginHistoryTransaction,
     endHistoryTransaction,
     setAiGenerationStatus,
@@ -229,6 +239,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const { messages, sendMessage, isLoading, error, cancel } = useAiChat({
     endpoint: endpointOptions?.endpoint ?? PROVIDER_NOT_CONFIGURED_ENDPOINT,
     headers: endpointOptions?.headers,
+    credentials: endpointOptions?.credentials,
     initialMessages,
     historyStorage,
   });
@@ -249,9 +260,30 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   } = useAiGenerator({
     endpoint: endpointOptions?.endpoint ?? PROVIDER_NOT_CONFIGURED_ENDPOINT,
     headers: endpointOptions?.headers,
+    credentials: endpointOptions?.credentials,
   });
   const isEnhancing = isAiGeneratorBusy && !isStreaming;
   const isGeneratingPage = isStreaming;
+
+  // STORA-530 — agent mode: yet another distinct network boundary. Unlike chat (which only
+  // talks) and enhance (which rewrites one user-selected node), the agent decides for
+  // itself which nodes to touch and returns a list of ops — nothing is applied here.
+  const {
+    run: runAgent,
+    abort: abortAgent,
+    reset: resetAgent,
+    isRunning: isAgentRunning,
+    step: agentStep,
+    maxSteps: agentMaxSteps,
+    timeline: agentTimeline,
+    ops: agentOps,
+    summary: agentSummary,
+    error: agentHookError,
+  } = useAiAgent({
+    endpoint: endpointOptions?.endpoint ?? PROVIDER_NOT_CONFIGURED_ENDPOINT,
+    headers: endpointOptions?.headers,
+    credentials: endpointOptions?.credentials,
+  });
 
   const [inputValue, setInputValue] = useState('');
   const [contextDismissed, setContextDismissed] = useState(false);
@@ -265,6 +297,19 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   // STORA-513 — the validated enhance candidate awaiting Apply/Discard. Purely local
   // component state: nothing here has touched the document or the command engine yet.
   const [candidate, setCandidate] = useState<EnhanceCandidate | null>(null);
+  // STORA-530 — agent review state. `pendingOps` is what the user is being asked to accept;
+  // it is cleared on Apply/Discard. Like the enhance candidate, nothing here has touched
+  // the document yet.
+  const [pendingOps, setPendingOps] = useState<AgentOpRecord[] | null>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentApplied, setAgentApplied] = useState<string | null>(null);
+  const [lastAgentInstruction, setLastAgentInstruction] = useState('');
+  /**
+   * Auto-apply is opt-in and never covers destructive ops — see
+   * `partitionAutoApplicableOps`. Losing content to an agent that misread an instruction
+   * isn't something an undo prompt makes acceptable.
+   */
+  const [autoApply, setAutoApply] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -422,7 +467,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
   const handleRetry = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-    if (lastUser) doSend(lastUser.content);
+    if (lastUser) doSend(getMessageText(lastUser));
   };
 
   const handleRetryGenerate = () => {
@@ -559,6 +604,91 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   };
 
   /**
+   * STORA-530 — applies an agent run through the same store actions manual editing uses,
+   * batched into one history transaction so the whole turn is a single Ctrl+Z.
+   */
+  const applyOps = (ops: AgentOpRecord[]): boolean => {
+    const result = applyAgentOps(ops, {
+      updateNodeProps: (nodeId, props, merge) => updateNodeProps(nodeId, props, registry, merge),
+      updateNodeStyle: (nodeId, styles, breakpoint, merge) =>
+        updateNodeStyle(nodeId, styles, breakpoint, merge),
+      updateNodeStateStyle: (nodeId, styles, state, merge) =>
+        updateNodeStateStyle(nodeId, styles, state, merge),
+      insertNodeTree: (parentId, node, index) => insertNodeTree(parentId, node, index),
+      moveNode: (nodeId, targetParentId, index) =>
+        moveComponent(nodeId, targetParentId, registry, index),
+      deleteNode: (nodeId) => deleteComponent(nodeId),
+      duplicateNode: (nodeId, targetParentId, index) =>
+        duplicateComponent(nodeId, registry, targetParentId, index),
+      replaceNodeSubtree: (nodeId, node) => replaceNodeSubtree(nodeId, node, registry),
+      beginHistoryTransaction,
+      endHistoryTransaction,
+      getNode: (nodeId) => findNodeById(document.document, nodeId),
+    });
+
+    if (!result.success) {
+      setAgentError(result.error ?? 'Gagal menerapkan perubahan agent.');
+      return false;
+    }
+
+    setAgentApplied(`${result.appliedOpIds.length} perubahan diterapkan ke canvas.`);
+    setAgentError(null);
+    return true;
+  };
+
+  /**
+   * STORA-530 — the explicit "Agent" action. Like Enhance and Generate, it is never
+   * inferred from message text: the user opts into letting AI edit the page.
+   */
+  const handleRunAgent = async (overrideInstruction?: string) => {
+    const instruction = (overrideInstruction ?? inputValue).trim();
+    if (!instruction || isAgentRunning) return;
+
+    if (!endpointOptions) {
+      setAgentError(
+        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
+          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
+      );
+      return;
+    }
+
+    setLastAgentInstruction(instruction);
+    setAgentError(null);
+    setAgentApplied(null);
+    setPendingOps(null);
+    if (!overrideInstruction) setInputValue('');
+
+    const result = await runAgent({
+      instruction,
+      document,
+      selectedNodeId: contextDismissed ? undefined : (selectedNodeId ?? undefined),
+    });
+
+    if (!result || result.ops.length === 0) return;
+
+    if (!autoApply) {
+      setPendingOps(result.ops);
+      return;
+    }
+
+    const { autoApplicable, needsConfirmation } = partitionAutoApplicableOps(result.ops);
+    if (autoApplicable.length > 0) applyOps(autoApplicable);
+    // Destructive ops always stop for confirmation, even with auto-apply on.
+    setPendingOps(needsConfirmation.length > 0 ? needsConfirmation : null);
+  };
+
+  const handleApplyAgentOps = () => {
+    if (!pendingOps) return;
+    if (applyOps(pendingOps)) setPendingOps(null);
+  };
+
+  const handleDiscardAgentOps = () => {
+    setPendingOps(null);
+    setAgentError(null);
+    resetAgent();
+  };
+
+  /**
    * STORA-513 — Discard leaves zero trace: the candidate only ever lived in local state
    * (`candidate`), never dispatched to the store, so clearing it is the entire operation.
    */
@@ -677,6 +807,125 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           </div>
         )}
 
+        {/* STORA-530 — agent run timeline: one row per tool call, so the user can see
+            which nodes the agent actually touched while it is still working. */}
+        {(isAgentRunning || agentTimeline.length > 0) && (
+          <div
+            data-testid="ai-agent-timeline"
+            className="self-stretch flex flex-col gap-1.5 bg-white border border-violet-200 rounded-xl px-3 py-2.5"
+          >
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+                Agent
+              </span>
+              {isAgentRunning && (
+                <span className="flex items-center gap-1 text-[11px] font-normal text-violet-600">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  langkah {agentStep}/{agentMaxSteps}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+              {agentTimeline.map((entry) => (
+                <div
+                  key={entry.id}
+                  data-testid="ai-agent-timeline-entry"
+                  data-status={entry.status}
+                  className="text-[11px] flex items-start gap-1.5 bg-slate-50 border border-slate-200 rounded px-1.5 py-1"
+                >
+                  {entry.status === 'running' && (
+                    <Loader2 className="w-3 h-3 mt-0.5 shrink-0 animate-spin text-violet-600" />
+                  )}
+                  {entry.status === 'ok' && <Check className="w-3 h-3 mt-0.5 shrink-0 text-green-600" />}
+                  {entry.status === 'failed' && (
+                    <CircleSlash className="w-3 h-3 mt-0.5 shrink-0 text-amber-600" />
+                  )}
+                  <span className="break-words">
+                    <span className="font-mono text-slate-500">{entry.name}</span>
+                    {entry.summary ? <span className="text-slate-700"> — {entry.summary}</span> : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {agentSummary && !isAgentRunning && (
+              <p className="text-[11px] text-slate-600 whitespace-pre-wrap">{agentSummary}</p>
+            )}
+          </div>
+        )}
+
+        {(agentError || agentHookError) && (
+          <AiChatErrorBubble
+            message={agentError || agentHookError?.message || 'Agent gagal.'}
+            onRetry={() => void handleRunAgent(lastAgentInstruction)}
+          />
+        )}
+
+        {agentApplied && !pendingOps && (
+          <div
+            data-testid="ai-agent-applied"
+            className="self-start max-w-[90%] bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-3 py-2 text-xs flex items-center gap-1.5"
+          >
+            <Check className="w-3.5 h-3.5 shrink-0" />
+            <span>{agentApplied}</span>
+          </div>
+        )}
+
+        {/* STORA-530 — op review: each row is one surgical change awaiting Apply, with
+            destructive ops called out explicitly. */}
+        {pendingOps && pendingOps.length > 0 && (
+          <div
+            data-testid="ai-agent-ops-preview"
+            className="self-stretch flex flex-col gap-2 bg-white border border-violet-200 rounded-xl px-3 py-2.5 shadow-xs"
+          >
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+              <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+              <span>{pendingOps.length} perubahan siap diterapkan</span>
+            </div>
+
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto" data-testid="ai-agent-ops-list">
+              {pendingOps.map((record) => (
+                <div
+                  key={record.id}
+                  data-testid="ai-agent-op"
+                  data-destructive={record.destructive ? 'true' : 'false'}
+                  className={`text-[11px] rounded px-1.5 py-1 break-words border ${
+                    record.destructive
+                      ? 'bg-red-50 border-red-200 text-red-700'
+                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  {record.destructive && <AlertTriangle className="w-3 h-3 inline mr-1 -mt-0.5" />}
+                  {record.summary}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-1.5 justify-end pt-1">
+              <button
+                type="button"
+                data-testid="ai-agent-discard"
+                onClick={handleDiscardAgentOps}
+                className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Discard
+              </button>
+              <button
+                type="button"
+                data-testid="ai-agent-apply"
+                onClick={handleApplyAgentOps}
+                className="px-2.5 py-1 text-xs font-medium text-white bg-violet-600 hover:bg-violet-500 rounded-md transition flex items-center gap-1"
+              >
+                <Check className="w-3 h-3" />
+                Apply
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* STORA-513 — enhance diff preview: only props/styles/children fields that
             actually changed, never a full node dump, plus Apply/Discard. */}
         {candidate && (
@@ -764,6 +1013,21 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           </div>
         )}
 
+        {aiConfig.features.agent && (
+          <label
+            data-testid="ai-agent-auto-apply"
+            className="self-start flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer select-none"
+          >
+            <input
+              type="checkbox"
+              checked={autoApply}
+              onChange={(e) => setAutoApply(e.target.checked)}
+              className="accent-violet-600"
+            />
+            <span>Terapkan otomatis (kecuali penghapusan)</span>
+          </label>
+        )}
+
         <div className="flex items-center gap-1.5">
           <input
             ref={inputRef}
@@ -778,6 +1042,21 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               page via streamPage, distinct from Send (chat) for the same reason Enhance
               is distinct from Send — no free-text intent inference. Available regardless
               of selection (unlike Enhance, which requires an attached node). */}
+          {/* STORA-530 — explicit Agent action, distinct from Send/Enhance/Generate for
+              the same reason those are distinct from each other: letting AI edit the page
+              is always an opt-in, never inferred from the message text. */}
+          {aiConfig.features.agent && (
+            <button
+              type="button"
+              data-testid="ai-chat-agent"
+              title="Minta agent mengubah halaman ini"
+              onClick={() => void handleRunAgent()}
+              disabled={!inputValue.trim() || isAgentRunning || isLoading || isAiGeneratorBusy}
+              className="p-1.5 rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100 border border-violet-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
+          )}
           {aiConfig.features.generate && (
             <button
               type="button"
@@ -805,11 +1084,11 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               <Wand2 className="w-3.5 h-3.5" />
             </button>
           )}
-          {isLoading || isGeneratingPage ? (
+          {isLoading || isGeneratingPage || isAgentRunning ? (
             <button
               type="button"
               data-testid="ai-chat-cancel"
-              onClick={isGeneratingPage ? cancelGenerator : cancel}
+              onClick={isAgentRunning ? abortAgent : isGeneratingPage ? cancelGenerator : cancel}
               title="Stop"
               className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition"
             >

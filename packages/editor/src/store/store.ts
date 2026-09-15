@@ -334,6 +334,13 @@ export interface EditorState {
     parentId?: string,
     index?: number,
   ) => InsertComponentResult;
+  /**
+   * Inserts an already-built node subtree (STORA-530). `insertComponent` builds a node from
+   * a registry type and `insertBlock` from a starter block; agent ops instead arrive with
+   * the complete node already authored and validated server-side, so they need a direct
+   * path into the same `insertNode` command.
+   */
+  insertNodeTree: (parentId: string, node: Node, index?: number) => InsertComponentResult;
   moveComponent: (
     nodeId: string,
     targetParentId: string,
@@ -342,7 +349,13 @@ export interface EditorState {
   ) => MoveComponentResult;
   moveComponentUp: (nodeId: string, registry?: ComponentRegistry) => MoveComponentResult;
   moveComponentDown: (nodeId: string, registry?: ComponentRegistry) => MoveComponentResult;
-  duplicateComponent: (nodeId: string, registry: ComponentRegistry) => DuplicateComponentResult;
+  duplicateComponent: (
+    nodeId: string,
+    registry: ComponentRegistry,
+    /** Optional destination (STORA-530) — defaults to the original node's own parent. */
+    targetParentId?: string,
+    index?: number,
+  ) => DuplicateComponentResult;
   deleteComponent: (nodeId: string) => DeleteComponentResult;
   updateNodeProps: (
     nodeId: string,
@@ -982,6 +995,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  insertNodeTree: (parentId, node, index) => {
+    const state = get();
+
+    if (!findNodeById(state.document.document, parentId)) {
+      return { success: false, error: `Parent node "${parentId}" was not found in the document.` };
+    }
+
+    try {
+      get().dispatch((doc) => insertNode(doc, { parentId, node, index }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true, nodeId: node.id };
+  },
+
   moveComponent: (nodeId, targetParentId, registry, index) => {
     const state = get();
 
@@ -1052,7 +1081,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return get().moveComponent(nodeId, loc.parent.id, registry, loc.index + 2);
   },
 
-  duplicateComponent: (nodeId, _registry) => {
+  duplicateComponent: (nodeId, _registry, targetParentId, index) => {
     const state = get();
 
     if (nodeId === state.document.document.id) {
@@ -1067,7 +1096,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     let newNodeId: string | undefined;
     try {
       get().dispatch((doc) => {
-        const result = duplicateNode(doc, { nodeId });
+        const result = duplicateNode(doc, { nodeId, targetParentId, index });
         newNodeId = result.event.nodeId;
         return result;
       });

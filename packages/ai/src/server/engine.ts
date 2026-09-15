@@ -16,6 +16,7 @@ import {
   buildSystemPrompt,
   buildJsonSchemaForMode,
 } from '../core/prompt-compiler';
+import { getMessageText } from '../core/messages';
 import {
   extractJsonFromResponse,
   normalizeAndValidatePageDocument,
@@ -502,7 +503,7 @@ ${sectionSummary || '(Canvas is currently empty)'}
 
     // Extract last user message
     const lastUserMsg = [...request.messages].reverse().find((m) => m.role === 'user');
-    const userPrompt = lastUserMsg?.content || 'Hello';
+    const userPrompt = lastUserMsg ? getMessageText(lastUserMsg) || 'Hello' : 'Hello';
 
     return { systemPrompt, userPrompt };
   }

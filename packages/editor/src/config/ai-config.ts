@@ -10,12 +10,29 @@ import type { AiProviderAdapter } from '@kubuild/ai';
  */
 export interface AiEditorConfig {
   /** Adapter provider AI, or an HTTP endpoint pointing at the host's own `createAiHandler`. */
-  provider: AiProviderAdapter | { endpoint: string; headers?: Record<string, string> };
+  provider:
+    | AiProviderAdapter
+    | {
+        endpoint: string;
+        headers?: Record<string, string>;
+        /**
+         * Forwarded to the underlying `fetch` (STORA-530). Set `'include'` when the
+         * endpoint authenticates with HttpOnly cookies — cross-origin requests drop
+         * cookies otherwise.
+         */
+        credentials?: RequestCredentials;
+      };
   /** Per-capability feature flags. All default to `false` when `ai` config is not provided. */
   features?: {
     chat?: boolean;
     generate?: boolean;
     enhance?: boolean;
+    /**
+     * Agent mode (STORA-530) — a multi-step assistant that reads the page through tools
+     * and edits only the nodes it needs to, instead of regenerating whole sections. Needs
+     * a backend endpoint whose `createAiHandler` was given a `KubuildAiAgent`.
+     */
+    agent?: boolean;
   };
   /** Default panel mode when the editor first mounts. Default: `'hidden'`. */
   defaultPanelMode?: 'docked' | 'floating' | 'hidden';
@@ -25,11 +42,15 @@ export interface AiEditorConfig {
 
 export interface ResolvedAiEditorConfig {
   enabled: boolean;
-  provider: AiProviderAdapter | { endpoint: string; headers?: Record<string, string> } | null;
+  provider:
+    | AiProviderAdapter
+    | { endpoint: string; headers?: Record<string, string>; credentials?: RequestCredentials }
+    | null;
   features: {
     chat: boolean;
     generate: boolean;
     enhance: boolean;
+    agent: boolean;
   };
   defaultPanelMode: 'docked' | 'floating' | 'hidden';
   systemPromptPrefix?: string;
@@ -50,6 +71,7 @@ export function resolveAiEditorConfig(config?: AiEditorConfig): ResolvedAiEditor
         chat: false,
         generate: false,
         enhance: false,
+        agent: false,
       },
       defaultPanelMode: 'hidden',
       systemPromptPrefix: undefined,
@@ -65,6 +87,7 @@ export function resolveAiEditorConfig(config?: AiEditorConfig): ResolvedAiEditor
       chat: featuresCfg.chat ?? false,
       generate: featuresCfg.generate ?? false,
       enhance: featuresCfg.enhance ?? false,
+      agent: featuresCfg.agent ?? false,
     },
     defaultPanelMode: config.defaultPanelMode ?? 'hidden',
     systemPromptPrefix: config.systemPromptPrefix,
@@ -80,7 +103,10 @@ export function resolveAiEditorConfig(config?: AiEditorConfig): ResolvedAiEditor
 export function isAnyAiFeatureEnabled(resolved: ResolvedAiEditorConfig): boolean {
   return (
     resolved.enabled &&
-    (resolved.features.chat || resolved.features.generate || resolved.features.enhance)
+    (resolved.features.chat ||
+      resolved.features.generate ||
+      resolved.features.enhance ||
+      resolved.features.agent)
   );
 }
 

@@ -1,5 +1,14 @@
 # @kubuild/renderer
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/components@0.4.0
+  - @kubuild/core@0.4.0
+  - @kubuild/schema@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes
