@@ -148,6 +148,14 @@ export interface StyleDefinition extends Record<string, StyleValue> {
   filter?: string;
   boxShadow?: string;
 
+  // Background & Image Styling
+  backgroundColor?: string;
+  backgroundImage?: string;
+  backgroundSize?: 'cover' | 'contain' | 'auto' | (string & {});
+  backgroundPosition?: string;
+  backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y' | (string & {});
+  backgroundAttachment?: 'scroll' | 'fixed' | 'local' | (string & {});
+
   // CSS Grid (STORA-110)
   gridTemplateColumns?: string;
   gridTemplateRows?: string;

@@ -262,6 +262,30 @@ describe('CSS Grid, Auto Layout Flex, Sizing, and Effect Styles Resolution', () 
     expect(radialStyles.backgroundImage).toBe('radial-gradient(circle at center, #ff0000 0%, #0000ff 100%)');
   });
 
+  it('normalizes raw image URLs into valid CSS url() in backgroundImage', () => {
+    const rawUrlStyles = resolveNodeStyles({
+      base: {
+        backgroundImage: 'https://example.com/hero.jpg',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      },
+    });
+    expect(rawUrlStyles.backgroundImage).toBe('url("https://example.com/hero.jpg")');
+    expect(rawUrlStyles.backgroundSize).toBe('cover');
+    expect(rawUrlStyles.backgroundPosition).toBe('center');
+    expect(rawUrlStyles.backgroundRepeat).toBe('no-repeat');
+    expect(rawUrlStyles.backgroundAttachment).toBe('fixed');
+
+    const alreadyWrappedStyles = resolveNodeStyles({
+      base: {
+        backgroundImage: 'url("https://example.com/banner.png")',
+      },
+    });
+    expect(alreadyWrappedStyles.backgroundImage).toBe('url("https://example.com/banner.png")');
+  });
+
   it('compiles normalized styles into CSS declarations via styleDefinitionToCssDeclarations', () => {
     const css = styleDefinitionToCssDeclarations({
       colSpan: 2,

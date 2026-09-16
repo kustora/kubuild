@@ -8,6 +8,7 @@ import { MotionSectorControls } from './motion-sector-controls';
 import { AutoLayoutControls } from './auto-layout-controls';
 import { GridControls, GridItemControls } from './grid-controls';
 import { EffectsSectorControls } from './effects-sector-controls';
+import { BackgroundImageControls } from './background-image-controls';
 import { ColorGradientPicker } from './color-gradient-picker';
 import { DesignTokensPanel } from './design-tokens-panel';
 import { InheritanceIndicator, InheritanceSummaryBar } from './inheritance-indicator';
@@ -77,6 +78,10 @@ export const STYLE_SECTORS: StyleSectorDefinition[] = [
     properties: [
       'backgroundColor',
       'backgroundImage',
+      'backgroundSize',
+      'backgroundPosition',
+      'backgroundRepeat',
+      'backgroundAttachment',
       'borderStyle',
       'borderWidth',
       'borderColor',
@@ -603,16 +608,26 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                           Background Color & Gradient
                         </label>
                         <ColorGradientPicker
-                          value={String(styles.backgroundImage || styles.backgroundColor || '#ffffff')}
+                          value={String(
+                            (typeof styles.backgroundImage === 'string' && styles.backgroundImage.includes('gradient')
+                              ? styles.backgroundImage
+                              : styles.backgroundColor) || '#ffffff'
+                          )}
                           onChange={(val) => {
                             if (val.includes('gradient')) {
                               onCommitStyle('backgroundImage', val);
                             } else {
                               onCommitStyle('backgroundColor', val);
+                              if (typeof styles.backgroundImage === 'string' && styles.backgroundImage.includes('gradient')) {
+                                onCommitStyle('backgroundImage', '');
+                              }
                             }
                           }}
                         />
                       </div>
+
+                      {/* Background Image Controls */}
+                      <BackgroundImageControls styles={styles} onChange={onCommitStyle} />
 
                       {/* Border Style and Border Color */}
                       <div className="grid grid-cols-2 gap-2">

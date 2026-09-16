@@ -104,13 +104,31 @@ export function normalizeStyleObject(
     style.WebkitBackdropFilter = style.backdropFilter;
   }
 
-  // 6. Linear and radial gradients
+  // 6. Linear and radial gradients & background image normalization
   if (style.gradient && typeof style.gradient === 'string') {
     style.backgroundImage = style.gradient;
     delete style.gradient;
   } else if (style.backgroundGradient && typeof style.backgroundGradient === 'string') {
     style.backgroundImage = style.backgroundGradient;
     delete style.backgroundGradient;
+  }
+
+  if (style.backgroundImage && typeof style.backgroundImage === 'string') {
+    const bg = style.backgroundImage.trim();
+    if (
+      bg !== '' &&
+      bg !== 'none' &&
+      !bg.startsWith('url(') &&
+      !bg.includes('gradient(') &&
+      (bg.startsWith('http://') ||
+        bg.startsWith('https://') ||
+        bg.startsWith('data:') ||
+        bg.startsWith('blob:') ||
+        bg.startsWith('/') ||
+        bg.startsWith('./'))
+    ) {
+      style.backgroundImage = `url("${bg}")`;
+    }
   }
 
   return style as React.CSSProperties;
