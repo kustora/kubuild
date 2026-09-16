@@ -8,7 +8,7 @@ export const containerDefinition: ComponentDefinition = {
   category: 'layout',
   icon: 'box',
   acceptsChildren: true,
-  allowedChildren: ['columns', 'flex', 'grid', ...CONTENT_CHILD_TYPES],
+  allowedChildren: ['container', 'columns', 'flex', 'grid', ...CONTENT_CHILD_TYPES],
   defaultProps: { maxWidth: '1200px' },
   traits: [
     idTrait(),

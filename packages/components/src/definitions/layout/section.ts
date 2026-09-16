@@ -8,7 +8,7 @@ export const sectionDefinition: ComponentDefinition = {
   category: 'layout',
   icon: 'rows',
   acceptsChildren: true,
-  allowedChildren: ['container', 'columns', 'flex', 'grid', ...CONTENT_CHILD_TYPES],
+  allowedChildren: ['section', 'container', 'columns', 'flex', 'grid', ...CONTENT_CHILD_TYPES],
   defaultProps: {},
   traits: [
     idTrait(),

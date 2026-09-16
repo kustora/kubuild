@@ -275,11 +275,22 @@ describe('STORA-011: Document Validator and Error Diagnostics', () => {
       };
       const resultDisallowed = validateDocument(docWithDisallowedChild, {
         componentRegistry: mockRegistry,
+        strictChildPolicy: true,
       });
       expect(resultDisallowed.valid).toBe(false);
       const disallowedError = resultDisallowed.errors.find((e) => e.path === '/document/children/0/type');
       expect(disallowedError?.code).toBe('CHILD_POLICY_VIOLATION');
       expect(disallowedError?.message).toContain('is not allowed as a child of "page"');
+
+      // Relaxed default child policy emits a non-blocking warning instead of error
+      const resultWarning = validateDocument(docWithDisallowedChild, {
+        componentRegistry: mockRegistry,
+      });
+      expect(resultWarning.valid).toBe(true);
+      expect(resultWarning.errors).toHaveLength(0);
+      const disallowedWarning = resultWarning.warnings.find((w) => w.path === '/document/children/0/type');
+      expect(disallowedWarning?.code).toBe('CHILD_POLICY_VIOLATION');
+      expect(disallowedWarning?.message).toContain('is not allowed as a child of "page"');
     });
 
     it('Error Class 8: INVALID_ASSET_REFERENCE (asset binding with empty assetId)', () => {

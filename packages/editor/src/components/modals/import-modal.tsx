@@ -29,6 +29,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [jsonWarnings, setJsonWarnings] = useState<string[]>([]);
   const [preflight, setPreflight] = useState<PreflightReport | null>(null);
   const [dependencyPolicy, setDependencyPolicy] = useState<MissingDependencyPolicy>('import-with-placeholder');
 
@@ -43,6 +44,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     setJsonDoc(null);
     setIsLoading(false);
     setError(null);
+    setJsonWarnings([]);
     setPreflight(null);
     setDependencyPolicy('import-with-placeholder');
   };
@@ -90,10 +92,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         if (!parseCheck.success) {
           throw new Error('Invalid Page Document JSON structure.');
         }
-        const valResult = validateDocument(parseCheck.data, { componentRegistry: registry });
+        const valResult = validateDocument(parseCheck.data, {
+          componentRegistry: registry,
+          strictChildPolicy: false,
+        });
         if (!valResult.valid) {
           const firstErr = valResult.errors[0];
           throw new Error(`Document validation error: ${firstErr.message} at ${firstErr.path}`);
+        }
+        if (valResult.warnings && valResult.warnings.length > 0) {
+          setJsonWarnings(valResult.warnings.map((w) => `${w.message} at ${w.path}`));
+        } else {
+          setJsonWarnings([]);
         }
         setJsonDoc(parseCheck.data);
       } else {
@@ -283,6 +293,25 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               <div className="text-slate-300">
                 <span className="text-slate-400">Schema Version:</span> {jsonDoc.version}
               </div>
+
+              {jsonWarnings.length > 0 && (
+                <div className="mt-2 p-3 bg-amber-950/40 border border-amber-800/60 rounded-lg flex flex-col gap-1.5 text-xs text-amber-300">
+                  <div className="flex items-center gap-1.5 text-amber-400 font-semibold">
+                    <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>Peringatan Struktur Dokumen ({jsonWarnings.length})</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-0.5 mt-1 text-amber-300/90">
+                    {jsonWarnings.map((w, idx) => (
+                      <li key={idx}>{w}</li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-amber-400/80 mt-1">
+                    Dokumen tetap dapat diimpor dan diedit di kanvas editor.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

@@ -31,6 +31,19 @@ export interface DocumentValidationError {
   details?: Record<string, unknown>;
 }
 
+export type DocumentValidationWarningCode =
+  | 'CHILD_POLICY_VIOLATION'
+  | 'UNKNOWN_COMPONENT_TYPE'
+  | (string & {});
+
+export interface DocumentValidationWarning {
+  code: DocumentValidationWarningCode;
+  message: string;
+  path: string;
+  nodeId?: string;
+  details?: Record<string, unknown>;
+}
+
 export interface ComponentDefinitionLike {
   type: string;
   category?: string;
@@ -49,6 +62,11 @@ export interface ValidationOptions {
   componentRegistry?: ComponentRegistryLike;
   knownComponentTypes?: string[] | Set<string>;
   strictComponentTypes?: boolean;
+  /**
+   * Whether to treat child policy mismatches (e.g. allowedChildren) strictly as blocking errors.
+   * If false or undefined (default), allowedChildren mismatches are emitted as non-blocking warnings.
+   */
+  strictChildPolicy?: boolean;
   checkAssetReferences?: boolean;
   checkVariableBindings?: boolean;
   checkActionBindings?: boolean;
@@ -59,6 +77,7 @@ export interface DocumentValidationResult {
   valid: boolean;
   success: boolean;
   errors: DocumentValidationError[];
+  warnings: DocumentValidationWarning[];
   data?: PageDocument;
 }
 
@@ -71,6 +90,7 @@ export function validateDocument(
   options: ValidationOptions = {},
 ): DocumentValidationResult {
   const errors: DocumentValidationError[] = [];
+  const warnings: DocumentValidationWarning[] = [];
 
   // 1. Basic Object check
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -84,6 +104,7 @@ export function validateDocument(
           path: '',
         },
       ],
+      warnings: [],
     };
   }
 
@@ -107,6 +128,7 @@ export function validateDocument(
         valid: false,
         success: false,
         errors,
+        warnings: [],
       };
     }
   }
@@ -138,6 +160,7 @@ export function validateDocument(
       valid: false,
       success: false,
       errors,
+      warnings,
     };
   }
 
@@ -185,6 +208,7 @@ export function validateDocument(
     visitedObjects,
     options,
     errors,
+    warnings,
   );
 
   // 6. Schema Zod safe parse fallback to capture any missed structural issues
@@ -204,6 +228,7 @@ export function validateDocument(
         valid: true,
         success: true,
         errors: [],
+        warnings,
         data: zodResult.data as unknown as PageDocument,
       };
     }
@@ -213,6 +238,7 @@ export function validateDocument(
     valid: errors.length === 0,
     success: errors.length === 0,
     errors,
+    warnings,
   };
 }
 
@@ -224,6 +250,7 @@ function validateNodeRecursive(
   visitedObjects: Set<object>,
   options: ValidationOptions,
   errors: DocumentValidationError[],
+  warnings: DocumentValidationWarning[],
 ): void {
   // Cycle Detection
   if (visitedObjects.has(nodeObj)) {
@@ -358,12 +385,22 @@ function validateNodeRecursive(
           !componentDef.allowedChildren.includes('*') &&
           !(childCategory && componentDef.allowedChildren.includes(childCategory))
         ) {
-          errors.push({
-            code: 'CHILD_POLICY_VIOLATION',
-            message: `Component type "${childType}" is not allowed as a child of "${effectiveNodeType}". Allowed types: ${componentDef.allowedChildren.join(', ')}`,
-            path: `${childPath}/type`,
-            nodeId: typeof childRecord.id === 'string' ? childRecord.id : undefined,
-          });
+          const violationMessage = `Component type "${childType}" is not allowed as a child of "${effectiveNodeType}". Allowed types: ${componentDef.allowedChildren.join(', ')}`;
+          if (options.strictChildPolicy) {
+            errors.push({
+              code: 'CHILD_POLICY_VIOLATION',
+              message: violationMessage,
+              path: `${childPath}/type`,
+              nodeId: typeof childRecord.id === 'string' ? childRecord.id : undefined,
+            });
+          } else {
+            warnings.push({
+              code: 'CHILD_POLICY_VIOLATION',
+              message: violationMessage,
+              path: `${childPath}/type`,
+              nodeId: typeof childRecord.id === 'string' ? childRecord.id : undefined,
+            });
+          }
         }
 
         validateNodeRecursive(
@@ -374,6 +411,7 @@ function validateNodeRecursive(
           visitedObjects,
           options,
           errors,
+          warnings,
         );
       }
     }

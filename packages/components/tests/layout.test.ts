@@ -34,6 +34,28 @@ describe('STORA-021: Layout Components (page/section/container/columns)', () => 
       expect(result.errors).toEqual([]);
       expect(result.valid).toBe(true);
     });
+
+    it('allows container nested inside another container', () => {
+      const registry = createDefaultComponentRegistry();
+      let doc = createBlankDocument('Nested Container Test');
+      doc = insertNode(doc, {
+        parentId: 'root-page',
+        node: { id: 'section-1', type: 'section', props: {}, children: [] },
+      }).document;
+      doc = insertNode(doc, {
+        parentId: 'section-1',
+        node: { id: 'container-parent', type: 'container', props: {}, children: [] },
+      }).document;
+      doc = insertNode(doc, {
+        parentId: 'container-parent',
+        node: { id: 'container-child', type: 'container', props: {}, children: [] },
+      }).document;
+
+      const result = validateDocument(doc, { componentRegistry: registry });
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+      expect(result.warnings).toEqual([]);
+    });
   });
 
   describe('Acceptance Criteria 2: child policy prevents content-as-root and page-in-page', () => {
