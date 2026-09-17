@@ -1,5 +1,17 @@
 # @kubuild/react
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [`acb2f8d`]:
+  - @kubuild/ai@0.5.0
+  - @kubuild/editor@0.5.0
+  - @kubuild/components@0.5.0
+  - @kubuild/core@0.5.0
+  - @kubuild/renderer@0.5.0
+  - @kubuild/schema@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
