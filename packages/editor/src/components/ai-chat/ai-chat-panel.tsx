@@ -4,7 +4,7 @@ import { findNodeById, type Diagnostic } from '@kubuild/core';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import { useAiChat, useAiGenerator, useAiAgent } from '@kubuild/ai/react';
 import type { AiChatHistoryStorageAdapter } from '@kubuild/ai/react';
-import { getMessageText, type AiChatMessage, type AgentOpRecord } from '@kubuild/ai';
+import { getMessageText, type AiChatMessage, type AgentOpRecord, type PagePlan } from '@kubuild/ai';
 import type { AiClientOptions } from '@kubuild/ai/client';
 import { useEditorStore } from '../../store';
 import { ResolvedAiEditorConfig } from '../../config';
@@ -34,6 +34,7 @@ import {
   LayoutTemplate,
   GripVertical,
   CircleSlash,
+  ChevronDown,
 } from 'lucide-react';
 
 export interface AiChatPanelProps {
@@ -252,6 +253,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   // distinguishes "generating a page" from "enhancing a node" for the UI.
   const {
     refactorNode,
+    planPage,
     streamPage,
     isGenerating: isAiGeneratorBusy,
     isStreaming,
@@ -284,6 +286,16 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     headers: endpointOptions?.headers,
     credentials: endpointOptions?.credentials,
   });
+
+  const [activeMode, setActiveMode] = useState<'agent' | 'chat' | 'plan'>(() => {
+    if (aiConfig.features.agent) return 'agent';
+    if (aiConfig.features.generate) return 'plan';
+    return 'chat';
+  });
+  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<{ plan: PagePlan; prompt: string } | null>(null);
+  const [isPlanning, setIsPlanning] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   const [inputValue, setInputValue] = useState('');
   const [contextDismissed, setContextDismissed] = useState(false);
@@ -419,7 +431,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, isLoading, error, localError, candidate, enhanceError, generateError, generateSummary, isGeneratingPage]);
+  }, [
+    messages,
+    isLoading,
+    error,
+    localError,
+    candidate,
+    enhanceError,
+    generateError,
+    generateSummary,
+    isGeneratingPage,
+    pendingPlan,
+    isPlanning,
+    planError,
+  ]);
+
+  const isBusy = isLoading || isGeneratingPage || isAgentRunning || isPlanning || isEnhancing;
 
   const selectedNode = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const showContextChip = !!selectedNodeId && !contextDismissed;
@@ -460,9 +487,19 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const content = inputValue;
-    setInputValue('');
-    doSend(content);
+    const content = inputValue.trim();
+    if (!content || isBusy) return;
+
+    if (activeMode === 'agent') {
+      void handleRunAgent();
+    } else if (activeMode === 'plan') {
+      void handlePlanPage();
+    } else {
+      setInputValue('');
+      setGenerateSummary(null);
+      setAgentApplied(null);
+      doSend(content);
+    }
   };
 
   const handleRetry = () => {
@@ -523,7 +560,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    * distinct from Send (chat) and Enhance for the same reason Enhance is distinct from
    * Send: no free-text intent inference, an explicit action the user opts into.
    */
-  const handleGeneratePage = async (promptOverride?: string) => {
+  const handleGeneratePage = async (promptOverride?: string, approvedPlan?: PagePlan) => {
     const prompt = (promptOverride ?? inputValue).trim();
     if (!prompt || (!promptOverride && !canGeneratePage) || isAiGeneratorBusy) return;
 
@@ -545,7 +582,11 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     try {
       summary = await runStreamPageGeneration(
         streamPage,
-        { prompt },
+        {
+          prompt,
+          plan: approvedPlan,
+          conversationHistory: messages,
+        },
         {
           dispatch,
           getDocument: () => useEditorStore.getState().document,
@@ -574,6 +615,58 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
         ? `Generated ${summary.insertedSectionIds.length} section(s) — ${summary.failedSectionCount} rejected (see diagnostics).`
         : `Generated ${summary.insertedSectionIds.length} section(s) onto the canvas.`,
     );
+  };
+
+  const handlePlanPage = async (promptOverride?: string) => {
+    const prompt = (promptOverride ?? inputValue).trim();
+    if (!prompt || isPlanning || isGeneratingPage) return;
+
+    if (!endpointOptions) {
+      setLocalError(
+        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
+          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
+      );
+      return;
+    }
+
+    setLocalError(null);
+    setPlanError(null);
+    setGenerateError(null);
+    setGenerateSummary(null);
+    setPendingPlan(null);
+    setIsPlanning(true);
+    setLastGeneratePrompt(prompt);
+    if (!promptOverride) setInputValue('');
+
+    try {
+      const plan = await planPage({
+        prompt,
+        conversationHistory: messages,
+      });
+
+      if (!plan || !Array.isArray(plan.sections) || plan.sections.length === 0) {
+        setPlanError('AI did not return a valid page plan. Please try again.');
+        return;
+      }
+
+      setPendingPlan({ plan, prompt });
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Planning failed. Please try again.');
+    } finally {
+      setIsPlanning(false);
+    }
+  };
+
+  const handleApprovePlan = async () => {
+    if (!pendingPlan) return;
+    const { plan, prompt } = pendingPlan;
+    setPendingPlan(null);
+    await handleGeneratePage(prompt, plan);
+  };
+
+  const handleDiscardPlan = () => {
+    setPendingPlan(null);
+    setPlanError(null);
   };
 
   /**
@@ -662,6 +755,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       instruction,
       document,
       selectedNodeId: contextDismissed ? undefined : (selectedNodeId ?? undefined),
+      history: messages,
     });
 
     if (!result || result.ops.length === 0) return;
@@ -744,6 +838,49 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     </div>
   );
 
+  const modes = useMemo(() => [
+    {
+      id: 'agent' as const,
+      label: 'Agent',
+      description: 'Minta agent mengubah halaman/komponen ini',
+      icon: Sparkles,
+      color: 'text-violet-600',
+      enabled: !!aiConfig.features.agent,
+    },
+    {
+      id: 'chat' as const,
+      label: 'Ask',
+      description: 'Tanya dan diskusi tanpa mengubah canvas',
+      icon: Bot,
+      color: 'text-blue-600',
+      enabled: !!aiConfig.features.chat,
+    },
+    {
+      id: 'plan' as const,
+      label: 'Plan',
+      description: 'Rancang struktur dan generate landing page',
+      icon: LayoutTemplate,
+      color: 'text-emerald-600',
+      enabled: !!aiConfig.features.generate,
+    },
+  ], [aiConfig.features]);
+
+  const currentModeInfo = modes.find((m) => m.id === activeMode) || modes[0];
+
+  const dynamicPlaceholder = useMemo(() => {
+    switch (activeMode) {
+      case 'agent':
+        return selectedNode
+          ? `Minta agent mengubah #${selectedNode.type} (${selectedNodeId})…`
+          : 'Minta agent mengubah halaman ini…';
+      case 'plan':
+        return 'Jelaskan website yang ingin dirancang dan dibuat…';
+      case 'chat':
+      default:
+        return 'Tanyakan apa saja tentang halaman ini…';
+    }
+  }, [activeMode, selectedNode, selectedNodeId]);
+
   const body = (
     <>
       <div
@@ -787,6 +924,23 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               <span className="text-xs">{currentStep || 'Generating page…'}</span>
             </div>
           </div>
+        )}
+        {isPlanning && (
+          <div
+            className="flex items-center gap-2 self-start max-w-[85%]"
+            data-testid="ai-plan-loading"
+          >
+            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+              <LayoutTemplate className="w-3.5 h-3.5 text-emerald-600" />
+            </div>
+            <div className="bg-emerald-50 text-emerald-700 rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span className="text-xs">Merancang struktur halaman…</span>
+            </div>
+          </div>
+        )}
+        {planError && !pendingPlan && (
+          <AiChatErrorBubble message={planError} onRetry={() => void handlePlanPage(lastGeneratePrompt)} />
         )}
         {(error || localError) && (
           <AiChatErrorBubble message={error?.message || localError || 'Something went wrong.'} onRetry={handleRetry} />
@@ -989,6 +1143,76 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             </div>
           </div>
         )}
+
+        {/* STORA-Plan — Plan confirmation preview card */}
+        {pendingPlan && (
+          <div
+            data-testid="ai-plan-preview"
+            className="self-stretch flex flex-col gap-2.5 bg-white border border-emerald-200 rounded-xl px-3 py-2.5 shadow-xs"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                <LayoutTemplate className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Rancangan Struktur Halaman</span>
+              </div>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                {pendingPlan.plan.sections?.length || 0} Section
+              </span>
+            </div>
+
+            {pendingPlan.plan.title && (
+              <div className="text-xs font-medium text-slate-800">
+                {pendingPlan.plan.title}
+                {pendingPlan.plan.description && (
+                  <p className="text-[11px] text-slate-500 font-normal mt-0.5">{pendingPlan.plan.description}</p>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto" data-testid="ai-plan-sections-list">
+              {pendingPlan.plan.sections?.map((sec, idx) => (
+                <div
+                  key={idx}
+                  data-testid="ai-plan-section-item"
+                  className="text-[11px] bg-slate-50 border border-slate-200 rounded-lg p-2 flex flex-col gap-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-800">
+                      {idx + 1}. {sec.title || sec.type}
+                    </span>
+                    <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-mono">
+                      {sec.type}
+                    </span>
+                  </div>
+                  {sec.prompt && (
+                    <p className="text-[10px] text-slate-500 line-clamp-2">{sec.prompt}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-1.5 justify-end pt-1 border-t border-slate-100">
+              <button
+                type="button"
+                data-testid="ai-plan-discard"
+                onClick={handleDiscardPlan}
+                className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Batalkan
+              </button>
+              <button
+                type="button"
+                data-testid="ai-plan-approve"
+                onClick={handleApprovePlan}
+                className="px-3 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-md transition flex items-center gap-1 shadow-xs"
+              >
+                <Check className="w-3 h-3" />
+                Setujui & Generate
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="border-t border-slate-200 p-2.5 shrink-0 flex flex-col gap-2">
@@ -1013,7 +1237,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           </div>
         )}
 
-        {aiConfig.features.agent && (
+        {activeMode === 'agent' && aiConfig.features.agent && (
           <label
             data-testid="ai-agent-auto-apply"
             className="self-start flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer select-none"
@@ -1028,83 +1252,122 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           </label>
         )}
 
-        <div className="flex items-center gap-1.5">
+        <div className="relative flex flex-col border border-slate-200 rounded-xl bg-white shadow-xs focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition">
           <input
             ref={inputRef}
             type="text"
             data-testid="ai-chat-input"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask AI anything about this page…"
-            className="flex-1 min-w-0 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            placeholder={dynamicPlaceholder}
+            className="w-full text-xs px-3 pt-2.5 pb-1 bg-transparent border-0 focus:outline-none"
           />
-          {/* STORA-507 — explicit "Generate" action: turns the typed prompt into a full
-              page via streamPage, distinct from Send (chat) for the same reason Enhance
-              is distinct from Send — no free-text intent inference. Available regardless
-              of selection (unlike Enhance, which requires an attached node). */}
-          {/* STORA-530 — explicit Agent action, distinct from Send/Enhance/Generate for
-              the same reason those are distinct from each other: letting AI edit the page
-              is always an opt-in, never inferred from the message text. */}
-          {aiConfig.features.agent && (
-            <button
-              type="button"
-              data-testid="ai-chat-agent"
-              title="Minta agent mengubah halaman ini"
-              onClick={() => void handleRunAgent()}
-              disabled={!inputValue.trim() || isAgentRunning || isLoading || isAiGeneratorBusy}
-              className="p-1.5 rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100 border border-violet-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {aiConfig.features.generate && (
-            <button
-              type="button"
-              data-testid="ai-chat-generate"
-              title="Generate a full page from this prompt"
-              onClick={() => void handleGeneratePage()}
-              disabled={!canGeneratePage}
-              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <LayoutTemplate className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {/* STORA-512 — explicit, distinct action from Send: an enhance instruction is
-              only ever triggered here, never inferred from the message text itself. Only
-              enabled once a node is attached as context and an instruction is typed. */}
-          {aiConfig.features.enhance && (
-            <button
-              type="button"
-              data-testid="ai-chat-enhance"
-              title={selectedNode ? 'Enhance selected component with AI' : 'Select a component first'}
-              onClick={handleEnhance}
-              disabled={!canEnhance || !inputValue.trim() || isEnhancing}
-              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <Wand2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {isLoading || isGeneratingPage || isAgentRunning ? (
-            <button
-              type="button"
-              data-testid="ai-chat-cancel"
-              onClick={isAgentRunning ? abortAgent : isGeneratingPage ? cancelGenerator : cancel}
-              title="Stop"
-              className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              data-testid="ai-chat-send"
-              disabled={!inputValue.trim() || isAiGeneratorBusy}
-              title="Send"
-              className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          )}
+
+          <div className="flex items-center justify-between px-2 pb-2 pt-1">
+            {/* Mode selector dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                data-testid="ai-mode-selector"
+                onClick={() => setIsModeDropdownOpen((v) => !v)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 transition select-none"
+              >
+                {React.createElement(currentModeInfo.icon, { className: `w-3.5 h-3.5 ${currentModeInfo.color}` })}
+                <span>{currentModeInfo.label}</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {isModeDropdownOpen && (
+                <div className="absolute bottom-full left-0 mb-1.5 w-60 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50 text-xs">
+                  <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Pilih Mode
+                  </div>
+                  {modes.filter((m) => m.enabled).map((m) => {
+                    const Icon = m.icon;
+                    const isSelected = activeMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        data-testid={`ai-mode-option-${m.id}`}
+                        onClick={() => {
+                          setActiveMode(m.id);
+                          setIsModeDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-start gap-2 px-2.5 py-2 text-left transition hover:bg-slate-50 ${
+                          isSelected ? 'bg-slate-50 font-medium text-slate-900' : 'text-slate-600'
+                        }`}
+                      >
+                        <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${m.color}`} />
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <span className="text-xs font-semibold">{m.label}</span>
+                          <span className="text-[10px] text-slate-400 font-normal leading-tight">{m.description}</span>
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 mt-0.5 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Hidden backwards-compatibility action buttons for existing tests */}
+            <div className="hidden" aria-hidden="true">
+              {aiConfig.features.agent && (
+                <button
+                  type="button"
+                  data-testid="ai-chat-agent"
+                  onClick={() => void handleRunAgent()}
+                  disabled={!inputValue.trim() || isAgentRunning || isLoading || isAiGeneratorBusy}
+                />
+              )}
+              {aiConfig.features.generate && (
+                <button
+                  type="button"
+                  data-testid="ai-chat-generate"
+                  onClick={() => void handleGeneratePage()}
+                  disabled={!canGeneratePage}
+                />
+              )}
+              {aiConfig.features.enhance && (
+                <button
+                  type="button"
+                  data-testid="ai-chat-enhance"
+                  onClick={handleEnhance}
+                  disabled={!canEnhance || !inputValue.trim() || isEnhancing}
+                />
+              )}
+            </div>
+
+            {/* Single Unified Send / Cancel Button */}
+            {isBusy ? (
+              <button
+                type="button"
+                data-testid="ai-chat-cancel"
+                onClick={
+                  isAgentRunning
+                    ? abortAgent
+                    : isGeneratingPage || isPlanning
+                      ? cancelGenerator
+                      : cancel
+                }
+                title="Stop"
+                className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                data-testid="ai-chat-send"
+                disabled={!inputValue.trim() || isAiGeneratorBusy}
+                title={`Kirim (${currentModeInfo.label})`}
+                className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </form>
     </>

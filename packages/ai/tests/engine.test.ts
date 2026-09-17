@@ -190,4 +190,47 @@ describe('KubuildAiEngine', () => {
     expect(res.error?.code).toBe('GENERATION_ERROR');
     expect(res.error?.message).toContain('Rate limit exceeded');
   });
+
+  it('planPage plans sections and incorporates conversation history and sectionCount', async () => {
+    let capturedUserPrompt = '';
+    let capturedSystemPrompt = '';
+
+    const mockAdapter: AiProviderAdapter = {
+      name: 'mock',
+      generate: vi.fn().mockImplementation(async (params) => {
+        capturedSystemPrompt = params.systemPrompt;
+        capturedUserPrompt = params.userPrompt;
+        return {
+          text: JSON.stringify({
+            title: 'Coffee Haven',
+            description: 'Cozy artisanal coffee',
+            sections: [
+              { type: 'hero', title: 'Hero', prompt: 'Hero banner' },
+              { type: 'features', title: 'Specialty Beans', prompt: 'Beans showcase' },
+              { type: 'menu', title: 'Menu Grid', prompt: 'Coffee & pastries' },
+              { type: 'testimonials', title: 'Reviews', prompt: 'Customer reviews' },
+              { type: 'cta', title: 'Order Online', prompt: 'CTA' },
+              { type: 'footer', title: 'Footer', prompt: 'Footer' },
+            ],
+          }),
+        };
+      }),
+    };
+
+    const engine = new KubuildAiEngine({ adapter: mockAdapter });
+    const res = await engine.planPage({
+      prompt: 'Build coffee shop page',
+      sectionCount: 6,
+      conversationHistory: [
+        { role: 'user', content: 'We need an artisanal vibe with earthy tones' },
+        { role: 'assistant', content: 'Understood, we will use warm earth tones and craft coffee imagery.' },
+      ],
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.data?.sections).toHaveLength(6);
+    expect(capturedSystemPrompt).toContain('Plan exactly 6 cohesive sections');
+    expect(capturedUserPrompt).toContain('We need an artisanal vibe with earthy tones');
+    expect(capturedUserPrompt).toContain('Prior Conversation Discussion Context:');
+  });
 });

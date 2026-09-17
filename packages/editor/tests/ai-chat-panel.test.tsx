@@ -279,4 +279,17 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
       expect(withoutSelection).not.toContain('data-testid="ai-chat-context-chip"');
     });
   });
+
+  describe('Unified Mode Selector and Send Button', () => {
+    it('renders the mode selector pill button and a single unified send button', () => {
+      const doc = createBlankDocument('Mode Selector Test');
+      const html = renderToString(
+        <AiChatPanel aiConfig={enabledConfig} mode="docked" document={doc} selectedNodeId={null} />,
+      );
+
+      expect(html).toContain('data-testid="ai-mode-selector"');
+      expect(html).toContain('data-testid="ai-chat-send"');
+      expect(html).toContain('data-testid="ai-chat-input"');
+    });
+  });
 });

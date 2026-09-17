@@ -5,6 +5,8 @@ import type {
   AiGenerateSectionRequest,
   AiRefactorNodeRequest,
   AiStreamCallbacks,
+  PagePlan,
+  AiPlanPageRequest,
 } from '../types';
 import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client';
 
@@ -204,8 +206,45 @@ export function useAiGenerator(options: UseAiGeneratorOptions) {
     [cancel, options],
   );
 
+  /**
+   * Plans website structure (sections overview) before generating.
+   */
+  const planPage = useCallback(
+    async (params: AiPlanPageRequest): Promise<PagePlan | null> => {
+      cancel();
+      const ac = new AbortController();
+      abortControllerRef.current = ac;
+
+      setIsGenerating(true);
+      setIsStreaming(false);
+      setError(null);
+      setCurrentStep('Planning page structure...');
+
+      try {
+        const plan = await clientRef.current.planPage(params, {
+          signal: ac.signal,
+        });
+        return plan;
+      } catch (err: unknown) {
+        if (ac.signal.aborted) return null;
+        const e = err instanceof Error ? err : new Error(String(err));
+        setError(e);
+        options.onError?.(e);
+        return null;
+      } finally {
+        if (abortControllerRef.current === ac) {
+          setIsGenerating(false);
+          setCurrentStep('');
+          abortControllerRef.current = null;
+        }
+      }
+    },
+    [cancel, options],
+  );
+
   return {
     generatePage,
+    planPage,
     streamPage,
     generateSection,
     refactorNode,

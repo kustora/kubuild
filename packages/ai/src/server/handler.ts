@@ -9,6 +9,7 @@ import type {
   AiGenerateResponse,
   AiGenerationMode,
   AiStreamEvent,
+  PagePlan,
 } from '../types';
 
 export interface AiApiRequestBody {
@@ -26,6 +27,10 @@ export interface AiApiRequestBody {
   messages?: AiChatMessage[];
   currentDocument?: PageDocument;
   selectedNodeId?: string;
+  /** Prior conversation history from chat mode so generator keeps full context. */
+  conversationHistory?: AiChatMessage[];
+  sectionCount?: number | { min?: number; max?: number };
+  plan?: PagePlan;
   /** Agent mode (STORA-530) — the snapshot the agent reads and patches. */
   document?: PageDocument;
   maxSteps?: number;
@@ -73,6 +78,9 @@ export async function processAiRequest(
         tone: payload.tone,
         locale: payload.locale,
         metadata: payload.metadata,
+        conversationHistory: payload.conversationHistory ?? payload.messages,
+        sectionCount: payload.sectionCount,
+        plan: payload.plan,
       },
       { signal },
     );
@@ -187,13 +195,43 @@ export async function processAiRequest(
     };
   }
 
+  if (mode === 'plan') {
+    if (!payload.prompt || typeof payload.prompt !== 'string') {
+      return {
+        status: 400,
+        response: {
+          success: false,
+          error: {
+            code: 'INVALID_PROMPT',
+            message: '"prompt" is required for planning mode',
+          },
+        },
+      };
+    }
+    const result = await engine.planPage(
+      {
+        prompt: payload.prompt,
+        stylePreference: payload.stylePreference,
+        tone: payload.tone,
+        locale: payload.locale,
+        sectionCount: payload.sectionCount,
+        conversationHistory: payload.conversationHistory ?? payload.messages,
+      },
+      { signal },
+    );
+    return {
+      status: result.success ? 200 : 500,
+      response: result,
+    };
+  }
+
   return {
     status: 400,
     response: {
       success: false,
       error: {
         code: 'UNKNOWN_MODE',
-        message: `Unsupported mode: ${String(mode)}. Supported modes: 'full-page', 'section', 'refactor', 'chat', 'agent'`,
+        message: `Unsupported mode: ${String(mode)}. Supported modes: 'full-page', 'section', 'refactor', 'chat', 'agent', 'plan'`,
       },
     },
   };
@@ -460,6 +498,9 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
               tone: body.tone,
               locale: body.locale,
               metadata: body.metadata,
+              conversationHistory: body.conversationHistory ?? body.messages,
+              sectionCount: body.sectionCount,
+              plan: body.plan,
             },
             { signal: request.signal },
           ),

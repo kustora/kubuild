@@ -11,6 +11,8 @@ import type {
   AiGenerateResponse,
   AiStreamCallbacks,
   AiStreamEvent,
+  PagePlan,
+  AiPlanPageRequest,
 } from '../types';
 
 export interface AiClientOptions {
@@ -208,6 +210,43 @@ export class KubuildAiClient {
     }
 
     return finalDoc;
+  }
+
+  /**
+   * Plans the website structure (title, description, and list of sections)
+   * before generation so the user can review and approve.
+   */
+  async planPage(
+    params: AiPlanPageRequest,
+    options?: { signal?: AbortSignal },
+  ): Promise<PagePlan> {
+    const dynamicHeaders = await this.resolveHeaders();
+
+    const res = await this.fetchFn(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...dynamicHeaders,
+      },
+      body: JSON.stringify({
+        mode: 'plan',
+        ...params,
+      }),
+      credentials: this.credentials,
+      signal: options?.signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Plan request failed [${res.status} ${res.statusText}]: ${errText}`);
+    }
+
+    const json = (await res.json()) as AiGenerateResponse<PagePlan>;
+    if (!json.success || !json.data) {
+      throw new Error(json.error?.message || 'Failed to generate page plan');
+    }
+
+    return json.data;
   }
 
   /**

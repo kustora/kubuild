@@ -10,6 +10,9 @@ import type {
   AiGenerateResponse,
   AiCompiledComponentSpec,
   AiStreamEvent,
+  PagePlan,
+  PlannedSection,
+  AiPlanPageRequest,
 } from '../types';
 import {
   compileComponentCatalog,
@@ -22,20 +25,7 @@ import {
   normalizeAndValidatePageDocument,
   normalizeAndValidateSectionNode,
   normalizeAndValidateRefactoredNode,
-} from '../core/normalizer';
-
-interface PlannedSection {
-  type: string;
-  title: string;
-  prompt: string;
-}
-
-interface PagePlan {
-  title?: string;
-  description?: string;
-  pageStyles?: Node['styles'];
-  sections?: PlannedSection[];
-} 
+} from '../core/normalizer'; 
 
 export class KubuildAiEngine {
   private options: KubuildAiEngineOptions;
@@ -83,6 +73,12 @@ export class KubuildAiEngine {
       let userPrompt = `User Request: ${request.prompt}`;
       if (request.tone) userPrompt += `\nTone: ${request.tone}`;
       if (request.locale) userPrompt += `\nLanguage/Locale: ${request.locale}`;
+      if (request.conversationHistory && request.conversationHistory.length > 0) {
+        const chatContext = request.conversationHistory
+          .map((m) => `${m.role.toUpperCase()}: ${getMessageText(m)}`)
+          .join('\n');
+        userPrompt += `\n\nPrior Conversation Discussion Context:\n${chatContext}`;
+      }
 
       const jsonSchema = buildJsonSchemaForMode('full-page');
 
@@ -243,24 +239,20 @@ export class KubuildAiEngine {
     }
   }
 
-  /**
-   * Progressive Section Streaming Generator.
-   * Emits structured SSE events: status -> metadata -> section (one by one) -> complete.
-   */
-  async *streamPage(
-    request: AiGeneratePageRequest,
-    context?: { signal?: AbortSignal },
-  ): AsyncIterable<AiStreamEvent> {
-    try {
-      this.log('info', `[SSE] Starting streamPage for prompt: "${request.prompt}"`);
+  private buildPlanPrompts(request: AiPlanPageRequest): { systemPrompt: string; userPrompt: string } {
+    let sectionGuidance =
+      'Plan between 4 to 6 cohesive, essential sections (e.g., hero, features, testimonials, pricing, cta, footer) that fulfill the request thoroughly.';
+    if (typeof request.sectionCount === 'number') {
+      sectionGuidance = `Plan exactly ${request.sectionCount} cohesive sections that fulfill the request.`;
+    } else if (request.sectionCount?.min || request.sectionCount?.max) {
+      const min = request.sectionCount.min ?? 3;
+      const max = request.sectionCount.max ?? 8;
+      sectionGuidance = `Plan between ${min} and ${max} cohesive sections that fulfill the request.`;
+    } else {
+      sectionGuidance += ' If the user request mentions a specific number or list of sections, respect the user request.';
+    }
 
-      yield {
-        type: 'status',
-        message: 'Analyzing requirements and planning page sections...',
-      };
-
-      // 1. Plan page sections
-      const planSystemPrompt = `
+    const planSystemPrompt = `
 You are a web architect for the KUBUILD page builder.
 Given the user's prompt, plan the website structure. Output pure JSON (no markdown fences, no explanatory text):
 {
@@ -282,41 +274,123 @@ Given the user's prompt, plan the website structure. Output pure JSON (no markdo
     }
   ]
 }
-Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill the request.
+${sectionGuidance}
 `;
 
-      let planUserPrompt = `User Request: ${request.prompt}`;
-      if (request.stylePreference) {
-        planUserPrompt += `\nStyle Preference: ${request.stylePreference}`;
-      }
-      if (request.tone) planUserPrompt += `\nTone: ${request.tone}`;
-      if (request.locale) planUserPrompt += `\nLocale: ${request.locale}`;
+    let planUserPrompt = `User Request: ${request.prompt}`;
+    if (request.stylePreference) {
+      planUserPrompt += `\nStyle Preference: ${request.stylePreference}`;
+    }
+    if (request.tone) planUserPrompt += `\nTone: ${request.tone}`;
+    if (request.locale) planUserPrompt += `\nLocale: ${request.locale}`;
+    if (request.conversationHistory && request.conversationHistory.length > 0) {
+      const chatContext = request.conversationHistory
+        .map((m) => `${m.role.toUpperCase()}: ${getMessageText(m)}`)
+        .join('\n');
+      planUserPrompt += `\n\nPrior Conversation Discussion Context:\n${chatContext}`;
+    }
 
-      this.log('info', '[SSE] Generating website layout plan...');
+    return { systemPrompt: planSystemPrompt, userPrompt: planUserPrompt };
+  }
+
+  async planPage(
+    request: AiPlanPageRequest,
+    context?: { signal?: AbortSignal },
+  ): Promise<AiGenerateResponse<PagePlan>> {
+    let rawText = '';
+    try {
+      const { systemPrompt, userPrompt } = this.buildPlanPrompts(request);
+      this.log('info', `Planning website layout for: "${request.prompt}"`);
+
       const planResult = await this.options.adapter.generate({
-        systemPrompt: planSystemPrompt,
-        userPrompt: planUserPrompt,
+        systemPrompt,
+        userPrompt,
         signal: context?.signal,
       });
 
-      this.log('debug', '[SSE] Raw plan response from model', planResult.text);
+      rawText = planResult.text;
+      const plan = extractJsonFromResponse(rawText) as PagePlan;
+
+      return {
+        success: true,
+        data: plan,
+        usage: planResult.usage,
+        rawModelResponse: rawText,
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.log('warn', 'Failed to generate plan JSON, using fallback plan', message);
+      const fallbackPlan: PagePlan = {
+        title: 'AI Generated Page',
+        description: 'Generated by KUBUILD AI',
+        sections: [
+          { type: 'hero', title: 'Hero Banner', prompt: `Hero section for: ${request.prompt}` },
+          { type: 'features', title: 'Key Features', prompt: `Features grid for: ${request.prompt}` },
+          { type: 'testimonials', title: 'Testimonials', prompt: `Social proof and customer reviews for: ${request.prompt}` },
+          { type: 'cta', title: 'Call To Action', prompt: `Call to action section for: ${request.prompt}` },
+          { type: 'footer', title: 'Footer', prompt: `Footer navigation and copyright for: ${request.prompt}` },
+        ],
+      };
+      return {
+        success: true,
+        data: fallbackPlan,
+        rawModelResponse: rawText || undefined,
+      };
+    }
+  }
+
+  /**
+   * Progressive Section Streaming Generator.
+   * Emits structured SSE events: status -> metadata -> section (one by one) -> complete.
+   */
+  async *streamPage(
+    request: AiGeneratePageRequest,
+    context?: { signal?: AbortSignal },
+  ): AsyncIterable<AiStreamEvent> {
+    try {
+      this.log('info', `[SSE] Starting streamPage for prompt: "${request.prompt}"`);
+
+      yield {
+        type: 'status',
+        message: 'Analyzing requirements and planning page sections...',
+      };
 
       let plan: PagePlan;
-      try {
-        plan = extractJsonFromResponse(planResult.text) as PagePlan;
-        this.log('debug', '[SSE] Parsed plan successfully', plan);
-      } catch (parseErr) {
-        this.log('warn', '[SSE] Failed to parse plan JSON, using fallback plan', parseErr);
-        // Fallback default plan if JSON parse failed
-        plan = {
-          title: 'AI Generated Page',
-          description: 'Generated by KUBUILD AI',
-          sections: [
-            { type: 'hero', title: 'Hero Banner', prompt: `Hero section for: ${request.prompt}` },
-            { type: 'features', title: 'Key Features', prompt: `Features grid for: ${request.prompt}` },
-            { type: 'cta', title: 'Call To Action', prompt: `Call to action section for: ${request.prompt}` },
-          ],
-        };
+
+      if (request.plan && Array.isArray(request.plan.sections) && request.plan.sections.length > 0) {
+        plan = request.plan;
+        this.log('info', `[SSE] Using approved pre-planned structure with ${plan.sections?.length ?? 0} sections`);
+      } else {
+        // 1. Plan page sections
+        const { systemPrompt: planSystemPrompt, userPrompt: planUserPrompt } = this.buildPlanPrompts(request);
+
+        this.log('info', '[SSE] Generating website layout plan...');
+        const planResult = await this.options.adapter.generate({
+          systemPrompt: planSystemPrompt,
+          userPrompt: planUserPrompt,
+          signal: context?.signal,
+        });
+
+        this.log('debug', '[SSE] Raw plan response from model', planResult.text);
+
+        try {
+          plan = extractJsonFromResponse(planResult.text) as PagePlan;
+          this.log('debug', '[SSE] Parsed plan successfully', plan);
+        } catch (parseErr) {
+          this.log('warn', '[SSE] Failed to parse plan JSON, using fallback plan', parseErr);
+          // Fallback default plan if JSON parse failed
+          plan = {
+            title: 'AI Generated Page',
+            description: 'Generated by KUBUILD AI',
+            sections: [
+              { type: 'hero', title: 'Hero Banner', prompt: `Hero section for: ${request.prompt}` },
+              { type: 'features', title: 'Key Features', prompt: `Features grid for: ${request.prompt}` },
+              { type: 'testimonials', title: 'Testimonials', prompt: `Social proof for: ${request.prompt}` },
+              { type: 'cta', title: 'Call To Action', prompt: `Call to action section for: ${request.prompt}` },
+              { type: 'footer', title: 'Footer', prompt: `Footer for: ${request.prompt}` },
+            ],
+          };
+        }
       }
 
       const sectionsToGenerate = Array.isArray(plan.sections) && plan.sections.length > 0
@@ -324,7 +398,9 @@ Plan 3 cohesive, essential sections (e.g., hero, features, and cta) that fulfill
         : [
             { type: 'hero', title: 'Hero Section', prompt: `Hero banner for: ${request.prompt}` },
             { type: 'features', title: 'Features', prompt: `Features grid for: ${request.prompt}` },
+            { type: 'testimonials', title: 'Testimonials', prompt: `Social proof for: ${request.prompt}` },
             { type: 'cta', title: 'Call To Action', prompt: `CTA section for: ${request.prompt}` },
+            { type: 'footer', title: 'Footer', prompt: `Footer section for: ${request.prompt}` },
           ];
 
       const metadata: DocumentMetadata = DocumentMetadataSchema.parse({

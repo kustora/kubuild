@@ -1,7 +1,7 @@
 import type { Node, PageDocument, DocumentMetadata } from '@kubuild/schema';
 import type { DocumentSecurityLimits } from '@kubuild/core';
 
-export type AiGenerationMode = 'full-page' | 'section' | 'refactor' | 'chat' | 'agent';
+export type AiGenerationMode = 'full-page' | 'section' | 'refactor' | 'chat' | 'agent' | 'plan';
 
 /** Plain text content block. */
 export interface AiTextBlock {
@@ -56,6 +56,28 @@ export interface AiChatResponse {
   message: AiChatMessage;
 }
 
+export interface PlannedSection {
+  type: string;
+  title: string;
+  prompt: string;
+}
+
+export interface PagePlan {
+  title?: string;
+  description?: string;
+  pageStyles?: Node['styles'];
+  sections?: PlannedSection[];
+}
+
+export interface AiPlanPageRequest {
+  prompt: string;
+  stylePreference?: string;
+  tone?: string;
+  locale?: string;
+  sectionCount?: number | { min?: number; max?: number };
+  conversationHistory?: AiChatMessage[];
+}
+
 export interface AiGeneratePageRequest {
   prompt: string;
   stylePreference?: string;
@@ -63,6 +85,12 @@ export interface AiGeneratePageRequest {
   locale?: string;
   metadata?: Partial<DocumentMetadata>;
   stream?: boolean;
+  /** Prior conversation history from chat mode so generator keeps full context. */
+  conversationHistory?: AiChatMessage[];
+  /** Desired number of sections or range. */
+  sectionCount?: number | { min?: number; max?: number };
+  /** Pre-confirmed plan to generate directly without re-planning. */
+  plan?: PagePlan;
 }
 
 export interface AiGenerateSectionRequest {
