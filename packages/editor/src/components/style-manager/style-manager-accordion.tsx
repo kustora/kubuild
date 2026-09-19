@@ -13,6 +13,7 @@ import { ColorGradientPicker } from './color-gradient-picker';
 import { DesignTokensPanel } from './design-tokens-panel';
 import { InheritanceIndicator, InheritanceSummaryBar } from './inheritance-indicator';
 import { useTranslation } from '../../i18n';
+import type { AssetProvider } from '@kubuild/core';
 
 export type StyleSectorId = 'dimension' | 'spacing' | 'typography' | 'decorations' | 'flex' | 'motion';
 
@@ -202,6 +203,8 @@ export interface StyleManagerAccordionProps {
   onResetProperty?: (property: string) => void;
   /** Reset callback for all overrides in active viewport */
   onResetAllOverrides?: () => void;
+  /** Host asset provider for background image uploads and asset gallery */
+  assetProvider?: AssetProvider;
 }
 
 export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
@@ -222,6 +225,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
   baseStyles = {},
   onResetProperty,
   onResetAllOverrides,
+  assetProvider,
 }) => {
   const isFlexNode = styles.display === 'flex' || styles.display === 'inline-flex' || nodeType === 'flex';
   const isGridNode = styles.display === 'grid' || styles.display === 'inline-grid' || nodeType === 'grid';
@@ -627,7 +631,7 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
                       </div>
 
                       {/* Background Image Controls */}
-                      <BackgroundImageControls styles={styles} onChange={onCommitStyle} />
+                      <BackgroundImageControls styles={styles} onChange={onCommitStyle} assetProvider={assetProvider} />
 
                       {/* Border Style and Border Color */}
                       <div className="grid grid-cols-2 gap-2">

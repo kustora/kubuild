@@ -15,12 +15,13 @@ import { TraitsPanel } from './traits-panel';
 import { ActionPropControl } from './action-prop-control';
 import { ComponentIcon } from '../ui/icons';
 import { replayNodeAnimation } from '@kubuild/renderer';
-import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles, Radio } from 'lucide-react';
+import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles, Radio, Upload, Image as ImageIcon, Link2 } from 'lucide-react';
 
 import { StyleSectorId } from '../style-manager/style-manager-accordion';
 import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config';
 import { useTranslation } from '../../i18n';
 import { LanguageSwitcher } from '../ui/language-switcher';
+import type { AssetProvider } from '@kubuild/core';
 
 
 export interface InspectorPanelProps {
@@ -39,6 +40,8 @@ export interface InspectorPanelProps {
   trackingCredentials?: PixelCredentialOption[];
   /** Opens the host app's credential management page (e.g. /dashboard/marketing). */
   onManageCredentials?: () => void;
+  /** Host asset provider for direct uploads and asset management */
+  assetProvider?: AssetProvider;
 }
 
 const SPACING_FIELDS: Array<{ name: string; label: string }> = [
@@ -147,12 +150,34 @@ const StringPropControl: React.FC<StringPropControlProps> = ({
   );
 };
 
+function getAssetDisplayName(urlOrData: string): string {
+  if (!urlOrData) return '';
+  if (urlOrData.startsWith('data:image/')) return 'Local Image (Embedded)';
+  if (urlOrData.startsWith('blob:')) return 'Local File (Blob)';
+  try {
+    const parsed = new URL(urlOrData);
+    const pathname = parsed.pathname;
+    const segments = pathname.split('/').filter(Boolean);
+    const last = segments[segments.length - 1];
+    if (last) {
+      const decoded = decodeURIComponent(last);
+      const cleanName = decoded.replace(/^(\d{10,14}|[a-f0-9-]{36})[-_]/, '');
+      return cleanName || decoded;
+    }
+  } catch {
+    const segments = urlOrData.split('/').filter(Boolean);
+    return segments[segments.length - 1] || urlOrData;
+  }
+  return 'Image Asset';
+}
+
 interface MediaSrcPropControlProps {
   nodeId: string;
   field: ComponentFieldDefinition;
   value: unknown;
   onCommit: (field: ComponentFieldDefinition, value: unknown, isBlur: boolean) => void;
   onOpenAssetPicker: () => void;
+  assetProvider?: AssetProvider;
 }
 
 const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
@@ -161,9 +186,13 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
   value,
   onCommit,
   onOpenAssetPicker,
+  assetProvider,
 }) => {
   const valueStr = typeof value === 'string' ? value : '';
   const [text, setText] = useState(valueStr);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFocusedRef = useRef(false);
 
@@ -189,27 +218,47 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
     onCommit(field, text, false);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setText(dataUrl);
-      onCommit(field, dataUrl, true);
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+
+    if (assetProvider?.upload) {
+      setIsUploading(true);
+      setUploadError(null);
+      try {
+        const info = await assetProvider.upload(file);
+        setText(info.url);
+        onCommit(field, info.url, true);
+        setShowUrlInput(false);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Upload failed';
+        setUploadError(msg);
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setText(dataUrl);
+        onCommit(field, dataUrl, true);
+        setShowUrlInput(false);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleClear = () => {
     setText('');
     onCommit(field, '', true);
+    setShowUrlInput(false);
   };
 
-  const isLocalFilePath = text.trim().startsWith('file:') || /^[a-zA-Z]:\\/.test(text.trim());
   const isDataUrl = text.startsWith('data:image/');
   const hasPreview = text.trim().length > 0 && (isDataUrl || text.startsWith('http://') || text.startsWith('https://') || text.startsWith('blob:'));
+  const isLocalFilePath = text.trim().startsWith('file:') || /^[a-zA-Z]:\\/.test(text.trim());
+  const displayName = getAssetDisplayName(text);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -219,74 +268,174 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
         onChange={handleFileUpload}
         accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml, image/gif, image/avif"
         className="hidden"
+        disabled={isUploading}
       />
-      <div className="flex items-center gap-1.5">
-        <input
-          type="text"
-          value={text}
-          onFocus={handleFocus}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          placeholder="https://... or upload local image"
-          className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono text-[11px]"
-        />
-        <button
-          type="button"
-          title="Upload local image from device"
-          aria-label="Upload local image from device"
-          onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          <span className="text-[11px]">Upload</span>
-        </button>
-        <button
-          type="button"
-          title="Browse Asset Gallery"
-          aria-label="Browse Asset Gallery"
-          onClick={onOpenAssetPicker}
-          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </button>
-      </div>
 
-      {hasPreview && (
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded p-1.5">
-          <img
-            src={text}
-            alt="Preview"
-            className="w-8 h-8 object-cover rounded border border-slate-300 bg-white"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
-          />
-          <div className="flex-1 min-w-0 flex flex-col">
-            <span className="text-[11px] font-medium text-slate-700 truncate">
-              {isDataUrl ? 'Local Image (Embedded)' : text}
-            </span>
-            <span className="text-[10px] text-slate-400">
-              {isDataUrl ? 'Base64 image data' : 'URL / Asset'}
-            </span>
+      {hasPreview ? (
+        <div className="flex flex-col gap-1.5">
+          {/* Preview Card without showing ugly raw URL */}
+          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-lg p-2">
+            <div className="w-10 h-10 rounded border border-slate-300 bg-white overflow-hidden shrink-0 flex items-center justify-center">
+              <img
+                src={text}
+                alt="Preview"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col">
+              <span className="text-xs font-semibold text-slate-800 truncate" title={displayName}>
+                {displayName}
+              </span>
+              <span className="text-[10px] text-slate-400">
+                {isDataUrl ? 'Local Image' : 'Image Asset'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                title={isUploading ? 'Uploading image...' : 'Ganti gambar dari perangkat'}
+                aria-label="Ganti gambar"
+                disabled={isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="px-2 py-1 text-xs rounded border border-slate-300 bg-white text-slate-700 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 font-medium cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                {isUploading ? (
+                  <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-3 h-3" />
+                )}
+                <span className="text-[11px]">{isUploading ? 'Uploading...' : 'Ganti'}</span>
+              </button>
+              <button
+                type="button"
+                title="Browse Asset Gallery"
+                aria-label="Browse Asset Gallery"
+                disabled={isUploading}
+                onClick={onOpenAssetPicker}
+                className="p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleClear}
+                title="Hapus gambar"
+                aria-label="Hapus gambar"
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded border border-slate-200 bg-white transition cursor-pointer shadow-2xs"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClear}
-            title="Clear image"
-            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer text-xs"
-          >
-            <X className="w-3.5 h-3.5" aria-hidden="true" />
-          </button>
+
+          {/* Optional toggle for manual URL if needed */}
+          {showUrlInput ? (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <input
+                type="text"
+                value={text}
+                disabled={isUploading}
+                onFocus={handleFocus}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="https://..."
+                className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowUrlInput(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 text-xs"
+                title="Sembunyikan URL"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(true)}
+              className="text-[10px] text-slate-400 hover:text-slate-600 self-start flex items-center gap-1 hover:underline cursor-pointer"
+            >
+              <Link2 className="w-3 h-3" />
+              <span>Gunakan URL manual</span>
+            </button>
+          )}
         </div>
+      ) : (
+        /* When NO image is selected yet */
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              title={isUploading ? 'Uploading image...' : 'Upload image from device'}
+              aria-label="Upload local image from device"
+              disabled={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 py-2 px-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/50 hover:bg-blue-50/30 hover:border-blue-400 text-slate-600 hover:text-blue-600 transition flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer disabled:opacity-50"
+            >
+              {isUploading ? (
+                <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              <span>{isUploading ? 'Mengunggah...' : 'Unggah Gambar'}</span>
+            </button>
+            <button
+              type="button"
+              title="Browse Asset Gallery"
+              aria-label="Browse Asset Gallery"
+              disabled={isUploading}
+              onClick={onOpenAssetPicker}
+              className="py-2 px-2.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer shadow-2xs"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span className="text-[11px]">Galeri</span>
+            </button>
+          </div>
+
+          {showUrlInput ? (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <input
+                type="text"
+                value={text}
+                disabled={isUploading}
+                onFocus={handleFocus}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="https://..."
+                className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowUrlInput(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 text-xs"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(true)}
+              className="text-[10px] text-slate-400 hover:text-slate-600 self-start flex items-center gap-1 hover:underline cursor-pointer"
+            >
+              <Link2 className="w-3 h-3" />
+              <span>Gunakan URL manual</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {uploadError && (
+        <span className="text-[10px] text-red-500 font-medium">{uploadError}</span>
       )}
 
       {isLocalFilePath && (
         <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 leading-tight">
-          Browsers cannot open direct local paths (<code className="font-mono">file://</code>). Click <strong>Upload</strong> above to select and load the local image directly.
+          Browsers cannot open direct local paths (<code className="font-mono">file://</code>). Click <strong>Ganti</strong> above to select and load the local image directly.
         </div>
       )}
     </div>
@@ -770,6 +919,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   aiConfig,
   trackingCredentials,
   onManageCredentials,
+  assetProvider,
 }) => {
   const storeState = useEditorStore((s) => s);
   const document = propDocument ?? storeState.document;
@@ -973,6 +1123,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               value={currentValue}
               onCommit={commitProp}
               onOpenAssetPicker={() => setAssetPickerField(field.name)}
+              assetProvider={assetProvider}
             />
           );
         }
@@ -1065,6 +1216,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             const result = updateNodeProps(node.id, { [assetPickerField]: url }, registry);
             setError(`prop:${assetPickerField}`, result.success ? null : result.error ?? 'Invalid value.');
           }}
+          assetProvider={assetProvider}
         />
       )}
       {/* STORA-340 — Action Builder Modal */}
@@ -1580,6 +1732,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 }}
                 errors={fieldErrors}
                 breakpoint={activeBreakpoint}
+                assetProvider={assetProvider}
               />
             </div>
           )}
@@ -1599,6 +1752,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             }
           }}
           className="p-0"
+          assetProvider={assetProvider}
         />
       )}
       </div>

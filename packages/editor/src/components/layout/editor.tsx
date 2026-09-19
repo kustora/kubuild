@@ -7,6 +7,7 @@ import {
   VariableCatalog,
   Diagnostic,
   buildSampleVariablesFromCatalog,
+  AssetProvider,
 } from '@kubuild/core';
 import { useEditorStore, Viewport } from '../../store';
 import { EditorCanvas, EditorPageItem } from '../canvas';
@@ -68,6 +69,8 @@ export interface KubuildEditorProps {
   trackingCredentials?: PixelCredentialOption[];
   /** Called when user clicks "Kelola Kredensial" inside the tracking settings modal */
   onManageCredentials?: () => void;
+  /** Host asset provider for direct uploads, gallery listing, and asset management */
+  assetProvider?: AssetProvider;
   className?: string;
 }
 
@@ -87,6 +90,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   ai,
   trackingCredentials,
   onManageCredentials,
+  assetProvider,
   className,
 }) => {
   const document = useEditorStore((state) => state.document);
@@ -377,6 +381,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
                 aiConfig={resolvedAiConfig}
                 trackingCredentials={trackingCredentials}
                 onManageCredentials={onManageCredentials}
+                assetProvider={assetProvider}
               />
             </div>
           </div>
@@ -581,8 +586,10 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
             <InspectorPanel
               registry={registry}
               config={resolvedConfig.inspector}
+              aiConfig={resolvedAiConfig}
               trackingCredentials={trackingCredentials}
               onManageCredentials={onManageCredentials}
+              assetProvider={assetProvider}
             />
           </div>
         )}
