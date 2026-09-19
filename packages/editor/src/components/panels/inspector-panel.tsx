@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
 import { findNodeById, findNodeLocation } from '@kubuild/core';
-import { isVariableBinding, PageDocument, AnimationConfig } from '@kubuild/schema';
+import { isVariableBinding, PageDocument, AnimationConfig, ActionPipeline } from '@kubuild/schema';
 import type { PixelCredentialOption } from '@kubuild/schema';
 import { useEditorStore, Viewport } from '../../store';
 import { VariableBindingControl, toBindingValue } from '../ui/variable-picker';
@@ -566,8 +566,8 @@ const META_STANDARD_EVENTS_LIST = [
 
 interface NodePixelEventSectionProps {
   nodeId: string;
-  actions?: import('@kubuild/schema').ActionPipeline[];
-  onUpdateActions: (actions: import('@kubuild/schema').ActionPipeline[]) => void;
+  actions?: ActionPipeline[];
+  onUpdateActions: (actions: ActionPipeline[]) => void;
 }
 
 const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, actions = [], onUpdateActions }) => {
@@ -597,7 +597,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
 
   const handleSave = () => {
     if (!eventName.trim()) return;
-    const pixelPipeline: import('@kubuild/schema').ActionPipeline = {
+    const pixelPipeline: ActionPipeline = {
       id: existing?.id ?? `pixel-${nodeId}`,
       label: PIXEL_PIPELINE_LABEL,
       trigger: 'click',
@@ -620,110 +620,143 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
 
   return (
     <div className="pb-3 border-b border-slate-200">
-      <button
-        type="button"
-        onClick={() => setIsExpanded((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 text-left group"
-      >
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Event Pixel</span>
-          {isConfigured && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[9px] font-semibold">
-              <Radio className="w-2.5 h-2.5" />
-              {existingPayload!.eventName}
+      <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors">
+        <button
+          type="button"
+          onClick={() => setIsExpanded((v) => !v)}
+          aria-expanded={isExpanded}
+          className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-slate-500 shrink-0">
+              <Radio className="w-3.5 h-3.5" />
             </span>
-          )}
-        </div>
-        <span className="text-[10px] text-slate-400 group-hover:text-slate-600 transition shrink-0">{isExpanded ? '▲' : '▼'}</span>
-      </button>
-
-      {isExpanded && (
-        <div className="mt-2 flex flex-col gap-2">
-          {/* Type toggle */}
-          <div className="flex gap-1.5">
-            {(['standard', 'custom'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => { setEventType(t); setEventName(''); }}
-                className={`flex-1 py-1 text-[10px] font-semibold rounded border transition ${
-                  eventType === t
-                    ? 'bg-purple-600 text-white border-purple-600'
-                    : 'bg-white text-slate-600 border-slate-300 hover:border-purple-400'
-                }`}
+            <span className="text-xs font-semibold text-slate-700 truncate">Event Pixel</span>
+            {isConfigured && (
+              <span
+                title={`Event: ${existingPayload!.eventName}`}
+                className="px-1.5 py-0.2 text-[9px] font-bold bg-purple-100 text-purple-700 rounded-full border border-purple-200 leading-none truncate max-w-[120px]"
               >
-                {t === 'standard' ? 'Standard' : 'Custom'}
-              </button>
-            ))}
-          </div>
-
-          {/* Event Name */}
-          <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Nama Event</label>
-            {eventType === 'standard' ? (
-              <select
-                value={eventName}
-                onChange={(e) => setEventName(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900"
-              >
-                <option value="">— pilih event —</option>
-                {META_STANDARD_EVENTS_LIST.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={eventName}
-                onChange={(e) => setEventName(e.target.value)}
-                placeholder="e.g. ButtonClick, WhatsAppClick"
-                className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900"
-              />
+                {existingPayload!.eventName}
+              </span>
             )}
           </div>
 
-          {/* Platform */}
-          <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Platform</label>
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900"
-            >
-              <option value="all">Semua Platform</option>
-              <option value="meta">Meta (Facebook) Pixel</option>
-              <option value="google">Google Analytics (GA4)</option>
-              <option value="tiktok">TikTok Pixel</option>
-            </select>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-1.5 pt-0.5">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!eventName.trim()}
-              className="flex-1 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded transition"
-            >
-              Simpan Event
-            </button>
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
             {isConfigured && (
               <button
                 type="button"
-                onClick={handleRemove}
-                className="px-2 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition"
+                title="Hapus Event Pixel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemove();
+                }}
+                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
               >
-                Hapus
+                <ComponentIcon iconOrType="reset" size={11} />
               </button>
             )}
+            <span
+              className={`text-slate-400 transform transition-transform duration-200 ${
+                isExpanded ? 'rotate-180' : 'rotate-0'
+              }`}
+            >
+              <ComponentIcon iconOrType="chevron-down" size={13} />
+            </span>
           </div>
+        </button>
 
-          {isConfigured && (
-            <p className="text-[10px] text-slate-400 leading-relaxed">
-              Event <code className="text-purple-600 font-mono">{existingPayload!.eventName}</code> dikirim ke{' '}
-              {existingPayload!.provider === 'all' ? 'semua platform' : existingPayload!.provider} saat elemen ini diklik.
-            </p>
-          )}
-        </div>
-      )}
+        {isExpanded && (
+          <div className="p-3 border-t border-slate-100 bg-white flex flex-col gap-3 animate-fadeIn">
+            {/* Type toggle */}
+            <div className="flex flex-col gap-1">
+              <label className="block text-[11px] font-medium text-slate-600">Tipe Event</label>
+              <div className="flex rounded border border-slate-300 bg-slate-100 p-0.5 shadow-2xs">
+                {(['standard', 'custom'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => { setEventType(t); setEventName(''); }}
+                    className={`flex-1 py-1 px-2 text-xs font-medium rounded transition flex items-center justify-center cursor-pointer ${
+                      eventType === t
+                        ? 'bg-white text-purple-700 shadow-xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
+                  >
+                    {t === 'standard' ? 'Standard' : 'Custom'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Event Name */}
+            <div className="flex flex-col gap-1">
+              <label className="block text-[11px] font-medium text-slate-600">Nama Event</label>
+              {eventType === 'standard' ? (
+                <select
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs cursor-pointer"
+                >
+                  <option value="">— Pilih event standard —</option>
+                  {META_STANDARD_EVENTS_LIST.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  placeholder="Contoh: ButtonClick, WhatsAppClick"
+                  className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs"
+                />
+              )}
+            </div>
+
+            {/* Platform */}
+            <div className="flex flex-col gap-1">
+              <label className="block text-[11px] font-medium text-slate-600">Platform Target</label>
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs cursor-pointer"
+              >
+                <option value="all">Semua Platform</option>
+                <option value="meta">Meta (Facebook) Pixel</option>
+                <option value="google">Google Analytics (GA4)</option>
+                <option value="tiktok">TikTok Pixel</option>
+              </select>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!eventName.trim()}
+                className="flex-1 py-1.5 px-3 text-xs font-medium bg-purple-600 hover:bg-purple-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded transition shadow-2xs cursor-pointer"
+              >
+                Simpan Event
+              </button>
+              {isConfigured && (
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="px-2.5 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition cursor-pointer"
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+
+            {isConfigured && (
+              <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2 rounded border border-slate-200">
+                Event <code className="text-purple-600 font-mono font-semibold">{existingPayload!.eventName}</code> dikirim ke{' '}
+                <span className="font-medium text-slate-700">{existingPayload!.provider === 'all' ? 'semua platform' : existingPayload!.provider}</span> saat elemen ini diklik.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -783,6 +816,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState<boolean>(false);
   // Active pseudo-state layer for the style manager — STORA-221.
   const [activeState, setActiveState] = useState<string>('default');
+  // Component props accordion open state
+  const [isPropsOpen, setIsPropsOpen] = useState<boolean>(true);
 
   useEffect(() => {
     if (!showStyles && showTraits && activeTab !== 'traits') {
@@ -797,6 +832,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
   useEffect(() => {
     setFieldErrors({});
+    setIsPropsOpen(true);
   }, [node?.id]);
 
   if (!node || !definition) {
@@ -1421,39 +1457,61 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
       {activeTab === 'style' && (
         <>
-          {showProps && (
-            <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                {definition.type === 'heading'
-                  ? t.textSettings
-                  : t.componentSettings(definition.label)}
-              </div>
-              <div className="flex flex-col gap-3">
-                {(definition.propFields ?? []).map((field) => {
-                  const currentValue = node.props?.[field.name];
-                  const bound = isVariableBinding(currentValue);
-                  const fieldLabel =
-                    definition.type === 'heading' && field.name === 'level'
-                      ? t.titleSize
-                      : field.label;
-                  return (
-                    <div key={field.name}>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">{fieldLabel}</label>
-                      {!bound && renderPropControl(field)}
-                      {isBindableField(field) && (
-                        <VariableBindingControl
-                          field={field}
-                          currentValue={currentValue}
-                          catalog={variableCatalog}
-                          onBind={(key) => commitProp(field, toBindingValue(key), true)}
-                          onRevert={() => commitProp(field, field.defaultValue ?? '', true)}
-                        />
-                      )}
-                      <ErrorText message={fieldErrors[`prop:${field.name}`]} />
-                    </div>
-                  );
-                })}
-              </div>
+          {showProps && definition.propFields && definition.propFields.length > 0 && (
+            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors mb-3">
+              <button
+                type="button"
+                onClick={() => setIsPropsOpen((v) => !v)}
+                aria-expanded={isPropsOpen}
+                className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-slate-500 shrink-0">
+                    <ComponentIcon iconOrType={definition.icon || 'settings'} size={14} />
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700 truncate">
+                    {definition.type === 'heading'
+                      ? t.textSettings
+                      : t.componentSettings(definition.label)}
+                  </span>
+                </div>
+                <span
+                  className={`text-slate-400 transform transition-transform duration-200 ${
+                    isPropsOpen ? 'rotate-180' : 'rotate-0'
+                  }`}
+                >
+                  <ComponentIcon iconOrType="chevron-down" size={13} />
+                </span>
+              </button>
+
+              {isPropsOpen && (
+                <div className="p-3 border-t border-slate-100 bg-white flex flex-col gap-3 animate-fadeIn">
+                  {definition.propFields.map((field) => {
+                    const currentValue = node.props?.[field.name];
+                    const bound = isVariableBinding(currentValue);
+                    const fieldLabel =
+                      definition.type === 'heading' && field.name === 'level'
+                        ? t.titleSize
+                        : field.label;
+                    return (
+                      <div key={field.name}>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">{fieldLabel}</label>
+                        {!bound && renderPropControl(field)}
+                        {isBindableField(field) && (
+                          <VariableBindingControl
+                            field={field}
+                            currentValue={currentValue}
+                            catalog={variableCatalog}
+                            onBind={(key) => commitProp(field, toBindingValue(key), true)}
+                            onRevert={() => commitProp(field, field.defaultValue ?? '', true)}
+                          />
+                        )}
+                        <ErrorText message={fieldErrors[`prop:${field.name}`]} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
