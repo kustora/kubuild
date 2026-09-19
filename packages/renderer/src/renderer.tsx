@@ -22,6 +22,7 @@ import { renderNodeContent } from './renderers';
 import { ToastContainer } from './action-runners/toast-container';
 import { useModal, modalManager, type ModalManager } from './action-runners';
 import { executeNodeActions, useNodeLoadActions } from './action-dispatcher';
+import { injectTrackingScripts } from './tracking/tracking-manager';
 
 // Re-export all nodes and media utilities for backward compatibility
 export * from './nodes';
@@ -323,6 +324,23 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
     () => collectAnimationStylesCss(document),
     [document],
   );
+
+  // Stable string key derived from the tracking config — avoids re-injecting on every render
+  // because each deserialized JSON parse produces a new object reference even if content is unchanged.
+  const trackingKey = React.useMemo(
+    () => (document?.tracking ? JSON.stringify(document.tracking) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [document?.tracking],
+  );
+
+  React.useEffect(() => {
+    if (mode === 'runtime' && document?.tracking && trackingKey) {
+      const cleanup = injectTrackingScripts(document.tracking);
+      return cleanup;
+    }
+  // trackingKey is a stable string — safe to use instead of the object reference
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, trackingKey]);
 
   return (
     <RenderContextProvider value={context}>

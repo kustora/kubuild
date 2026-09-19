@@ -11,3 +11,4 @@ export * from './nodes';
 export * from './renderers';
 export * from './action-runners';
 export * from './action-dispatcher';
+export * from './tracking/tracking-manager';

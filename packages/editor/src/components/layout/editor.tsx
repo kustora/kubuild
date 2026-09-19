@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageDocument } from '@kubuild/schema';
+import type { PixelCredentialOption } from '@kubuild/schema';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import {
   RuntimeContext,
@@ -63,6 +64,10 @@ export interface KubuildEditorProps {
    * The host (consumer) always supplies its own provider adapter/endpoint/API key.
    */
   ai?: AiEditorConfig;
+  /** Saved pixel credentials from account/workspace for the tracking settings modal */
+  trackingCredentials?: PixelCredentialOption[];
+  /** Called when user clicks "Kelola Kredensial" inside the tracking settings modal */
+  onManageCredentials?: () => void;
   className?: string;
 }
 
@@ -80,6 +85,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   onDiagnostic,
   config,
   ai,
+  trackingCredentials,
+  onManageCredentials,
   className,
 }) => {
   const document = useEditorStore((state) => state.document);
@@ -368,6 +375,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
                 registry={registry}
                 config={resolvedConfig.inspector}
                 aiConfig={resolvedAiConfig}
+                trackingCredentials={trackingCredentials}
+                onManageCredentials={onManageCredentials}
               />
             </div>
           </div>
@@ -423,6 +432,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
               registry={registry}
               config={resolvedConfig.toolbar}
               aiEnabled={aiFeatureEnabled}
+              trackingCredentials={trackingCredentials}
+              onManageCredentials={onManageCredentials}
             />
 
             {/* Viewport switcher */}
@@ -567,7 +578,12 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         {/* Desktop Right Inspector */}
         {resolvedConfig.inspector.enabled && (
           <div className="hidden lg:flex w-72 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full">
-            <InspectorPanel registry={registry} config={resolvedConfig.inspector} />
+            <InspectorPanel
+              registry={registry}
+              config={resolvedConfig.inspector}
+              trackingCredentials={trackingCredentials}
+              onManageCredentials={onManageCredentials}
+            />
           </div>
         )}
 

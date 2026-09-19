@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TrackEventStepPayload, TrackEventStepPayloadSchema } from './tracking';
 
 /**
  * Action Trigger Types
@@ -31,6 +32,7 @@ export const ActionStepTypeSchema = z.enum([
   'close_modal',
   'copy_clipboard',
   'custom_event',
+  'track_event',
 ]);
 
 export type ActionStepType = z.infer<typeof ActionStepTypeSchema>;
@@ -225,6 +227,7 @@ export const StepPayloadSchemas = {
   close_modal: CloseModalStepPayloadSchema,
   copy_clipboard: CopyClipboardStepPayloadSchema,
   custom_event: CustomEventStepPayloadSchema,
+  track_event: TrackEventStepPayloadSchema,
 } as const;
 
 /**

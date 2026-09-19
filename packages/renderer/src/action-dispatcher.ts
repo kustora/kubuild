@@ -74,6 +74,9 @@ export async function executeNodeActions(
     document,
     toastManager: (context as unknown as Record<string, unknown> | undefined)?.['toastManager'],
     modalManager: (context as unknown as Record<string, unknown> | undefined)?.['modalManager'],
+    trackingConfig: (context as unknown as Record<string, unknown> | undefined)?.['trackingConfig'] ||
+      (document as unknown as { tracking?: unknown })?.tracking ||
+      (document as unknown as { metadata?: { tracking?: unknown } })?.metadata?.tracking,
     ...(extraContext || {}),
   };
 

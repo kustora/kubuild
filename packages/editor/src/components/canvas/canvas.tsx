@@ -78,6 +78,8 @@ export interface EditorCanvasProps {
   componentArtboards?: Artboard[];
   /** Overrides the store's `activeArtboardId` for this render. */
   activeArtboardId?: string | null;
+  /** Overrides the store's `selectedNodeId` for this render. */
+  selectedNodeId?: string | null;
   className?: string;
 }
 
@@ -143,10 +145,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onPagesChange,
   componentArtboards: propComponentArtboards,
   activeArtboardId: propActiveArtboardId,
+  selectedNodeId: propSelectedNodeId,
   className,
 }) => {
   const storeDoc = useEditorStore((s) => s.document);
-  const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
+  const storeSelectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const selectedNodeIds = useEditorStore((s) => s.selectedNodeIds);
   const hoveredNodeId = useEditorStore((s) => s.hoveredNodeId);
   const dragPayload = useEditorStore((s) => s.dragPayload);
@@ -175,6 +178,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const setComponentArtboardWidth = useEditorStore((s) => s.setComponentArtboardWidth);
 
   const document = propDoc ?? storeDoc;
+  const selectedNodeId =
+    propSelectedNodeId !== undefined ? propSelectedNodeId : storeSelectedNodeId;
   const aiGenerationStatus = propAiGenerationStatus ?? storeAiGenerationStatus;
   const componentArtboards = propComponentArtboards ?? storeComponentArtboards;
   const activeArtboardId =

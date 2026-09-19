@@ -9,6 +9,7 @@ import {
   AnimationConfig,
   ActionPipeline,
   FormConfig,
+  TrackingConfig,
   PROJECT_SCHEMA_NAME,
   CURRENT_PROJECT_SCHEMA_VERSION,
 } from '@kubuild/schema';
@@ -293,6 +294,7 @@ export interface EditorState {
   setLiveFormState: (state: LiveFormState | null) => void;
   setOnChangeHandler: (handler: ((doc: PageDocument) => void) | null) => void;
   dispatch: (executor: (doc: PageDocument) => CommandResult) => void;
+  updateDocumentTracking: (tracking: TrackingConfig) => void;
   /**
    * Groups every `dispatch()` call made until the matching `endHistoryTransaction()`
    * into a single undo entry (STORA-510) — e.g. every section an AI `streamPage`
@@ -791,6 +793,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedNodeIds: updatedIds,
     });
     commitDocumentToOwner(get, set, result.document);
+  },
+
+  updateDocumentTracking: (tracking) => {
+    get().dispatch((doc) => {
+      const updatedDoc: PageDocument = {
+        ...doc,
+        tracking,
+        ...(doc.metadata
+          ? {
+              metadata: {
+                ...doc.metadata,
+                tracking,
+              },
+            }
+          : {}),
+      };
+      return {
+        document: updatedDoc,
+        event: {
+          type: 'PROPS_UPDATED',
+          timestamp: new Date().toISOString(),
+          nodeId: doc.document.id,
+          payload: { tracking },
+        },
+      };
+    });
   },
 
   beginHistoryTransaction: () => {

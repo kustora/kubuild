@@ -29,7 +29,7 @@ describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
     useEditorStore.getState().selectNode('hero-heading');
 
     const html = renderToString(
-      <EditorCanvas document={doc} registry={registry} viewport="desktop" />
+      <EditorCanvas document={doc} selectedNodeId="hero-heading" registry={registry} viewport="desktop" />
     );
 
     expect(html.toLowerCase()).toContain('contenteditable="true"');

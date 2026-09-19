@@ -1,6 +1,12 @@
-import type { ActionStep, NavigateStepPayload, CopyClipboardStepPayload, ResetFormStepPayload } from '@kubuild/schema';
+import type {
+  ActionStep,
+  NavigateStepPayload,
+  CopyClipboardStepPayload,
+  ResetFormStepPayload,
+  CustomEventStepPayload,
+} from '@kubuild/schema';
 import { isSafeActionUrl } from '@kubuild/schema';
-import { type PipelineExecutionContext, type PipelineStepHandler } from '@kubuild/core';
+import { type PipelineExecutionContext, type PipelineStepHandler, interpolateValue } from '@kubuild/core';
 import { toastManager, type ToastManager } from './toast-manager';
 
 /**
@@ -284,5 +290,63 @@ export const resetFormRunner: PipelineStepHandler = (
   return {
     formId,
     reset: true,
+  };
+};
+
+/**
+ * Result returned by custom_event runner.
+ */
+export interface CustomEventResult {
+  eventName: string;
+  detail: Record<string, unknown>;
+  dispatched: boolean;
+}
+
+/**
+ * Action Runner for `custom_event`.
+ * Dispatches a DOM CustomEvent on the window and mirrors to dataLayer if available.
+ */
+export const customEventRunner: PipelineStepHandler = (
+  step: ActionStep,
+  context: PipelineExecutionContext,
+): CustomEventResult => {
+  const payload = (step.payload || {}) as CustomEventStepPayload;
+  const rawEventName = String(payload.eventName || '').trim();
+  const eventName = String(interpolateValue(rawEventName, context)).trim();
+
+  if (!eventName) {
+    throw new Error('Custom event name cannot be empty');
+  }
+
+  const rawDetail = payload.detail || {};
+  const interpolatedDetail: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(rawDetail)) {
+    interpolatedDetail[k] = interpolateValue(v, context);
+  }
+
+  let dispatched = false;
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    const customEvt = new CustomEvent(eventName, {
+      detail: interpolatedDetail,
+      bubbles: payload.bubbles !== false,
+      cancelable: payload.cancelable !== false,
+    });
+    window.dispatchEvent(customEvt);
+    dispatched = true;
+
+    // GTM / dataLayer bridge
+    const win = window as unknown as { dataLayer?: unknown[] };
+    if (Array.isArray(win.dataLayer)) {
+      win.dataLayer.push({
+        event: eventName,
+        ...interpolatedDetail,
+      });
+    }
+  }
+
+  return {
+    eventName,
+    detail: interpolatedDetail,
+    dispatched,
   };
 };

@@ -639,10 +639,21 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     if (!promptOverride) setInputValue('');
 
     try {
-      const plan = await planPage({
+      const rawPlan = await planPage({
         prompt,
         conversationHistory: messages,
       });
+
+      let plan = rawPlan;
+      if (plan && !Array.isArray(plan.sections)) {
+        if (Array.isArray((plan as any).data?.sections)) {
+          plan = (plan as any).data;
+        } else if (Array.isArray((plan as any).plan?.sections)) {
+          plan = (plan as any).plan;
+        } else if (Array.isArray((plan as any).page?.sections)) {
+          plan = (plan as any).page;
+        }
+      }
 
       if (!plan || !Array.isArray(plan.sections) || plan.sections.length === 0) {
         setPlanError('AI did not return a valid page plan. Please try again.');
@@ -1003,6 +1014,20 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 </div>
               ))}
             </div>
+
+            {isAgentRunning && (
+              <div
+                data-testid="ai-agent-running-hint"
+                className="flex items-center gap-1.5 text-[11px] text-violet-700 bg-violet-50/80 rounded px-2 py-1.5 border border-violet-100 mt-0.5"
+              >
+                <Loader2 className="w-3 h-3 animate-spin shrink-0 text-violet-600" />
+                <span>
+                  {autoApply
+                    ? 'Sedang memproses langkah... Perubahan otomatis diterapkan ke kanvas setelah selesai.'
+                    : 'Sedang memproses langkah... Perubahan akan siap di-review & di-apply setelah selesai.'}
+                </span>
+              </div>
+            )}
 
             {agentSummary && !isAgentRunning && (
               <p className="text-[11px] text-slate-600 whitespace-pre-wrap">{agentSummary}</p>

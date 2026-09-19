@@ -226,11 +226,10 @@ export function useAiGenerator(options: UseAiGeneratorOptions) {
         });
         return plan;
       } catch (err: unknown) {
-        if (ac.signal.aborted) return null;
         const e = err instanceof Error ? err : new Error(String(err));
         setError(e);
         options.onError?.(e);
-        return null;
+        throw e;
       } finally {
         if (abortControllerRef.current === ac) {
           setIsGenerating(false);

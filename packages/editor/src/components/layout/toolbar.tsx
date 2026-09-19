@@ -1,11 +1,13 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ComponentRegistry } from '@kubuild/components';
+import type { PixelCredentialOption } from '@kubuild/schema';
 import { useEditorStore } from '../../store';
 import { ImportModal } from '../modals/import-modal';
 import { CodeViewerModal } from '../modals/code-viewer-modal';
+import { TrackingSettingsModal } from '../modals/tracking-settings-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils';
-import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles } from 'lucide-react';
+import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles, Activity } from 'lucide-react';
 
 import { EditorToolbarConfig, isAiChatPanelActive } from '../../config';
 
@@ -20,6 +22,10 @@ export interface EditorToolbarProps {
    * `config.showAiChatToggle` — AI must stay fully invisible when not configured.
    */
   aiEnabled?: boolean;
+  /** Saved pixel credentials to populate selector in tracking modal */
+  trackingCredentials?: PixelCredentialOption[];
+  /** Called when user clicks "Kelola Kredensial" inside tracking modal */
+  onManageCredentials?: () => void;
 }
 
 interface ToolbarIconButtonProps {
@@ -104,6 +110,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   showExportImport: propShowExportImport = true,
   config,
   aiEnabled = false,
+  trackingCredentials,
+  onManageCredentials,
 }) => {
   const {
     document,
@@ -128,6 +136,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isCodeViewerModalOpen, setIsCodeViewerModalOpen] = useState<boolean>(false);
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const showAiChatToggle = config?.showAiChatToggle !== false && aiEnabled;
@@ -311,6 +320,17 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </button>
         )}
 
+        <button
+          type="button"
+          data-testid="toolbar-tracking-toggle"
+          title="Configure Pixel & CAPI Tracking"
+          onClick={() => setIsTrackingModalOpen(true)}
+          className="flex items-center gap-1.5 text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-emerald-500 hover:text-emerald-600 font-medium text-slate-700 transition cursor-pointer"
+        >
+          <Activity className="w-3.5 h-3.5 text-emerald-600" />
+          <span className="hidden sm:inline">Tracking</span>
+        </button>
+
         {showExportImport && (
           <div className="flex items-center gap-1">
             {showCodeViewer && <div className="h-4 w-px bg-slate-200 mx-1" />}
@@ -410,6 +430,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <CodeViewerModal
         isOpen={isCodeViewerModalOpen}
         onClose={() => setIsCodeViewerModalOpen(false)}
+      />
+
+      <TrackingSettingsModal
+        isOpen={isTrackingModalOpen}
+        onClose={() => setIsTrackingModalOpen(false)}
+        document={document}
+        credentials={trackingCredentials}
+        onManageCredentials={onManageCredentials}
       />
     </>
   );

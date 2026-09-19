@@ -2,10 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
 import { findNodeById, findNodeLocation } from '@kubuild/core';
 import { isVariableBinding, PageDocument, AnimationConfig } from '@kubuild/schema';
+import type { PixelCredentialOption } from '@kubuild/schema';
 import { useEditorStore, Viewport } from '../../store';
 import { VariableBindingControl, toBindingValue } from '../ui/variable-picker';
 import { AssetManagerModal } from '../modals/asset-manager-modal';
 import { ActionBuilderModal } from '../action-builder/action-builder-modal';
+import { TrackingSettingsModal } from '../modals/tracking-settings-modal';
 import { TableSpreadsheetEditor } from '../table-editor/table-spreadsheet-editor';
 import { BoxModelEditor } from '../style-manager/box-model-editor';
 import { StyleManagerAccordion } from '../style-manager/style-manager-accordion';
@@ -13,12 +15,13 @@ import { TraitsPanel } from './traits-panel';
 import { ActionPropControl } from './action-prop-control';
 import { ComponentIcon } from '../ui/icons';
 import { replayNodeAnimation } from '@kubuild/renderer';
-import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles } from 'lucide-react';
+import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles, Radio } from 'lucide-react';
 
 import { StyleSectorId } from '../style-manager/style-manager-accordion';
 import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config';
 import { useTranslation } from '../../i18n';
 import { LanguageSwitcher } from '../ui/language-switcher';
+
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
@@ -32,6 +35,10 @@ export interface InspectorPanelProps {
    * matching every other AI feature's opt-in-only behavior.
    */
   aiConfig?: ResolvedAiEditorConfig;
+  /** Saved pixel credentials for the account/workspace (fetched by the host app). */
+  trackingCredentials?: PixelCredentialOption[];
+  /** Opens the host app's credential management page (e.g. /dashboard/marketing). */
+  onManageCredentials?: () => void;
 }
 
 const SPACING_FIELDS: Array<{ name: string; label: string }> = [
@@ -543,6 +550,184 @@ export const StateEditingBadge: React.FC<{ state: string }> = ({ state }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NodePixelEventSection — inline pixel event config per element
+// Reads/writes a specially-labelled ActionPipeline (label = '_kubuild_pixel')
+// so the existing handleClick → executeNodeActions in renderer fires it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PIXEL_PIPELINE_LABEL = '_kubuild_pixel';
+
+const META_STANDARD_EVENTS_LIST = [
+  'PageView','Purchase','Lead','AddToCart','InitiateCheckout',
+  'ViewContent','Search','AddPaymentInfo','CompleteRegistration',
+  'Contact','Donate','FindLocation','Schedule','Subscribe',
+];
+
+interface NodePixelEventSectionProps {
+  nodeId: string;
+  actions?: import('@kubuild/schema').ActionPipeline[];
+  onUpdateActions: (actions: import('@kubuild/schema').ActionPipeline[]) => void;
+}
+
+const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, actions = [], onUpdateActions }) => {
+  const existing = actions.find((p) => p.label === PIXEL_PIPELINE_LABEL);
+  const existingPayload = existing?.steps?.[0]?.type === 'track_event'
+    ? (existing.steps[0].payload as { eventName?: string; eventType?: string; provider?: string })
+    : undefined;
+
+  const [eventName, setEventName] = useState(existingPayload?.eventName ?? '');
+  const [eventType, setEventType] = useState<'standard' | 'custom'>(
+    existingPayload?.eventType === 'custom' ? 'custom' : 'standard',
+  );
+  const [provider, setProvider] = useState(existingPayload?.provider ?? 'all');
+  const [isExpanded, setIsExpanded] = useState(!!existing);
+
+  useEffect(() => {
+    const p = actions.find((a) => a.label === PIXEL_PIPELINE_LABEL);
+    const pay = p?.steps?.[0]?.type === 'track_event'
+      ? (p.steps[0].payload as { eventName?: string; eventType?: string; provider?: string })
+      : undefined;
+    setEventName(pay?.eventName ?? '');
+    setEventType(pay?.eventType === 'custom' ? 'custom' : 'standard');
+    setProvider(pay?.provider ?? 'all');
+    setIsExpanded(!!p);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeId]);
+
+  const handleSave = () => {
+    if (!eventName.trim()) return;
+    const pixelPipeline: import('@kubuild/schema').ActionPipeline = {
+      id: existing?.id ?? `pixel-${nodeId}`,
+      label: PIXEL_PIPELINE_LABEL,
+      trigger: 'click',
+      enabled: true,
+      steps: [{
+        id: `pixel-step-${nodeId}`,
+        type: 'track_event',
+        payload: { eventName: eventName.trim(), eventType, provider, delivery: 'client_only', enabled: true, params: {}, userData: {} },
+      }],
+    };
+    onUpdateActions([...actions.filter((p) => p.label !== PIXEL_PIPELINE_LABEL), pixelPipeline]);
+  };
+
+  const handleRemove = () => {
+    onUpdateActions(actions.filter((p) => p.label !== PIXEL_PIPELINE_LABEL));
+    setEventName(''); setEventType('standard'); setProvider('all'); setIsExpanded(false);
+  };
+
+  const isConfigured = !!existing && !!existingPayload?.eventName;
+
+  return (
+    <div className="pb-3 border-b border-slate-200">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 text-left group"
+      >
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Event Pixel</span>
+          {isConfigured && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[9px] font-semibold">
+              <Radio className="w-2.5 h-2.5" />
+              {existingPayload!.eventName}
+            </span>
+          )}
+        </div>
+        <span className="text-[10px] text-slate-400 group-hover:text-slate-600 transition shrink-0">{isExpanded ? '▲' : '▼'}</span>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 flex flex-col gap-2">
+          {/* Type toggle */}
+          <div className="flex gap-1.5">
+            {(['standard', 'custom'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => { setEventType(t); setEventName(''); }}
+                className={`flex-1 py-1 text-[10px] font-semibold rounded border transition ${
+                  eventType === t
+                    ? 'bg-purple-600 text-white border-purple-600'
+                    : 'bg-white text-slate-600 border-slate-300 hover:border-purple-400'
+                }`}
+              >
+                {t === 'standard' ? 'Standard' : 'Custom'}
+              </button>
+            ))}
+          </div>
+
+          {/* Event Name */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Nama Event</label>
+            {eventType === 'standard' ? (
+              <select
+                value={eventName}
+                onChange={(e) => setEventName(e.target.value)}
+                className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900"
+              >
+                <option value="">— pilih event —</option>
+                {META_STANDARD_EVENTS_LIST.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={eventName}
+                onChange={(e) => setEventName(e.target.value)}
+                placeholder="e.g. ButtonClick, WhatsAppClick"
+                className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900"
+              />
+            )}
+          </div>
+
+          {/* Platform */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Platform</label>
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="w-full text-xs bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900"
+            >
+              <option value="all">Semua Platform</option>
+              <option value="meta">Meta (Facebook) Pixel</option>
+              <option value="google">Google Analytics (GA4)</option>
+              <option value="tiktok">TikTok Pixel</option>
+            </select>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-1.5 pt-0.5">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!eventName.trim()}
+              className="flex-1 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded transition"
+            >
+              Simpan Event
+            </button>
+            {isConfigured && (
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="px-2 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition"
+              >
+                Hapus
+              </button>
+            )}
+          </div>
+
+          {isConfigured && (
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              Event <code className="text-purple-600 font-mono">{existingPayload!.eventName}</code> dikirim ke{' '}
+              {existingPayload!.provider === 'all' ? 'semua platform' : existingPayload!.provider} saat elemen ini diklik.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   registry,
   className,
@@ -550,6 +735,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   selectedNodeId: propSelectedNodeId,
   config,
   aiConfig,
+  trackingCredentials,
+  onManageCredentials,
 }) => {
   const storeState = useEditorStore((s) => s);
   const document = propDocument ?? storeState.document;
@@ -564,6 +751,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     updateNodeStateStyle,
     updateNodeAnimation,
     updateNodeFormConfig,
+    updateNodeActions,
     variableCatalog,
     insertComponent,
     deleteComponent,
@@ -591,6 +779,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const [assetPickerField, setAssetPickerField] = useState<string | null>(null);
   // STORA-340 — Visual Action Builder modal state
   const [isActionBuilderOpen, setIsActionBuilderOpen] = useState<boolean>(false);
+  // Pixel Tracking modal — opened from the inspector's Pixel Tracking card
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState<boolean>(false);
   // Active pseudo-state layer for the style manager — STORA-221.
   const [activeState, setActiveState] = useState<string>('default');
 
@@ -849,6 +1039,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           nodeId={node.id}
         />
       )}
+      {/* Pixel Tracking Modal — opened from the inspector Pixel section */}
+      {isTrackingModalOpen && (
+        <TrackingSettingsModal
+          isOpen
+          onClose={() => setIsTrackingModalOpen(false)}
+          credentials={trackingCredentials}
+          onManageCredentials={onManageCredentials}
+        />
+      )}
       {/* Tab bar: Style / Traits — STORA-211 */}
       {showStyles && showTraits ? (
         <div className="flex shrink-0 border-b border-slate-200 bg-slate-50 items-center justify-between">
@@ -921,6 +1120,66 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           </button>
         </div>
       </div>
+
+      {/* ── Pixel Tracking section — separate from action events ───────── */}
+      <div className="pb-3 border-b border-slate-200">
+        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-purple-300 transition">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+              <Radio className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold text-slate-700 leading-tight">Pixel Tracking</span>
+              <span className="text-[10px] text-slate-500 truncate">
+                {document?.tracking?.enabled === false
+                  ? 'Tracking dinonaktifkan'
+                  : (() => {
+                      const p = document?.tracking?.providers;
+                      if (!p) return 'Belum ada pixel dikonfigurasi';
+                      const active = [
+                        p.meta?.enabled !== false && p.meta?.pixelId,
+                        p.google?.enabled !== false && p.google?.measurementId,
+                        p.gtm?.enabled !== false && p.gtm?.containerId,
+                        p.tiktok?.enabled !== false && p.tiktok?.pixelId,
+                      ].filter(Boolean).length;
+                      return active > 0 ? `${active} provider aktif` : 'Belum ada pixel dikonfigurasi';
+                    })()}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            data-testid="open-pixel-tracking-btn"
+            onClick={() => setIsTrackingModalOpen(true)}
+            className="px-2.5 py-1 text-xs font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+          >
+            <Radio className="w-3 h-3" />
+            <span>Pixel</span>
+            {document?.tracking?.enabled !== false &&
+              (() => {
+                const p = document?.tracking?.providers;
+                const active = p ? [
+                  p.meta?.enabled !== false && p.meta?.pixelId,
+                  p.google?.enabled !== false && p.google?.measurementId,
+                  p.gtm?.enabled !== false && p.gtm?.containerId,
+                  p.tiktok?.enabled !== false && p.tiktok?.pixelId,
+                ].filter(Boolean).length : 0;
+                return active > 0 ? (
+                  <span className="ml-0.5 px-1 py-0.2 text-[9px] font-bold bg-purple-600 text-white rounded-full">
+                    {active}
+                  </span>
+                ) : null;
+              })()}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Per-element pixel event — fires on click via executeNodeActions ── */}
+      <NodePixelEventSection
+        nodeId={node.id}
+        actions={node.actions}
+        onUpdateActions={(actions) => updateNodeActions(node.id, actions)}
+      />
 
       {/* STORA-511 — "Ask AI about this component": opens the AI Chat Panel (if hidden)
           with this node already attached as context, and focuses its input. Only ever
