@@ -258,6 +258,12 @@ export interface EditorState {
    */
   aiGenerationStatus: AiGenerationPlaceholderStatus | null;
   /**
+   * Whether any AI operation is actively running (chat streaming, page generation,
+   * autonomous agent execution, planning, or node enhancement). UI-only, never serialized.
+   */
+  isAiRunning: boolean;
+  setIsAiRunning: (isAiRunning: boolean) => void;
+  /**
    * Component artboards (detached modals/drawers/collapsibles, or any block the author
    * detached) belonging to the project currently open. Page artboards stay owned by the
    * host app's `pages` prop; only these live in the store for now.
@@ -505,11 +511,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   actionLogs: [],
   liveFormState: null,
   aiGenerationStatus: null,
+  isAiRunning: false,
   componentArtboards: [],
   activeArtboardId: null,
   artboardReturnDocument: null,
   locale: 'en',
 
+  setIsAiRunning: (isAiRunning) => set({ isAiRunning }),
   setLocale: (locale) => set({ locale }),
   setDragPayload: (payload) => set({ dragPayload: payload }),
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
@@ -575,6 +583,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       canUndo: false,
       canRedo: false,
       aiGenerationStatus: null,
+      isAiRunning: false,
       // A wholesale document swap (e.g. the host switching pages) means we are editing a
       // page again, so any component-artboard editing session is no longer in effect.
       activeArtboardId: null,

@@ -229,6 +229,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     beginHistoryTransaction,
     endHistoryTransaction,
     setAiGenerationStatus,
+    setIsAiRunning,
     aiChatFocusRequestId,
   } = storeState;
 
@@ -447,6 +448,13 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   ]);
 
   const isBusy = isLoading || isGeneratingPage || isAgentRunning || isPlanning || isEnhancing;
+
+  useEffect(() => {
+    setIsAiRunning(isBusy);
+    return () => {
+      setIsAiRunning(false);
+    };
+  }, [isBusy, setIsAiRunning]);
 
   const selectedNode = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const showContextChip = !!selectedNodeId && !contextDismissed;
