@@ -1,5 +1,69 @@
 # @kubuild/ai
 
+## 0.6.0
+
+### Minor Changes
+
+- • Tracking Schemas & Config: Introduced tracking.ts and tracking.ts supporting standard and custom events across providers (Meta Pixel, GA4,
+  TikTok Events API, Custom Webhooks).
+  • Server Tracking Relay: Server-side tracking runtime in server-tracking.ts featuring Event ID deduplication, SHA-256 user data hashing, Meta
+  Conversions API (CAPI), and GA4 Measurement Protocol.
+  • Action Step Runner: Added a dedicated track_event action runner in tracking.ts with runtime variable interpolation.
+  • Editor UI: Added the tracking-settings-modal.tsx in the toolbar and refactored the NodePixelEventSection in inspector-panel.tsx for
+  streamlined pixel configuration.
+
+  #### 2. Asset Management Integration (AssetProvider)
+
+  • Integrated AssetProvider into inspector-panel.tsx, traits-panel.tsx, and background image controls for direct uploads.
+  • Introduced AssetManagerModal and asset gallery browsing for media source controls.
+
+  #### 3. AI Chat Panel & State Enhancements
+
+  • Added isAiRunning state and setter in store.ts to centrally manage AI execution status.
+  • Added visual loading indicators and improved page plan handling in ai-chat-panel.tsx.
+  ──────
+
+  ### 📦 Version 0.5.0
+
+  • AI Page Planning (planPage): Users can generate and approve a structured page outline before triggering full-page AI document generation.
+  • Background Image Decoration: Visual background image controls and property normalization in the style manager.
+  • Child Policy Validation: Enhanced validation rules for parent-child component relationships with warnings and updated layout component
+  definitions.
+  ──────
+
+  ### 📦 Version 0.4.0
+
+  • AI Agent Mode (Tool-Calling Agent):
+  • Multi-step AI agent using document tools (createDocumentTools) to inspect outline, locate nodes, and perform surgical edits (AgentOps)
+  without full-page regeneration.
+  • Safe transaction batching via store.ts (an entire agent turn is undone in a single undo step).
+  • Live tool-call timeline with op-by-op review (Apply / Discard).
+  • Internationalization (i18n): Added localization support for English (en) and Indonesian (id).
+  ──────
+
+  ### 📦 Version 0.3.1
+
+  • Pinch-to-zoom & Two-Finger Pan: Multi-touch canvas navigation gestures for mobile and tablet devices.
+  • Mobile Floating Action Pill: Bottom action bar offering Move Up, Move Down, Quick Edit, and Delete actions on touch screens.
+  • Touch Optimizations: Bounding-box recomputation throttling, coarse-pointer hover state disabling, and auto-closing drawers upon element
+  insertion.
+  ──────
+
+  ### 📦 Version 0.3.0
+
+  • Initial @kubuild/ai Release: Multi-provider adapter layer (OpenAI, Anthropic, Gemini, Ollama) and Server-Sent Events (SSE) token streaming.
+  • Interactive Components: Added native support for modal, drawer, and collapsible.
+  • Canvas Multi-Artboards: Free positioning, dragging, and deletion of component artboards on the canvas.
+  • Dimension Controls: Added object-fit and object-position controls in the inspector.
+  • Responsive Navbar: Mobile hamburger menu and dropdown support.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/components@0.6.0
+  - @kubuild/core@0.6.0
+  - @kubuild/schema@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
