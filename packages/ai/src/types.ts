@@ -49,6 +49,14 @@ export interface AiChatRequest {
   messages: AiChatMessage[];
   currentDocument?: PageDocument;
   selectedNodeId?: string;
+  /**
+   * Extra host/user instructions, appended AFTER the built-in system prompt (never
+   * replacing it — the base prompt carries the output-format, safety and tool rules).
+   * Over HTTP, `createAiHandler` caps its length and can disable it entirely
+   * (`allowClientInstructions` / `maxClientInstructionsLength`).
+   */
+  instructions?: string;
+  /** @deprecated Alias of `instructions` — appended, never a replacement for the base prompt. */
   systemPrompt?: string;
 }
 
@@ -67,6 +75,12 @@ export interface PagePlan {
   description?: string;
   pageStyles?: Node['styles'];
   sections?: PlannedSection[];
+  /**
+   * `true` when the model's plan could not be parsed and the engine substituted its
+   * generic default plan (hero/features/testimonials/cta/footer). The plan is still
+   * usable, but hosts should tell the user it is not tailored to their prompt.
+   */
+  usedFallback?: boolean;
 }
 
 export interface AiPlanPageRequest {
@@ -76,6 +90,13 @@ export interface AiPlanPageRequest {
   locale?: string;
   sectionCount?: number | { min?: number; max?: number };
   conversationHistory?: AiChatMessage[];
+  /**
+   * Extra host/user instructions, appended AFTER the built-in system prompt (never
+   * replacing it — the base prompt carries the output-format, safety and tool rules).
+   * Over HTTP, `createAiHandler` caps its length and can disable it entirely
+   * (`allowClientInstructions` / `maxClientInstructionsLength`).
+   */
+  instructions?: string;
 }
 
 export interface AiGeneratePageRequest {
@@ -91,6 +112,13 @@ export interface AiGeneratePageRequest {
   sectionCount?: number | { min?: number; max?: number };
   /** Pre-confirmed plan to generate directly without re-planning. */
   plan?: PagePlan;
+  /**
+   * Extra host/user instructions, appended AFTER the built-in system prompt (never
+   * replacing it — the base prompt carries the output-format, safety and tool rules).
+   * Over HTTP, `createAiHandler` caps its length and can disable it entirely
+   * (`allowClientInstructions` / `maxClientInstructionsLength`).
+   */
+  instructions?: string;
 }
 
 export interface AiGenerateSectionRequest {
@@ -98,12 +126,26 @@ export interface AiGenerateSectionRequest {
   stylePreference?: string;
   targetSectionType?: string;
   parentContext?: string;
+  /**
+   * Extra host/user instructions, appended AFTER the built-in system prompt (never
+   * replacing it — the base prompt carries the output-format, safety and tool rules).
+   * Over HTTP, `createAiHandler` caps its length and can disable it entirely
+   * (`allowClientInstructions` / `maxClientInstructionsLength`).
+   */
+  instructions?: string;
 }
 
 export interface AiRefactorNodeRequest {
   node: Node;
   instruction: string;
   stylePreference?: string;
+  /**
+   * Extra host/user instructions, appended AFTER the built-in system prompt (never
+   * replacing it — the base prompt carries the output-format, safety and tool rules).
+   * Over HTTP, `createAiHandler` caps its length and can disable it entirely
+   * (`allowClientInstructions` / `maxClientInstructionsLength`).
+   */
+  instructions?: string;
 }
 
 export type AiStreamEvent =
@@ -162,6 +204,13 @@ export interface AiGenerateResponse<T = PageDocument | Node> {
     promptTokens?: number;
     completionTokens?: number;
   };
+  /**
+   * `true` when `success` is true but the engine had to substitute a default result
+   * (currently: `planPage` when the model's plan JSON could not be parsed).
+   */
+  usedFallback?: boolean;
+  /** Non-fatal diagnostics for a successful response (e.g. `PLAN_FALLBACK`). */
+  warnings?: AiErrorDetail[];
 }
 
 export interface AiCompiledComponentProp {
@@ -340,7 +389,7 @@ export type AgentOp =
 export interface AgentOpRecord {
   id: string;
   op: AgentOp;
-  /** Human-readable one-liner, e.g. `Ubah props tombol "cta-btn"`. */
+  /** Human-readable one-liner, e.g. `Update props of tombol "cta-btn"`. */
   summary: string;
   /**
    * True for ops that can destroy user content (`delete-node`, `replace-node`). The
@@ -354,6 +403,14 @@ export interface AiAgentRequest {
   /** The canvas document the agent reasons about and mutates a snapshot of. */
   document: PageDocument;
   selectedNodeId?: string;
+  /**
+   * Extra host/user instructions, appended AFTER the built-in system prompt (never
+   * replacing it — the base prompt carries the output-format, safety and tool rules).
+   * Over HTTP, `createAiHandler` caps its length and can disable it entirely
+   * (`allowClientInstructions` / `maxClientInstructionsLength`).
+   */
+  instructions?: string;
+  /** @deprecated Alias of `instructions` — appended, never a replacement for the base prompt. */
   systemPrompt?: string;
   stylePreference?: string;
   /** Overrides the engine's configured step ceiling for this run. */

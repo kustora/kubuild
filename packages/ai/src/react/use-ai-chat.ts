@@ -46,6 +46,12 @@ export interface UseAiChatOptions extends AiClientOptions {
 export interface SendMessageOptions {
   currentDocument?: PageDocument;
   selectedNodeId?: string;
+  /**
+   * Extra instructions sent to the server and appended after its built-in system prompt
+   * (see `createAiHandler`'s `allowClientInstructions`).
+   */
+  instructions?: string;
+  /** @deprecated Alias of `instructions`. */
   systemPrompt?: string;
   /**
    * Opt out of token-level streaming for this call (STORA-515/516 default to `true`).
@@ -165,6 +171,7 @@ export function useAiChat(options: UseAiChatOptions) {
               messages: updatedHistory,
               currentDocument: sendOptions?.currentDocument,
               selectedNodeId: sendOptions?.selectedNodeId,
+              instructions: sendOptions?.instructions,
               systemPrompt: sendOptions?.systemPrompt,
             },
             {
@@ -202,6 +209,7 @@ export function useAiChat(options: UseAiChatOptions) {
             messages: updatedHistory,
             currentDocument: sendOptions?.currentDocument,
             selectedNodeId: sendOptions?.selectedNodeId,
+            instructions: sendOptions?.instructions,
             systemPrompt: sendOptions?.systemPrompt,
           },
           { signal: ac.signal },

@@ -26,6 +26,11 @@ export interface RunAgentParams {
   history?: AiChatMessage[];
   stylePreference?: string;
   maxSteps?: number;
+  /**
+   * Extra instructions appended after the agent's built-in system prompt (never replacing
+   * its tool/safety rules). Subject to the handler's `allowClientInstructions` cap.
+   */
+  instructions?: string;
 }
 
 /**
@@ -91,6 +96,7 @@ export function useAiAgent(options: UseAiAgentOptions) {
             selectedNodeId: params.selectedNodeId,
             stylePreference: params.stylePreference,
             maxSteps: params.maxSteps,
+            instructions: params.instructions,
           },
           {
             onAgentStep: (currentStep, limit) => {

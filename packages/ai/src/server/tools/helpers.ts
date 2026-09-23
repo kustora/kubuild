@@ -93,7 +93,7 @@ export function resolveNode(
   if (!node) {
     return {
       error: fail(
-        `${toolName}: node "${nodeId}" tidak ditemukan`,
+        `${toolName}: node "${nodeId}" not found`,
         `No node with id "${nodeId}" exists in this page. Node ids must come from the outline or from a tool result — never invented.`,
         { suggestedNodeIds: suggestNodeIds(document, nodeId) },
       ),
