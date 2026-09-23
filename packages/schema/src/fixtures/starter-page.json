@@ -1,6 +1,6 @@
 {
   "schema": "stora.page",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "metadata": {
     "title": "Welcome to KUBUILD",
     "description": "A starter template built with KUBUILD portable web builder",

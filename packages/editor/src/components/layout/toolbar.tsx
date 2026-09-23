@@ -5,9 +5,10 @@ import type { PixelCredentialOption } from '@kubuild/schema';
 import { useEditorStore } from '../../store';
 import { ImportModal } from '../modals/import-modal';
 import { CodeViewerModal } from '../modals/code-viewer-modal';
-import { TrackingSettingsModal } from '../modals/tracking-settings-modal';
+import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils';
-import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles, Activity } from 'lucide-react';
+import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles, Activity, Loader2 } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 
 import { EditorToolbarConfig, isAiChatPanelActive } from '../../config';
 
@@ -26,6 +27,10 @@ export interface EditorToolbarProps {
   trackingCredentials?: PixelCredentialOption[];
   /** Called when user clicks "Kelola Kredensial" inside tracking modal */
   onManageCredentials?: () => void;
+  /** Stores a tracking secret on the host; returns the credentialId kept in the document. */
+  onSaveTrackingSecret?: SaveTrackingSecretHandler;
+  /** Host tracking relay URL, shown read-only in the tracking modal. */
+  trackingRelayUrl?: string;
 }
 
 interface ToolbarIconButtonProps {
@@ -112,6 +117,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   aiEnabled = false,
   trackingCredentials,
   onManageCredentials,
+  onSaveTrackingSecret,
+  trackingRelayUrl,
 }) => {
   const {
     document,
@@ -132,7 +139,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     togglePreviewMode,
     actionDebuggerOpen,
     toggleActionDebugger,
+    isAiRunning,
   } = useEditorStore();
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isCodeViewerModalOpen, setIsCodeViewerModalOpen] = useState<boolean>(false);
@@ -222,7 +231,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <button
             type="button"
             data-testid="toolbar-ai-chat-toggle"
-            title={`AI Chat (${isAiChatPanelActive(aiChatMode) ? 'Open' : 'Hidden'})`}
+            title={
+              isAiRunning
+                ? `${t.aiChat.aiRunning} ${t.aiChat.busyNotice}`
+                : `AI Chat (${isAiChatPanelActive(aiChatMode) ? 'Open' : 'Hidden'})`
+            }
             onClick={toggleAiChat}
             aria-pressed={isAiChatPanelActive(aiChatMode)}
             className={`hidden sm:flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
@@ -231,7 +244,15 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+            {isAiRunning ? (
+              <Loader2
+                data-testid="toolbar-ai-running"
+                className="w-3.5 h-3.5 animate-spin"
+                aria-label={t.aiChat.aiRunning}
+              />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+            )}
             <span>AI Chat</span>
           </button>
         )}
@@ -287,7 +308,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   icon={<Undo2 className="w-3.5 h-3.5" aria-hidden="true" />}
                   label="Undo"
                   shortcut="Ctrl/Cmd+Z"
-                  disabled={!canUndo}
+                  disabled={!canUndo || isAiRunning}
                   onClick={undo}
                   data-testid="toolbar-undo"
                 />
@@ -295,7 +316,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   icon={<Redo2 className="w-3.5 h-3.5" aria-hidden="true" />}
                   label="Redo"
                   shortcut="Ctrl/Cmd+Shift+Z"
-                  disabled={!canRedo}
+                  disabled={!canRedo || isAiRunning}
                   onClick={redo}
                   data-testid="toolbar-redo"
                 />
@@ -438,6 +459,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         document={document}
         credentials={trackingCredentials}
         onManageCredentials={onManageCredentials}
+        onSaveTrackingSecret={onSaveTrackingSecret}
+        trackingRelayUrl={trackingRelayUrl}
       />
     </>
   );

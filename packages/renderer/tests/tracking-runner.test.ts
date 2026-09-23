@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { trackEventRunner } from '../src/action-runners/tracking';
 import { customEventRunner } from '../src/action-runners/navigation-utils';
 import { fireBrowserPixel, injectTrackingScripts, removeTrackingScripts } from '../src/tracking/tracking-manager';
-import type { ActionStep, TrackingConfig } from '@kubuild/schema';
+import { TrackingRelayRequestSchema, type ActionStep, type TrackingConfig } from '@kubuild/schema';
 
 describe('Renderer Tracking & Action Runner', () => {
   const originalWindow = globalThis.window;
@@ -175,44 +175,130 @@ describe('Renderer Tracking & Action Runner', () => {
       expect(result.reason).toContain('disabled globally');
     });
 
-    it('posts to serverRelayUrl when delivery is server_only or both', async () => {
-      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    const serverStep: ActionStep = {
+      id: 'step_server_relay',
+      type: 'track_event',
+      payload: {
+        eventName: 'Purchase',
+        delivery: 'server_only',
+        provider: 'meta',
+        params: { value: 100000 },
+        userData: { email: '{{ form.email }}' },
+      },
+    };
 
-      const step: ActionStep = {
-        id: 'step_server_relay',
-        type: 'track_event',
-        payload: {
-          eventName: 'Purchase',
-          delivery: 'server_only',
-          provider: 'meta',
-          params: { value: 100000 },
+    const trackingDoc = {
+      tracking: {
+        enabled: true,
+        providers: { meta: { enabled: true, pixelId: 'META_999', capiEnabled: true } },
+      },
+    };
+
+    it('posts a v1 relay request to the host relayUrl (RenderContext.tracking)', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ version: 1, success: true, eventId: 'x', results: {} }),
+      });
+
+      const result = await trackEventRunner(
+        serverStep,
+        {
+          form: { email: 'buyer@example.com' },
+          document: trackingDoc,
+          trackingRuntime: { relayUrl: '/api/tracking/relay', documentId: 'page_1', fetchFn: mockFetch },
         },
-      };
+        new AbortController().signal,
+      );
 
-      const context = {
-        fetch: mockFetch,
-        document: {
-          tracking: {
-            enabled: true,
-            providers: {
-              meta: {
-                enabled: true,
-                pixelId: 'META_999',
-                serverRelayUrl: '/api/tracking/relay',
-              },
-            },
-          },
-        },
-      };
-
-      const result = await trackEventRunner(step, context, new AbortController().signal);
       expect(result.serverDispatched).toBe(true);
+      expect(result.clientDispatched).toBe(false);
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/tracking/relay',
-        expect.objectContaining({
-          method: 'POST',
-        }),
+        expect.objectContaining({ method: 'POST', credentials: 'same-origin' }),
       );
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(TrackingRelayRequestSchema.safeParse(body).success).toBe(true);
+      expect(body.version).toBe(1);
+      expect(body.provider).toBe('meta');
+      expect(body.documentId).toBe('page_1');
+      expect(body.event.eventName).toBe('Purchase');
+      expect(body.event.userData.email).toBe('buyer@example.com');
+      // no config / secrets are ever sent by the browser
+      expect(body.config).toBeUndefined();
+      expect(JSON.stringify(body)).not.toContain('META_999');
+    });
+
+    it('ignores a legacy serverRelayUrl stored in the step payload or document', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
+      const onDiag = vi.fn();
+      const result = await trackEventRunner(
+        { ...serverStep, payload: { ...serverStep.payload, serverRelayUrl: '/evil' } },
+        {
+          fetch: mockFetch,
+          document: {
+            tracking: {
+              enabled: true,
+              providers: { meta: { enabled: true, pixelId: 'M', serverRelayUrl: '/legacy' } },
+            },
+          },
+          reportDiagnostic: onDiag,
+        },
+        new AbortController().signal,
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(result.serverDispatched).toBe(false);
+      expect(result.serverSkippedReason).toContain('no tracking relay configured');
+      expect(onDiag).toHaveBeenCalledWith(expect.objectContaining({ code: 'TRACKING_RELAY_NOT_CONFIGURED' }));
+    });
+
+    it('without a relay, skips server delivery but still fires the client pixel', async () => {
+      const onLog = vi.fn();
+      const result = await trackEventRunner(
+        { ...serverStep, payload: { ...serverStep.payload, delivery: 'both' } },
+        { document: trackingDoc, trackingRuntime: { onLog } },
+        new AbortController().signal,
+      );
+      expect(result.clientDispatched).toBe(true);
+      expect(result.serverDispatched).toBe(false);
+      expect(result.serverSkippedReason).toBeDefined();
+      expect(mockWindow.fbq).toHaveBeenCalled();
+      expect(onLog).toHaveBeenCalledWith(expect.stringContaining('no tracking relay configured'), expect.anything());
+    });
+
+    it('reports relay failures as TRACKING_RELAY_FAILED without throwing', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ version: 1, success: false, error: { code: 'FORBIDDEN_ORIGIN', message: 'Origin is not allowed' } }),
+      });
+      const onDiag = vi.fn();
+      const result = await trackEventRunner(
+        serverStep,
+        { document: trackingDoc, trackingRuntime: { relayUrl: '/relay', fetchFn: mockFetch }, reportDiagnostic: onDiag },
+        new AbortController().signal,
+      );
+      expect(result.serverDispatched).toBe(false);
+      expect(result.serverError).toBe('Origin is not allowed');
+      expect(onDiag).toHaveBeenCalledWith(expect.objectContaining({ code: 'TRACKING_RELAY_FAILED' }));
+    });
+
+    it("provider 'gtm' pushes to dataLayer and never calls the relay", async () => {
+      mockWindow.dataLayer = [];
+      const mockFetch = vi.fn();
+      const result = await trackEventRunner(
+        {
+          id: 'gtm_step',
+          type: 'track_event',
+          payload: { eventName: 'Lead', provider: 'gtm', delivery: 'both', eventId: 'evt_g', params: { plan: 'pro' } },
+        },
+        { trackingRuntime: { relayUrl: '/relay', fetchFn: mockFetch } },
+        new AbortController().signal,
+      );
+      expect(mockWindow.dataLayer).toContainEqual({ event: 'Lead', event_id: 'evt_g', plan: 'pro' });
+      expect(mockWindow.fbq).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(result.serverSkippedReason).toContain('GTM');
     });
   });
 

@@ -252,6 +252,10 @@ export function formatStepSummary(step: ActionStep): string {
       const targetId = (payload.modalNodeId as string) || (payload.modalId as string) || '';
       return `Close Modal #${targetId}`;
     }
+    case 'toggle_modal': {
+      const targetId = (payload.modalNodeId as string) || (payload.modalId as string) || '';
+      return `Toggle #${targetId}`;
+    }
     case 'set_state': {
       const key = (payload.key as string) || '';
       return `Set ${key}`;

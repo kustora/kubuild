@@ -7,6 +7,7 @@ import {
 } from '@kubuild/schema';
 import { deepClone } from '../document/command-tree-utils';
 import { validateDocument } from '../validation/validator';
+import { stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer';
 
 export type MigrationErrorCode =
   | 'NO_MIGRATION_PATH'
@@ -22,6 +23,20 @@ export interface MigrationError {
   details?: Record<string, unknown>;
 }
 
+export type MigrationWarningCode = 'TRACKING_SECRET_REMOVED';
+
+/**
+ * Non-fatal note emitted by a migration step (the migration still succeeds).
+ */
+export interface MigrationWarning {
+  code: MigrationWarningCode | (string & {});
+  message: string;
+  /** Step that emitted the warning, e.g. "1.0.0->1.1.0". */
+  step?: string;
+  /** Dotted document paths affected. */
+  paths?: string[];
+}
+
 export interface MigrationDiagnostic {
   success: boolean;
   sourceVersion: string;
@@ -30,6 +45,8 @@ export interface MigrationDiagnostic {
   stepsApplied: number;
   dryRun: boolean;
   errors?: MigrationError[];
+  /** Non-fatal notes, e.g. tracking secrets stripped from the document. */
+  warnings?: MigrationWarning[];
 }
 
 export interface MigrationResult {
@@ -40,7 +57,7 @@ export interface MigrationResult {
 
 export interface MigrateOptions {
   /**
-   * Target schema version (defaults to CURRENT_SCHEMA_VERSION = "1.0.0").
+   * Target schema version (defaults to CURRENT_SCHEMA_VERSION).
    */
   targetVersion?: string;
   /**
@@ -57,7 +74,16 @@ export interface MigrateOptions {
   validate?: boolean;
 }
 
-export type MigrationFunction = (rawDoc: Record<string, unknown>) => Record<string, unknown>;
+/** Context handed to each migration step. */
+export interface MigrationStepContext {
+  /** Records a non-fatal warning on the final `MigrationDiagnostic`. */
+  warn: (warning: MigrationWarning) => void;
+}
+
+export type MigrationFunction = (
+  rawDoc: Record<string, unknown>,
+  context: MigrationStepContext,
+) => Record<string, unknown>;
 
 export interface MigrationStep {
   fromVersion: string;
@@ -258,6 +284,29 @@ defaultMigrationRegistry.register({
   },
 });
 
+// 5. 1.0.0 -> 1.1.0: tracking secrets move out of the document (host-owned, resolved by credentialId)
+defaultMigrationRegistry.register({
+  fromVersion: '1.0.0',
+  toVersion: '1.1.0',
+  description:
+    'Remove tracking secrets and server destinations (capiAccessToken, accessToken, measurementProtocolSecret, serverRelayUrl, custom endpointUrl/headers) from the document',
+  migrate: (rawDoc: Record<string, unknown>, context) => {
+    const migrated = deepClone(rawDoc);
+    migrated.version = '1.1.0';
+    const removed = stripDocumentTrackingSecretsInPlace(migrated);
+    if (removed.length > 0) {
+      context.warn({
+        code: 'TRACKING_SECRET_REMOVED',
+        message:
+          'Tracking secret removed; re-link credential via credentialId (secrets are now stored by the host and resolved server-side).',
+        step: '1.0.0->1.1.0',
+        paths: removed,
+      });
+    }
+    return migrated;
+  },
+});
+
 /**
  * Check whether a migration path exists between source and target versions.
  */
@@ -324,6 +373,19 @@ export function migrateDocument(
   // 2. If already on target version
   if (sourceVersion === targetVersion) {
     const cloned = deepClone(doc) as unknown as PageDocument;
+    // Defensive: a current-version document must never carry tracking secrets either.
+    const removedSecrets = stripDocumentTrackingSecretsInPlace(cloned);
+    const currentWarnings: MigrationWarning[] =
+      removedSecrets.length > 0
+        ? [
+            {
+              code: 'TRACKING_SECRET_REMOVED',
+              message:
+                'Tracking secret removed; re-link credential via credentialId (secrets are stored by the host and resolved server-side).',
+              paths: removedSecrets,
+            },
+          ]
+        : [];
     if (validate) {
       const validation = validateDocument(cloned);
       if (!validation.valid) {
@@ -357,6 +419,7 @@ export function migrateDocument(
         migrationPath: [sourceVersion],
         stepsApplied: 0,
         dryRun,
+        ...(currentWarnings.length > 0 ? { warnings: currentWarnings } : {}),
       },
     };
   }
@@ -402,6 +465,8 @@ export function migrateDocument(
   // 5. Execute migration path steps sequentially
   let currentDoc = deepClone(doc);
   let stepsApplied = 0;
+  const warnings: MigrationWarning[] = [];
+  const stepContext: MigrationStepContext = { warn: (w) => warnings.push(w) };
 
   for (let i = 0; i < path.length - 1; i++) {
     const fromVer = path[i];
@@ -430,7 +495,7 @@ export function migrateDocument(
     }
 
     try {
-      currentDoc = step.migrate(currentDoc);
+      currentDoc = step.migrate(currentDoc, stepContext);
       stepsApplied++;
     } catch (err: unknown) {
       const error: MigrationError = {
@@ -490,6 +555,7 @@ export function migrateDocument(
       migrationPath: path,
       stepsApplied,
       dryRun: false,
+      ...(warnings.length > 0 ? { warnings } : {}),
     },
   };
 }

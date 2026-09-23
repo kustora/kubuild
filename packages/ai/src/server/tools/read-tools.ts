@@ -35,7 +35,7 @@ const getPageOutline: AgentTool = {
   execute(input, context) {
     const maxDepth =
       typeof input.maxDepth === 'number' && input.maxDepth > 0 ? Math.floor(input.maxDepth) : 3;
-    return succeed('Membaca struktur halaman', {
+    return succeed('Read page outline', {
       outline: summarizeNodeTree(context.document.document, { maxDepth }),
     });
   },
@@ -61,7 +61,7 @@ const readNode: AgentTool = {
   },
   execute(input, context) {
     const nodeId = readString(input, 'nodeId');
-    if (!nodeId) return fail('read_node: nodeId kosong', 'Argument "nodeId" is required.');
+    if (!nodeId) return fail('read_node: nodeId missing', 'Argument "nodeId" is required.');
 
     const resolved = resolveNode(context.document, nodeId, 'read_node');
     if ('error' in resolved) return resolved.error;
@@ -117,7 +117,7 @@ const findNodes: AgentTool = {
 
     if (!type && !textContains) {
       return fail(
-        'find_nodes: filter kosong',
+        'find_nodes: empty filter',
         'Provide at least one of "type" or "textContains" — an unfiltered search would just return the whole outline.',
       );
     }
@@ -176,7 +176,7 @@ const listComponentTypes: AgentTool = {
       ? context.catalog.filter((spec) => spec.category === category)
       : context.catalog;
 
-    return succeed(`Melihat katalog komponen (${entries.length})`, {
+    return succeed(`Viewed component catalog (${entries.length})`, {
       components: entries.map((spec) => ({
         type: spec.type,
         label: spec.label,

@@ -329,7 +329,6 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
   // because each deserialized JSON parse produces a new object reference even if content is unchanged.
   const trackingKey = React.useMemo(
     () => (document?.tracking ? JSON.stringify(document.tracking) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [document?.tracking],
   );
 
@@ -339,7 +338,6 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
       return cleanup;
     }
   // trackingKey is a stable string — safe to use instead of the object reference
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, trackingKey]);
 
   return (

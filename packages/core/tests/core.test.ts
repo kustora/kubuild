@@ -1750,12 +1750,12 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
 
       expect(result.success).toBe(true);
       expect(result.document).toBeDefined();
-      expect(result.diagnostic.stepsApplied).toBe(1);
+      expect(result.diagnostic.stepsApplied).toBe(2);
       expect(result.diagnostic.sourceVersion).toBe('0.1.0');
-      expect(result.diagnostic.targetVersion).toBe('1.0.0');
+      expect(result.diagnostic.targetVersion).toBe('1.1.0');
 
       const doc = result.document!;
-      expect(doc.version).toBe('1.0.0');
+      expect(doc.version).toBe('1.1.0');
       expect(doc.schema).toBe('stora.page');
       expect(doc.document.id).toBe('root-page');
 
@@ -1793,7 +1793,7 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
 
       const result = migrateDocument(betaDoc);
       expect(result.success).toBe(true);
-      expect(result.document?.version).toBe('1.0.0');
+      expect(result.document?.version).toBe('1.1.0');
       expect(result.document?.metadata?.title).toBe('Migrated Page');
       expect(result.document?.metadata?.category).toBe('general');
     });
@@ -1811,7 +1811,7 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
 
       const result = migrateDocument(shorthandDoc);
       expect(result.success).toBe(true);
-      expect(result.document?.version).toBe('1.0.0');
+      expect(result.document?.version).toBe('1.1.0');
     });
   });
 
@@ -1838,8 +1838,8 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
 
       expect(result.success).toBe(true);
       expect(result.diagnostic.stepsApplied).toBe(0);
-      expect(result.diagnostic.sourceVersion).toBe('1.0.0');
-      expect(result.diagnostic.targetVersion).toBe('1.0.0');
+      expect(result.diagnostic.sourceVersion).toBe('1.1.0');
+      expect(result.diagnostic.targetVersion).toBe('1.1.0');
       expect(result.document).toEqual(snapshot);
       expect(currentDoc).toEqual(snapshot); // input untouched
     });
@@ -1863,13 +1863,13 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
       expect(result.document).toBeUndefined();
       expect(result.diagnostic.success).toBe(false);
       expect(result.diagnostic.sourceVersion).toBe('2.0.0');
-      expect(result.diagnostic.targetVersion).toBe('1.0.0');
+      expect(result.diagnostic.targetVersion).toBe('1.1.0');
       expect(result.diagnostic.errors).toBeDefined();
       expect(result.diagnostic.errors?.length).toBeGreaterThan(0);
 
       const err = result.diagnostic.errors?.[0];
       expect(err?.code).toBe('NO_MIGRATION_PATH');
-      expect(err?.message).toContain('No migration path found from schema version "2.0.0" to "1.0.0"');
+      expect(err?.message).toContain('No migration path found from schema version "2.0.0" to "1.1.0"');
     });
 
     it('returns structured INVALID_SOURCE_DOCUMENT error for invalid input', () => {
@@ -1891,8 +1891,8 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
 
       expect(result.success).toBe(true);
       expect(result.diagnostic.dryRun).toBe(true);
-      expect(result.diagnostic.stepsApplied).toBe(1);
-      expect(result.diagnostic.migrationPath).toEqual(['0.1.0', '1.0.0']);
+      expect(result.diagnostic.stepsApplied).toBe(2);
+      expect(result.diagnostic.migrationPath).toEqual(['0.1.0', '1.0.0', '1.1.0']);
       expect(result.document).toBeUndefined();
     });
 
@@ -1902,7 +1902,7 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
       expect(canMigrate('1.0.0')).toBe(true);
       expect(canMigrate('99.0.0')).toBe(false);
 
-      expect(getMigrationPath('0.1.0')).toEqual(['0.1.0', '1.0.0']);
+      expect(getMigrationPath('0.1.0')).toEqual(['0.1.0', '1.0.0', '1.1.0']);
       expect(getMigrationPath('99.0.0')).toBeNull();
     });
 
@@ -1930,6 +1930,7 @@ describe('STORA-014: Schema Migration Registry and Document Migration', () => {
       const doc = { version: '0.0.1' };
       const result = migrateDocument(doc, {
         registry: customRegistry,
+        targetVersion: '1.0.0',
         validate: false,
       });
 

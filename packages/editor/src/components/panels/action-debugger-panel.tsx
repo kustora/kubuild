@@ -49,6 +49,45 @@ export const ActionDebuggerPanel: React.FC<ActionDebuggerPanelProps> = ({
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragStartRef = React.useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  const handleHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button, input, select, textarea, a')) return;
+    if (e.button !== 0) return;
+    e.preventDefault();
+
+    const panelEl = (e.currentTarget as HTMLElement).closest('[data-testid="action-debugger-panel"]') as HTMLElement | null;
+    const rect = panelEl?.getBoundingClientRect();
+    const currentX = pos ? pos.x : (rect?.left ?? 0);
+    const currentY = pos ? pos.y : (rect?.top ?? 0);
+
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: currentX,
+      origY: currentY,
+    };
+
+    const handlePointerMove = (ev: PointerEvent) => {
+      if (!dragStartRef.current) return;
+      const dx = ev.clientX - dragStartRef.current.startX;
+      const dy = ev.clientY - dragStartRef.current.startY;
+      setPos({
+        x: Math.max(10, Math.min(window.innerWidth - 120, dragStartRef.current.origX + dx)),
+        y: Math.max(10, Math.min(window.innerHeight - 50, dragStartRef.current.origY + dy)),
+      });
+    };
+
+    const handlePointerUp = () => {
+      dragStartRef.current = null;
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  };
 
   const handleCopy = (text: string, sectionKey: string) => {
     navigator.clipboard.writeText(text);
@@ -79,12 +118,28 @@ export const ActionDebuggerPanel: React.FC<ActionDebuggerPanelProps> = ({
   return (
     <div
       data-testid="action-debugger-panel"
+      style={
+        pos
+          ? {
+              position: 'fixed',
+              left: `${pos.x}px`,
+              top: `${pos.y}px`,
+              bottom: 'auto',
+              right: 'auto',
+            }
+          : undefined
+      }
       className={`bg-slate-900 text-slate-100 rounded-xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col transition-all duration-200 z-40 ${
         isMinimized ? 'h-11 w-80' : 'h-96 w-96 sm:w-[480px]'
       } ${className || ''}`}
     >
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-950 border-b border-slate-800 shrink-0 select-none">
+      <div
+        onPointerDown={handleHeaderPointerDown}
+        onDoubleClick={() => setPos(null)}
+        title="Drag to move panel (Double click to reset position)"
+        className="flex items-center justify-between px-3 py-2 bg-slate-950 border-b border-slate-800 shrink-0 select-none cursor-grab active:cursor-grabbing touch-none"
+      >
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">

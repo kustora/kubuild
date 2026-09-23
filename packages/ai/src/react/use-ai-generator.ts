@@ -208,6 +208,10 @@ export function useAiGenerator(options: UseAiGeneratorOptions) {
 
   /**
    * Plans website structure (sections overview) before generating.
+   *
+   * Same error contract as every other method on this hook: failures resolve to `null`
+   * and are reported through `error`/`onError` (aborts are silent). A plan with
+   * `usedFallback: true` is a successful, generic default — not an error.
    */
   const planPage = useCallback(
     async (params: AiPlanPageRequest): Promise<PagePlan | null> => {
@@ -226,10 +230,11 @@ export function useAiGenerator(options: UseAiGeneratorOptions) {
         });
         return plan;
       } catch (err: unknown) {
+        if (ac.signal.aborted) return null;
         const e = err instanceof Error ? err : new Error(String(err));
         setError(e);
         options.onError?.(e);
-        throw e;
+        return null;
       } finally {
         if (abortControllerRef.current === ac) {
           setIsGenerating(false);

@@ -30,6 +30,7 @@ export const ActionStepTypeSchema = z.enum([
   'show_toast',
   'open_modal',
   'close_modal',
+  'toggle_modal',
   'copy_clipboard',
   'custom_event',
   'track_event',
@@ -191,6 +192,31 @@ export const CloseModalStepPayloadSchema = z.object({
 export type CloseModalStepPayload = z.infer<typeof CloseModalStepPayloadSchema>;
 
 /**
+ * 7b. Toggle Modal Step Payload Schema
+ * Flips a modal/drawer/collapsible between open and closed. The renderer's
+ * `toggle_modal` runner resolves the target from the first non-empty of
+ * `modalId`, `modalNodeId`, `targetNodeId`, `nodeId`.
+ */
+export const ToggleModalStepPayloadSchema = z
+  .object({
+    modalId: z.string().optional(),
+    modalNodeId: z.string().optional(),
+    targetNodeId: z.string().optional(),
+    nodeId: z.string().optional(),
+  })
+  .refine(
+    (data) =>
+      [data.modalId, data.modalNodeId, data.targetNodeId, data.nodeId].some(
+        (id) => typeof id === 'string' && id.trim().length > 0,
+      ),
+    {
+      message: 'Modal ID or Modal Node ID cannot be empty',
+    },
+  );
+
+export type ToggleModalStepPayload = z.infer<typeof ToggleModalStepPayloadSchema>;
+
+/**
  * 8. Copy Clipboard Step Payload Schema
  */
 export const CopyClipboardStepPayloadSchema = z.object({
@@ -225,6 +251,7 @@ export const StepPayloadSchemas = {
   show_toast: ShowToastStepPayloadSchema,
   open_modal: OpenModalStepPayloadSchema,
   close_modal: CloseModalStepPayloadSchema,
+  toggle_modal: ToggleModalStepPayloadSchema,
   copy_clipboard: CopyClipboardStepPayloadSchema,
   custom_event: CustomEventStepPayloadSchema,
   track_event: TrackEventStepPayloadSchema,

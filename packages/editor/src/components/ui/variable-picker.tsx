@@ -20,8 +20,8 @@ export function getCompatibleCatalogEntries(
   return catalog.filter((entry) => entry.type === expectedType);
 }
 
-export function toBindingValue(key: string): VariableBinding {
-  return { type: 'variable', key };
+export function toBindingValue(key: string, fallback?: unknown): VariableBinding {
+  return fallback !== undefined ? { type: 'variable', key, fallback } : { type: 'variable', key };
 }
 
 export interface VariableBindingControlProps {
@@ -30,6 +30,7 @@ export interface VariableBindingControlProps {
   catalog: VariableCatalog;
   onBind: (key: string) => void;
   onRevert: () => void;
+  onUpdateFallback?: (fallback: string) => void;
 }
 
 export const VariableBindingControl: React.FC<VariableBindingControlProps> = ({
@@ -38,28 +39,52 @@ export const VariableBindingControl: React.FC<VariableBindingControlProps> = ({
   catalog,
   onBind,
   onRevert,
+  onUpdateFallback,
 }) => {
   const compatibleEntries = getCompatibleCatalogEntries(field, catalog);
 
   if (isVariableBinding(currentValue)) {
     const bound = catalog.find((entry) => entry.key === currentValue.key);
     return (
-      <div className="flex items-center gap-2 mt-1 text-xs">
-        <span
+      <div className="mt-1 flex flex-col gap-1.5 text-xs">
+        <div
           data-testid={`bound-chip-${field.name}`}
-          className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200"
+          className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50/80 border border-blue-200 text-blue-800 shadow-2xs"
         >
-          bound to <code>{currentValue.key}</code>
-          {bound ? ` (sample: ${JSON.stringify(bound.sampleValue)})` : ''}
-        </span>
-        <button
-          type="button"
-          data-testid={`revert-${field.name}`}
-          onClick={onRevert}
-          className="text-slate-500 hover:text-slate-700 underline"
-        >
-          Revert to static
-        </button>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span className="text-[11px] font-mono font-bold text-blue-500 shrink-0">{"{x}"}</span>
+            <span className="truncate font-mono text-[11px] font-semibold text-blue-900" title={currentValue.key}>
+              {currentValue.key}
+            </span>
+            {bound?.sampleValue !== undefined && (
+              <span className="text-[10px] text-blue-500 truncate" title={`Sample: ${JSON.stringify(bound.sampleValue)}`}>
+                ({JSON.stringify(bound.sampleValue)})
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            data-testid={`revert-${field.name}`}
+            onClick={onRevert}
+            title="Revert to static value"
+            className="text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-100/70 px-2 py-0.5 rounded transition cursor-pointer shrink-0 border border-blue-200/60 bg-white"
+          >
+            Revert
+          </button>
+        </div>
+        {onUpdateFallback && (
+          <div className="flex items-center gap-1.5 pl-0.5 mt-0.5">
+            <label className="text-[10px] text-slate-500 shrink-0 font-medium">Fallback:</label>
+            <input
+              type="text"
+              data-testid={`binding-fallback-${field.name}`}
+              placeholder="Fallback URL if empty..."
+              value={typeof currentValue.fallback === 'string' ? currentValue.fallback : ''}
+              onChange={(e) => onUpdateFallback(e.target.value)}
+              className="w-full text-[11px] bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded px-2 py-1 text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none transition shadow-2xs"
+            />
+          </div>
+        )}
       </div>
     );
   }

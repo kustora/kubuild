@@ -58,7 +58,7 @@ function applyCommand(
     return run();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { error: fail(`${toolName} gagal`, message) };
+    return { error: fail(`${toolName} failed`, message) };
   }
 }
 
@@ -70,7 +70,7 @@ function guardSecurity(
   const violation = checkDocumentSecurity(document, context.securityLimits);
   if (!violation) return null;
   return fail(
-    `${toolName} ditolak (security)`,
+    `${toolName} rejected (security)`,
     `The resulting document failed the security check and was rejected: ${violation}`,
   );
 }
@@ -100,12 +100,12 @@ const updateNodeProps: AgentTool = {
   },
   execute(input, context) {
     const nodeId = readString(input, 'nodeId');
-    if (!nodeId) return fail('update_node_props: nodeId kosong', 'Argument "nodeId" is required.');
+    if (!nodeId) return fail('update_node_props: nodeId missing', 'Argument "nodeId" is required.');
 
     const props = readPlainObject(input, 'props');
     if (!props) {
       return fail(
-        'update_node_props: props tidak valid',
+        'update_node_props: invalid props',
         'Argument "props" must be a JSON object of prop names to values.',
       );
     }
@@ -126,7 +126,7 @@ const updateNodeProps: AgentTool = {
     const updated = findNodeById(applied.document.document, nodeId);
 
     return succeed(
-      `Ubah props ${describeNode(resolved.node)}`,
+      `Update props of ${describeNode(resolved.node)}`,
       { nodeId, props: updated?.props ?? props, changedKeys: Object.keys(props) },
       { op, document: applied.document },
     );
@@ -168,12 +168,12 @@ const updateNodeStyles: AgentTool = {
   },
   execute(input, context) {
     const nodeId = readString(input, 'nodeId');
-    if (!nodeId) return fail('update_node_styles: nodeId kosong', 'Argument "nodeId" is required.');
+    if (!nodeId) return fail('update_node_styles: nodeId missing', 'Argument "nodeId" is required.');
 
     const styles = readPlainObject(input, 'styles');
     if (!styles) {
       return fail(
-        'update_node_styles: styles tidak valid',
+        'update_node_styles: invalid styles',
         'Argument "styles" must be a JSON object of CSS properties with primitive values.',
       );
     }
@@ -183,7 +183,7 @@ const updateNodeStyles: AgentTool = {
     );
     if (nested) {
       return fail(
-        'update_node_styles: nilai bersarang',
+        'update_node_styles: nested value',
         `Style property "${nested[0]}" has an object value. Style values must be primitives — use the "state" argument for pseudo-classes instead of nesting them.`,
       );
     }
@@ -192,13 +192,13 @@ const updateNodeStyles: AgentTool = {
     const rawBreakpoint = readString(input, 'breakpoint');
     if (rawState && rawBreakpoint) {
       return fail(
-        'update_node_styles: argumen bentrok',
+        'update_node_styles: conflicting arguments',
         'Pass either "breakpoint" or "state", not both — a pseudo-state layer is not per-breakpoint.',
       );
     }
     if (rawBreakpoint && !BREAKPOINTS.includes(rawBreakpoint as Breakpoint)) {
       return fail(
-        'update_node_styles: breakpoint tidak dikenal',
+        'update_node_styles: unknown breakpoint',
         `Unknown breakpoint "${rawBreakpoint}". Valid values: ${BREAKPOINTS.join(', ')}.`,
       );
     }
@@ -222,7 +222,7 @@ const updateNodeStyles: AgentTool = {
     const layer = state ? `state ${state}` : `breakpoint ${breakpoint}`;
 
     return succeed(
-      `Ubah style ${describeNode(resolved.node)} (${layer})`,
+      `Update styles of ${describeNode(resolved.node)} (${layer})`,
       { nodeId, layer, appliedStyles: styles },
       { op, document: applied.document },
     );
@@ -263,19 +263,19 @@ const insertComponent: AgentTool = {
     const type = readString(input, 'type');
     if (!parentId || !type) {
       return fail(
-        'insert_component: argumen kurang',
+        'insert_component: missing arguments',
         'Arguments "parentId" and "type" are both required.',
       );
     }
 
     const typeError = checkComponentType(context.catalog, type);
-    if (typeError) return fail('insert_component: tipe tidak dikenal', typeError);
+    if (typeError) return fail('insert_component: unknown type', typeError);
 
     const resolvedParent = resolveNode(context.document, parentId, 'insert_component');
     if ('error' in resolvedParent) return resolvedParent.error;
 
     const nestingError = checkNesting(context.catalog, resolvedParent.node, type);
-    if (nestingError) return fail('insert_component: nesting tidak valid', nestingError);
+    if (nestingError) return fail('insert_component: invalid nesting', nestingError);
 
     const normalized = normalizeIncomingNode(
       {
@@ -287,7 +287,7 @@ const insertComponent: AgentTool = {
       context.document,
     );
     if ('error' in normalized) {
-      return fail('insert_component: node tidak valid', normalized.error);
+      return fail('insert_component: invalid node', normalized.error);
     }
 
     const index = readOptionalIndex(input, 'index');
@@ -302,7 +302,7 @@ const insertComponent: AgentTool = {
     const op: AgentOp = { kind: 'insert-node', parentId, index, node: normalized.node };
 
     return succeed(
-      `Tambah ${describeNode(normalized.node)} ke #${parentId}`,
+      `Add ${describeNode(normalized.node)} to #${parentId}`,
       { nodeId: normalized.node.id, parentId, index: index ?? null },
       { op, document: applied.document },
     );
@@ -339,11 +339,11 @@ const insertSection: AgentTool = {
   },
   async execute(input, context) {
     const prompt = readString(input, 'prompt');
-    if (!prompt) return fail('insert_section: prompt kosong', 'Argument "prompt" is required.');
+    if (!prompt) return fail('insert_section: prompt missing', 'Argument "prompt" is required.');
 
     if (!context.generateSection) {
       return fail(
-        'insert_section: tidak tersedia',
+        'insert_section: not available',
         'Section generation is not available in this deployment. Build the section with insert_component instead.',
       );
     }
@@ -361,14 +361,14 @@ const insertSection: AgentTool = {
       });
     } catch (err) {
       return fail(
-        'insert_section gagal',
+        'insert_section failed',
         `Section generation failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
 
     const normalized = normalizeIncomingNode(generated, context.document);
     if ('error' in normalized) {
-      return fail('insert_section: section tidak valid', normalized.error);
+      return fail('insert_section: invalid section', normalized.error);
     }
 
     const index = readOptionalIndex(input, 'index');
@@ -383,7 +383,7 @@ const insertSection: AgentTool = {
     const op: AgentOp = { kind: 'insert-node', parentId: rootId, index, node: normalized.node };
 
     return succeed(
-      `Tambah section baru (#${normalized.node.id})`,
+      `Add new section (#${normalized.node.id})`,
       {
         nodeId: normalized.node.id,
         index: index ?? null,
@@ -414,7 +414,7 @@ const moveNodeTool: AgentTool = {
     const targetParentId = readString(input, 'targetParentId');
     if (!nodeId || !targetParentId) {
       return fail(
-        'move_node: argumen kurang',
+        'move_node: missing arguments',
         'Arguments "nodeId" and "targetParentId" are both required.',
       );
     }
@@ -425,7 +425,7 @@ const moveNodeTool: AgentTool = {
     if ('error' in resolvedParent) return resolvedParent.error;
 
     const nestingError = checkNesting(context.catalog, resolvedParent.node, resolved.node.type);
-    if (nestingError) return fail('move_node: nesting tidak valid', nestingError);
+    if (nestingError) return fail('move_node: invalid nesting', nestingError);
 
     const index = readOptionalIndex(input, 'index');
     const applied = applyCommand('move_node', () =>
@@ -439,7 +439,7 @@ const moveNodeTool: AgentTool = {
     const op: AgentOp = { kind: 'move-node', nodeId, targetParentId, index };
 
     return succeed(
-      `Pindah ${describeNode(resolved.node)} ke #${targetParentId}`,
+      `Move ${describeNode(resolved.node)} to #${targetParentId}`,
       { nodeId, targetParentId, index: index ?? null },
       { op, document: applied.document },
     );
@@ -467,7 +467,7 @@ const duplicateNodeTool: AgentTool = {
   },
   execute(input, context) {
     const nodeId = readString(input, 'nodeId');
-    if (!nodeId) return fail('duplicate_node: nodeId kosong', 'Argument "nodeId" is required.');
+    if (!nodeId) return fail('duplicate_node: nodeId missing', 'Argument "nodeId" is required.');
 
     const resolved = resolveNode(context.document, nodeId, 'duplicate_node');
     if ('error' in resolved) return resolved.error;
@@ -490,7 +490,7 @@ const duplicateNodeTool: AgentTool = {
     const op: AgentOp = { kind: 'duplicate-node', nodeId, targetParentId, index };
 
     return succeed(
-      `Duplikat ${describeNode(resolved.node)}`,
+      `Duplicate ${describeNode(resolved.node)}`,
       { nodeId, targetParentId: targetParentId ?? null, index: index ?? null },
       { op, document: applied.document },
     );
@@ -518,12 +518,12 @@ const deleteNode: AgentTool = {
   },
   execute(input, context) {
     const nodeId = readString(input, 'nodeId');
-    if (!nodeId) return fail('delete_node: nodeId kosong', 'Argument "nodeId" is required.');
+    if (!nodeId) return fail('delete_node: nodeId missing', 'Argument "nodeId" is required.');
 
     const reason = readString(input, 'reason');
     if (!reason) {
       return fail(
-        'delete_node: alasan kosong',
+        'delete_node: reason missing',
         'Argument "reason" is required for destructive actions — state what the user asked for.',
       );
     }
@@ -537,7 +537,7 @@ const deleteNode: AgentTool = {
     const op: AgentOp = { kind: 'delete-node', nodeId };
 
     return succeed(
-      `Hapus ${describeNode(resolved.node)} — ${reason}`,
+      `Delete ${describeNode(resolved.node)} — ${reason}`,
       { nodeId, removedType: resolved.node.type },
       { op, document: applied.document },
     );
@@ -573,7 +573,7 @@ const replaceNodeTool: AgentTool = {
     const reason = readString(input, 'reason');
     if (!nodeId || !raw || !reason) {
       return fail(
-        'replace_node: argumen kurang',
+        'replace_node: missing arguments',
         'Arguments "nodeId", "node" and "reason" are all required.',
       );
     }
@@ -586,7 +586,7 @@ const replaceNodeTool: AgentTool = {
     // id is then pinned back to the target, which is what `replaceNode` requires.
     const normalized = normalizeIncomingNode({ ...raw, id: undefined }, context.document);
     if ('error' in normalized) {
-      return fail('replace_node: node tidak valid', normalized.error);
+      return fail('replace_node: invalid node', normalized.error);
     }
 
     const replacement: Node = { ...normalized.node, id: nodeId, type: resolved.node.type };
@@ -602,7 +602,7 @@ const replaceNodeTool: AgentTool = {
     const op: AgentOp = { kind: 'replace-node', nodeId, node: replacement };
 
     return succeed(
-      `Ganti struktur ${describeNode(resolved.node)} — ${reason}`,
+      `Replace structure of ${describeNode(resolved.node)} — ${reason}`,
       { nodeId, childCount: replacement.children?.length ?? 0 },
       { op, document: applied.document },
     );

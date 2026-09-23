@@ -1339,6 +1339,7 @@ export const TrackEventStepForm: React.FC<TrackEventStepFormProps> = ({
             <option value="all">All Providers</option>
             <option value="meta">Meta (Pixel & CAPI)</option>
             <option value="google">Google Analytics 4</option>
+            <option value="gtm">Google Tag Manager (dataLayer, client only)</option>
             <option value="tiktok">TikTok</option>
             <option value="custom">Custom Webhook</option>
           </select>
@@ -1357,6 +1358,12 @@ export const TrackEventStepForm: React.FC<TrackEventStepFormProps> = ({
             <option value="client_only">Browser Pixel Only</option>
             <option value="server_only">Server CAPI Only</option>
           </select>
+          {delivery !== 'client_only' && (
+            <span className="text-[10px] text-slate-500 mt-1 block">
+              Server delivery goes through the host&apos;s tracking relay; secrets are never stored in the page.
+              Without a host relay, the server part is skipped.
+            </span>
+          )}
         </div>
       </div>
 

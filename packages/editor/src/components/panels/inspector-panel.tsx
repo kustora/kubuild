@@ -7,7 +7,7 @@ import { useEditorStore, Viewport } from '../../store';
 import { VariableBindingControl, toBindingValue } from '../ui/variable-picker';
 import { AssetManagerModal } from '../modals/asset-manager-modal';
 import { ActionBuilderModal } from '../action-builder/action-builder-modal';
-import { TrackingSettingsModal } from '../modals/tracking-settings-modal';
+import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
 import { TableSpreadsheetEditor } from '../table-editor/table-spreadsheet-editor';
 import { BoxModelEditor } from '../style-manager/box-model-editor';
 import { StyleManagerAccordion } from '../style-manager/style-manager-accordion';
@@ -20,6 +20,7 @@ import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles, 
 import { StyleSectorId } from '../style-manager/style-manager-accordion';
 import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config';
 import { useTranslation } from '../../i18n';
+import type { MediaTranslations } from '../../i18n';
 import { LanguageSwitcher } from '../ui/language-switcher';
 import type { AssetProvider } from '@kubuild/core';
 
@@ -40,6 +41,10 @@ export interface InspectorPanelProps {
   trackingCredentials?: PixelCredentialOption[];
   /** Opens the host app's credential management page (e.g. /dashboard/marketing). */
   onManageCredentials?: () => void;
+  /** Stores a tracking secret on the host; returns the credentialId kept in the document. */
+  onSaveTrackingSecret?: SaveTrackingSecretHandler;
+  /** Host tracking relay URL, shown read-only in the tracking modal. */
+  trackingRelayUrl?: string;
   /** Host asset provider for direct uploads and asset management */
   assetProvider?: AssetProvider;
 }
@@ -150,10 +155,10 @@ const StringPropControl: React.FC<StringPropControlProps> = ({
   );
 };
 
-function getAssetDisplayName(urlOrData: string): string {
+function getAssetDisplayName(urlOrData: string, media: MediaTranslations): string {
   if (!urlOrData) return '';
-  if (urlOrData.startsWith('data:image/')) return 'Local Image (Embedded)';
-  if (urlOrData.startsWith('blob:')) return 'Local File (Blob)';
+  if (urlOrData.startsWith('data:image/')) return media.embeddedImage;
+  if (urlOrData.startsWith('blob:')) return media.blobFile;
   try {
     const parsed = new URL(urlOrData);
     const pathname = parsed.pathname;
@@ -168,7 +173,7 @@ function getAssetDisplayName(urlOrData: string): string {
     const segments = urlOrData.split('/').filter(Boolean);
     return segments[segments.length - 1] || urlOrData;
   }
-  return 'Image Asset';
+  return media.imageAsset;
 }
 
 interface MediaSrcPropControlProps {
@@ -195,6 +200,7 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFocusedRef = useRef(false);
+  const { media } = useTranslation().t;
 
   useEffect(() => {
     if (!isFocusedRef.current) {
@@ -232,7 +238,7 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
         onCommit(field, info.url, true);
         setShowUrlInput(false);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Upload failed';
+        const msg = err instanceof Error ? err.message : media.uploadFailed;
         setUploadError(msg);
       } finally {
         setIsUploading(false);
@@ -258,7 +264,7 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
   const isDataUrl = text.startsWith('data:image/');
   const hasPreview = text.trim().length > 0 && (isDataUrl || text.startsWith('http://') || text.startsWith('https://') || text.startsWith('blob:'));
   const isLocalFilePath = text.trim().startsWith('file:') || /^[a-zA-Z]:\\/.test(text.trim());
-  const displayName = getAssetDisplayName(text);
+  const displayName = getAssetDisplayName(text, media);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -274,59 +280,65 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
       {hasPreview ? (
         <div className="flex flex-col gap-1.5">
           {/* Preview Card without showing ugly raw URL */}
-          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-lg p-2">
-            <div className="w-10 h-10 rounded border border-slate-300 bg-white overflow-hidden shrink-0 flex items-center justify-center">
-              <img
-                src={text}
-                alt="Preview"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col">
-              <span className="text-xs font-semibold text-slate-800 truncate" title={displayName}>
-                {displayName}
-              </span>
-              <span className="text-[10px] text-slate-400">
-                {isDataUrl ? 'Local Image' : 'Image Asset'}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                title={isUploading ? 'Uploading image...' : 'Ganti gambar dari perangkat'}
-                aria-label="Ganti gambar"
-                disabled={isUploading}
-                onClick={() => fileInputRef.current?.click()}
-                className="px-2 py-1 text-xs rounded border border-slate-300 bg-white text-slate-700 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 font-medium cursor-pointer shadow-2xs disabled:opacity-50"
-              >
-                {isUploading ? (
-                  <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Upload className="w-3 h-3" />
-                )}
-                <span className="text-[11px]">{isUploading ? 'Uploading...' : 'Ganti'}</span>
-              </button>
-              <button
-                type="button"
-                title="Browse Asset Gallery"
-                aria-label="Browse Asset Gallery"
-                disabled={isUploading}
-                onClick={onOpenAssetPicker}
-                className="p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition cursor-pointer shadow-2xs disabled:opacity-50"
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-              </button>
+          <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 shadow-2xs">
+            {/* Top row: Thumbnail + Details + Remove button */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded border border-slate-300 bg-white overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                <img
+                  src={text}
+                  alt={media.previewAlt}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <span className="text-xs font-semibold text-slate-800 truncate" title={displayName}>
+                  {displayName}
+                </span>
+                <span className="text-[10px] text-slate-400 truncate">
+                  {isDataUrl ? media.localImage : media.imageAsset}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={handleClear}
-                title="Hapus gambar"
-                aria-label="Hapus gambar"
-                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded border border-slate-200 bg-white transition cursor-pointer shadow-2xs"
+                title={media.removeImage}
+                aria-label={media.removeImage}
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded border border-slate-200 bg-white transition cursor-pointer shadow-2xs shrink-0"
               >
                 <X className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            </div>
+
+            {/* Bottom action row: Replace / Gallery */}
+            <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200/60">
+              <button
+                type="button"
+                title={isUploading ? media.uploadingImage : media.replaceImageTitle}
+                aria-label={media.replaceImageAria}
+                disabled={isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 py-1.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-700 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center justify-center gap-1.5 font-medium cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                {isUploading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                <span className="text-[11px]">{isUploading ? media.uploading : media.replace}</span>
+              </button>
+              <button
+                type="button"
+                title={media.browseGallery}
+                aria-label={media.browseGallery}
+                disabled={isUploading}
+                onClick={onOpenAssetPicker}
+                className="py-1.5 px-2.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center justify-center gap-1 text-xs font-medium cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span className="text-[11px]">{media.gallery}</span>
               </button>
             </div>
           </div>
@@ -348,7 +360,7 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
                 type="button"
                 onClick={() => setShowUrlInput(false)}
                 className="p-1 text-slate-400 hover:text-slate-600 text-xs"
-                title="Sembunyikan URL"
+                title={media.hideUrl}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -360,7 +372,7 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
               className="text-[10px] text-slate-400 hover:text-slate-600 self-start flex items-center gap-1 hover:underline cursor-pointer"
             >
               <Link2 className="w-3 h-3" />
-              <span>Gunakan URL manual</span>
+              <span>{media.useManualUrl}</span>
             </button>
           )}
         </div>
@@ -370,8 +382,8 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              title={isUploading ? 'Uploading image...' : 'Upload image from device'}
-              aria-label="Upload local image from device"
+              title={isUploading ? media.uploadingImage : media.uploadFromDevice}
+              aria-label={media.uploadFromDevice}
               disabled={isUploading}
               onClick={() => fileInputRef.current?.click()}
               className="flex-1 py-2 px-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/50 hover:bg-blue-50/30 hover:border-blue-400 text-slate-600 hover:text-blue-600 transition flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer disabled:opacity-50"
@@ -381,18 +393,18 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
               ) : (
                 <Upload className="w-3.5 h-3.5" />
               )}
-              <span>{isUploading ? 'Mengunggah...' : 'Unggah Gambar'}</span>
+              <span>{isUploading ? media.uploading : media.uploadImage}</span>
             </button>
             <button
               type="button"
-              title="Browse Asset Gallery"
-              aria-label="Browse Asset Gallery"
+              title={media.browseGallery}
+              aria-label={media.browseGallery}
               disabled={isUploading}
               onClick={onOpenAssetPicker}
               className="py-2 px-2.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer shadow-2xs"
             >
               <ImageIcon className="w-3.5 h-3.5" />
-              <span className="text-[11px]">Galeri</span>
+              <span className="text-[11px]">{media.gallery}</span>
             </button>
           </div>
 
@@ -423,7 +435,7 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
               className="text-[10px] text-slate-400 hover:text-slate-600 self-start flex items-center gap-1 hover:underline cursor-pointer"
             >
               <Link2 className="w-3 h-3" />
-              <span>Gunakan URL manual</span>
+              <span>{media.useManualUrl}</span>
             </button>
           )}
         </div>
@@ -435,7 +447,7 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
 
       {isLocalFilePath && (
         <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 leading-tight">
-          Browsers cannot open direct local paths (<code className="font-mono">file://</code>). Click <strong>Ganti</strong> above to select and load the local image directly.
+          {media.localPathWarning(media.replace)}
         </div>
       )}
     </div>
@@ -741,7 +753,6 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
     setEventType(pay?.eventType === 'custom' ? 'custom' : 'standard');
     setProvider(pay?.provider ?? 'all');
     setIsExpanded(!!p);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId]);
 
   const handleSave = () => {
@@ -768,7 +779,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
   const isConfigured = !!existing && !!existingPayload?.eventName;
 
   return (
-    <div className="pb-3 border-b border-slate-200">
+    <div className="pb-3 border-b border-slate-200 shrink-0">
       <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors">
         <button
           type="button"
@@ -872,6 +883,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
                 <option value="all">Semua Platform</option>
                 <option value="meta">Meta (Facebook) Pixel</option>
                 <option value="google">Google Analytics (GA4)</option>
+                <option value="gtm">Google Tag Manager (dataLayer)</option>
                 <option value="tiktok">TikTok Pixel</option>
               </select>
             </div>
@@ -919,6 +931,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   aiConfig,
   trackingCredentials,
   onManageCredentials,
+  onSaveTrackingSecret,
+  trackingRelayUrl,
   assetProvider,
 }) => {
   const storeState = useEditorStore((s) => s);
@@ -1234,6 +1248,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           onClose={() => setIsTrackingModalOpen(false)}
           credentials={trackingCredentials}
           onManageCredentials={onManageCredentials}
+          onSaveTrackingSecret={onSaveTrackingSecret}
+          trackingRelayUrl={trackingRelayUrl}
         />
       )}
       {/* Tab bar: Style / Traits — STORA-211 */}
@@ -1277,7 +1293,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 p-3 min-w-0">
       {/* STORA-340 — Interactivity & Action Builder Card */}
-      <div className="pb-3 border-b border-slate-200">
+      <div className="pb-3 border-b border-slate-200 shrink-0">
         <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 transition">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
@@ -1310,7 +1326,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       </div>
 
       {/* ── Pixel Tracking section — separate from action events ───────── */}
-      <div className="pb-3 border-b border-slate-200">
+      <div className="pb-3 border-b border-slate-200 shrink-0">
         <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-purple-300 transition">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
@@ -1373,7 +1389,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           with this node already attached as context, and focuses its input. Only ever
           rendered when a node is selected (guaranteed here) and `features.enhance` is on. */}
       {aiConfig?.enabled && aiConfig.features.enhance && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50/60 border border-blue-200 hover:border-blue-300 transition">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
@@ -1403,7 +1419,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'list' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               List Items ({node.children?.length ?? 0})
@@ -1463,7 +1479,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'table' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               Spreadsheet Grid
@@ -1591,7 +1607,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'table-row' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               Row Cells ({node.children?.length ?? 0})
@@ -1610,25 +1626,25 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       {activeTab === 'style' && (
         <>
           {showProps && definition.propFields && definition.propFields.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors mb-3">
+            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors mb-3 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsPropsOpen((v) => !v)}
                 aria-expanded={isPropsOpen}
-                className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none border-0 m-0"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-500 shrink-0">
+                  <span className="text-slate-500 shrink-0 flex items-center justify-center">
                     <ComponentIcon iconOrType={definition.icon || 'settings'} size={14} />
                   </span>
-                  <span className="text-xs font-semibold text-slate-700 truncate">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-normal">
                     {definition.type === 'heading'
                       ? t.textSettings
                       : t.componentSettings(definition.label)}
                   </span>
                 </div>
                 <span
-                  className={`text-slate-400 transform transition-transform duration-200 ${
+                  className={`text-slate-400 shrink-0 transform transition-transform duration-200 ${
                     isPropsOpen ? 'rotate-180' : 'rotate-0'
                   }`}
                 >
@@ -1654,8 +1670,28 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                             field={field}
                             currentValue={currentValue}
                             catalog={variableCatalog}
-                            onBind={(key) => commitProp(field, toBindingValue(key), true)}
-                            onRevert={() => commitProp(field, field.defaultValue ?? '', true)}
+                            onBind={(key) => {
+                              const currentFallback =
+                                typeof currentValue === 'string' && currentValue.trim().length > 0
+                                  ? currentValue
+                                  : (definition.defaultProps?.[field.name] as string | undefined) ??
+                                    (field.defaultValue as string | undefined);
+                              commitProp(field, toBindingValue(key, currentFallback), true);
+                            }}
+                            onRevert={() => {
+                              const fallback =
+                                isVariableBinding(currentValue) && currentValue.fallback !== undefined
+                                  ? currentValue.fallback
+                                  : (definition.defaultProps?.[field.name] as unknown) ??
+                                    field.defaultValue ??
+                                    '';
+                              commitProp(field, fallback, true);
+                            }}
+                            onUpdateFallback={(fallback) => {
+                              if (isVariableBinding(currentValue)) {
+                                commitProp(field, { ...currentValue, fallback: fallback || undefined }, true);
+                              }
+                            }}
                           />
                         )}
                         <ErrorText message={fieldErrors[`prop:${field.name}`]} />
@@ -1668,7 +1704,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           )}
 
           {showStyles && (
-            <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full">
+            <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full shrink-0">
               {/* Active state warning badge — STORA-223 */}
               {activeState !== 'default' && <StateEditingBadge state={activeState} />}
               {/* Pseudo-state selector — STORA-221 */}

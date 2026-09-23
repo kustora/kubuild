@@ -1,5 +1,10 @@
 import { PageDocument } from '@kubuild/schema';
-import { exportPackage, ExportPackageOptions, collectArtboardReferenceNodes } from '@kubuild/core';
+import {
+  exportPackage,
+  ExportPackageOptions,
+  collectArtboardReferenceNodes,
+  sanitizeDocumentTracking,
+} from '@kubuild/core';
 
 /**
  * Refuse to export a page that depends on content living in a separate component artboard.
@@ -84,6 +89,8 @@ export async function downloadDocumentAsStora(
 export function downloadDocumentAsJson(doc: PageDocument, filename?: string): void {
   assertNoDetachedArtboardReferences(doc);
   const name = filename || sanitizeDocumentFilename(doc.metadata?.title || 'page', 'json');
-  const jsonStr = JSON.stringify(doc, null, 2);
+  // Defensive: exported JSON must never carry tracking secrets (exportPackage strips them for .stora).
+  const { document: safeDoc } = sanitizeDocumentTracking(doc);
+  const jsonStr = JSON.stringify(safeDoc, null, 2);
   downloadFile(jsonStr, name, 'application/json');
 }

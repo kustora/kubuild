@@ -77,6 +77,12 @@ export async function executeNodeActions(
     trackingConfig: (context as unknown as Record<string, unknown> | undefined)?.['trackingConfig'] ||
       (document as unknown as { tracking?: unknown })?.tracking ||
       (document as unknown as { metadata?: { tracking?: unknown } })?.metadata?.tracking,
+    // Host-provided tracking runtime (relay URL etc.) — never read from the document.
+    trackingRuntime: context?.tracking,
+    reportDiagnostic: (diagnostic: Diagnostic) => {
+      onDiagnostic?.(diagnostic);
+      context?.onDiagnostic?.(diagnostic);
+    },
     ...(extraContext || {}),
   };
 

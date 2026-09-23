@@ -44,6 +44,7 @@ import {
   extractNodeToArtboard,
   findArtboardById,
   collectArtboardReferenceNodes,
+  stripTrackingSecretsInPlace,
 } from '@kubuild/core';
 import {
   ComponentRegistry,
@@ -54,7 +55,14 @@ import {
 import type { AiGenerationPlaceholderStatus } from '../ai/generate-page';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
-export type EditorLocale = 'en' | 'id';
+/** Locales that ship with built-in dictionaries. */
+export type BuiltInEditorLocale = 'en' | 'id';
+/**
+ * Editor UI locale. Built-in codes autocomplete; any other string is a custom locale
+ * registered via `registerEditorLocale` (or supplied through `translations`), falling back
+ * to English for every key it doesn't define.
+ */
+export type EditorLocale = BuiltInEditorLocale | (string & {});
 export type TableSpreadsheetMode = 'floating' | 'docked' | 'hidden';
 /** Panel mode for the AI Chat Panel (STORA-503), following the `TableSpreadsheetMode` pattern. */
 export type AiChatPanelMode = 'docked' | 'floating' | 'hidden';
@@ -804,7 +812,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     commitDocumentToOwner(get, set, result.document);
   },
 
-  updateDocumentTracking: (tracking) => {
+  updateDocumentTracking: (rawTracking) => {
+    // The document never stores secrets: strip any legacy secret / destination fields defensively.
+    const tracking = deepClone(rawTracking);
+    stripTrackingSecretsInPlace(tracking);
     get().dispatch((doc) => {
       const updatedDoc: PageDocument = {
         ...doc,
@@ -1303,6 +1314,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   undo: () => {
+    // Undo/redo would rewind the document underneath an in-flight AI request (e.g. a
+    // streaming page generation inside an open history transaction), so both are no-ops
+    // while `isAiRunning` — covers the toolbar buttons and the keyboard shortcuts alike.
+    if (get().isAiRunning) return;
     const restored = historyManager.undo();
     if (!restored) return;
     const { selectedNodeId, selectedNodeIds } = get();
@@ -1321,6 +1336,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   redo: () => {
+    if (get().isAiRunning) return;
     const restored = historyManager.redo();
     if (!restored) return;
     const { selectedNodeId, selectedNodeIds } = get();

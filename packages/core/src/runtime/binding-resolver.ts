@@ -19,6 +19,22 @@ export function resolveBinding(
   context: RuntimeContext | undefined,
 ): ResolveOutcome {
   const segments = binding.key.split('.').filter(Boolean);
+  if (segments.some((segment) => FORBIDDEN_KEY_SEGMENTS.has(segment))) {
+    return applyMissingPolicy(binding);
+  }
+
+  // Fast-path: Check if context.variables contains the key directly as a flat property
+  if (
+    context?.variables &&
+    typeof context.variables === 'object' &&
+    Object.prototype.hasOwnProperty.call(context.variables, binding.key)
+  ) {
+    const directValue = (context.variables as Record<string, unknown>)[binding.key];
+    if (directValue !== undefined && typeof directValue !== 'function') {
+      return { status: 'resolved', value: directValue };
+    }
+  }
+
   let current: unknown = context?.variables;
 
   for (const segment of segments) {

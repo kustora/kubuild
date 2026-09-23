@@ -222,7 +222,7 @@ export const META_STANDARD_EVENTS = new Set([
 export interface FireBrowserPixelOptions {
   eventId?: string;
   config?: TrackingConfig;
-  provider?: 'all' | 'meta' | 'google' | 'tiktok' | 'custom' | string;
+  provider?: 'all' | 'meta' | 'google' | 'gtm' | 'tiktok' | 'custom' | string;
   eventType?: 'standard' | 'custom';
 }
 
@@ -257,6 +257,12 @@ export function fireBrowserPixel(
     (targetProvider === 'all' || targetProvider === 'tiktok') &&
     (!config?.providers?.tiktok || config.providers.tiktok.enabled !== false);
 
+  // GTM: explicit 'gtm' target always pushes; 'all' pushes only when a GTM container is configured.
+  const gtmConfig = config?.providers?.gtm;
+  const isGtmAllowed =
+    (targetProvider === 'gtm' && (!gtmConfig || gtmConfig.enabled !== false)) ||
+    (targetProvider === 'all' && !!gtmConfig && gtmConfig.enabled !== false && !!gtmConfig.containerId);
+
   if (config?.debugMode) {
     // eslint-disable-next-line no-console
     console.log(`[Browser Pixel Track: ${eventName}]`, {
@@ -290,5 +296,15 @@ export function fireBrowserPixel(
   // 3. Fire TikTok Pixel
   if (isTikTokAllowed && window.ttq && typeof window.ttq.track === 'function') {
     window.ttq.track(eventName, eventParams, eventId ? { event_id: eventId } : undefined);
+  }
+
+  // 4. Push to Google Tag Manager dataLayer
+  if (isGtmAllowed) {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      ...eventParams,
+      event: eventName,
+      ...(eventId ? { event_id: eventId } : {}),
+    });
   }
 }
