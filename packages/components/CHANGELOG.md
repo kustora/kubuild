@@ -1,5 +1,13 @@
 # @kubuild/components
 
+## 0.7.0
+
+### Patch Changes
+
+- Updated dependencies [[`97bc7c9`](https://github.com/kustora/kubuild/commit/97bc7c90f1a7a2729dce857a042e5e1fcd395655), [`125a60a`](https://github.com/kustora/kubuild/commit/125a60aea85d0d9fc4418a8db2bd2cceb1077e50)]:
+  - @kubuild/schema@0.7.0
+  - @kubuild/core@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes

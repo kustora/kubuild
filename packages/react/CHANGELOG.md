@@ -1,5 +1,36 @@
 # @kubuild/react
 
+## 0.7.0
+
+### Minor Changes
+
+- [#53](https://github.com/kustora/kubuild/pull/53) [`c8bca8c`](https://github.com/kustora/kubuild/commit/c8bca8c43deea5057b83cbf9e4b74afcc063a209) Thanks [@riziqalbab](https://github.com/riziqalbab)! - Editor host-integration fixes:
+
+  - `KubuildEditor`'s `assetProvider` prop is now forwarded into the canvas render context (an explicit `context.assetProvider` still wins), so uploaded and `asset://` images resolve on the canvas.
+  - `selectedNodeId` is now a real controlled input synced into the store (canvas, Inspector and Layers follow it); new `onSelectionChange` callback reports editor-side selection changes without echoing prop updates.
+  - New i18n API: `locale` / `onLocaleChange` / `translations` props on `KubuildEditor`, `TranslationOverridesContext`, `registerEditorLocale` / `unregisterEditorLocale` / `getAvailableEditorLocales`, `mergeTranslations`, and `DeepPartial` / `TranslationOverrides` / `BuiltInEditorLocale` types. `EditorLocale` now accepts custom locale codes (English fallback per key); `getTranslation(locale, overrides?)` takes optional overrides.
+  - `LanguageSwitcher` is exported and accepts a `locales` option list.
+  - Image/media source controls in the Inspector and Traits panels are localized via the new `media` translation namespace (previously hardcoded Indonesian/English mix).
+
+- [#53](https://github.com/kustora/kubuild/pull/53) [`97bc7c9`](https://github.com/kustora/kubuild/commit/97bc7c90f1a7a2729dce857a042e5e1fcd395655) Thanks [@riziqalbab](https://github.com/riziqalbab)! - **BREAKING (tracking): secrets no longer live in the document.** Tracking is now backend/tech-agnostic: the document keeps only public IDs, flags and an opaque `credentialId`; the host owns every secret and delivers server-side events through a relay.
+
+  - **schema**: removed `capiAccessToken`, `serverRelayUrl` (meta/google/gtm/tiktok), `measurementProtocolSecret`, TikTok `accessToken`, and custom `endpointUrl`/`headers` from the tracking provider schemas (old documents still parse; the fields are stripped). `PixelCredentialOption` is metadata-only (`id, name, provider, pixelId?, measurementId?, containerId?, hasSecret?, isActive?`). New: `TrackingProviderSecrets` (+ per-provider secret schemas), `LEGACY_TRACKING_SECRET_KEYS`, versioned relay protocol `TrackingRelayRequestSchema` / `TrackingRelayResponseSchema` (v1) with JSON Schema exports (`getTrackingRelayRequestJsonSchema`, `getTrackingRelayResponseJsonSchema`, `getTrackingProviderSecretsJsonSchema`) so PHP/Go/… backends can implement a relay. `track_event` `provider` now accepts `'gtm'` (dataLayer push). `CURRENT_SCHEMA_VERSION` is now `1.1.0`; the page JSON Schema describes `tracking` and lists `track_event`.
+  - **core**: `dispatchServerTracking(event, config, options)` gets secrets only via `options.resolveSecrets: TrackingSecretResolver` (keyed by the config's `credentialId`); a missing secret skips that provider with a `reason` instead of throwing. The `send*` helpers now take a `secrets` argument. New `createTrackingRelayHandler({ getConfig, resolveSecrets, allowedOrigins?, fetchFn? })` — a Web-standard `Request`/`Response` relay that validates the body, loads the trusted config from the host and takes client IP/UA from headers. New migration `1.0.0 -> 1.1.0` strips secrets and reports a `TRACKING_SECRET_REMOVED` warning (`MigrationDiagnostic.warnings`); `.stora` import/export and the migration of current-version docs strip them defensively (`sanitizeDocumentTracking`, `stripDocumentTrackingSecretsInPlace`). `RenderContext.tracking` (`RuntimeTrackingOptions`: `relayUrl`, `documentId`, `relayHeaders`, `credentials`, `fetchFn`, `onLog`) is host config.
+  - **renderer**: the browser never calls `dispatchServerTracking`. Server delivery only POSTs a v1 relay request to `context.tracking.relayUrl`; without it, the server part is skipped with a `TRACKING_RELAY_NOT_CONFIGURED` diagnostic/log and the client pixel still fires. `serverRelayUrl` in step payloads/documents is ignored. `'gtm'` pushes to `window.dataLayer`.
+  - **editor**: credential pickers select by `credentialId` from metadata-only `trackingCredentials`. New `onSaveTrackingSecret?: ({ provider, secrets, name? }) => Promise<{ credentialId }>` prop on `KubuildEditor`; without it, secret inputs are disabled with an explanation. Relay/endpoint URL inputs are gone (relay shown read-only from `context.tracking.relayUrl`). `updateDocumentTracking` and JSON export strip secrets.
+
+  **Migration**: run documents through `migrateDocument` (or import them) — secrets are removed and a warning lists the removed paths. Store each secret in your backend, give the editor `trackingCredentials` + `onSaveTrackingSecret`, set `credentialId` on the provider, pass `context={{ tracking: { relayUrl, documentId } }}` to the renderer and mount `createTrackingRelayHandler` (or your own relay implementing the v1 JSON Schema).
+
+### Patch Changes
+
+- Updated dependencies [[`eb46301`](https://github.com/kustora/kubuild/commit/eb46301e7ea6b56008f00db5236de155a0d91c8a), [`c8bca8c`](https://github.com/kustora/kubuild/commit/c8bca8c43deea5057b83cbf9e4b74afcc063a209), [`97bc7c9`](https://github.com/kustora/kubuild/commit/97bc7c90f1a7a2729dce857a042e5e1fcd395655), [`125a60a`](https://github.com/kustora/kubuild/commit/125a60aea85d0d9fc4418a8db2bd2cceb1077e50)]:
+  - @kubuild/ai@0.7.0
+  - @kubuild/editor@0.7.0
+  - @kubuild/schema@0.7.0
+  - @kubuild/core@0.7.0
+  - @kubuild/renderer@0.7.0
+  - @kubuild/components@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes
