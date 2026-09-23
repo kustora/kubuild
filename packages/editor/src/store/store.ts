@@ -1310,6 +1310,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   undo: () => {
+    // Undo/redo would rewind the document underneath an in-flight AI request (e.g. a
+    // streaming page generation inside an open history transaction), so both are no-ops
+    // while `isAiRunning` — covers the toolbar buttons and the keyboard shortcuts alike.
+    if (get().isAiRunning) return;
     const restored = historyManager.undo();
     if (!restored) return;
     const { selectedNodeId, selectedNodeIds } = get();
@@ -1328,6 +1332,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   redo: () => {
+    if (get().isAiRunning) return;
     const restored = historyManager.redo();
     if (!restored) return;
     const { selectedNodeId, selectedNodeIds } = get();

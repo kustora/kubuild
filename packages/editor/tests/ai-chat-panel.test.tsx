@@ -216,7 +216,7 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
     // prop-over-store precedence as `InspectorPanel`) rather than mutating the store right
     // before `renderToString` — see the `shouldRenderAiChatPanel` describe block above for
     // why store mutations don't reach an SSR render in this test environment.
-    it('shows a "membahas: #<nodeId>" chip when a node is selected', () => {
+    it('shows a "discussing: #<nodeId>" chip when a node is selected', () => {
       const doc = createBlankDocument('Context Chip Test');
       doc.document.children = [{ id: 'button-1', type: 'button', props: { text: 'Click me' } }];
 
@@ -231,7 +231,7 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
 
       expect(html).toContain('data-testid="ai-chat-context-chip"');
       expect(html).toContain('button-1');
-      expect(html).toContain('membahas:');
+      expect(html).toContain('discussing:');
       expect(html).toContain('data-testid="ai-chat-context-dismiss"');
     });
 

@@ -7,6 +7,7 @@ import type { AiChatHistoryStorageAdapter } from '@kubuild/ai/react';
 import { getMessageText, type AiChatMessage, type AgentOpRecord, type PagePlan } from '@kubuild/ai';
 import type { AiClientOptions } from '@kubuild/ai/client';
 import { useEditorStore } from '../../store';
+import { useTranslation } from '../../i18n';
 import { ResolvedAiEditorConfig } from '../../config';
 import { buildAiChatContext, resolveChatSendContext } from '../../utils/ai-context';
 import {
@@ -123,6 +124,7 @@ function stringifyDiffValue(value: unknown): string {
 
 /** Exported for isolated unit testing (STORA-505) — the loading/typing bubble. */
 export function AiChatTypingIndicator() {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2 self-start max-w-[85%]" data-testid="ai-chat-loading">
       <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
@@ -130,7 +132,7 @@ export function AiChatTypingIndicator() {
       </div>
       <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        <span className="text-xs">Thinking…</span>
+        <span className="text-xs">{t.aiChat.thinking}</span>
       </div>
     </div>
   );
@@ -176,6 +178,7 @@ export function AiChatErrorBubble({
   message: string;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       role="alert"
@@ -192,7 +195,7 @@ export function AiChatErrorBubble({
           className="self-start flex items-center gap-1 text-[11px] font-semibold text-red-700 hover:text-red-900 underline"
         >
           <RotateCw className="w-3 h-3" />
-          Retry
+          {t.aiChat.retry}
         </button>
       </div>
     </div>
@@ -213,6 +216,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   onDiagnostic,
 }) => {
   const storeState = useEditorStore();
+  const { t } = useTranslation();
+  const tr = t.aiChat;
   const document = propDocument ?? storeState.document;
   const selectedNodeId =
     propSelectedNodeId !== undefined ? propSelectedNodeId : storeState.selectedNodeId;
@@ -252,6 +257,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   // instance's `streamPage` also drives full-page generation below (STORA-507) — both
   // share `isGenerating`/`cancel` since they're mutually exclusive user actions; `isStreaming`
   // distinguishes "generating a page" from "enhancing a node" for the UI.
+  // Last error reported by `useAiGenerator` — its methods resolve to `null` on failure
+  // (aborts included), so the message is captured here to tell the two apart.
+  const generatorErrorRef = useRef<Error | null>(null);
   const {
     refactorNode,
     planPage,
@@ -264,8 +272,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     endpoint: endpointOptions?.endpoint ?? PROVIDER_NOT_CONFIGURED_ENDPOINT,
     headers: endpointOptions?.headers,
     credentials: endpointOptions?.credentials,
+    onError: (err) => {
+      generatorErrorRef.current = err;
+    },
   });
-  const isEnhancing = isAiGeneratorBusy && !isStreaming;
   const isGeneratingPage = isStreaming;
 
   // STORA-530 — agent mode: yet another distinct network boundary. Unlike chat (which only
@@ -297,6 +307,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const [pendingPlan, setPendingPlan] = useState<{ plan: PagePlan; prompt: string } | null>(null);
   const [isPlanning, setIsPlanning] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  // Planning shares `useAiGenerator`'s busy flag, so it must not read as "enhancing".
+  const isEnhancing = isAiGeneratorBusy && !isStreaming && !isPlanning;
 
   const [inputValue, setInputValue] = useState('');
   const [contextDismissed, setContextDismissed] = useState(false);
@@ -449,6 +461,12 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
   const isBusy = isLoading || isGeneratingPage || isAgentRunning || isPlanning || isEnhancing;
 
+  /**
+   * Only one AI request may be in flight at a time — in this panel, or anywhere else that
+   * reports through the store's `isAiRunning` (e.g. a second panel instance).
+   */
+  const isAiRequestInFlight = () => isBusy || useEditorStore.getState().isAiRunning;
+
   useEffect(() => {
     setIsAiRunning(isBusy);
     return () => {
@@ -469,13 +487,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     aiConfig.features.generate && !isLoading && !isAiGeneratorBusy && !!inputValue.trim();
 
   const doSend = (content: string) => {
-    if (!content.trim() || isLoading || isGeneratingPage) return;
+    if (!content.trim() || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
-      setLocalError(
-        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
-          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
-      );
+      setLocalError(tr.providerNotReachable);
       return;
     }
 
@@ -487,7 +502,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     void sendMessage(content, {
       currentDocument: ctx.currentDocument,
       selectedNodeId: ctx.selectedNodeId,
-      systemPrompt: aiConfig.systemPromptPrefix,
+      instructions: aiConfig.systemPromptPrefix,
     });
     // Dismissal only ever suppresses context for the message just sent (STORA-506 AC).
     setContextDismissed(false);
@@ -528,13 +543,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    */
   const handleEnhance = async () => {
     const instruction = inputValue.trim();
-    if (!instruction || !selectedNode || !canEnhance) return;
+    if (!instruction || !selectedNode || !canEnhance || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
-      setLocalError(
-        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
-          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
-      );
+      setLocalError(tr.providerNotReachable);
       return;
     }
 
@@ -542,14 +554,18 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     setEnhanceError(null);
     setInputValue('');
 
-    const outcome = await runEnhanceNode(refactorNode, { node: selectedNode, instruction });
+    const outcome = await runEnhanceNode(refactorNode, {
+      node: selectedNode,
+      instruction,
+      instructions: aiConfig.systemPromptPrefix,
+    });
 
     if (outcome.status === 'no-result') {
-      setEnhanceError('AI enhancement request failed. Please try again.');
+      setEnhanceError(tr.enhanceFailed);
       return;
     }
     if (outcome.status === 'invalid') {
-      setEnhanceError(`AI enhancement produced an invalid result: ${outcome.message}`);
+      setEnhanceError(tr.enhanceInvalid(outcome.message));
       return;
     }
 
@@ -570,13 +586,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    */
   const handleGeneratePage = async (promptOverride?: string, approvedPlan?: PagePlan) => {
     const prompt = (promptOverride ?? inputValue).trim();
-    if (!prompt || (!promptOverride && !canGeneratePage) || isAiGeneratorBusy) return;
+    if (!prompt || (!promptOverride && !canGeneratePage) || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
-      setLocalError(
-        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
-          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
-      );
+      setLocalError(tr.providerNotReachable);
       return;
     }
 
@@ -594,6 +607,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           prompt,
           plan: approvedPlan,
           conversationHistory: messages,
+          instructions: aiConfig.systemPromptPrefix,
         },
         {
           dispatch,
@@ -605,35 +619,28 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
         },
       );
     } catch (err) {
-      setGenerateError(err instanceof Error ? err.message : 'Page generation failed. Please try again.');
+      setGenerateError(err instanceof Error ? err.message : tr.generateFailed);
       return;
     }
 
     if (summary.insertedSectionIds.length === 0) {
-      setGenerateError(
-        summary.streamErrored
-          ? 'Page generation failed. Please try again.'
-          : 'AI did not return any valid sections for this prompt.',
-      );
+      setGenerateError(summary.streamErrored ? tr.generateFailed : tr.generateNoSections);
       return;
     }
 
     setGenerateSummary(
       summary.failedSectionCount > 0
-        ? `Generated ${summary.insertedSectionIds.length} section(s) — ${summary.failedSectionCount} rejected (see diagnostics).`
-        : `Generated ${summary.insertedSectionIds.length} section(s) onto the canvas.`,
+        ? tr.generateSummaryWithRejected(summary.insertedSectionIds.length, summary.failedSectionCount)
+        : tr.generateSummary(summary.insertedSectionIds.length),
     );
   };
 
   const handlePlanPage = async (promptOverride?: string) => {
     const prompt = (promptOverride ?? inputValue).trim();
-    if (!prompt || isPlanning || isGeneratingPage) return;
+    if (!prompt || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
-      setLocalError(
-        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
-          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
-      );
+      setLocalError(tr.providerNotReachable);
       return;
     }
 
@@ -647,10 +654,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     if (!promptOverride) setInputValue('');
 
     try {
+      generatorErrorRef.current = null;
       const rawPlan = await planPage({
         prompt,
         conversationHistory: messages,
+        instructions: aiConfig.systemPromptPrefix,
       });
+
+      // `planPage` resolves `null` on failure (reported through `onError`) and on abort
+      // (reported nowhere — the user cancelled, so there is nothing to show).
+      if (!rawPlan) {
+        // Re-read through a widened type: TS narrowed the ref to `null` at the reset above,
+        // but `onError` may have set it while `planPage` was awaited.
+        const reported = generatorErrorRef.current as Error | null;
+        if (reported) setPlanError(reported.message || tr.planFailed);
+        return;
+      }
 
       let plan = rawPlan;
       if (plan && !Array.isArray(plan.sections)) {
@@ -664,13 +683,13 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       }
 
       if (!plan || !Array.isArray(plan.sections) || plan.sections.length === 0) {
-        setPlanError('AI did not return a valid page plan. Please try again.');
+        setPlanError(tr.planInvalid);
         return;
       }
 
       setPendingPlan({ plan, prompt });
     } catch (err) {
-      setPlanError(err instanceof Error ? err.message : 'Planning failed. Please try again.');
+      setPlanError(err instanceof Error ? err.message : tr.planFailed);
     } finally {
       setIsPlanning(false);
     }
@@ -707,7 +726,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     });
 
     if (!result.success) {
-      setEnhanceError(result.error ?? 'Failed to apply the AI enhancement.');
+      setEnhanceError(result.error ?? tr.enhanceApplyFailed);
       return;
     }
 
@@ -739,11 +758,11 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     });
 
     if (!result.success) {
-      setAgentError(result.error ?? 'Gagal menerapkan perubahan agent.');
+      setAgentError(result.error ?? tr.agentApplyFailed);
       return false;
     }
 
-    setAgentApplied(`${result.appliedOpIds.length} perubahan diterapkan ke canvas.`);
+    setAgentApplied(tr.agentApplied(result.appliedOpIds.length));
     setAgentError(null);
     return true;
   };
@@ -754,13 +773,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    */
   const handleRunAgent = async (overrideInstruction?: string) => {
     const instruction = (overrideInstruction ?? inputValue).trim();
-    if (!instruction || isAgentRunning) return;
+    if (!instruction || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
-      setAgentError(
-        'This AI provider is not reachable from the browser (no HTTP endpoint configured). ' +
-          'Supply `{ endpoint }` in `AiEditorConfig.provider`, proxied through `createAiHandler` on your backend.',
-      );
+      setAgentError(tr.providerNotReachable);
       return;
     }
 
@@ -775,6 +791,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       document,
       selectedNodeId: contextDismissed ? undefined : (selectedNodeId ?? undefined),
       history: messages,
+      instructions: aiConfig.systemPromptPrefix,
     });
 
     if (!result || result.ops.length === 0) return;
@@ -824,14 +841,14 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           <GripVertical className="w-3.5 h-3.5 text-slate-400 -mr-0.5 shrink-0" aria-hidden="true" />
         )}
         <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
-        <span className="font-bold text-xs text-slate-800">AI Assistant</span>
+        <span className="font-bold text-xs text-slate-800">{tr.title}</span>
       </div>
       <div className="flex items-center gap-1">
         {onToggleMode && (
           <button
             type="button"
             data-testid="ai-chat-toggle-mode"
-            title={mode === 'floating' ? 'Dock panel' : 'Float panel'}
+            title={mode === 'floating' ? tr.dockPanel : tr.floatPanel}
             onClick={onToggleMode}
             className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition"
           >
@@ -846,7 +863,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           <button
             type="button"
             data-testid="ai-chat-close"
-            title="Close AI Chat"
+            title={tr.closePanel}
             onClick={onClose}
             className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition"
           >
@@ -860,29 +877,29 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const modes = useMemo(() => [
     {
       id: 'agent' as const,
-      label: 'Agent',
-      description: 'Minta agent mengubah halaman/komponen ini',
+      label: tr.modeAgentLabel,
+      description: tr.modeAgentDescription,
       icon: Sparkles,
       color: 'text-violet-600',
       enabled: !!aiConfig.features.agent,
     },
     {
       id: 'chat' as const,
-      label: 'Ask',
-      description: 'Tanya dan diskusi tanpa mengubah canvas',
+      label: tr.modeAskLabel,
+      description: tr.modeAskDescription,
       icon: Bot,
       color: 'text-blue-600',
       enabled: !!aiConfig.features.chat,
     },
     {
       id: 'plan' as const,
-      label: 'Plan',
-      description: 'Rancang struktur dan generate landing page',
+      label: tr.modePlanLabel,
+      description: tr.modePlanDescription,
       icon: LayoutTemplate,
       color: 'text-emerald-600',
       enabled: !!aiConfig.features.generate,
     },
-  ], [aiConfig.features]);
+  ], [aiConfig.features, tr]);
 
   const currentModeInfo = modes.find((m) => m.id === activeMode) || modes[0];
 
@@ -890,15 +907,15 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     switch (activeMode) {
       case 'agent':
         return selectedNode
-          ? `Minta agent mengubah #${selectedNode.type} (${selectedNodeId})…`
-          : 'Minta agent mengubah halaman ini…';
+          ? tr.placeholderAgentNode(selectedNode.type, selectedNodeId ?? '')
+          : tr.placeholderAgent;
       case 'plan':
-        return 'Jelaskan website yang ingin dirancang dan dibuat…';
+        return tr.placeholderPlan;
       case 'chat':
       default:
-        return 'Tanyakan apa saja tentang halaman ini…';
+        return tr.placeholderChat;
     }
-  }, [activeMode, selectedNode, selectedNodeId]);
+  }, [activeMode, selectedNode, selectedNodeId, tr]);
 
   const body = (
     <>
@@ -909,7 +926,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       >
         {messages.length === 0 && !isLoading && (
           <p className="text-xs text-slate-400 text-center mt-6">
-            Ask about your page, or request changes to the selected element.
+            {tr.emptyState}
           </p>
         )}
         {messages.map((message, idx) => (
@@ -926,7 +943,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             </div>
             <div className="bg-blue-50 text-blue-600 rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span className="text-xs">Enhancing…</span>
+              <span className="text-xs">{tr.enhancing}</span>
             </div>
           </div>
         )}
@@ -940,7 +957,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             </div>
             <div className="bg-blue-50 text-blue-600 rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span className="text-xs">{currentStep || 'Generating page…'}</span>
+              <span className="text-xs">{currentStep || tr.generatingPage}</span>
             </div>
           </div>
         )}
@@ -954,7 +971,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             </div>
             <div className="bg-emerald-50 text-emerald-700 rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span className="text-xs">Merancang struktur halaman…</span>
+              <span className="text-xs">{tr.planning}</span>
             </div>
           </div>
         )}
@@ -962,7 +979,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           <AiChatErrorBubble message={planError} onRetry={() => void handlePlanPage(lastGeneratePrompt)} />
         )}
         {(error || localError) && (
-          <AiChatErrorBubble message={error?.message || localError || 'Something went wrong.'} onRetry={handleRetry} />
+          <AiChatErrorBubble message={error?.message || localError || tr.somethingWentWrong} onRetry={handleRetry} />
         )}
         {enhanceError && !candidate && (
           <AiChatErrorBubble message={enhanceError} onRetry={handleEnhance} />
@@ -990,12 +1007,12 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
               <span className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-                Agent
+                {tr.agentLabel}
               </span>
               {isAgentRunning && (
                 <span className="flex items-center gap-1 text-[11px] font-normal text-violet-600">
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  langkah {agentStep}/{agentMaxSteps}
+                  {tr.agentStep(agentStep, agentMaxSteps)}
                 </span>
               )}
             </div>
@@ -1030,9 +1047,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               >
                 <Loader2 className="w-3 h-3 animate-spin shrink-0 text-violet-600" />
                 <span>
-                  {autoApply
-                    ? 'Sedang memproses langkah... Perubahan otomatis diterapkan ke kanvas setelah selesai.'
-                    : 'Sedang memproses langkah... Perubahan akan siap di-review & di-apply setelah selesai.'}
+                  {autoApply ? tr.agentRunningAutoApply : tr.agentRunningReview}
                 </span>
               </div>
             )}
@@ -1045,7 +1060,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
         {(agentError || agentHookError) && (
           <AiChatErrorBubble
-            message={agentError || agentHookError?.message || 'Agent gagal.'}
+            message={agentError || agentHookError?.message || tr.agentFailed}
             onRetry={() => void handleRunAgent(lastAgentInstruction)}
           />
         )}
@@ -1069,7 +1084,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           >
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
               <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-              <span>{pendingOps.length} perubahan siap diterapkan</span>
+              <span>{tr.agentChangesReady(pendingOps.length)}</span>
             </div>
 
             <div className="flex flex-col gap-1 max-h-40 overflow-y-auto" data-testid="ai-agent-ops-list">
@@ -1098,7 +1113,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
-                Discard
+                {tr.discard}
               </button>
               <button
                 type="button"
@@ -1107,7 +1122,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 className="px-2.5 py-1 text-xs font-medium text-white bg-violet-600 hover:bg-violet-500 rounded-md transition flex items-center gap-1"
               >
                 <Check className="w-3 h-3" />
-                Apply
+                {tr.apply}
               </button>
             </div>
           </div>
@@ -1122,13 +1137,11 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           >
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
               <Wand2 className="w-3.5 h-3.5 text-blue-600" />
-              <span>
-                Enhance preview — #{candidate.originalNode.type}:{candidate.originalNode.id}
-              </span>
+              <span>{tr.enhancePreview(candidate.originalNode.type, candidate.originalNode.id)}</span>
             </div>
 
             {candidate.diff.fields.length === 0 && !candidate.diff.childrenChanged ? (
-              <p className="text-[11px] text-slate-500">AI did not change anything.</p>
+              <p className="text-[11px] text-slate-500">{tr.enhanceNoChange}</p>
             ) : (
               <div className="flex flex-col gap-1 max-h-40 overflow-y-auto" data-testid="ai-enhance-diff-fields">
                 {candidate.diff.fields.map((field) => (
@@ -1148,7 +1161,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                     data-testid="ai-enhance-diff-children"
                     className="text-[11px] font-mono bg-amber-50 border border-amber-200 text-amber-700 rounded px-1.5 py-1"
                   >
-                    Nested content changed
+                    {tr.nestedContentChanged}
                   </div>
                 )}
               </div>
@@ -1162,7 +1175,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
-                Discard
+                {tr.discard}
               </button>
               <button
                 type="button"
@@ -1171,7 +1184,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-md transition flex items-center gap-1"
               >
                 <Check className="w-3 h-3" />
-                Apply
+                {tr.apply}
               </button>
             </div>
           </div>
@@ -1186,12 +1199,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                 <LayoutTemplate className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Rancangan Struktur Halaman</span>
+                <span>{tr.planPreviewTitle}</span>
               </div>
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                {pendingPlan.plan.sections?.length || 0} Section
+                {tr.planSectionCount(pendingPlan.plan.sections?.length || 0)}
               </span>
             </div>
+
+            {pendingPlan.plan.usedFallback && (
+              <p
+                data-testid="ai-plan-fallback-notice"
+                className="text-[10px] leading-snug text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 flex items-start gap-1"
+              >
+                <AlertTriangle className="w-3 h-3 shrink-0 mt-px" aria-hidden="true" />
+                <span>{tr.planFallbackNotice}</span>
+              </p>
+            )}
 
             {pendingPlan.plan.title && (
               <div className="text-xs font-medium text-slate-800">
@@ -1232,7 +1255,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
-                Batalkan
+                {tr.planCancel}
               </button>
               <button
                 type="button"
@@ -1241,7 +1264,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 className="px-3 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-md transition flex items-center gap-1 shadow-xs"
               >
                 <Check className="w-3 h-3" />
-                Setujui & Generate
+                {tr.planApprove}
               </button>
             </div>
           </div>
@@ -1255,13 +1278,13 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             className="self-start flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-full pl-2 pr-1 py-0.5 text-[11px] font-medium"
           >
             <span>
-              membahas: #{selectedNode?.type ? `${selectedNode.type}:` : ''}
+              {tr.contextChipLabel} #{selectedNode?.type ? `${selectedNode.type}:` : ''}
               {selectedNodeId}
             </span>
             <button
               type="button"
               data-testid="ai-chat-context-dismiss"
-              title="Remove context for the next message"
+              title={tr.removeContext}
               onClick={() => setContextDismissed(true)}
               className="p-0.5 rounded-full hover:bg-blue-100 text-blue-500 hover:text-blue-800 transition"
             >
@@ -1281,7 +1304,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               onChange={(e) => setAutoApply(e.target.checked)}
               className="accent-violet-600"
             />
-            <span>Terapkan otomatis (kecuali penghapusan)</span>
+            <span>{tr.autoApply}</span>
           </label>
         )}
 
@@ -1313,7 +1336,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               {isModeDropdownOpen && (
                 <div className="absolute bottom-full left-0 mb-1.5 w-60 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50 text-xs">
                   <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Pilih Mode
+                    {tr.chooseMode}
                   </div>
                   {modes.filter((m) => m.enabled).map((m) => {
                     const Icon = m.icon;
@@ -1344,33 +1367,36 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               )}
             </div>
 
-            {/* Hidden backwards-compatibility action buttons for existing tests */}
-            <div className="hidden" aria-hidden="true">
-              {aiConfig.features.agent && (
-                <button
-                  type="button"
-                  data-testid="ai-chat-agent"
-                  onClick={() => void handleRunAgent()}
-                  disabled={!inputValue.trim() || isAgentRunning || isLoading || isAiGeneratorBusy}
-                />
-              )}
-              {aiConfig.features.generate && (
-                <button
-                  type="button"
-                  data-testid="ai-chat-generate"
-                  onClick={() => void handleGeneratePage()}
-                  disabled={!canGeneratePage}
-                />
-              )}
-              {aiConfig.features.enhance && (
-                <button
-                  type="button"
-                  data-testid="ai-chat-enhance"
-                  onClick={handleEnhance}
-                  disabled={!canEnhance || !inputValue.trim() || isEnhancing}
-                />
-              )}
-            </div>
+            <div className="flex items-center gap-1">
+            {/* Explicit one-shot actions, each gated by its own feature flag. Enhance
+                rewrites the attached node (needs a selection); Generate builds a whole page
+                straight from the prompt, skipping Plan mode's review step. */}
+            {aiConfig.features.enhance && (
+              <button
+                type="button"
+                data-testid="ai-chat-enhance"
+                disabled={!canEnhance || !inputValue.trim() || isBusy}
+                onClick={() => void handleEnhance()}
+                title={selectedNode ? tr.enhanceTooltip : tr.enhanceNeedsSelection}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <Wand2 className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{tr.enhanceButton}</span>
+              </button>
+            )}
+            {aiConfig.features.generate && (
+              <button
+                type="button"
+                data-testid="ai-chat-generate"
+                disabled={!canGeneratePage || isBusy}
+                onClick={() => void handleGeneratePage()}
+                title={tr.generateTooltip}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <LayoutTemplate className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{tr.generateButton}</span>
+              </button>
+            )}
 
             {/* Single Unified Send / Cancel Button */}
             {isBusy ? (
@@ -1384,7 +1410,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                       ? cancelGenerator
                       : cancel
                 }
-                title="Stop"
+                title={tr.stop}
+                aria-label={tr.stop}
                 className="p-1.5 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
@@ -1394,12 +1421,14 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 type="submit"
                 data-testid="ai-chat-send"
                 disabled={!inputValue.trim() || isAiGeneratorBusy}
-                title={`Kirim (${currentModeInfo.label})`}
+                title={tr.send(currentModeInfo.label)}
+                aria-label={tr.send(currentModeInfo.label)}
                 className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
             )}
+            </div>
           </div>
         </div>
       </form>
