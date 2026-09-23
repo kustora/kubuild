@@ -110,4 +110,30 @@ export const id: TranslationSchema = {
   h4: 'H4 - Subjudul Bagian (Kecil)',
   h5: 'H5 - Judul Kecil (Sangat Kecil)',
   h6: 'H6 - Judul Mikro (Terkecil)',
+
+  // Media / image source controls
+  media: {
+    replace: 'Ganti',
+    replaceImageTitle: 'Ganti gambar dari perangkat',
+    replaceImageAria: 'Ganti gambar',
+    removeImage: 'Hapus gambar',
+    useManualUrl: 'Gunakan URL manual',
+    hideUrl: 'Sembunyikan URL',
+    upload: 'Unggah',
+    uploadImage: 'Unggah Gambar',
+    uploadFromDevice: 'Unggah gambar dari perangkat',
+    uploading: 'Mengunggah...',
+    uploadingImage: 'Mengunggah gambar...',
+    uploadFailed: 'Unggah gagal',
+    browseGallery: 'Jelajahi Galeri Aset',
+    gallery: 'Galeri',
+    previewAlt: 'Pratinjau',
+    localImage: 'Gambar Lokal',
+    embeddedImage: 'Gambar Lokal (Tertanam)',
+    blobFile: 'Berkas Lokal (Blob)',
+    imageAsset: 'Aset Gambar',
+    urlOrUploadPlaceholder: 'https://... atau unggah gambar',
+    localPathWarning: (actionLabel: string) =>
+      `Browser tidak dapat membuka path lokal secara langsung (file://). Klik "${actionLabel}" di atas untuk memilih dan memuat gambar lokal.`,
+  },
 };

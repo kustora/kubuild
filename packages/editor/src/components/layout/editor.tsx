@@ -9,7 +9,10 @@ import {
   buildSampleVariablesFromCatalog,
   AssetProvider,
 } from '@kubuild/core';
-import { useEditorStore, Viewport } from '../../store';
+import { useEditorStore, Viewport, EditorLocale } from '../../store';
+import { TranslationOverridesContext, TranslationOverrides } from '../../i18n';
+import { createControlledStoreSync, ControlledStoreSync } from './controlled-store-sync';
+import { buildEditorPreviewContext } from './preview-context';
 import { EditorCanvas, EditorPageItem } from '../canvas';
 import { MultiDevicePreview } from '../canvas/multi-device-preview';
 import { EditorToolbar } from './toolbar';
@@ -49,7 +52,26 @@ export interface KubuildEditorProps {
   initialDocument?: PageDocument;
   pages?: EditorPageItem[];
   activePageId?: string;
+  /**
+   * Controlled selection. Whenever this prop changes it is synced into the editor store,
+   * so canvas, Inspector, Layers and shell chrome all follow it. Selection changes made
+   * inside the editor are reported through `onSelectionChange`.
+   */
   selectedNodeId?: string | null;
+  /** Fires when the primary selected node changes inside the editor (not for prop echoes). */
+  onSelectionChange?: (nodeId: string | null) => void;
+  /**
+   * UI locale. Applied on mount and whenever the prop changes; the `LanguageSwitcher` can
+   * still change it afterwards (reported via `onLocaleChange`).
+   */
+  locale?: EditorLocale;
+  /** Fires when the active UI locale changes inside the editor (not for prop echoes). */
+  onLocaleChange?: (locale: EditorLocale) => void;
+  /**
+   * Translation overrides per locale, deep-merged over the built-in dictionaries. Missing
+   * keys fall back to the built-in locale; custom locale codes fall back to English.
+   */
+  translations?: TranslationOverrides;
   onActivePageChange?: (pageId: string) => void;
   onPagesChange?: (pages: EditorPageItem[]) => void;
   registry?: ComponentRegistry;
@@ -69,7 +91,11 @@ export interface KubuildEditorProps {
   trackingCredentials?: PixelCredentialOption[];
   /** Called when user clicks "Kelola Kredensial" inside the tracking settings modal */
   onManageCredentials?: () => void;
-  /** Host asset provider for direct uploads, gallery listing, and asset management */
+  /**
+   * Host asset provider for direct uploads, gallery listing, and asset management. It is
+   * also forwarded into the canvas render context (unless `context.assetProvider` is set),
+   * so uploaded and `asset://` images resolve on the canvas.
+   */
   assetProvider?: AssetProvider;
   className?: string;
 }
@@ -79,6 +105,10 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   pages,
   activePageId,
   selectedNodeId: propSelectedNodeId,
+  onSelectionChange,
+  locale: propLocale,
+  onLocaleChange,
+  translations,
   onActivePageChange,
   onPagesChange,
   registry = createDefaultComponentRegistry(),
@@ -99,8 +129,15 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   const setVariableCatalog = useEditorStore((state) => state.setVariableCatalog);
   const viewport = useEditorStore((state) => state.viewport);
   const setViewport = useEditorStore((state) => state.setViewport);
+  // The store is the single selection source for canvas/Inspector/chrome; a controlled
+  // `selectedNodeId` prop is synced into it below. Until a new prop value has been applied
+  // (first render / SSR), the shell chrome shows the prop value instead.
   const storeSelectedNodeId = useEditorStore((state) => state.selectedNodeId);
-  const selectedNodeId = propSelectedNodeId !== undefined ? propSelectedNodeId : storeSelectedNodeId;
+  const appliedSelectedPropRef = React.useRef<string | null | undefined>(undefined);
+  const selectedNodeId =
+    propSelectedNodeId !== undefined && propSelectedNodeId !== appliedSelectedPropRef.current
+      ? propSelectedNodeId
+      : storeSelectedNodeId;
   const tableSpreadsheetMode = useEditorStore((state) => state.tableSpreadsheetMode);
   const setTableSpreadsheetMode = useEditorStore((state) => state.setTableSpreadsheetMode);
   const aiChatMode = useEditorStore((state) => state.aiChatMode);
@@ -229,6 +266,49 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     }
   }, [initialDocument, setDocument]);
 
+  // Controlled selection + locale. Declared after the document-loading effects so a prop
+  // value is applied after `setDocument` has reset the selection on mount.
+  const onSelectionChangeRef = React.useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
+  const onLocaleChangeRef = React.useRef(onLocaleChange);
+  onLocaleChangeRef.current = onLocaleChange;
+  const selectionSyncRef = React.useRef<ControlledStoreSync<string | null> | null>(null);
+  const localeSyncRef = React.useRef<ControlledStoreSync<EditorLocale> | null>(null);
+
+  useEffect(() => {
+    const selectionSync = createControlledStoreSync(useEditorStore, {
+      select: (state) => state.selectedNodeId,
+      write: (state, nodeId) => state.selectNode(nodeId),
+      onChange: () => onSelectionChangeRef.current,
+    });
+    const localeSync = createControlledStoreSync(useEditorStore, {
+      select: (state) => state.locale,
+      write: (state, nextLocale) => state.setLocale(nextLocale),
+      onChange: () => onLocaleChangeRef.current,
+    });
+    selectionSyncRef.current = selectionSync;
+    localeSyncRef.current = localeSync;
+    return () => {
+      selectionSync.dispose();
+      localeSync.dispose();
+      selectionSyncRef.current = null;
+      localeSyncRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (propSelectedNodeId !== undefined) {
+      appliedSelectedPropRef.current = propSelectedNodeId;
+      selectionSyncRef.current?.apply(propSelectedNodeId);
+    }
+  }, [propSelectedNodeId]);
+
+  useEffect(() => {
+    if (propLocale !== undefined) {
+      localeSyncRef.current?.apply(propLocale);
+    }
+  }, [propLocale]);
+
   useEffect(() => {
     const wrappedOnChange = (updatedDoc: PageDocument) => {
       onChange?.(updatedDoc);
@@ -251,14 +331,12 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     [variableCatalog],
   );
 
-  // Host-supplied context.variables wins on key conflicts — the catalog only fills gaps
-  // so the canvas can preview bindings without the host needing to wire live data itself.
-  const previewContext = useMemo<RuntimeContext | undefined>(() => {
-    if (Object.keys(sampleVariables).length === 0) {
-      return context;
-    }
-    return { ...context, variables: { ...sampleVariables, ...(context?.variables ?? {}) } };
-  }, [context, sampleVariables]);
+  // Host-supplied context.variables wins on key conflicts — the catalog only fills gaps.
+  // The `assetProvider` prop is forwarded too (an explicit `context.assetProvider` wins).
+  const previewContext = useMemo<RuntimeContext | undefined>(
+    () => buildEditorPreviewContext(context, sampleVariables, assetProvider),
+    [context, sampleVariables, assetProvider],
+  );
 
   const viewportWidthMap: Record<Viewport, string> = {
     desktop: 'w-full max-w-6xl',
@@ -291,7 +369,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     setAiChatMode(resolvedAiConfig.defaultPanelMode);
   }, []);
 
-  return (
+  const shell = (
     <div
       data-ai-enabled={resolvedAiConfig.enabled}
       className={`flex flex-col h-full bg-slate-100 text-slate-900 relative overflow-hidden ${className || ''}`}
@@ -676,5 +754,9 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <TranslationOverridesContext.Provider value={translations}>{shell}</TranslationOverridesContext.Provider>
   );
 };
