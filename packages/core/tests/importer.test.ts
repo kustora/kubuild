@@ -359,14 +359,14 @@ describe('STORA-062: Importer .stora dengan Preflight Validation', () => {
       expect(preflight.valid).toBe(true);
       expect(preflight.canImport).toBe(true);
       expect(preflight.requiresMigration).toBe(true);
-      expect(preflight.migrationPath).toEqual(['0.1.0', '1.0.0']);
+      expect(preflight.migrationPath).toEqual(['0.1.0', '1.0.0', '1.1.0']);
 
       // Import should successfully migrate the document
       const importRes = await importPackage(archive);
       expect(importRes.success).toBe(true);
       if (!importRes.success) return;
 
-      expect(importRes.document.version).toBe('1.0.0');
+      expect(importRes.document.version).toBe('1.1.0');
       expect(importRes.document.document.id).toBe('root-page');
       // Verify styles were migrated to responsive base
       expect(importRes.document.document.styles?.base?.backgroundColor).toBe('#f0f0f0');

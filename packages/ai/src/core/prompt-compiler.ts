@@ -1,4 +1,4 @@
-import type { PageDocument } from '@kubuild/schema';
+import { CURRENT_SCHEMA_VERSION, type PageDocument } from '@kubuild/schema';
 import type {
   AiCompiledComponentSpec,
   AiCompiledComponentProp,
@@ -198,7 +198,7 @@ export function buildJsonSchemaForMode(mode: AiGenerationMode): Record<string, u
       required: ['schema', 'version', 'document'],
       properties: {
         schema: { type: 'string', const: 'stora.page' },
-        version: { type: 'string', const: '1.0.0' },
+        version: { type: 'string', const: CURRENT_SCHEMA_VERSION },
         metadata: {
           type: 'object',
           properties: {

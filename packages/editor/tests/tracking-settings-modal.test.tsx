@@ -74,12 +74,78 @@ describe('TrackingSettingsModal & Editor Integration', () => {
     expect(updated.tracking?.debugMode).toBe(true);
     expect(updated.tracking?.providers.meta?.pixelId).toBe('META_123456');
     expect(updated.tracking?.providers.meta?.capiEnabled).toBe(true);
+    // Secrets / relay URLs are never written into the document, even if a caller passes them.
+    expect(JSON.stringify(updated)).not.toContain('TOKEN_XYZ');
+    expect(JSON.stringify(updated)).not.toContain('/api/tracking/meta');
+    expect(updated.tracking?.providers.meta?.testEventCode).toBe('TEST999');
     expect(useEditorStore.getState().canUndo).toBe(true);
 
     // Test Undo
     useEditorStore.getState().undo();
     const undone = useEditorStore.getState().document;
     expect(undone.tracking).toBeUndefined();
+  });
+
+  const capiDoc = () => {
+    const doc = createBlankDocument('CAPI Page');
+    doc.tracking = {
+      enabled: true,
+      debugMode: false,
+      autoPageView: true,
+      defaultDelivery: 'both',
+      providers: {
+        meta: { enabled: true, credentialId: 'cred_meta', pixelId: '999', capiEnabled: true, testEventCode: '' },
+      },
+    };
+    return doc;
+  };
+
+  it('disables secret inputs with an explanation when the host provides no onSaveTrackingSecret', () => {
+    const html = renderToString(
+      <TrackingSettingsModal isOpen={true} onClose={() => {}} document={capiDoc()} />,
+    );
+    expect(html).toContain('tracking-secret-meta');
+    expect(html).toContain('tracking-secret-disabled-meta');
+    expect(html).toContain('Secrets are never stored in the page');
+    expect(html).not.toContain('tracking-secret-save-meta');
+    // the password input is rendered disabled
+    expect(html).toMatch(/type="password"[^>]*disabled=""/);
+    // no relay URL / endpoint URL inputs for the document
+    expect(html).not.toContain('Server Relay URL');
+    expect(html).not.toContain('/api/tracking/meta');
+  });
+
+  it('enables secret entry and shows the linked credential when onSaveTrackingSecret is provided', () => {
+    const onSave = vi.fn().mockResolvedValue({ credentialId: 'cred_new' });
+    const html = renderToString(
+      <TrackingSettingsModal
+        isOpen={true}
+        onClose={() => {}}
+        document={capiDoc()}
+        credentials={[
+          { id: 'cred_meta', name: 'Main Meta Pixel', provider: 'meta', pixelId: '999', hasSecret: true },
+        ]}
+        onSaveTrackingSecret={onSave}
+      />,
+    );
+    expect(html).toContain('tracking-secret-save-meta');
+    expect(html).not.toContain('tracking-secret-disabled-meta');
+    expect(html).toContain('Main Meta Pixel');
+    expect(html).toContain('secret stored on host');
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('shows host relay info read-only (or explains server events are skipped without it)', () => {
+    const withRelay = renderToString(
+      <TrackingSettingsModal isOpen={true} onClose={() => {}} document={capiDoc()} trackingRelayUrl="/api/track" />,
+    );
+    expect(withRelay).toContain('tracking-relay-info');
+    expect(withRelay).toContain('/api/track');
+
+    const withoutRelay = renderToString(
+      <TrackingSettingsModal isOpen={true} onClose={() => {}} document={capiDoc()} />,
+    );
+    expect(withoutRelay).toContain('No server relay is configured by the host');
   });
 
   it('registers track_event in ACTION_TYPES with correct metadata', () => {

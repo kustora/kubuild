@@ -5,7 +5,7 @@ import type { PixelCredentialOption } from '@kubuild/schema';
 import { useEditorStore } from '../../store';
 import { ImportModal } from '../modals/import-modal';
 import { CodeViewerModal } from '../modals/code-viewer-modal';
-import { TrackingSettingsModal } from '../modals/tracking-settings-modal';
+import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils';
 import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles, Activity } from 'lucide-react';
 
@@ -26,6 +26,10 @@ export interface EditorToolbarProps {
   trackingCredentials?: PixelCredentialOption[];
   /** Called when user clicks "Kelola Kredensial" inside tracking modal */
   onManageCredentials?: () => void;
+  /** Stores a tracking secret on the host; returns the credentialId kept in the document. */
+  onSaveTrackingSecret?: SaveTrackingSecretHandler;
+  /** Host tracking relay URL, shown read-only in the tracking modal. */
+  trackingRelayUrl?: string;
 }
 
 interface ToolbarIconButtonProps {
@@ -112,6 +116,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   aiEnabled = false,
   trackingCredentials,
   onManageCredentials,
+  onSaveTrackingSecret,
+  trackingRelayUrl,
 }) => {
   const {
     document,
@@ -438,6 +444,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         document={document}
         credentials={trackingCredentials}
         onManageCredentials={onManageCredentials}
+        onSaveTrackingSecret={onSaveTrackingSecret}
+        trackingRelayUrl={trackingRelayUrl}
       />
     </>
   );

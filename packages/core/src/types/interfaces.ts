@@ -71,11 +71,48 @@ export interface AiGenerationDiagnostic {
   error?: unknown;
 }
 
+/**
+ * Non-fatal tracking delivery diagnostic (e.g. server delivery skipped because the host did
+ * not configure a relay). The client-side pixel still fires in these cases.
+ */
+export interface TrackingDiagnostic {
+  code: 'TRACKING_RELAY_NOT_CONFIGURED' | 'TRACKING_RELAY_FAILED';
+  nodeId?: string;
+  eventName?: string;
+  message: string;
+  error?: unknown;
+}
+
 export type Diagnostic =
   | ActionDiagnostic
   | PropBindingDiagnostic
   | CollectionDiagnostic
-  | AiGenerationDiagnostic;
+  | AiGenerationDiagnostic
+  | TrackingDiagnostic;
+
+/**
+ * Host-supplied runtime tracking options (NOT part of the document). Server-side delivery
+ * (Meta CAPI, TikTok Events API, GA4 MP, custom webhook) only happens through `relayUrl`;
+ * the browser never talks to provider APIs with secrets.
+ */
+export interface RuntimeTrackingOptions {
+  /**
+   * Host relay endpoint implementing the tracking relay protocol v1
+   * (`TrackingRelayRequestSchema`). Same-origin is recommended. When absent, server delivery
+   * is skipped with a `TRACKING_RELAY_NOT_CONFIGURED` diagnostic.
+   */
+  relayUrl?: string;
+  /** Host document/page id sent to the relay so it can load the trusted tracking config. */
+  documentId?: string;
+  /** Extra non-secret request headers (e.g. a CSRF token). */
+  relayHeaders?: Readonly<Record<string, string>>;
+  /** `fetch` credentials mode for relay calls (default 'same-origin'). */
+  credentials?: 'omit' | 'same-origin' | 'include';
+  /** Custom fetch implementation (tests, SSR). */
+  fetchFn?: typeof fetch;
+  /** Receives tracking log lines (skips, relay failures, ...). */
+  onLog?: (message: string, data?: unknown) => void;
+}
 
 export type RenderContext = Readonly<{
   variables?: Readonly<Record<string, unknown>>;
@@ -97,6 +134,8 @@ export type RenderContext = Readonly<{
    * suppressed and the node sits directly on the canvas instead.
    */
   artboardSurface?: ArtboardType;
+  /** Host tracking runtime options (relay endpoint etc.). Never stored in the document. */
+  tracking?: RuntimeTrackingOptions;
 }>;
 
 export type RuntimeContext = RenderContext;

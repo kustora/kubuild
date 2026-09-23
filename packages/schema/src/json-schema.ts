@@ -1,3 +1,13 @@
+import { z } from 'zod';
+import {
+  TrackingRelayRequestSchema,
+  TrackingRelayResponseSchema,
+  MetaTrackingSecretsSchema,
+  GoogleTrackingSecretsSchema,
+  TikTokTrackingSecretsSchema,
+  CustomTrackingSecretsSchema,
+} from './tracking';
+
 /**
  * Standard JSON Schema Draft-07 representation of stora.page Document v1
  * Aligned 1:1 with TypeScript PageDocument type definition.
@@ -20,7 +30,7 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
       type: 'string',
       pattern: '^\\d+(\\.\\d+)*$',
       description: 'Schema version of the document',
-      default: '1.0.0',
+      default: '1.1.0',
     },
     metadata: {
       $ref: '#/definitions/documentMetadata',
@@ -28,8 +38,77 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
     document: {
       $ref: '#/definitions/rootPageNode',
     },
+    tracking: {
+      $ref: '#/definitions/trackingConfig',
+    },
   },
   definitions: {
+    trackingConfig: {
+      type: 'object',
+      description:
+        'Tracking configuration. Contains only public ids, flags and opaque credential ids — secrets are host-owned.',
+      properties: {
+        enabled: { type: 'boolean', default: true },
+        debugMode: { type: 'boolean', default: false },
+        autoPageView: { type: 'boolean', default: true },
+        defaultDelivery: { type: 'string', enum: ['both', 'client_only', 'server_only'], default: 'both' },
+        providers: {
+          type: 'object',
+          properties: {
+            meta: {
+              type: 'object',
+              properties: {
+                enabled: { type: 'boolean' },
+                credentialId: { type: 'string' },
+                pixelId: { type: 'string' },
+                capiEnabled: { type: 'boolean' },
+                testEventCode: { type: 'string' },
+              },
+              additionalProperties: false,
+            },
+            google: {
+              type: 'object',
+              properties: {
+                enabled: { type: 'boolean' },
+                credentialId: { type: 'string' },
+                measurementId: { type: 'string' },
+              },
+              additionalProperties: false,
+            },
+            gtm: {
+              type: 'object',
+              properties: {
+                enabled: { type: 'boolean' },
+                credentialId: { type: 'string' },
+                containerId: { type: 'string' },
+              },
+              additionalProperties: false,
+            },
+            tiktok: {
+              type: 'object',
+              properties: {
+                enabled: { type: 'boolean' },
+                credentialId: { type: 'string' },
+                pixelId: { type: 'string' },
+                eventsApiEnabled: { type: 'boolean' },
+                testEventCode: { type: 'string' },
+              },
+              additionalProperties: false,
+            },
+            custom: {
+              type: 'object',
+              properties: {
+                enabled: { type: 'boolean' },
+                credentialId: { type: 'string' },
+              },
+              additionalProperties: false,
+            },
+          },
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
     styleValue: {
       type: ['string', 'number', 'boolean', 'null'],
       description: 'A CSS property or design token value',
@@ -171,6 +250,7 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
             'close_modal',
             'copy_clipboard',
             'custom_event',
+            'track_event',
           ],
         },
         label: { type: 'string' },
@@ -711,6 +791,7 @@ export const ACTION_PIPELINE_JSON_SCHEMA_V1 = {
             'close_modal',
             'copy_clipboard',
             'custom_event',
+            'track_event',
           ],
         },
         label: { type: 'string' },
@@ -889,6 +970,67 @@ export const FORM_FIELD_BINDING_JSON_SCHEMA_V1 = {
 
 export function getFormFieldBindingJsonSchema() {
   return FORM_FIELD_BINDING_JSON_SCHEMA_V1;
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Tracking relay protocol v1 (browser -> host server).
+ * Generated from the Zod schemas so they never drift. Publish these to non-JS backends
+ * (PHP, Go, Python, ...) so they can implement a compatible relay endpoint.
+ * ---------------------------------------------------------------------------------------- */
+
+type JsonSchemaObject = Record<string, unknown>;
+
+function toDraft7(schema: z.ZodType, id: string, title: string, io: 'input' | 'output'): JsonSchemaObject {
+  return {
+    ...(z.toJSONSchema(schema, { target: 'draft-7', io }) as JsonSchemaObject),
+    $id: id,
+    title,
+  };
+}
+
+let trackingRelayRequestJsonSchema: JsonSchemaObject | undefined;
+let trackingRelayResponseJsonSchema: JsonSchemaObject | undefined;
+let trackingProviderSecretsJsonSchema: JsonSchemaObject | undefined;
+
+/** JSON Schema (Draft-07) of the body POSTed to a tracking relay (`TrackingRelayRequestSchema`). */
+export function getTrackingRelayRequestJsonSchema(): JsonSchemaObject {
+  trackingRelayRequestJsonSchema ??= toDraft7(
+    TrackingRelayRequestSchema,
+    'https://schema.stora.page/v1/tracking-relay-request.json',
+    'StoraTrackingRelayRequest',
+    'input',
+  );
+  return trackingRelayRequestJsonSchema;
+}
+
+/** JSON Schema (Draft-07) of the JSON a tracking relay responds with (`TrackingRelayResponseSchema`). */
+export function getTrackingRelayResponseJsonSchema(): JsonSchemaObject {
+  trackingRelayResponseJsonSchema ??= toDraft7(
+    TrackingRelayResponseSchema,
+    'https://schema.stora.page/v1/tracking-relay-response.json',
+    'StoraTrackingRelayResponse',
+    'output',
+  );
+  return trackingRelayResponseJsonSchema;
+}
+
+/**
+ * JSON Schema (Draft-07) of host-side provider secrets, keyed by provider. Useful for hosts
+ * validating their secret store. Never embedded in a document.
+ */
+export function getTrackingProviderSecretsJsonSchema(): JsonSchemaObject {
+  trackingProviderSecretsJsonSchema ??= toDraft7(
+    z.object({
+      meta: MetaTrackingSecretsSchema.optional(),
+      google: GoogleTrackingSecretsSchema.optional(),
+      tiktok: TikTokTrackingSecretsSchema.optional(),
+      custom: CustomTrackingSecretsSchema.optional(),
+    }),
+    'https://schema.stora.page/v1/tracking-provider-secrets.json',
+    'StoraTrackingProviderSecrets',
+    'input',
+  );
+  return trackingProviderSecretsJsonSchema;
 }
 
 

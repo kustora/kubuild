@@ -1,11 +1,11 @@
-import { PageDocument, Node, SCHEMA_NAME } from '@kubuild/schema';
+import { PageDocument, Node, SCHEMA_NAME, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
 import type { ComponentRegistryLike } from '../validation/validator';
 
 
 export function createBlankDocument(title = 'Untitled Page'): PageDocument {
   return {
     schema: SCHEMA_NAME,
-    version: '1.0.0',
+    version: CURRENT_SCHEMA_VERSION,
     metadata: {
       title,
       description: '',

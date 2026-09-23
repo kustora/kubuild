@@ -44,6 +44,7 @@ import {
   extractNodeToArtboard,
   findArtboardById,
   collectArtboardReferenceNodes,
+  stripTrackingSecretsInPlace,
 } from '@kubuild/core';
 import {
   ComponentRegistry,
@@ -804,7 +805,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     commitDocumentToOwner(get, set, result.document);
   },
 
-  updateDocumentTracking: (tracking) => {
+  updateDocumentTracking: (rawTracking) => {
+    // The document never stores secrets: strip any legacy secret / destination fields defensively.
+    const tracking = deepClone(rawTracking);
+    stripTrackingSecretsInPlace(tracking);
     get().dispatch((doc) => {
       const updatedDoc: PageDocument = {
         ...doc,

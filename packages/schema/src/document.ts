@@ -4,7 +4,7 @@ import { FormConfig, FormConfigSchema } from './form';
 import { TrackingConfig, TrackingConfigSchema } from './tracking';
 
 export const SCHEMA_NAME = 'stora.page' as const;
-export const CURRENT_SCHEMA_VERSION = '1.0.0' as const;
+export const CURRENT_SCHEMA_VERSION = '1.1.0' as const;
 
 /**
  * Asset Reference Schema

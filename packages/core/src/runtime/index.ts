@@ -6,3 +6,4 @@ export * from './pipeline-executor';
 export * from './state-store';
 export * from './server-tracking';
 
+export * from './tracking-relay';
