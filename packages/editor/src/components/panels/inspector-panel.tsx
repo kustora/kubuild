@@ -741,7 +741,6 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
     setEventType(pay?.eventType === 'custom' ? 'custom' : 'standard');
     setProvider(pay?.provider ?? 'all');
     setIsExpanded(!!p);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId]);
 
   const handleSave = () => {

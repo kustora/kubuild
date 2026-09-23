@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import type { ActionPipeline } from '@kubuild/schema';
+import { ActionPipelineSchema, validateActionStepPayload } from '@kubuild/schema';
 import { ActionPipelineExecutor } from '@kubuild/core';
 import {
   ToastManager,
@@ -494,6 +495,24 @@ describe('STORA-322: Built-in Action Runners: UI Feedback (show_toast, open_moda
       expect(toastManager.getToasts()[0].type).toBe('error');
       expect(toastManager.getToasts()[0].message).toContain('Access denied');
       expect(modalManager.isModalOpen('edit_item_modal')).toBe(false);
+    });
+
+    it('runs a schema-valid toggle_modal pipeline through the executor', async () => {
+      const executor = new ActionPipelineExecutor();
+      registerDefaultActionRunners(executor);
+
+      const pipeline = ActionPipelineSchema.parse({
+        id: 'toggle_menu_pipeline',
+        trigger: 'click',
+        steps: [{ id: 'step_toggle', type: 'toggle_modal', payload: { modalId: 'nav_drawer' } }],
+      });
+      expect(validateActionStepPayload('toggle_modal', pipeline.steps[0].payload).success).toBe(true);
+
+      expect((await executor.execute(pipeline)).success).toBe(true);
+      expect(modalManager.isModalOpen('nav_drawer')).toBe(true);
+
+      expect((await executor.execute(pipeline)).success).toBe(true);
+      expect(modalManager.isModalOpen('nav_drawer')).toBe(false);
     });
   });
 });
