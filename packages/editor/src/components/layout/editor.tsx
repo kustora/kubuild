@@ -17,6 +17,7 @@ import { buildEditorPreviewContext } from './preview-context';
 import { EditorCanvas, EditorPageItem } from '../canvas';
 import { MultiDevicePreview } from '../canvas/multi-device-preview';
 import { EditorToolbar } from './toolbar';
+import { PanelResizeHandle } from './panel-resize-handle';
 import { InspectorPanel } from '../panels/inspector-panel';
 import { LayersPanel } from '../panels/layers-panel';
 import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/table-spreadsheet-editor';
@@ -168,6 +169,72 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   // Mobile drawer states
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isMobileInspectorOpen, setIsMobileInspectorOpen] = useState<boolean>(false);
+
+  const DEFAULT_LEFT_SIDEBAR_WIDTH = 320;
+  const MIN_LEFT_SIDEBAR_WIDTH = 220;
+
+  const DEFAULT_INSPECTOR_WIDTH = 288;
+  const MIN_INSPECTOR_WIDTH = 260;
+
+  const DEFAULT_AI_CHAT_WIDTH = 320;
+  const MIN_AI_CHAT_WIDTH = 260;
+
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kubuild_left_sidebar_width');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed >= MIN_LEFT_SIDEBAR_WIDTH && parsed <= 700) return parsed;
+        }
+      } catch {}
+    }
+    return DEFAULT_LEFT_SIDEBAR_WIDTH;
+  });
+
+  const [inspectorWidth, setInspectorWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kubuild_inspector_width');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed >= MIN_INSPECTOR_WIDTH && parsed <= 700) return parsed;
+        }
+      } catch {}
+    }
+    return DEFAULT_INSPECTOR_WIDTH;
+  });
+
+  const [aiChatWidth, setAiChatWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kubuild_ai_chat_width');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed >= MIN_AI_CHAT_WIDTH && parsed <= 700) return parsed;
+        }
+      } catch {}
+    }
+    return DEFAULT_AI_CHAT_WIDTH;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kubuild_left_sidebar_width', String(leftSidebarWidth));
+    } catch {}
+  }, [leftSidebarWidth]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kubuild_inspector_width', String(inspectorWidth));
+    } catch {}
+  }, [inspectorWidth]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kubuild_ai_chat_width', String(aiChatWidth));
+    } catch {}
+  }, [aiChatWidth]);
 
   const defaultWidthForViewport = (vp: Viewport) => {
     if (vp === 'mobile') return 375;
@@ -586,9 +653,29 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
       <div className="flex flex-1 overflow-hidden min-h-0 relative">
         {/* Desktop Left Sidebar */}
         {resolvedConfig.sidebar.enabled && (
-          <div className="hidden lg:flex w-80 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex-col min-h-0 h-full">
-            <LeftSidebar registry={registry} config={resolvedConfig.sidebar} />
-          </div>
+          <>
+            <div
+              style={{ width: `${leftSidebarWidth}px` }}
+              className="hidden lg:flex shrink-0 bg-white border-r border-slate-200 overflow-hidden flex-col min-h-0 h-full"
+            >
+              <LeftSidebar registry={registry} config={resolvedConfig.sidebar} />
+            </div>
+            <PanelResizeHandle
+              side="right"
+              onResize={(dx) =>
+                setLeftSidebarWidth((w) =>
+                  Math.min(
+                    Math.max(MIN_LEFT_SIDEBAR_WIDTH, w + dx),
+                    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.45) : 600,
+                  ),
+                )
+              }
+              onDoubleClick={() => setLeftSidebarWidth(DEFAULT_LEFT_SIDEBAR_WIDTH)}
+              ariaLabel="Resize Left Sidebar"
+              title="Drag to resize sidebar width (Double click to reset)"
+              className="hidden lg:flex"
+            />
+          </>
         )}
 
         {/* Central Canvas Area */}
@@ -674,33 +761,73 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
 
         {/* Desktop Right Inspector */}
         {resolvedConfig.inspector.enabled && (
-          <div className="hidden lg:flex w-72 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full">
-            <InspectorPanel
-              registry={registry}
-              config={resolvedConfig.inspector}
-              aiConfig={resolvedAiConfig}
-              trackingCredentials={trackingCredentials}
-              onManageCredentials={onManageCredentials}
-              onSaveTrackingSecret={onSaveTrackingSecret}
-              trackingRelayUrl={trackingRelayUrl}
-              assetProvider={assetProvider}
+          <>
+            <PanelResizeHandle
+              side="left"
+              onResize={(dx) =>
+                setInspectorWidth((w) =>
+                  Math.min(
+                    Math.max(MIN_INSPECTOR_WIDTH, w - dx),
+                    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.45) : 600,
+                  ),
+                )
+              }
+              onDoubleClick={() => setInspectorWidth(DEFAULT_INSPECTOR_WIDTH)}
+              ariaLabel="Resize Inspector Panel"
+              title="Drag to resize inspector width (Double click to reset)"
+              className="hidden lg:flex"
             />
-          </div>
+            <div
+              style={{ width: `${inspectorWidth}px` }}
+              className="hidden lg:flex shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full"
+            >
+              <InspectorPanel
+                registry={registry}
+                config={resolvedConfig.inspector}
+                aiConfig={resolvedAiConfig}
+                trackingCredentials={trackingCredentials}
+                onManageCredentials={onManageCredentials}
+                onSaveTrackingSecret={onSaveTrackingSecret}
+                trackingRelayUrl={trackingRelayUrl}
+                assetProvider={assetProvider}
+              />
+            </div>
+          </>
         )}
 
         {/* Docked AI Chat Panel (STORA-503) — an additional sibling column, sized like the
             other docked panels, so it never shrinks/shifts Sidebar/Navigator/Inspector. */}
         {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'docked') && (
-          <div className="hidden lg:flex w-80 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full">
-            <AiChatPanel
-              aiConfig={resolvedAiConfig}
-              registry={registry}
-              mode="docked"
-              onDiagnostic={onDiagnostic}
-              onToggleMode={() => setAiChatMode('floating')}
-              onClose={() => setAiChatMode('hidden')}
+          <>
+            <PanelResizeHandle
+              side="left"
+              onResize={(dx) =>
+                setAiChatWidth((w) =>
+                  Math.min(
+                    Math.max(MIN_AI_CHAT_WIDTH, w - dx),
+                    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.45) : 600,
+                  ),
+                )
+              }
+              onDoubleClick={() => setAiChatWidth(DEFAULT_AI_CHAT_WIDTH)}
+              ariaLabel="Resize AI Chat Panel"
+              title="Drag to resize AI chat panel width (Double click to reset)"
+              className="hidden lg:flex"
             />
-          </div>
+            <div
+              style={{ width: `${aiChatWidth}px` }}
+              className="hidden lg:flex shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full"
+            >
+              <AiChatPanel
+                aiConfig={resolvedAiConfig}
+                registry={registry}
+                mode="docked"
+                onDiagnostic={onDiagnostic}
+                onToggleMode={() => setAiChatMode('floating')}
+                onClose={() => setAiChatMode('hidden')}
+              />
+            </div>
+          </>
         )}
       </div>
 
