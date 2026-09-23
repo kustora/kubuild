@@ -16,6 +16,14 @@ describe('resolveBinding', () => {
     });
   });
 
+  it('resolves a flat dotted-path key from context variables', () => {
+    const context: RuntimeContext = { variables: { 'product.imageUrl': 'https://example.com/item.png' } };
+    expect(resolveBinding({ key: 'product.imageUrl' }, context)).toEqual({
+      status: 'resolved',
+      value: 'https://example.com/item.png',
+    });
+  });
+
   it('resolves a multi-level nested key', () => {
     const context: RuntimeContext = { variables: { a: { b: { c: { d: 42 } } } } };
     expect(resolveBinding({ key: 'a.b.c.d' }, context)).toEqual({ status: 'resolved', value: 42 });

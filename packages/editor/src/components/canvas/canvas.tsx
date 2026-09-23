@@ -821,6 +821,18 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     if (previewMode || e.button !== 0) return;
 
     const target = e.target as HTMLElement;
+
+    // Ignore clicks on floating action badges, interactive overlays, or buttons so they don't trigger canvas marquee/pan
+    if (
+      target.closest('[data-testid="floating-action-badges"]') ||
+      target.closest('[data-testid="resize-handles"]') ||
+      target.closest('[data-testid="spacing-sliders"]') ||
+      target.closest('button') ||
+      target.closest('[role="button"]')
+    ) {
+      return;
+    }
+
     const clickedNode = target.closest('[data-kubuild-node]');
     const isRootOrEmpty = !clickedNode || clickedNode.getAttribute('data-kubuild-node') === document.document.id;
 
@@ -930,7 +942,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       return;
     }
     const el = target.closest('[data-kubuild-node]');
-    const nodeId = el?.getAttribute('data-kubuild-node');
+    const nodeId =
+      el?.getAttribute('data-kubuild-node') ||
+      target.getAttribute('data-node-id') ||
+      target.closest('[data-node-id]')?.getAttribute('data-node-id') ||
+      selectedNodeId;
     if (!nodeId || nodeId === document.document.id) {
       e.preventDefault();
       return;

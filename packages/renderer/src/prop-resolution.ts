@@ -37,6 +37,14 @@ function resolveBindableField(
   if (isVariableBinding(rawValue)) {
     const outcome = resolveBinding(rawValue, context);
     if (typeof outcome.value === expectedType) {
+      if (
+        expectedType === 'string' &&
+        outcome.value === '' &&
+        typeof rawValue.fallback === 'string' &&
+        rawValue.fallback.trim().length > 0
+      ) {
+        return rawValue.fallback;
+      }
       return outcome.value;
     }
     diagnostics.push({

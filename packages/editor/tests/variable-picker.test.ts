@@ -47,4 +47,12 @@ describe('toBindingValue', () => {
   it('builds a VariableBinding object from a key', () => {
     expect(toBindingValue('site.name')).toEqual({ type: 'variable', key: 'site.name' });
   });
+
+  it('builds a VariableBinding object with fallback when provided', () => {
+    expect(toBindingValue('product.imageUrl', 'https://example.com/default.jpg')).toEqual({
+      type: 'variable',
+      key: 'product.imageUrl',
+      fallback: 'https://example.com/default.jpg',
+    });
+  });
 });

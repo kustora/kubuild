@@ -768,7 +768,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
   const isConfigured = !!existing && !!existingPayload?.eventName;
 
   return (
-    <div className="pb-3 border-b border-slate-200">
+    <div className="pb-3 border-b border-slate-200 shrink-0">
       <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors">
         <button
           type="button"
@@ -1277,7 +1277,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 p-3 min-w-0">
       {/* STORA-340 — Interactivity & Action Builder Card */}
-      <div className="pb-3 border-b border-slate-200">
+      <div className="pb-3 border-b border-slate-200 shrink-0">
         <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 transition">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
@@ -1310,7 +1310,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       </div>
 
       {/* ── Pixel Tracking section — separate from action events ───────── */}
-      <div className="pb-3 border-b border-slate-200">
+      <div className="pb-3 border-b border-slate-200 shrink-0">
         <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-purple-300 transition">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
@@ -1373,7 +1373,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           with this node already attached as context, and focuses its input. Only ever
           rendered when a node is selected (guaranteed here) and `features.enhance` is on. */}
       {aiConfig?.enabled && aiConfig.features.enhance && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50/60 border border-blue-200 hover:border-blue-300 transition">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
@@ -1403,7 +1403,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'list' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               List Items ({node.children?.length ?? 0})
@@ -1463,7 +1463,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'table' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               Spreadsheet Grid
@@ -1591,7 +1591,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'table-row' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               Row Cells ({node.children?.length ?? 0})
@@ -1610,25 +1610,25 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       {activeTab === 'style' && (
         <>
           {showProps && definition.propFields && definition.propFields.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors mb-3">
+            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors mb-3 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsPropsOpen((v) => !v)}
                 aria-expanded={isPropsOpen}
-                className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none border-0 m-0"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-500 shrink-0">
+                  <span className="text-slate-500 shrink-0 flex items-center justify-center">
                     <ComponentIcon iconOrType={definition.icon || 'settings'} size={14} />
                   </span>
-                  <span className="text-xs font-semibold text-slate-700 truncate">
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-normal">
                     {definition.type === 'heading'
                       ? t.textSettings
                       : t.componentSettings(definition.label)}
                   </span>
                 </div>
                 <span
-                  className={`text-slate-400 transform transition-transform duration-200 ${
+                  className={`text-slate-400 shrink-0 transform transition-transform duration-200 ${
                     isPropsOpen ? 'rotate-180' : 'rotate-0'
                   }`}
                 >
@@ -1654,8 +1654,28 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                             field={field}
                             currentValue={currentValue}
                             catalog={variableCatalog}
-                            onBind={(key) => commitProp(field, toBindingValue(key), true)}
-                            onRevert={() => commitProp(field, field.defaultValue ?? '', true)}
+                            onBind={(key) => {
+                              const currentFallback =
+                                typeof currentValue === 'string' && currentValue.trim().length > 0
+                                  ? currentValue
+                                  : (definition.defaultProps?.[field.name] as string | undefined) ??
+                                    (field.defaultValue as string | undefined);
+                              commitProp(field, toBindingValue(key, currentFallback), true);
+                            }}
+                            onRevert={() => {
+                              const fallback =
+                                isVariableBinding(currentValue) && currentValue.fallback !== undefined
+                                  ? currentValue.fallback
+                                  : (definition.defaultProps?.[field.name] as unknown) ??
+                                    field.defaultValue ??
+                                    '';
+                              commitProp(field, fallback, true);
+                            }}
+                            onUpdateFallback={(fallback) => {
+                              if (isVariableBinding(currentValue)) {
+                                commitProp(field, { ...currentValue, fallback: fallback || undefined }, true);
+                              }
+                            }}
                           />
                         )}
                         <ErrorText message={fieldErrors[`prop:${field.name}`]} />
@@ -1668,7 +1688,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           )}
 
           {showStyles && (
-            <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full">
+            <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full shrink-0">
               {/* Active state warning badge — STORA-223 */}
               {activeState !== 'default' && <StateEditingBadge state={activeState} />}
               {/* Pseudo-state selector — STORA-221 */}
