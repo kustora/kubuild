@@ -34,6 +34,7 @@ export interface DocumentValidationError {
 export type DocumentValidationWarningCode =
   | 'CHILD_POLICY_VIOLATION'
   | 'UNKNOWN_COMPONENT_TYPE'
+  | 'UNRESOLVED_ASSET_REFERENCE'
   | (string & {});
 
 export interface DocumentValidationWarning {
@@ -67,8 +68,31 @@ export interface ValidationOptions {
    * If false or undefined (default), allowedChildren mismatches are emitted as non-blocking warnings.
    */
   strictChildPolicy?: boolean;
+  /**
+   * Validate asset references (`{ type: 'asset', assetId, fallbackUrl? }`) found in node props.
+   * Checks that `assetId` is a non-empty string and `fallbackUrl` (if present) is a string.
+   * When `knownAssetIds` is also supplied, every referenced `assetId` must be in that set.
+   * Defaults to `true`.
+   */
   checkAssetReferences?: boolean;
+  /**
+   * Known asset IDs used to verify that asset references resolve. A `PageDocument` carries
+   * no asset registry of its own (assets live in the `.stora` manifest or the host's asset
+   * provider), so this existence check only runs when the caller supplies the IDs.
+   * An unresolved reference is an `INVALID_ASSET_REFERENCE` error, or a non-blocking
+   * `UNRESOLVED_ASSET_REFERENCE` warning when the reference has a `fallbackUrl`.
+   * Ignored when `checkAssetReferences` is `false`.
+   */
+  knownAssetIds?: string[] | Set<string>;
+  /**
+   * Validate variable bindings (`{ type: 'variable', key }`) in node props: `key` must be a
+   * non-empty string. Defaults to `true`.
+   */
   checkVariableBindings?: boolean;
+  /**
+   * Validate action bindings in node props (a prop named `action`, or any object with a string
+   * `type` and a `payload`): `type` must be a non-empty string. Defaults to `true`.
+   */
   checkActionBindings?: boolean;
   securityLimits?: DocumentSecurityLimits;
 }
@@ -433,6 +457,7 @@ function validateNodeRecursive(
         effectiveNodeId,
         options,
         errors,
+        warnings,
       );
     }
   }
@@ -451,7 +476,8 @@ function validateNodeRecursive(
 }
 
 /**
- * Recursively inspect props object for structural bindings (asset, variable, action)
+ * Recursively inspect props object for structural bindings (asset, variable, action).
+ * Each binding kind is gated by its `ValidationOptions` flag (all default to `true`).
  */
 function validatePropsBindings(
   propsObj: Record<string, unknown>,
@@ -459,7 +485,12 @@ function validatePropsBindings(
   nodeId: string | undefined,
   options: ValidationOptions,
   errors: DocumentValidationError[],
+  warnings: DocumentValidationWarning[],
 ): void {
+  const checkAssets = options.checkAssetReferences !== false;
+  const checkVariables = options.checkVariableBindings !== false;
+  const checkActions = options.checkActionBindings !== false;
+
   for (const [key, value] of Object.entries(propsObj)) {
     const currentPath = `${propsPath}/${key}`;
 
@@ -476,6 +507,7 @@ function validatePropsBindings(
             nodeId,
             options,
             errors,
+            warnings,
           );
         }
       });
@@ -486,7 +518,10 @@ function validatePropsBindings(
 
     // Check if it's an Asset Reference
     if (record.type === 'asset') {
-      if (typeof record.assetId !== 'string' || record.assetId.trim().length === 0) {
+      if (!checkAssets) continue;
+      const assetId =
+        typeof record.assetId === 'string' && record.assetId.trim().length > 0 ? record.assetId : undefined;
+      if (assetId === undefined) {
         errors.push({
           code: 'INVALID_ASSET_REFERENCE',
           message: 'Asset reference must have a non-empty "assetId"',
@@ -502,9 +537,29 @@ function validatePropsBindings(
           nodeId,
         });
       }
+      if (assetId !== undefined && options.knownAssetIds && !isKnownId(options.knownAssetIds, assetId)) {
+        if (typeof record.fallbackUrl === 'string' && record.fallbackUrl.length > 0) {
+          warnings.push({
+            code: 'UNRESOLVED_ASSET_REFERENCE',
+            message: `Asset "${assetId}" is not among the known assets; its fallbackUrl will be used`,
+            path: `${currentPath}/assetId`,
+            nodeId,
+            details: { assetId },
+          });
+        } else {
+          errors.push({
+            code: 'INVALID_ASSET_REFERENCE',
+            message: `Asset "${assetId}" is not among the known assets and has no fallbackUrl`,
+            path: `${currentPath}/assetId`,
+            nodeId,
+            details: { assetId },
+          });
+        }
+      }
     }
     // Check if it's a Variable Binding
     else if (record.type === 'variable') {
+      if (!checkVariables) continue;
       if (typeof record.key !== 'string' || record.key.trim().length === 0) {
         errors.push({
           code: 'INVALID_VARIABLE_BINDING',
@@ -516,6 +571,7 @@ function validatePropsBindings(
     }
     // Check if it's an Action Binding (either key is 'action' or has explicit action shape)
     else if (key === 'action' || (typeof record.type === 'string' && record.payload !== undefined)) {
+      if (!checkActions) continue;
       if (typeof record.type !== 'string' || record.type.trim().length === 0) {
         errors.push({
           code: 'INVALID_ACTION_BINDING',
@@ -526,7 +582,11 @@ function validatePropsBindings(
       }
     } else {
       // Recurse into nested objects
-      validatePropsBindings(record, currentPath, nodeId, options, errors);
+      validatePropsBindings(record, currentPath, nodeId, options, errors, warnings);
     }
   }
+}
+
+function isKnownId(ids: string[] | Set<string>, id: string): boolean {
+  return Array.isArray(ids) ? ids.includes(id) : ids.has(id);
 }
