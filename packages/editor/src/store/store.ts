@@ -54,7 +54,14 @@ import {
 import type { AiGenerationPlaceholderStatus } from '../ai/generate-page';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
-export type EditorLocale = 'en' | 'id';
+/** Locales that ship with built-in dictionaries. */
+export type BuiltInEditorLocale = 'en' | 'id';
+/**
+ * Editor UI locale. Built-in codes autocomplete; any other string is a custom locale
+ * registered via `registerEditorLocale` (or supplied through `translations`), falling back
+ * to English for every key it doesn't define.
+ */
+export type EditorLocale = BuiltInEditorLocale | (string & {});
 export type TableSpreadsheetMode = 'floating' | 'docked' | 'hidden';
 /** Panel mode for the AI Chat Panel (STORA-503), following the `TableSpreadsheetMode` pattern. */
 export type AiChatPanelMode = 'docked' | 'floating' | 'hidden';

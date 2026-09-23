@@ -80,8 +80,9 @@ describe('AssetProvider Integration in Kubuild Editor', () => {
       />
     );
 
-    expect(html).toContain('Ganti');
+    expect(html).toContain('Replace');
     expect(html).toContain('img.jpg');
-    expect(html).toContain('Gunakan URL manual');
+    expect(html).toContain('Use manual URL');
+    expect(html).not.toContain('Ganti');
   });
 });

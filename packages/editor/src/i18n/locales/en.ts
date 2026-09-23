@@ -110,4 +110,30 @@ export const en: TranslationSchema = {
   h4: 'H4 - Subsection Title (Small)',
   h5: 'H5 - Small Title (Extra Small)',
   h6: 'H6 - Micro Title (Smallest)',
+
+  // Media / image source controls
+  media: {
+    replace: 'Replace',
+    replaceImageTitle: 'Replace image from device',
+    replaceImageAria: 'Replace image',
+    removeImage: 'Remove image',
+    useManualUrl: 'Use manual URL',
+    hideUrl: 'Hide URL',
+    upload: 'Upload',
+    uploadImage: 'Upload Image',
+    uploadFromDevice: 'Upload image from device',
+    uploading: 'Uploading...',
+    uploadingImage: 'Uploading image...',
+    uploadFailed: 'Upload failed',
+    browseGallery: 'Browse Asset Gallery',
+    gallery: 'Gallery',
+    previewAlt: 'Preview',
+    localImage: 'Local Image',
+    embeddedImage: 'Local Image (Embedded)',
+    blobFile: 'Local File (Blob)',
+    imageAsset: 'Image Asset',
+    urlOrUploadPlaceholder: 'https://... or upload an image',
+    localPathWarning: (actionLabel: string) =>
+      `Browsers cannot open direct local paths (file://). Click "${actionLabel}" above to select and load the local image directly.`,
+  },
 };
