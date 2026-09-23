@@ -20,6 +20,7 @@ import {
   defaultMigrationRegistry,
 } from './migration';
 import { calculateChecksum } from './exporter';
+import { sanitizeDocumentTracking, stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer';
 import { remapDocumentAssetReferences } from '../document/document-utils';
 import {
   isDangerousAssetFilename,
@@ -103,7 +104,8 @@ export type PreflightDiagnosticCode =
   | 'ASSET_CONFLICT'
   | 'MISSING_COMPONENTS'
   | 'MISSING_CAPABILITIES'
-  | 'HOST_ADAPTER_ERROR';
+  | 'HOST_ADAPTER_ERROR'
+  | 'TRACKING_SECRET_REMOVED';
 
 export interface PreflightDiagnostic {
   code: PreflightDiagnosticCode;
@@ -140,7 +142,7 @@ export interface PreflightOptions {
   migrationRegistry?: MigrationRegistry;
 
   /**
-   * Target schema version (defaults to CURRENT_SCHEMA_VERSION = "1.0.0").
+   * Target schema version (defaults to CURRENT_SCHEMA_VERSION).
    */
   targetSchemaVersion?: string;
 
@@ -311,6 +313,8 @@ export interface ImportPackageSuccess {
   extractedAssets: Map<string, ExtractedAsset>;
   renamedAssets?: Record<string, string>;
   preflight: PreflightReport;
+  /** Non-fatal notes produced while importing (e.g. tracking secrets stripped). */
+  warnings?: PreflightDiagnostic[];
 }
 
 export interface ImportPackageFailure {
@@ -561,6 +565,17 @@ export async function preflightPackage(
   let rawPageDoc: Record<string, unknown> | undefined;
   try {
     rawPageDoc = JSON.parse(strFromU8(pageEntry)) as Record<string, unknown>;
+    const secretScan = sanitizeDocumentTracking(rawPageDoc);
+    if (secretScan.removed.length > 0) {
+      diagnostics.push({
+        code: 'TRACKING_SECRET_REMOVED',
+        severity: 'warning',
+        message:
+          'Tracking secrets found in page.json will be removed on import; re-link credentials via credentialId.',
+        path: 'page.json',
+        details: { paths: secretScan.removed },
+      });
+    }
     const pageProtoCheck = containsProhibitedKeys(rawPageDoc);
     if (pageProtoCheck.found) {
       diagnostics.push({
@@ -983,6 +998,19 @@ export async function importPackage(
     finalDocument = pageRaw as PageDocument;
   }
 
+  // Untrusted input: never let tracking secrets / server destinations into the host document.
+  const importWarnings: PreflightDiagnostic[] = [];
+  const strippedSecrets = stripDocumentTrackingSecretsInPlace(finalDocument);
+  if (strippedSecrets.length > 0) {
+    importWarnings.push({
+      code: 'TRACKING_SECRET_REMOVED',
+      severity: 'warning',
+      message: 'Tracking secret removed from imported document; re-link credential via credentialId.',
+      path: 'page.json',
+      details: { paths: strippedSecrets },
+    });
+  }
+
   // 4. Extract and Merge Metadata
   let metadata: DocumentMetadata = finalDocument.metadata || {
     title: 'Imported Page',
@@ -1167,6 +1195,7 @@ export async function importPackage(
     extractedAssets,
     renamedAssets: Object.keys(renameMap).length > 0 ? renameMap : undefined,
     preflight,
+    ...(importWarnings.length > 0 ? { warnings: importWarnings } : {}),
   };
 }
 

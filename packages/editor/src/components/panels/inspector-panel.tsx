@@ -7,7 +7,7 @@ import { useEditorStore, Viewport } from '../../store';
 import { VariableBindingControl, toBindingValue } from '../ui/variable-picker';
 import { AssetManagerModal } from '../modals/asset-manager-modal';
 import { ActionBuilderModal } from '../action-builder/action-builder-modal';
-import { TrackingSettingsModal } from '../modals/tracking-settings-modal';
+import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
 import { TableSpreadsheetEditor } from '../table-editor/table-spreadsheet-editor';
 import { BoxModelEditor } from '../style-manager/box-model-editor';
 import { StyleManagerAccordion } from '../style-manager/style-manager-accordion';
@@ -41,6 +41,10 @@ export interface InspectorPanelProps {
   trackingCredentials?: PixelCredentialOption[];
   /** Opens the host app's credential management page (e.g. /dashboard/marketing). */
   onManageCredentials?: () => void;
+  /** Stores a tracking secret on the host; returns the credentialId kept in the document. */
+  onSaveTrackingSecret?: SaveTrackingSecretHandler;
+  /** Host tracking relay URL, shown read-only in the tracking modal. */
+  trackingRelayUrl?: string;
   /** Host asset provider for direct uploads and asset management */
   assetProvider?: AssetProvider;
 }
@@ -873,6 +877,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
                 <option value="all">Semua Platform</option>
                 <option value="meta">Meta (Facebook) Pixel</option>
                 <option value="google">Google Analytics (GA4)</option>
+                <option value="gtm">Google Tag Manager (dataLayer)</option>
                 <option value="tiktok">TikTok Pixel</option>
               </select>
             </div>
@@ -920,6 +925,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   aiConfig,
   trackingCredentials,
   onManageCredentials,
+  onSaveTrackingSecret,
+  trackingRelayUrl,
   assetProvider,
 }) => {
   const storeState = useEditorStore((s) => s);
@@ -1235,6 +1242,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           onClose={() => setIsTrackingModalOpen(false)}
           credentials={trackingCredentials}
           onManageCredentials={onManageCredentials}
+          onSaveTrackingSecret={onSaveTrackingSecret}
+          trackingRelayUrl={trackingRelayUrl}
         />
       )}
       {/* Tab bar: Style / Traits — STORA-211 */}

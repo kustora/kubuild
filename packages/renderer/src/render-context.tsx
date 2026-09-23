@@ -9,6 +9,7 @@ import type {
   Diagnostic,
   RenderContext,
   RuntimeContext,
+  RuntimeTrackingOptions,
 } from '@kubuild/core';
 import {
   isVariableBinding,
@@ -19,7 +20,7 @@ import {
   PageDocument,
 } from '@kubuild/schema';
 
-export type { RenderContext, RuntimeContext, ActionDiagnostic, Diagnostic };
+export type { RenderContext, RuntimeContext, ActionDiagnostic, Diagnostic, RuntimeTrackingOptions };
 
 /**
  * Empty default frozen context
@@ -49,6 +50,8 @@ export function createRenderContext(options?: {
   resolveArtboard?: (triggerId: string) => Artboard | undefined;
   /** 'component' when this render is a node being authored alone on its own artboard. */
   artboardSurface?: ArtboardType;
+  /** Host tracking runtime options (e.g. `relayUrl`). Host config, never document data. */
+  tracking?: RuntimeTrackingOptions;
 }): RenderContext {
   if (!options) {
     return DEFAULT_RENDER_CONTEXT;
@@ -75,6 +78,7 @@ export function createRenderContext(options?: {
     ...(componentArtboards ? { componentArtboards } : {}),
     ...(resolveArtboard ? { resolveArtboard } : {}),
     ...(options.artboardSurface ? { artboardSurface: options.artboardSurface } : {}),
+    ...(options.tracking ? { tracking: Object.freeze({ ...options.tracking }) } : {}),
   });
 }
 

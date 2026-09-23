@@ -173,7 +173,7 @@ describe('STORA-010: Page Document v1 Schema Specification', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.schema).toBe('stora.page');
-        expect(result.data.version).toBe('1.0.0');
+        expect(result.data.version).toBe(CURRENT_SCHEMA_VERSION);
         expect(result.data.metadata?.title).toBe('Welcome to KUBUILD');
         expect(result.data.document.type).toBe('page');
         expect(result.data.document.children?.length).toBe(1);

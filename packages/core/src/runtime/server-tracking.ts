@@ -4,7 +4,33 @@ import type {
   GoogleTrackingProviderConfig,
   TikTokTrackingProviderConfig,
   CustomTrackingProviderConfig,
+  MetaTrackingSecrets,
+  GoogleTrackingSecrets,
+  TikTokTrackingSecrets,
+  CustomTrackingSecrets,
+  TrackingProviderSecrets,
+  ServerTrackingProviderType,
+  TrackEventProvider,
 } from '@kubuild/schema';
+
+/**
+ * Reference passed to a host `TrackingSecretResolver`. `credentialId` comes from the trusted
+ * tracking config (`providers.<provider>.credentialId`), never from an untrusted request.
+ */
+export interface TrackingSecretRef {
+  provider: ServerTrackingProviderType;
+  credentialId?: string;
+  documentId?: string;
+}
+
+/**
+ * Host-provided function that returns the secret material for one provider, or `null` when the
+ * host has none. Implement it against any secret store (env vars, KMS, DB, Vault, ...).
+ * A missing secret makes the provider be skipped with a reason — it never throws.
+ */
+export type TrackingSecretResolver = (
+  ref: TrackingSecretRef,
+) => Promise<TrackingProviderSecrets | null | undefined> | TrackingProviderSecrets | null | undefined;
 
 /**
  * Normalized Server Tracking Event
@@ -48,6 +74,8 @@ export interface TrackingDeliveryResult {
   data?: unknown;
   error?: string;
   skipped?: boolean;
+  /** Why the provider was skipped (e.g. no secret resolved). */
+  reason?: string;
 }
 
 /**
@@ -65,6 +93,15 @@ export interface ServerTrackingDispatchResult {
  * Options for configuring server tracking dispatch
  */
 export interface ServerTrackingOptions {
+  /**
+   * Resolves provider secrets by `credentialId`. The ONLY way secrets reach the dispatcher —
+   * the document never contains them. Without it, every server provider is skipped.
+   */
+  resolveSecrets?: TrackingSecretResolver;
+  /** Host document id, forwarded to `resolveSecrets`. */
+  documentId?: string;
+  /** Restrict dispatch to one provider ('all' by default). 'gtm' is client-only. */
+  provider?: TrackEventProvider;
   fetchFn?: typeof fetch;
   clientIp?: string;
   clientUserAgent?: string;
@@ -130,6 +167,7 @@ export function generateTrackingEventId(prefix = 'evt'): string {
 export async function sendMetaCapiEvent(
   event: ServerTrackingEvent,
   config: MetaTrackingProviderConfig,
+  secrets: MetaTrackingSecrets | null | undefined,
   options?: ServerTrackingOptions,
 ): Promise<TrackingDeliveryResult> {
   const fetcher = options?.fetchFn || globalThis.fetch;
@@ -217,9 +255,10 @@ export async function sendMetaCapiEvent(
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (config.capiAccessToken) {
-      headers['Authorization'] = `Bearer ${config.capiAccessToken}`;
+    if (!secrets?.capiAccessToken) {
+      return skippedResult('meta', 'No Meta CAPI access token resolved for this credential');
     }
+    headers['Authorization'] = `Bearer ${secrets.capiAccessToken}`;
 
     const res = await fetcher(url, {
       method: 'POST',
@@ -260,6 +299,7 @@ export async function sendMetaCapiEvent(
 export async function sendTikTokEventsApi(
   event: ServerTrackingEvent,
   config: TikTokTrackingProviderConfig,
+  secrets: TikTokTrackingSecrets | null | undefined,
   options?: ServerTrackingOptions,
 ): Promise<TrackingDeliveryResult> {
   const fetcher = options?.fetchFn || globalThis.fetch;
@@ -317,9 +357,10 @@ export async function sendTikTokEventsApi(
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (config.accessToken) {
-      headers['Access-Token'] = config.accessToken;
+    if (!secrets?.accessToken) {
+      return skippedResult('tiktok', 'No TikTok Events API access token resolved for this credential');
     }
+    headers['Access-Token'] = secrets.accessToken;
 
     const res = await fetcher(url, {
       method: 'POST',
@@ -355,6 +396,7 @@ export async function sendTikTokEventsApi(
 export async function sendGa4MeasurementEvent(
   event: ServerTrackingEvent,
   config: GoogleTrackingProviderConfig,
+  secrets: GoogleTrackingSecrets | null | undefined,
   options?: ServerTrackingOptions,
 ): Promise<TrackingDeliveryResult> {
   const fetcher = options?.fetchFn || globalThis.fetch;
@@ -387,12 +429,12 @@ export async function sendGa4MeasurementEvent(
   }
 
   try {
-    let url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(
-      config.measurementId,
-    )}`;
-    if (config.measurementProtocolSecret) {
-      url += `&api_secret=${encodeURIComponent(config.measurementProtocolSecret)}`;
+    if (!secrets?.measurementProtocolSecret) {
+      return skippedResult('google', 'No GA4 Measurement Protocol API secret resolved for this credential');
     }
+    const url =
+      `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(config.measurementId)}` +
+      `&api_secret=${encodeURIComponent(secrets.measurementProtocolSecret)}`;
 
     const res = await fetcher(url, {
       method: 'POST',
@@ -420,13 +462,11 @@ export async function sendGa4MeasurementEvent(
  */
 export async function sendCustomWebhookEvent(
   event: ServerTrackingEvent,
-  config: CustomTrackingProviderConfig,
+  _config: CustomTrackingProviderConfig,
+  secrets: CustomTrackingSecrets | null | undefined,
   options?: ServerTrackingOptions,
 ): Promise<TrackingDeliveryResult> {
   const fetcher = options?.fetchFn || globalThis.fetch;
-  if (!config.endpointUrl) {
-    return { provider: 'custom', success: false, error: 'Custom Webhook URL is missing' };
-  }
 
   const webhookPayload = {
     event: event.eventName,
@@ -443,12 +483,16 @@ export async function sendCustomWebhookEvent(
     return { provider: 'custom', success: true, data: { simulated: true, payload: webhookPayload } };
   }
 
+  if (!secrets?.endpointUrl) {
+    return skippedResult('custom', 'No custom webhook destination resolved for this credential');
+  }
+
   try {
-    const res = await fetcher(config.endpointUrl, {
+    const res = await fetcher(secrets.endpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(config.headers || {}),
+        ...(secrets.headers || {}),
       },
       body: JSON.stringify(webhookPayload),
     });
@@ -469,9 +513,27 @@ export async function sendCustomWebhookEvent(
   }
 }
 
+
+function skippedResult(provider: string, reason: string): TrackingDeliveryResult {
+  return { provider, success: true, skipped: true, reason };
+}
+
+type ProviderTask = {
+  key: ServerTrackingProviderType;
+  credentialId?: string;
+  run: (secrets: TrackingProviderSecrets | null) => Promise<TrackingDeliveryResult>;
+};
+
 /**
- * High-Level Server Tracking Dispatcher
- * Evaluates dynamic enabled state, filters enabled providers, and dispatches events.
+ * High-Level Server Tracking Dispatcher (server-side only).
+ *
+ * Evaluates the master toggle, selects enabled server providers, resolves each provider's
+ * secrets through `options.resolveSecrets` (keyed by the `credentialId` in the trusted
+ * config) and dispatches in parallel. A provider without a resolved secret is skipped with a
+ * `reason` — this function never throws for missing secrets.
+ *
+ * Never call this from the browser: the renderer posts to a host relay instead
+ * (see `createTrackingRelayHandler`).
  */
 export async function dispatchServerTracking(
   event: ServerTrackingEvent,
@@ -507,72 +569,117 @@ export async function dispatchServerTracking(
     },
   };
 
+  const target = options?.provider || 'all';
+  const wants = (key: ServerTrackingProviderType) => target === 'all' || target === key;
   const providers = config.providers || {};
-  const dispatchPromises: Array<Promise<{ key: string; result: TrackingDeliveryResult }>> = [];
+  const tasks: ProviderTask[] = [];
 
-  // Meta CAPI
-  if (providers.meta && providers.meta.enabled !== false && providers.meta.capiEnabled) {
-    dispatchPromises.push(
-      sendMetaCapiEvent(eventWithId, providers.meta, mergedOptions).then((result) => ({
-        key: 'meta',
-        result,
-      })),
-    );
+  const meta = providers.meta;
+  if (wants('meta') && meta && meta.enabled !== false && meta.capiEnabled) {
+    tasks.push({
+      key: 'meta',
+      credentialId: meta.credentialId,
+      run: (s) => sendMetaCapiEvent(eventWithId, meta, s as MetaTrackingSecrets | null, mergedOptions),
+    });
   }
 
-  // TikTok Events API
-  if (providers.tiktok && providers.tiktok.enabled !== false && providers.tiktok.eventsApiEnabled) {
-    dispatchPromises.push(
-      sendTikTokEventsApi(eventWithId, providers.tiktok, mergedOptions).then((result) => ({
-        key: 'tiktok',
-        result,
-      })),
-    );
+  const tiktok = providers.tiktok;
+  if (wants('tiktok') && tiktok && tiktok.enabled !== false && tiktok.eventsApiEnabled) {
+    tasks.push({
+      key: 'tiktok',
+      credentialId: tiktok.credentialId,
+      run: (s) => sendTikTokEventsApi(eventWithId, tiktok, s as TikTokTrackingSecrets | null, mergedOptions),
+    });
   }
 
-  // GA4 Measurement Protocol
-  if (
-    providers.google &&
-    providers.google.enabled !== false &&
-    providers.google.measurementId &&
-    providers.google.measurementProtocolSecret
-  ) {
-    dispatchPromises.push(
-      sendGa4MeasurementEvent(eventWithId, providers.google, mergedOptions).then((result) => ({
-        key: 'google',
-        result,
-      })),
-    );
+  const google = providers.google;
+  if (wants('google') && google && google.enabled !== false && google.measurementId) {
+    tasks.push({
+      key: 'google',
+      credentialId: google.credentialId,
+      run: (s) => sendGa4MeasurementEvent(eventWithId, google, s as GoogleTrackingSecrets | null, mergedOptions),
+    });
   }
 
-  // Custom Webhook
-  if (providers.custom && providers.custom.enabled !== false && providers.custom.endpointUrl) {
-    dispatchPromises.push(
-      sendCustomWebhookEvent(eventWithId, providers.custom, mergedOptions).then((result) => ({
-        key: 'custom',
-        result,
-      })),
-    );
+  const custom = providers.custom;
+  if (wants('custom') && custom && custom.enabled !== false) {
+    tasks.push({
+      key: 'custom',
+      credentialId: custom.credentialId,
+      run: (s) => sendCustomWebhookEvent(eventWithId, custom, s as CustomTrackingSecrets | null, mergedOptions),
+    });
   }
 
-  const settled = await Promise.allSettled(dispatchPromises);
+  if (tasks.length === 0) {
+    return {
+      success: true,
+      eventId,
+      skipped: true,
+      reason:
+        target === 'gtm'
+          ? 'GTM is client-side only (dataLayer); no server delivery'
+          : 'No server-side tracking provider is enabled',
+      results: {},
+    };
+  }
+
+  const resolve = options?.resolveSecrets;
+
+  const runTask = async (task: ProviderTask): Promise<TrackingDeliveryResult> => {
+    let secrets: TrackingProviderSecrets | null = null;
+    if (resolve) {
+      try {
+        secrets =
+          (await resolve({ provider: task.key, credentialId: task.credentialId, documentId: options?.documentId })) ??
+          null;
+      } catch (err: unknown) {
+        return {
+          provider: task.key,
+          success: false,
+          error: `Secret resolution failed: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    }
+
+    // In debug simulation we still build the payload (no network), even without secrets.
+    if (!secrets && !simulate) {
+      const reason = resolve
+        ? `No secret resolved for provider "${task.key}"${task.credentialId ? ` (credentialId "${task.credentialId}")` : ' (no credentialId linked)'}`
+        : 'No secret resolver configured (options.resolveSecrets)';
+      mergedOptions.onLog?.(`[${task.key}] skipped: ${reason}`);
+      return skippedResult(task.key, reason);
+    }
+
+    return task.run(secrets);
+  };
+
+  const settled = await Promise.allSettled(tasks.map((task) => runTask(task)));
   const results: Record<string, TrackingDeliveryResult> = {};
   let overallSuccess = true;
+  let delivered = 0;
 
-  for (const item of settled) {
+  settled.forEach((item, index) => {
+    const key = tasks[index].key;
     if (item.status === 'fulfilled') {
-      results[item.value.key] = item.value.result;
-      if (!item.value.result.success) {
-        overallSuccess = false;
-      }
+      results[key] = item.value;
+      if (!item.value.success) overallSuccess = false;
+      if (!item.value.skipped) delivered++;
     } else {
       overallSuccess = false;
+      results[key] = {
+        provider: key,
+        success: false,
+        error: item.reason instanceof Error ? item.reason.message : String(item.reason),
+      };
     }
-  }
+  });
+
+  const allSkipped = delivered === 0 && overallSuccess;
 
   return {
     success: overallSuccess,
     eventId,
+    ...(allSkipped ? { skipped: true, reason: 'All server providers were skipped' } : {}),
     results,
   };
 }

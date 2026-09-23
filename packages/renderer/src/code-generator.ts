@@ -1,4 +1,4 @@
-import { PageDocument, Node } from '@kubuild/schema';
+import { PageDocument, Node, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
 import { DEFAULT_CSS_RESET, styleDefinitionToCssDeclarations } from './styles';
 import { collectAnimationStylesCss } from './animation';
 
@@ -569,7 +569,7 @@ export function generateDocumentCss(
   // Animation & Motion Styles (STORA-264)
   const pageDoc: PageDocument = 'document' in docOrNode
     ? docOrNode
-    : { schema: 'stora.page', version: '1.0.0', document: rootNode as any };
+    : { schema: 'stora.page', version: CURRENT_SCHEMA_VERSION, document: rootNode as any };
   const animStyles = collectAnimationStylesCss(pageDoc);
   if (animStyles) {
     sections.push(`/* ==========================================================================\n   Animations & Motion Keyframes\n   ========================================================================== */\n${animStyles}`);

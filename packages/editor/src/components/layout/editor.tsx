@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageDocument } from '@kubuild/schema';
 import type { PixelCredentialOption } from '@kubuild/schema';
+import type { SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import {
   RuntimeContext,
@@ -92,6 +93,13 @@ export interface KubuildEditorProps {
   /** Called when user clicks "Kelola Kredensial" inside the tracking settings modal */
   onManageCredentials?: () => void;
   /**
+   * Stores a tracking secret (CAPI token, Events API token, GA4 API secret, webhook URL/headers)
+   * on the host and returns the `credentialId` the document references. Without it, secret
+   * inputs are disabled; the document never stores secrets. The relay URL shown in the
+   * tracking modal comes from `context.tracking.relayUrl`.
+   */
+  onSaveTrackingSecret?: SaveTrackingSecretHandler;
+  /**
    * Host asset provider for direct uploads, gallery listing, and asset management. It is
    * also forwarded into the canvas render context (unless `context.assetProvider` is set),
    * so uploaded and `asset://` images resolve on the canvas.
@@ -120,9 +128,11 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   ai,
   trackingCredentials,
   onManageCredentials,
+  onSaveTrackingSecret,
   assetProvider,
   className,
 }) => {
+  const trackingRelayUrl = context?.tracking?.relayUrl;
   const document = useEditorStore((state) => state.document);
   const setDocument = useEditorStore((state) => state.setDocument);
   const setOnChangeHandler = useEditorStore((state) => state.setOnChangeHandler);
@@ -459,6 +469,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
                 aiConfig={resolvedAiConfig}
                 trackingCredentials={trackingCredentials}
                 onManageCredentials={onManageCredentials}
+                onSaveTrackingSecret={onSaveTrackingSecret}
+                trackingRelayUrl={trackingRelayUrl}
                 assetProvider={assetProvider}
               />
             </div>
@@ -517,6 +529,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
               aiEnabled={aiFeatureEnabled}
               trackingCredentials={trackingCredentials}
               onManageCredentials={onManageCredentials}
+              onSaveTrackingSecret={onSaveTrackingSecret}
+              trackingRelayUrl={trackingRelayUrl}
             />
 
             {/* Viewport switcher */}
@@ -667,6 +681,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
               aiConfig={resolvedAiConfig}
               trackingCredentials={trackingCredentials}
               onManageCredentials={onManageCredentials}
+              onSaveTrackingSecret={onSaveTrackingSecret}
+              trackingRelayUrl={trackingRelayUrl}
               assetProvider={assetProvider}
             />
           </div>

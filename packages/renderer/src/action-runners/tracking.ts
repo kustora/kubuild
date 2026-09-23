@@ -1,11 +1,18 @@
-import type { ActionStep, TrackEventStepPayload, TrackingConfig } from '@kubuild/schema';
 import {
+  TRACKING_RELAY_PROTOCOL_VERSION,
+  type ActionStep,
+  type TrackEventStepPayload,
+  type TrackingConfig,
+  type TrackingRelayRequest,
+  type TrackingRelayResponse,
+} from '@kubuild/schema';
+import {
+  type Diagnostic,
   type PipelineExecutionContext,
   type PipelineStepHandler,
+  type RuntimeTrackingOptions,
   interpolateValue,
   generateTrackingEventId,
-  dispatchServerTracking,
-  type ServerTrackingEvent,
 } from '@kubuild/core';
 import { fireBrowserPixel } from '../tracking/tracking-manager';
 
@@ -24,6 +31,8 @@ export interface TrackEventResult {
   clientDispatched?: boolean;
   serverDispatched?: boolean;
   serverError?: string;
+  /** Why server delivery was not attempted (e.g. no host relay configured). */
+  serverSkippedReason?: string;
 }
 
 /**
@@ -101,6 +110,7 @@ export const trackEventRunner: PipelineStepHandler = async (
   let clientDispatched = false;
   let serverDispatched = false;
   let serverError: string | undefined;
+  let serverSkippedReason: string | undefined;
 
   // 5. Client-Side Browser Pixel Dispatch
   if (delivery === 'client_only' || delivery === 'both') {
@@ -113,64 +123,86 @@ export const trackEventRunner: PipelineStepHandler = async (
     clientDispatched = true;
   }
 
-  // 6. Server-Side CAPI Dispatch
+  // 6. Server-side delivery — ONLY via the host relay (RenderContext.tracking.relayUrl).
+  //    The browser never calls provider APIs and never sees secrets.
   if (delivery === 'server_only' || delivery === 'both') {
-    // Determine server relay URL: provider-specific or top-level or on step
-    let serverRelayUrl = (payload as unknown as Record<string, unknown>)['serverRelayUrl'] as string | undefined;
-    if (!serverRelayUrl && trackingConfig?.providers) {
-      if (provider === 'meta') {
-        serverRelayUrl = trackingConfig.providers.meta?.serverRelayUrl;
-      } else if (provider === 'tiktok') {
-        serverRelayUrl = trackingConfig.providers.tiktok?.serverRelayUrl;
-      } else if (provider === 'google') {
-        serverRelayUrl = trackingConfig.providers.google?.serverRelayUrl;
-      } else {
-        serverRelayUrl =
-          trackingConfig.providers.meta?.serverRelayUrl ||
-          trackingConfig.providers.tiktok?.serverRelayUrl ||
-          trackingConfig.providers.google?.serverRelayUrl;
+    const runtime = context.trackingRuntime as RuntimeTrackingOptions | undefined;
+    const report = context.reportDiagnostic as ((d: Diagnostic) => void) | undefined;
+    const log = (message: string, data?: unknown) => {
+      runtime?.onLog?.(message, data);
+      if (trackingConfig?.debugMode) {
+        console.log(`[KUBUILD Tracking] ${message}`, data ?? '');
       }
-    }
-
-    const serverEventPayload: ServerTrackingEvent = {
-      eventName,
-      eventId,
-      eventTime: Math.floor(Date.now() / 1000),
-      eventSourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
-      params: interpolatedParams,
-      userData: interpolatedUserData,
     };
 
-    // If running in browser and relay URL is configured, POST to server relay
-    if (typeof window !== 'undefined' && serverRelayUrl) {
+    if (provider === 'gtm') {
+      serverSkippedReason = 'GTM is client-side only (dataLayer); no server delivery';
+    } else if (!runtime?.relayUrl) {
+      serverSkippedReason =
+        'Server delivery skipped: no tracking relay configured (RenderContext.tracking.relayUrl)';
+      log(serverSkippedReason, { eventName, eventId });
+      report?.({
+        code: 'TRACKING_RELAY_NOT_CONFIGURED',
+        nodeId: typeof context.nodeId === 'string' ? context.nodeId : undefined,
+        eventName,
+        message: serverSkippedReason,
+      });
+    } else {
+      const relayRequest: TrackingRelayRequest = {
+        version: TRACKING_RELAY_PROTOCOL_VERSION,
+        provider,
+        ...(runtime.documentId ? { documentId: runtime.documentId } : {}),
+        event: {
+          eventName,
+          eventId,
+          ...(payload.eventType ? { eventType: payload.eventType } : {}),
+          eventTime: Math.floor(Date.now() / 1000),
+          ...(typeof window !== 'undefined' && window.location?.href
+            ? { eventSourceUrl: window.location.href }
+            : {}),
+          actionSource: 'website',
+          params: interpolatedParams,
+          userData: interpolatedUserData,
+        },
+      };
+
       try {
-        const fetchFn = (context.fetch as typeof fetch) || window.fetch;
-        const res = await fetchFn(serverRelayUrl, {
+        const fetchFn =
+          runtime.fetchFn ||
+          (context.fetch as typeof fetch | undefined) ||
+          (typeof fetch === 'function' ? fetch : undefined);
+        if (!fetchFn) throw new Error('fetch is not available in this environment');
+
+        const res = await fetchFn(runtime.relayUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event: serverEventPayload,
-            provider,
-          }),
+          headers: { 'Content-Type': 'application/json', ...(runtime.relayHeaders || {}) },
+          credentials: runtime.credentials ?? 'same-origin',
+          keepalive: true,
+          body: JSON.stringify(relayRequest),
         });
-        if (res.ok) {
+
+        const body = (await (typeof res.json === 'function' ? res.json().catch(() => null) : null)) as
+          | TrackingRelayResponse
+          | null;
+
+        if (res.ok && (body?.success ?? true)) {
           serverDispatched = true;
         } else {
-          serverError = `Server relay responded with status ${res.status}`;
+          serverError =
+            body?.error?.message || `Tracking relay responded with status ${res.status}`;
         }
       } catch (err: unknown) {
         serverError = err instanceof Error ? err.message : String(err);
       }
-    } else {
-      // In server/SSR environment or direct dispatch mode:
-      try {
-        const dispatchResult = await dispatchServerTracking(serverEventPayload, trackingConfig);
-        serverDispatched = dispatchResult.success;
-        if (!dispatchResult.success) {
-          serverError = 'One or more server tracking providers failed';
-        }
-      } catch (err: unknown) {
-        serverError = err instanceof Error ? err.message : String(err);
+
+      if (serverError) {
+        log(`Tracking relay failed: ${serverError}`, { eventName, eventId });
+        report?.({
+          code: 'TRACKING_RELAY_FAILED',
+          nodeId: typeof context.nodeId === 'string' ? context.nodeId : undefined,
+          eventName,
+          message: serverError,
+        });
       }
     }
   }
@@ -185,5 +217,6 @@ export const trackEventRunner: PipelineStepHandler = async (
     clientDispatched,
     serverDispatched,
     serverError,
+    ...(serverSkippedReason ? { serverSkippedReason } : {}),
   };
 };

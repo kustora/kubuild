@@ -1,4 +1,4 @@
-import { PageDocument, Node, DocumentMetadataSchema, DocumentMetadata } from '@kubuild/schema';
+import { PageDocument, Node, DocumentMetadataSchema, DocumentMetadata, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
 import type {
   KubuildAiEngineOptions,
   AiGeneratePageRequest,
@@ -610,7 +610,7 @@ ${sectionGuidance}
       // 4. Assemble final document and emit complete event
       const finalDocument: PageDocument = {
         schema: 'stora.page',
-        version: '1.0.0',
+        version: CURRENT_SCHEMA_VERSION,
         metadata,
         document: {
           ...rootPageNode,
