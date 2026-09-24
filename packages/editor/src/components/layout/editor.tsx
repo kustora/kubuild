@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { PageDocument } from '@kubuild/schema';
+import { PageDocument, getBreakpointForWidth } from '@kubuild/schema';
 import type { PixelCredentialOption } from '@kubuild/schema';
 import type { SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
@@ -267,13 +267,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         setDocument(targetPage.document);
         const vp =
           targetPage.viewport ||
-          (targetPage.width
-            ? targetPage.width < 768
-              ? 'mobile'
-              : targetPage.width < 1024
-                ? 'tablet'
-                : 'desktop'
-            : 'desktop');
+          (targetPage.width ? getBreakpointForWidth(targetPage.width) : 'desktop');
         const w = targetPage.width ?? defaultWidthForViewport(vp);
         setViewport(vp);
         setFluidWidth(w);
@@ -316,13 +310,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         }
         const vp =
           target.viewport ||
-          (target.width
-            ? target.width < 768
-              ? 'mobile'
-              : target.width < 1024
-                ? 'tablet'
-                : 'desktop'
-            : 'desktop');
+          (target.width ? getBreakpointForWidth(target.width) : 'desktop');
         const w = target.width ?? defaultWidthForViewport(vp);
         if (vp !== useEditorStore.getState().viewport) {
           setViewport(vp);

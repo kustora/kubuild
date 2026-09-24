@@ -960,7 +960,7 @@ Tablet
 Mobile
 ```
 
-Renderer menentukan style berdasarkan viewport.
+Renderer menentukan style berdasarkan viewport. Rentang breakpoint didefinisikan sekali di `BREAKPOINTS` (`@kubuild/schema`): mobile < 768px, tablet 768–1023px, desktop ≥ 1024px. Setiap layer digabung di atas `base` secara terpisah, tanpa saling menurun. Halaman runtime memakai rule `@media` ter-scope (`responsive: 'css'`). Canvas editor memakai merge per-viewport (`responsive: 'viewport'`). Code generator memakai media query yang sama.
 
 ---
 

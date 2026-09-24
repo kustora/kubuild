@@ -1,5 +1,11 @@
 import React, { useLayoutEffect, useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { PageDocument, findDeprecatedPropAliases, type Artboard, type ArtboardType } from '@kubuild/schema';
+import {
+  PageDocument,
+  findDeprecatedPropAliases,
+  getBreakpointForWidth,
+  type Artboard,
+  type ArtboardType,
+} from '@kubuild/schema';
 import { ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
 import { KubuildRenderer, ArtboardPortalHost } from '@kubuild/renderer';
 import {
@@ -242,11 +248,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     return 1200;
   };
 
-  const getBreakpointFromWidth = (w: number): Viewport => {
-    if (w < 768) return 'mobile';
-    if (w < 1024) return 'tablet';
-    return 'desktop';
-  };
+  const getBreakpointFromWidth = (w: number): Viewport => getBreakpointForWidth(w);
 
   // Per-page responsive state map
   const [pageResponsiveMap, setPageResponsiveMap] = useState<

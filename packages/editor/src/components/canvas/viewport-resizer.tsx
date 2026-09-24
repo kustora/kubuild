@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Smartphone, Tablet, Monitor, Maximize2, GripVertical, Trash2 } from 'lucide-react';
+import { BREAKPOINTS, getBreakpointForWidth } from '@kubuild/schema';
 
 export type FluidBreakpoint = 'mobile' | 'tablet' | 'desktop';
 
@@ -34,7 +35,8 @@ export const VIEWPORT_PRESETS: Array<{
  */
 export function getBreakpointFromWidth(width: number): BreakpointInfo {
   const clampedWidth = Math.round(width);
-  if (clampedWidth < 768) {
+  const breakpoint = getBreakpointForWidth(clampedWidth);
+  if (breakpoint === 'mobile') {
     return {
       breakpoint: 'mobile',
       label: 'Mobile',
@@ -42,7 +44,7 @@ export function getBreakpointFromWidth(width: number): BreakpointInfo {
       colorClass: 'bg-emerald-50 text-emerald-700 border-emerald-300',
     };
   }
-  if (clampedWidth < 1024) {
+  if (breakpoint === 'tablet') {
     return {
       breakpoint: 'tablet',
       label: 'Tablet',
@@ -147,7 +149,7 @@ export const ViewportResizerHandle: React.FC<ViewportResizerHandleProps> = ({
     // Cycle between mobile (375), tablet (768), and desktop (1200)
     let nextWidth = 1200;
     if (width >= 1200) nextWidth = 375;
-    else if (width < 768) nextWidth = 768;
+    else if (width < BREAKPOINTS.tablet.minWidth) nextWidth = BREAKPOINTS.tablet.minWidth;
     else nextWidth = 1200;
 
     onWidthChange(nextWidth);

@@ -1,5 +1,17 @@
-import { PageDocument, Node, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
-import { DEFAULT_CSS_RESET, styleDefinitionToCssDeclarations } from './styles';
+import {
+  PageDocument,
+  Node,
+  CURRENT_SCHEMA_VERSION,
+  BREAKPOINT_MEDIA_QUERIES,
+  BREAKPOINT_ORDER,
+  type BreakpointName,
+} from '@kubuild/schema';
+import {
+  DEFAULT_CSS_RESET,
+  styleDefinitionToCssDeclarations,
+  resolveBaseNodeStyles,
+  collectResponsiveCssRules,
+} from './styles';
 import { collectAnimationStylesCss } from './animation';
 import { themeToCssDeclarations } from './theme';
 
@@ -474,9 +486,19 @@ function formatCssRule(selector: string, declarationsStr: string, indent = ''): 
   return `${indent}${selector} {\n${indentedRules}\n${indent}}`;
 }
 
+const BREAKPOINT_SECTION_LABELS: Record<BreakpointName, string> = {
+  desktop: 'Desktop Breakpoint',
+  tablet: 'Tablet Breakpoint',
+  mobile: 'Mobile Breakpoint',
+};
+
 /**
  * Generates structured, readable CSS for the given document, compiling
- * base styles, responsive breakpoints (tablet/mobile), and pseudo-classes.
+ * base styles, responsive breakpoints (desktop/tablet/mobile), and pseudo-classes.
+ *
+ * Breakpoint layers use the shared `BREAKPOINTS` ranges from `@kubuild/schema` and the same
+ * per-layer overrides as the runtime renderer's `responsive: 'css'` mode
+ * (`collectResponsiveCssRules`), so exported HTML lays out identically at every width.
  */
 export function generateDocumentCss(
   docOrNode: PageDocument | Node,
@@ -487,38 +509,18 @@ export function generateDocumentCss(
 
   const classPrefix = options.classPrefix || 'kb-node-';
   const baseRules: string[] = [];
-  const tabletRules: string[] = [];
-  const mobileRules: string[] = [];
   const stateRules: string[] = [];
 
   const walk = (node: Node) => {
     const selector = `.${classPrefix}${node.id}`;
 
-    // Base & Desktop styles
     if (node.styles) {
-      const baseStyles = {
-        ...(node.styles.base || {}),
-        ...(node.styles.desktop || {}),
-      };
-      const baseDecls = styleDefinitionToCssDeclarations(baseStyles);
+      // Base styles (desktop/tablet/mobile layers are emitted as media-query overrides below)
+      const baseDecls = styleDefinitionToCssDeclarations(
+        resolveBaseNodeStyles(node.styles) as Record<string, unknown>,
+      );
       if (baseDecls) {
         baseRules.push(formatCssRule(selector, baseDecls));
-      }
-
-      // Tablet styles
-      if (node.styles.tablet) {
-        const tabletDecls = styleDefinitionToCssDeclarations(node.styles.tablet);
-        if (tabletDecls) {
-          tabletRules.push(formatCssRule(selector, tabletDecls, '  '));
-        }
-      }
-
-      // Mobile styles
-      if (node.styles.mobile) {
-        const mobileDecls = styleDefinitionToCssDeclarations(node.styles.mobile);
-        if (mobileDecls) {
-          mobileRules.push(formatCssRule(selector, mobileDecls, '  '));
-        }
       }
 
       // Pseudo-state styles (e.g. :hover, :focus, :active)
@@ -539,6 +541,8 @@ export function generateDocumentCss(
   };
 
   walk(rootNode);
+
+  const responsiveRules = collectResponsiveCssRules(rootNode);
 
   const sections: string[] = [];
 
@@ -563,14 +567,14 @@ export function generateDocumentCss(
     sections.push(`/* ==========================================================================\n   Interactive & Hover States\n   ========================================================================== */\n${stateRules.join('\n\n')}`);
   }
 
-  // Tablet Media Query
-  if (tabletRules.length > 0) {
-    sections.push(`/* ==========================================================================\n   Tablet Breakpoint (max-width: 1024px)\n   ========================================================================== */\n@media (max-width: 1024px) {\n${tabletRules.join('\n\n')}\n}`);
-  }
-
-  // Mobile Media Query
-  if (mobileRules.length > 0) {
-    sections.push(`/* ==========================================================================\n   Mobile Breakpoint (max-width: 640px)\n   ========================================================================== */\n@media (max-width: 640px) {\n${mobileRules.join('\n\n')}\n}`);
+  // Breakpoint Media Queries (disjoint ranges, see BREAKPOINTS in @kubuild/schema)
+  for (const breakpoint of BREAKPOINT_ORDER) {
+    const rules = responsiveRules[breakpoint]
+      .map((rule) => formatCssRule(`.${classPrefix}${rule.nodeId}`, rule.declarations, '  '))
+      .filter(Boolean);
+    if (rules.length === 0) continue;
+    const query = BREAKPOINT_MEDIA_QUERIES[breakpoint];
+    sections.push(`/* ==========================================================================\n   ${BREAKPOINT_SECTION_LABELS[breakpoint]} ${query}\n   ========================================================================== */\n@media ${query} {\n${rules.join('\n\n')}\n}`);
   }
 
   // Animation & Motion Styles (STORA-264)

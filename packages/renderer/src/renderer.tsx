@@ -14,7 +14,13 @@ import {
   Diagnostic,
 } from './render-context';
 import { AlertTriangle } from 'lucide-react';
-import { resolveNodeStyles, collectStateStylesCss } from './styles';
+import {
+  resolveNodeStyles,
+  resolveBaseNodeStyles,
+  collectStateStylesCss,
+  collectResponsiveStylesCss,
+  type ResponsiveMode,
+} from './styles';
 import { collectAnimationStylesCss } from './animation';
 import { resolveRuntimeTheme, themeToCssProperties } from './theme';
 import { ComponentErrorBoundary } from './error-boundary';
@@ -34,8 +40,20 @@ export interface KubuildRendererProps {
   document: PageDocument;
   registry?: ComponentRegistry;
   context?: RenderContext;
+  /**
+   * Preview a single viewport's styles (merged into inline styles). Passing it selects
+   * `responsive: 'viewport'` unless `responsive` is set explicitly.
+   */
   viewport?: 'desktop' | 'tablet' | 'mobile';
   mode?: 'editor' | 'runtime';
+  /**
+   * How `styles.desktop/tablet/mobile` are applied (STORA-540):
+   * - `'css'`: base inline + scoped `@media` rules, so the real screen width decides
+   *   (SSR-safe, no viewport guessing). Default for `mode="runtime"` without `viewport`.
+   * - `'viewport'`: merge the layer named by `viewport` inline. Default for `mode="editor"`
+   *   or whenever `viewport` is passed (device-frame previews).
+   */
+  responsive?: ResponsiveMode;
   className?: string;
   showToastContainer?: boolean;
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
@@ -57,6 +75,11 @@ export interface NodeRendererProps {
   context?: RenderContext;
   viewport?: 'desktop' | 'tablet' | 'mobile';
   mode?: 'editor' | 'runtime';
+  /**
+   * `'css'` renders only the base layer inline; the caller must also emit
+   * `collectResponsiveStylesCss(document)` (KubuildRenderer does). Defaults to `'viewport'`.
+   */
+  responsive?: ResponsiveMode;
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
@@ -98,6 +121,7 @@ export function NodeRenderer({
   context: propContext,
   viewport = 'desktop',
   mode = 'runtime',
+  responsive = 'viewport',
   onNodeClick,
   onDiagnostic,
   onActionDispatch,
@@ -106,7 +130,8 @@ export function NodeRenderer({
   instanceSuffix = '',
 }: NodeRendererProps): React.ReactElement {
   const context = propContext || DEFAULT_RENDER_CONTEXT;
-  const styles = resolveNodeStyles(node.styles, viewport);
+  const styles =
+    responsive === 'css' ? resolveBaseNodeStyles(node.styles) : resolveNodeStyles(node.styles, viewport);
   const props = node.props || {};
   const definition = registry.get(node.type);
   const domId = instanceSuffix ? `${node.id}${instanceSuffix}` : node.id;
@@ -169,6 +194,7 @@ export function NodeRenderer({
       context={context}
       viewport={viewport}
       mode={mode}
+      responsive={responsive}
       onNodeClick={onNodeClick}
       onDiagnostic={onDiagnostic}
       onActionDispatch={onActionDispatch}
@@ -191,6 +217,7 @@ export function NodeRenderer({
       context={itemContext}
       viewport={viewport}
       mode={mode}
+      responsive={responsive}
       onNodeClick={onNodeClick}
       onDiagnostic={onDiagnostic}
       onActionDispatch={onActionDispatch}
@@ -357,12 +384,27 @@ export function getUnresolvedLegacyActionType(action: unknown, context?: RenderC
   return isLegacyActionResolvable(context?.actionRegistry, action.type) ? null : action.type;
 }
 
+/**
+ * Pick the responsive strategy: an explicit `responsive` wins; otherwise published pages
+ * (`mode="runtime"` with no `viewport`) use real `@media` rules, while the editor canvas and
+ * device-frame previews (which pass `viewport`) keep the per-viewport inline merge.
+ */
+export function resolveResponsiveMode(
+  responsive: ResponsiveMode | undefined,
+  mode: 'editor' | 'runtime',
+  viewport: 'desktop' | 'tablet' | 'mobile' | undefined,
+): ResponsiveMode {
+  if (responsive) return responsive;
+  return mode === 'runtime' && viewport === undefined ? 'css' : 'viewport';
+}
+
 const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
   document,
   registry = createDefaultComponentRegistry(),
   context,
-  viewport = 'desktop',
+  viewport: viewportProp,
   mode = 'runtime',
+  responsive: responsiveProp,
   className,
   showToastContainer = true,
   onNodeClick,
@@ -375,6 +417,15 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
     return <div className={className}>Empty Document</div>;
   }
 
+  const viewport = viewportProp ?? 'desktop';
+  const responsive = resolveResponsiveMode(responsiveProp, mode, viewportProp);
+
+  // Breakpoint @media rules for `responsive: 'css'` — pure function of the document, so the
+  // server-rendered <style> matches the client's on hydration (STORA-540).
+  const responsiveStylesCss = React.useMemo(
+    () => (responsive === 'css' ? collectResponsiveStylesCss(document) : ''),
+    [document, responsive],
+  );
   const stateStylesCss = React.useMemo(
     () => collectStateStylesCss(document),
     [document],
@@ -408,6 +459,10 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
   return (
     <RenderContextProvider value={context}>
       <div className={`kubuild-canvas-root ${className || ''}`} style={themeStyle}>
+        {/* Compiled breakpoint overrides as scoped @media rules — STORA-540 */}
+        {responsiveStylesCss ? (
+          <style data-kubuild-responsive-styles>{responsiveStylesCss}</style>
+        ) : null}
         {/* Compiled pseudo-state CSS (:hover/:active/:focus) — STORA-222 */}
         {stateStylesCss ? <style data-kubuild-state-styles>{stateStylesCss}</style> : null}
         {/* Compiled animation & hover micro-interactions CSS — STORA-264 */}
@@ -419,6 +474,7 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
           context={context}
           viewport={viewport}
           mode={mode}
+          responsive={responsive}
           onNodeClick={onNodeClick}
           onDiagnostic={onDiagnostic}
           onActionDispatch={onActionDispatch}
