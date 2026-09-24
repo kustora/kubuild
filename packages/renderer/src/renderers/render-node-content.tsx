@@ -35,6 +35,7 @@ import {
 import { renderInteractiveNode } from './interactive-renderers';
 import { renderExtendedFormNode } from './extended-form-renderers';
 import { hasBuiltinLegacyAction, isLegacyActionResolvable } from '../legacy-actions';
+import { renderConversionNode } from './conversion';
 
 export interface RenderNodeContentOptions {
   node: Node;
@@ -1454,6 +1455,10 @@ export function renderNodeContent(options: RenderNodeContentOptions): React.Reac
   // 9. Interactive nodes: modal, drawer, collapsible
   const interactive = renderInteractiveNode(options);
   if (interactive) return interactive;
+
+  // 9b. Conversion components (Epic 60): countdown, accordion, tabs, carousel, rating, divider, spacer
+  const conversion = renderConversionNode(options);
+  if (conversion) return conversion;
 
   // 10. Fallback for unknown / custom elements without custom renderers
   return renderFallbackNode(options);

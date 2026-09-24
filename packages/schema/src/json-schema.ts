@@ -329,7 +329,7 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
         },
         trigger: {
           type: 'string',
-          enum: ['click', 'submit', 'change', 'blur', 'focus', 'load'],
+          enum: ['click', 'submit', 'change', 'blur', 'focus', 'load', 'expire'],
         },
         label: { type: 'string' },
         debounceMs: { type: 'number', minimum: 0 },
@@ -768,7 +768,7 @@ export const ACTION_PIPELINE_JSON_SCHEMA_V1 = {
     },
     trigger: {
       type: 'string',
-      enum: ['click', 'submit', 'change', 'blur', 'focus', 'load'],
+      enum: ['click', 'submit', 'change', 'blur', 'focus', 'load', 'expire'],
       description: 'DOM or component event that triggers the action pipeline',
     },
     label: {

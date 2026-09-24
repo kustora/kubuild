@@ -12,6 +12,8 @@ export const ActionTriggerTypeSchema = z.enum([
   'blur',
   'focus',
   'load',
+  // Fired once by time-bound components (e.g. `countdown`) when they reach zero.
+  'expire',
 ]);
 
 export type ActionTriggerType = z.infer<typeof ActionTriggerTypeSchema>;
