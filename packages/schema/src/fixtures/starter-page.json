@@ -122,14 +122,24 @@
                 "id": "hero-button",
                 "type": "button",
                 "props": {
-                  "label": "Get Started",
-                  "action": {
-                    "type": "navigate",
-                    "payload": {
-                      "url": "/docs"
-                    }
-                  }
+                  "label": "Get Started"
                 },
+                "actions": [
+                  {
+                    "id": "hero-button-click",
+                    "trigger": "click",
+                    "enabled": true,
+                    "steps": [
+                      {
+                        "id": "hero-button-navigate",
+                        "type": "navigate",
+                        "payload": {
+                          "url": "/docs"
+                        }
+                      }
+                    ]
+                  }
+                ],
                 "styles": {
                   "base": {
                     "backgroundColor": "#2563eb",
