@@ -839,6 +839,7 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                           <ActionStepForm
                             step={step}
                             document={document}
+                            trigger={selectedTrigger}
                             onUpdatePayload={(newPayload) =>
                               handleUpdateStepPayload(step.id, newPayload)
                             }
