@@ -25,7 +25,7 @@ describe('Subpath Exports Contract', () => {
     expect(Blocks.LAYOUT_STARTER_BLOCKS).toBeDefined();
     expect(Blocks.UI_STARTER_BLOCKS).toBeDefined();
     expect(Blocks.FORM_STARTER_BLOCKS).toBeDefined();
-    expect(Blocks.STARTER_BLOCKS.length).toBe(14);
+    expect(Blocks.STARTER_BLOCKS.length).toBe(20);
   });
 
   it('root re-exports all submodules for backwards compatibility', () => {
