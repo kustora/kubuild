@@ -187,7 +187,7 @@ Fitur ekspor siap produksi untuk web hosting apa pun (cPanel, Vercel, Netlify, G
   - Struktur DOM bersih tanpa atribut internal editor (membersihkan `data-kubuild-*`).
   - Runtime variable replacement resolver (mengisi variabel fallback jika ada).
 - **Clean `styles.css`:**
-  - Kompilasi seluruh Responsive Styles (`base`, `tablet`, `mobile`) ke dalam standard CSS `@media` queries (`@media (max-width: 768px)`, `@media (max-width: 480px)`).
+  - Kompilasi seluruh Responsive Styles (`base`, `tablet`, `mobile`) ke dalam standard CSS `@media` queries (memakai `BREAKPOINT_MEDIA_QUERIES` dari `@kubuild/schema`: tablet `(min-width: 768px) and (max-width: 1023.98px)`, mobile `(max-width: 767.98px)`, desktop `(min-width: 1024px)`).
   - Scoped pseudo-classes (`:hover`, `:active`, `:focus`).
   - Keyframe CSS untuk Animate On Scroll dan Hover Micro-interactions.
 

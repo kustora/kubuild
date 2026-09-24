@@ -68,4 +68,4 @@ interface ResponsiveStyle {
 }
 ```
 
-Ketika ditampilkan pada viewport tablet, renderer akan menggabungkan gaya `base` dengan properti spesifik yang didefinisikan pada `tablet`.
+Setiap layer breakpoint digabung di atas `base` secara terpisah, tanpa saling menurun. Rentangnya berasal dari konstanta bersama `BREAKPOINTS` di `@kubuild/schema`: `mobile` < 768px, `tablet` 768–1023px, `desktop` ≥ 1024px. Halaman publik menerapkannya sebagai rule `@media` ter-scope (`responsive: 'css'`). Canvas editor menggabungkan layer viewport yang sedang dipreview ke style inline (`responsive: 'viewport'`).
