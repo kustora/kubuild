@@ -186,11 +186,13 @@ describe('PreviewViewportAdapter', () => {
     });
 
     it('resolves viewport category from width using host configurable breakpoints', () => {
-      // Default breakpoints: { mobile: 480, tablet: 768, desktop: 1024 }
+      // Default breakpoints come from the shared BREAKPOINTS: { mobile: 767, tablet: 1023, desktop: 1024 }
       expect(resolveViewportFromWidth(320)).toBe('mobile');
       expect(resolveViewportFromWidth(480)).toBe('mobile');
-      expect(resolveViewportFromWidth(600)).toBe('tablet');
+      expect(resolveViewportFromWidth(600)).toBe('mobile');
+      expect(resolveViewportFromWidth(767)).toBe('mobile');
       expect(resolveViewportFromWidth(768)).toBe('tablet');
+      expect(resolveViewportFromWidth(1023)).toBe('tablet');
       expect(resolveViewportFromWidth(1024)).toBe('desktop');
       expect(resolveViewportFromWidth(1440)).toBe('desktop');
 

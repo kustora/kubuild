@@ -189,8 +189,8 @@ describe('Live Code Generator (STORA-251)', () => {
     expect(css).toContain('.kb-node-hero-1:hover {');
     expect(css).toContain('.kb-node-btn-cta:hover {');
     expect(css).toContain('.kb-node-btn-cta:active {');
-    expect(css).toContain('@media (max-width: 1024px) {');
-    expect(css).toContain('@media (max-width: 640px) {');
+    expect(css).toContain('@media (min-width: 768px) and (max-width: 1023.98px) {');
+    expect(css).toContain('@media (max-width: 767.98px) {');
   });
 
   it('generates standalone HTML document with complete doctype and meta tags', () => {
