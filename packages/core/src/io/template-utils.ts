@@ -1,5 +1,6 @@
 import {
   TemplateRecordSchema,
+  BUILTIN_COMPONENT_TYPES,
   collectNodeIds,
   isTemplateRecord,
   type TemplateRecord,
@@ -11,20 +12,11 @@ import { deepClone, cloneNodeTreeWithFreshIds } from '../document/command-tree-u
 import { validateDocument } from '../validation/validator';
 
 /**
- * Standard core built-in component types
+ * Built-in component types (everything `createDefaultComponentRegistry()` registers).
+ * Derived from the canonical `BUILTIN_COMPONENT_TYPES` in `@kubuild/schema`; a test in
+ * `@kubuild/components` asserts this set equals the default registry's types.
  */
-export const CORE_BUILTIN_COMPONENTS = new Set([
-  'page',
-  'section',
-  'container',
-  'columns',
-  'column',
-  'heading',
-  'text',
-  'image',
-  'button',
-  'collection',
-]);
+export const CORE_BUILTIN_COMPONENTS: ReadonlySet<string> = new Set<string>(BUILTIN_COMPONENT_TYPES);
 
 /**
  * Structured validation error entry
@@ -89,7 +81,7 @@ function collectComponentTypes(node: Node, types: Set<string>): void {
  */
 export function extractTemplateRequirements(
   doc: PageDocument,
-  builtinComponents: Set<string> = CORE_BUILTIN_COMPONENTS
+  builtinComponents: ReadonlySet<string> = CORE_BUILTIN_COMPONENTS
 ): TemplateRequirements {
   const componentTypes = new Set<string>();
   if (doc?.document) {
