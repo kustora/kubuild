@@ -34,6 +34,7 @@ import {
   aspectRatioToCss,
 } from '../nodes';
 import { renderInteractiveNode } from './interactive-renderers';
+import { renderExtendedFormNode } from './extended-form-renderers';
 
 export interface RenderNodeContentOptions {
   node: Node;
@@ -1448,6 +1449,10 @@ export function renderNodeContent(options: RenderNodeContentOptions): React.Reac
   // 7. Form nodes
   const form = renderFormNode(options);
   if (form) return form;
+
+  // 7b. Extended form nodes: switch, file-upload, radio-group, radio-item, button-submit
+  const extendedForm = renderExtendedFormNode(options);
+  if (extendedForm) return extendedForm;
 
   // 8. Collection node
   const collection = renderCollectionNode(options);
