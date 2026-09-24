@@ -7,7 +7,7 @@ import {
   type PageDocument,
   type Node,
 } from '@kubuild/schema';
-import { deepClone } from '../document/command-tree-utils';
+import { deepClone, cloneNodeTreeWithFreshIds } from '../document/command-tree-utils';
 import { validateDocument } from '../validation/validator';
 
 /**
@@ -275,36 +275,11 @@ export interface CloneTemplateOptions {
 }
 
 /**
- * Recursively clone a node tree, regenerating 100% fresh unique node IDs for every node
- * including root page node and all descendants, while strictly preserving props and styles.
- */
-function cloneTreeWithFreshIds(
-  root: Node,
-  idGen: (oldId: string, node: Node) => string
-): Node {
-  function cloneRec(node: Node): Node {
-    const newId = idGen(node.id, node);
-    const clonedProps = node.props ? deepClone(node.props) : undefined;
-    const clonedStyles = node.styles ? deepClone(node.styles) : undefined;
-    const clonedChildren = node.children
-      ? node.children.map((child) => cloneRec(child))
-      : [];
-
-    return {
-      id: newId,
-      type: node.type,
-      ...(clonedProps ? { props: clonedProps } : {}),
-      ...(clonedStyles ? { styles: clonedStyles } : {}),
-      children: clonedChildren,
-    };
-  }
-
-  return cloneRec(root);
-}
-
-/**
  * Clones a template (or existing document) into a brand new PageDocument.
  * - Generates ALL NEW node IDs across the entire tree (root page node and all children).
+ * - Deep-copies every other node field (props, styles, animation, actions, formConfig) and
+ *   remaps node-id references inside the tree (e.g. `modalNodeId`, `formId`) to the new ids;
+ *   references to ids outside the tree are left untouched.
  * - Ensures 100% ID difference from the source template.
  * - Sets fresh creation/update timestamps.
  * - Preserves origin template version/id in custom metadata.
@@ -356,7 +331,7 @@ export function cloneTemplateAsPage(
 
   const idGen = options.idGenerator || defaultIdGen;
 
-  const clonedRootNode = cloneTreeWithFreshIds(sourceDoc.document, idGen);
+  const { clonedNode: clonedRootNode } = cloneNodeTreeWithFreshIds(sourceDoc.document, idGen);
 
   // Guarantee root node type is 'page'
   const rootPageNode: Node & { type: 'page' } = {
