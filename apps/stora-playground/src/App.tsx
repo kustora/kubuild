@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   KubuildEditor,
+  EditorHandle,
+  TemplatePicker,
   ImportModal,
   downloadDocumentAsStora,
   downloadDocumentAsJson,
@@ -14,8 +16,9 @@ import {
   createMinimalRenderContext,
 } from '@kubuild/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
-import { createBlankDocument } from '@kubuild/core';
-import { PageDocument, starterPageFixture } from '@kubuild/schema';
+import { createBlankDocument, cloneTemplateAsPage } from '@kubuild/core';
+import { PageDocument, TemplateRecord, starterPageFixture } from '@kubuild/schema';
+import { HOST_BLOCKS, PLAYGROUND_TEMPLATES } from './host-integration';
 import {
   Layout,
   Eye,
@@ -162,6 +165,10 @@ export function App() {
   const [newPageSlug, setNewPageSlug] = useState<string>('');
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [editingPageName, setEditingPageName] = useState<string>('');
+  const [newPageTemplate, setNewPageTemplate] = useState<TemplateRecord | null>(null);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
+  // Imperative handle (STORA-538): imports go through replaceDocument so they're undoable.
+  const editorRef = useRef<EditorHandle>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
@@ -222,7 +229,10 @@ export function App() {
       ? newPageSlug.trim()
       : `/${newPageSlug.trim().toLowerCase().replace(/\s+/g, '-') || name.toLowerCase().replace(/\s+/g, '-')}`;
     const id = `page-${Date.now().toString(36)}`;
-    const newDoc = createBlankDocument(name);
+    // "New page from template" uses the exported TemplatePicker outside the editor.
+    const newDoc = newPageTemplate
+      ? cloneTemplateAsPage(newPageTemplate, { title: name })
+      : createBlankDocument(name);
 
     const createdPage: ProjectPage = {
       id,
@@ -237,6 +247,7 @@ export function App() {
     setActivePageId(id);
     setNewPageName('');
     setNewPageSlug('');
+    setNewPageTemplate(null);
     setIsAddPageModalOpen(false);
     setIsPageDropdownOpen(false);
   };
@@ -278,6 +289,13 @@ export function App() {
     setEditingPageId(null);
   };
 
+  // Simulated host persistence for onSave (STORA-537): the editor shows saving/saved and
+  // resets its dirty flag once this resolves. Cmd/Ctrl+S triggers it too.
+  const handleSave = async (doc: PageDocument) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    console.log('[Playground] Saved page', activePageId, doc.metadata?.title);
+  };
+
   // Minimal offline RenderContext injected by host without network dependency
   const renderContext = useMemo(
     () =>
@@ -315,7 +333,9 @@ export function App() {
                   BUILDER-01
                 </span>
               </h1>
-              <p className="text-[11px] text-slate-400">Stora Multi-Page Studio</p>
+              <p className="text-[11px] text-slate-400">
+                Stora Multi-Page Studio{isDirty ? ' · unsaved changes' : ''}
+              </p>
             </div>
           </div>
 
@@ -643,7 +663,7 @@ export function App() {
       {/* Add Page Modal */}
       {isAddPageModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-blue-400" />
@@ -697,6 +717,35 @@ export function App() {
                 />
               </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-200">
+                    Start from template (optional)
+                  </label>
+                  {newPageTemplate && (
+                    <button
+                      type="button"
+                      onClick={() => setNewPageTemplate(null)}
+                      className="text-[11px] text-blue-400 hover:text-blue-300"
+                    >
+                      Use blank page
+                    </button>
+                  )}
+                </div>
+                <div className="rounded-lg bg-white p-2">
+                  <TemplatePicker
+                    templates={PLAYGROUND_TEMPLATES}
+                    registry={registry}
+                    showPreview={false}
+                    onSelect={setNewPageTemplate}
+                    className="max-h-64"
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  {newPageTemplate ? `Selected: ${newPageTemplate.name}` : 'Blank page'}
+                </p>
+              </div>
+
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
@@ -721,7 +770,8 @@ export function App() {
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
         onImport={(importedDoc) => {
-          handleDocChange(importedDoc);
+          const result = editorRef.current?.replaceDocument(importedDoc, { keepHistory: true });
+          if (!result?.success) handleDocChange(importedDoc);
         }}
         registry={registry}
       />
@@ -730,6 +780,11 @@ export function App() {
       <main className="flex-1 overflow-hidden min-h-0">
         {activeTab === 'editor' && (
           <KubuildEditor
+            ref={editorRef}
+            blocks={HOST_BLOCKS}
+            templates={PLAYGROUND_TEMPLATES}
+            onSave={handleSave}
+            onDirtyChange={setIsDirty}
             pages={pages}
             activePageId={activePageId}
             onActivePageChange={setActivePageId}
