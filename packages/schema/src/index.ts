@@ -6,6 +6,8 @@ export * from './manifest';
 export * from './template';
 export * from './fixtures';
 export * from './json-schema';
+export * from './theme';
+export * from './canonical-props';
 
 
 

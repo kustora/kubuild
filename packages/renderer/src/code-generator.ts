@@ -1,6 +1,7 @@
 import { PageDocument, Node, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
 import { DEFAULT_CSS_RESET, styleDefinitionToCssDeclarations } from './styles';
 import { collectAnimationStylesCss } from './animation';
+import { themeToCssDeclarations } from './theme';
 
 export interface GenerateHtmlOptions {
   /**
@@ -544,6 +545,12 @@ export function generateDocumentCss(
   // Reset
   if (options.includeReset !== false) {
     sections.push(`/* ==========================================================================\n   Baseline Reset & Typography Standards\n   ========================================================================== */\n${DEFAULT_CSS_RESET}`);
+  }
+
+  // Design tokens (STORA-551): theme custom properties referenced as var(--kb-*)
+  const themeDecls = 'document' in docOrNode ? themeToCssDeclarations(docOrNode.theme) : '';
+  if (themeDecls) {
+    sections.push(`/* ==========================================================================\n   Design Tokens\n   ========================================================================== */\n${formatCssRule(':root', themeDecls)}`);
   }
 
   // Base Styles

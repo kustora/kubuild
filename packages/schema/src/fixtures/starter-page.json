@@ -1,6 +1,6 @@
 {
   "schema": "stora.page",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "metadata": {
     "title": "Welcome to KUBUILD",
     "description": "A starter template built with KUBUILD portable web builder",
@@ -81,7 +81,8 @@
                 "id": "hero-text",
                 "type": "text",
                 "props": {
-                  "content": "KUBUILD is an open, portable web page builder engine designed for modern web applications."
+                  "as": "p",
+                  "text": "KUBUILD is an open, portable web page builder engine designed for modern web applications."
                 },
                 "styles": {
                   "base": {

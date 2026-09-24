@@ -2,9 +2,10 @@ import { z } from 'zod';
 import { ActionPipeline, ActionPipelineSchema } from './actions';
 import { FormConfig, FormConfigSchema } from './form';
 import { TrackingConfig, TrackingConfigSchema } from './tracking';
+import { ThemeSchema } from './theme';
 
 export const SCHEMA_NAME = 'stora.page' as const;
-export const CURRENT_SCHEMA_VERSION = '1.1.0' as const;
+export const CURRENT_SCHEMA_VERSION = '1.2.0' as const;
 
 /**
  * Asset Reference Schema
@@ -327,12 +328,15 @@ export type DocumentMetadata = z.infer<typeof DocumentMetadataSchema>;
  * - metadata: serializable metadata
  * - document: root page node
  * - tracking: optional dynamic pixel & CAPI tracking configuration
+ * - theme: optional design tokens (colors/fonts/radii/spacing), emitted as CSS custom
+ *   properties and referenced from node styles as `var(--kb-color-<key>)` (STORA-551)
  */
 export const PageDocumentSchema = z.object({
   schema: z.literal(SCHEMA_NAME),
   version: z.string().min(1, 'Schema version is required').default(CURRENT_SCHEMA_VERSION),
   metadata: DocumentMetadataSchema.optional(),
   tracking: TrackingConfigSchema.optional(),
+  theme: ThemeSchema.optional(),
   document: RootPageNodeSchema,
 });
 

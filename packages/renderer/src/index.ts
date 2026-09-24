@@ -1,6 +1,7 @@
 export * from './renderer';
 export * from './artboard-portal-host';
 export * from './styles';
+export * from './theme';
 export * from './render-context';
 export * from './form-context';
 export * from './error-boundary';

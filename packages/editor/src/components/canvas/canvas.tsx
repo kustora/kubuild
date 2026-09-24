@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { PageDocument, type Artboard, type ArtboardType } from '@kubuild/schema';
+import { PageDocument, findDeprecatedPropAliases, type Artboard, type ArtboardType } from '@kubuild/schema';
 import { ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
 import { KubuildRenderer, ArtboardPortalHost } from '@kubuild/renderer';
 import {
@@ -1391,7 +1391,17 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     onNodePropChange={(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => {
                       if (previewMode) return;
                       if (!isBlur && typeof value === 'string' && value.trim() === '') return;
-                      updateNodeProps(nodeId, { [propName]: value }, registry);
+                      // STORA-550: inline edits write the canonical prop; drop deprecated aliases
+                      // so a legacy node doesn't end up with two competing text props.
+                      const editedNode = findNodeById(activeDoc.document, nodeId);
+                      const aliasRemovals = editedNode
+                        ? Object.fromEntries(
+                            findDeprecatedPropAliases(editedNode.type, editedNode.props)
+                              .filter((usage) => usage.canonicalName === propName)
+                              .map((usage) => [usage.propName, undefined]),
+                          )
+                        : {};
+                      updateNodeProps(nodeId, { ...aliasRemovals, [propName]: value }, registry);
                     }}
                     onActionDispatch={(
                       actionType: string,

@@ -45,15 +45,15 @@ function expectNoSecrets(value: unknown) {
 }
 
 describe('Tracking secrets are removed from documents', () => {
-  it('schema version is bumped to 1.1.0', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe('1.1.0');
+  it('schema version is at least 1.1.0 (secrets removed since 1.1.0)', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe('1.2.0');
   });
 
   it('migrates 1.0.0 -> 1.1.0, strips secrets and emits a TRACKING_SECRET_REMOVED warning', () => {
     const result = migrateDocument(legacyDoc());
     expect(result.success).toBe(true);
-    expect(result.document?.version).toBe('1.1.0');
-    expect(result.diagnostic.migrationPath).toEqual(['1.0.0', '1.1.0']);
+    expect(result.document?.version).toBe(CURRENT_SCHEMA_VERSION);
+    expect(result.diagnostic.migrationPath).toEqual(['1.0.0', '1.1.0', '1.2.0']);
     expectNoSecrets(result.document);
 
     // Public ids, flags and credentialId survive
@@ -81,7 +81,7 @@ describe('Tracking secrets are removed from documents', () => {
     doc.metadata = { title: 'x', tracking: JSON.parse(JSON.stringify(legacyTracking)) };
     const result = migrateDocument(doc);
     expect(result.success).toBe(true);
-    expect(result.document?.version).toBe('1.1.0');
+    expect(result.document?.version).toBe(CURRENT_SCHEMA_VERSION);
     expectNoSecrets(result.document);
     expect(result.diagnostic.warnings?.[0].paths).toEqual(
       expect.arrayContaining(['metadata.tracking.providers.meta.capiAccessToken']),
@@ -177,7 +177,7 @@ describe('Tracking secrets are removed from documents', () => {
     const imported = await importPackage(archive);
     expect(imported.success).toBe(true);
     if (!imported.success) return;
-    expect(imported.document.version).toBe('1.1.0');
+    expect(imported.document.version).toBe(CURRENT_SCHEMA_VERSION);
     expectNoSecrets(imported.document);
   });
 });

@@ -5,9 +5,28 @@ import {
   ProjectDocumentSchema,
   PROJECT_SCHEMA_NAME,
   CURRENT_PROJECT_SCHEMA_VERSION,
+  CURRENT_SCHEMA_VERSION,
   looksLikeProjectDocument,
 } from '@kubuild/schema';
-import { migrateDocument, MigrationError } from './migration';
+import { canMigrate, migrateDocument, MigrationError } from './migration';
+
+/**
+ * Brings every artboard's embedded page document up to the current page schema version
+ * (e.g. canonical text prop names, STORA-550). Best-effort: an artboard whose migration
+ * fails is left untouched rather than failing the whole project load.
+ */
+function migrateProjectArtboards(project: ProjectDocument): ProjectDocument {
+  let changed = false;
+  const artboards = project.artboards.map((artboard) => {
+    const version = artboard.document.version;
+    if (version === CURRENT_SCHEMA_VERSION || !canMigrate(version)) return artboard;
+    const migration = migrateDocument(artboard.document);
+    if (!migration.success || !migration.document) return artboard;
+    changed = true;
+    return { ...artboard, document: migration.document };
+  });
+  return changed ? { ...project, artboards } : project;
+}
 
 export type ProjectLoadErrorCode =
   | 'INVALID_SOURCE'
@@ -110,7 +129,7 @@ export function loadProjectDocument(raw: unknown): ProjectLoadResult {
     }
     return {
       success: true,
-      project: parsed.data,
+      project: migrateProjectArtboards(parsed.data),
       wrappedFromLegacyPage: false,
       errors: [],
     };

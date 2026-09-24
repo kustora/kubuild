@@ -1,5 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
 import { ComponentDefinition } from '../../registry';
+import { canonicalTextPropFields } from '../../canonical-props';
 import { ariaLabelTrait, idTrait, titleTrait } from '../../traits';
 
 export const headingDefinition: ComponentDefinition = {
@@ -8,6 +9,7 @@ export const headingDefinition: ComponentDefinition = {
   category: 'typography',
   icon: 'heading',
   acceptsChildren: false,
+  ...canonicalTextPropFields('heading'),
   defaultProps: { text: 'Heading Text', level: 2 },
   propFields: [
     { name: 'text', label: 'Text', type: 'string', defaultValue: 'Heading Text' },
@@ -33,7 +35,8 @@ export const headingDefinition: ComponentDefinition = {
   ],
   validateProps: (props) => {
     const errors: string[] = [];
-    if (!isVariableBinding(props.text) && (typeof props.text !== 'string' || props.text.trim().length === 0)) {
+    const text = props.text ?? props.content; // `content` is a deprecated alias (STORA-550)
+    if (!isVariableBinding(text) && (typeof text !== 'string' || text.trim().length === 0)) {
       errors.push('Heading requires a non-empty "text".');
     }
     if (props.level !== undefined && (typeof props.level !== 'number' || props.level < 1 || props.level > 6)) {
