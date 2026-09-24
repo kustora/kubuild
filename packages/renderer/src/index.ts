@@ -2,6 +2,7 @@ export * from './renderer';
 export * from './artboard-portal-host';
 export * from './styles';
 export * from './render-context';
+export * from './legacy-actions';
 export * from './form-context';
 export * from './error-boundary';
 export * from './preview-adapter';

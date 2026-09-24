@@ -14,7 +14,6 @@ import { resolveBinding, sanitizeUrl, sanitizeHtml } from '@kubuild/core';
 import {
   RenderContext,
   resolveAssetSync,
-  isActionRegistered,
   Diagnostic,
 } from '../render-context';
 import { FormRuntimeProvider } from '../form-context';
@@ -34,6 +33,8 @@ import {
   aspectRatioToCss,
 } from '../nodes';
 import { renderInteractiveNode } from './interactive-renderers';
+import { renderExtendedFormNode } from './extended-form-renderers';
+import { hasBuiltinLegacyAction, isLegacyActionResolvable } from '../legacy-actions';
 
 export interface RenderNodeContentOptions {
   node: Node;
@@ -936,8 +937,9 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
       if (props.action && !disabled) {
         const actionType = typeof props.action === 'object' ? (props.action as any).type : props.action;
         actionAttrs['data-kubuild-action'] = actionType;
-        if (context?.actionRegistry) {
-          const isResolved = isActionRegistered(context.actionRegistry, actionType);
+        if (context?.actionRegistry || hasBuiltinLegacyAction(actionType)) {
+          // Resolved = a host handler or a built-in legacy handler (STORA-533) will run it.
+          const isResolved = isLegacyActionResolvable(context?.actionRegistry, actionType);
           actionAttrs['data-kubuild-action-resolved'] = isResolved ? 'true' : 'false';
         }
       }
@@ -1448,6 +1450,10 @@ export function renderNodeContent(options: RenderNodeContentOptions): React.Reac
   // 7. Form nodes
   const form = renderFormNode(options);
   if (form) return form;
+
+  // 7b. Extended form nodes: switch, file-upload, radio-group, radio-item, button-submit
+  const extendedForm = renderExtendedFormNode(options);
+  if (extendedForm) return extendedForm;
 
   // 8. Collection node
   const collection = renderCollectionNode(options);

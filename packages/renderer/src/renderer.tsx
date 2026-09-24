@@ -23,6 +23,7 @@ import { ToastContainer } from './action-runners/toast-container';
 import { useModal, modalManager, type ModalManager } from './action-runners';
 import { executeNodeActions, useNodeLoadActions } from './action-dispatcher';
 import { injectTrackingScripts } from './tracking/tracking-manager';
+import { isLegacyActionResolvable } from './legacy-actions';
 
 // Re-export all nodes and media utilities for backward compatibility
 export * from './nodes';
@@ -150,6 +151,7 @@ export function NodeRenderer({
         document,
         context,
         onDiagnostic,
+        allowBuiltinHandlers: mode !== 'editor',
       });
       if (onActionDispatch && isActionBinding(props.action)) {
         onActionDispatch(props.action.type, resolveActionPayload(context, props.action.payload), node.id);
@@ -286,6 +288,13 @@ export function NodeRenderer({
     }
   }
 
+  // Editor-only: make a legacy `props.action` that nothing will handle visible on the canvas,
+  // instead of only surfacing UNKNOWN_ACTION through onDiagnostic when it is clicked.
+  const unresolvedLegacyAction =
+    mode === 'editor' && props.action && !props.disabled
+      ? getUnresolvedLegacyActionType(props.action, context)
+      : null;
+
   return (
     <ComponentErrorBoundary
       nodeId={node.id}
@@ -293,9 +302,58 @@ export function NodeRenderer({
       mode={mode}
       onDiagnostic={onDiagnostic}
     >
-      {content}
+      {unresolvedLegacyAction !== null ? (
+        <>
+          {content}
+          <UnresolvedActionBadge nodeId={node.id} actionType={unresolvedLegacyAction} />
+        </>
+      ) : (
+        content
+      )}
     </ComponentErrorBoundary>
   );
+}
+
+function UnresolvedActionBadge({ nodeId, actionType }: { nodeId: string; actionType: string }): React.ReactElement {
+  return (
+    <span
+      role="note"
+      data-kubuild-diagnostic="UNKNOWN_ACTION"
+      data-kubuild-diagnostic-node={nodeId}
+      title={`No action handler registered for action type "${actionType}". Register it in the render context's actionRegistry or convert it to an action pipeline.`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        marginLeft: '4px',
+        padding: '1px 6px',
+        borderRadius: '4px',
+        backgroundColor: '#fffbeb',
+        border: '1px solid #f59e0b',
+        color: '#b45309',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '11px',
+        lineHeight: '16px',
+        verticalAlign: 'middle',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <AlertTriangle size={12} aria-hidden="true" />
+      Unknown action: {actionType}
+    </span>
+  );
+}
+
+/**
+ * Returns the action type of a legacy `props.action` binding that no host handler and no
+ * built-in handler will execute (or `'invalid'` for a malformed binding); `null` when it
+ * resolves.
+ */
+export function getUnresolvedLegacyActionType(action: unknown, context?: RenderContext): string | null {
+  if (!isActionBinding(action)) {
+    return 'invalid';
+  }
+  return isLegacyActionResolvable(context?.actionRegistry, action.type) ? null : action.type;
 }
 
 const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({

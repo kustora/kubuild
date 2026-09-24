@@ -1,4 +1,4 @@
-import { Node, collectNodeIds } from '@kubuild/schema';
+import { Node, collectNodeIds, type ActionStep } from '@kubuild/schema';
 
 /**
  * Deep clone an object immutably (JSON-safe).
@@ -201,36 +201,130 @@ export interface ClonedSubtreeResult {
 }
 
 /**
+ * Keys (in step payloads, legacy `props.action.payload`, and node props) whose string value
+ * is a reference to another node's id. When a subtree is cloned with fresh ids, references
+ * that point at a node *inside* that subtree are rewritten to the clone's new id; references
+ * to nodes outside the subtree are left untouched.
+ */
+export const NODE_ID_REFERENCE_KEYS: ReadonlySet<string> = new Set([
+  'modalId',
+  'modalNodeId',
+  'targetModalId',
+  'targetNodeId',
+  'nodeId',
+  'formId',
+  'targetId',
+]);
+
+/**
+ * Keys whose string value may be an in-page anchor (`#<nodeId>`) — a node's DOM id is its
+ * node id, so anchors to nodes inside a cloned subtree must follow the new id as well.
+ */
+const ANCHOR_REFERENCE_KEYS: ReadonlySet<string> = new Set(['url', 'href']);
+
+function remapReferenceValue(key: string, value: unknown, idMap: ReadonlyMap<string, string>): unknown {
+  if (typeof value !== 'string') return value;
+  if (NODE_ID_REFERENCE_KEYS.has(key)) {
+    return idMap.get(value) ?? idMap.get(value.trim()) ?? value;
+  }
+  if (ANCHOR_REFERENCE_KEYS.has(key) && value.startsWith('#')) {
+    const mapped = idMap.get(value.slice(1));
+    return mapped ? `#${mapped}` : value;
+  }
+  return value;
+}
+
+/** Remaps node-id references in a flat key/value record (props, step payloads). Mutates in place. */
+function remapReferenceRecord(record: Record<string, unknown>, idMap: ReadonlyMap<string, string>): void {
+  for (const [key, value] of Object.entries(record)) {
+    record[key] = remapReferenceValue(key, value, idMap);
+  }
+}
+
+function remapStepReferences(steps: ActionStep[] | undefined, idMap: ReadonlyMap<string, string>): void {
+  if (!Array.isArray(steps)) return;
+  for (const step of steps) {
+    if (step.payload && typeof step.payload === 'object') {
+      remapReferenceRecord(step.payload, idMap);
+    }
+    remapStepReferences(step.onSuccess, idMap);
+    remapStepReferences(step.onError, idMap);
+  }
+}
+
+/**
+ * Rewrites node-id references inside a single (already cloned) node so they follow `idMap`.
+ * Covers action pipeline step payloads (incl. onSuccess/onError branches), `formConfig.formId`,
+ * id-reference props (e.g. `modalId`, `formId`), `#anchor` hrefs, and the legacy `props.action`
+ * payload. Mutates the node in place; callers must pass a clone they own.
+ */
+export function remapNodeReferences(node: Node, idMap: ReadonlyMap<string, string>): void {
+  if (node.props && typeof node.props === 'object') {
+    remapReferenceRecord(node.props, idMap);
+    const legacyAction = node.props.action as { payload?: unknown } | undefined;
+    if (
+      legacyAction &&
+      typeof legacyAction === 'object' &&
+      legacyAction.payload &&
+      typeof legacyAction.payload === 'object' &&
+      !Array.isArray(legacyAction.payload)
+    ) {
+      remapReferenceRecord(legacyAction.payload as Record<string, unknown>, idMap);
+    }
+  }
+  if (node.formConfig && typeof node.formConfig.formId === 'string') {
+    node.formConfig.formId = idMap.get(node.formConfig.formId) ?? node.formConfig.formId;
+  }
+  if (Array.isArray(node.actions)) {
+    for (const pipeline of node.actions) {
+      remapStepReferences(pipeline.steps, idMap);
+    }
+  }
+}
+
+/**
+ * Deep-clones a node subtree assigning every node a fresh id via `idGen`, preserving every
+ * other `Node` field (props, styles, animation, actions, formConfig, and any future field),
+ * then rewrites intra-subtree node-id references (see {@link remapNodeReferences}).
+ */
+export function cloneNodeTreeWithFreshIds(
+  root: Node,
+  idGen: (oldId: string, node: Node) => string,
+): ClonedSubtreeResult {
+  const idMap = new Map<string, string>();
+  const clonedNodes: Node[] = [];
+
+  function cloneRecursive(node: Node): Node {
+    const newId = idGen(node.id, node);
+    idMap.set(node.id, newId);
+
+    const { children, ...rest } = node;
+    const cloned: Node = {
+      ...deepClone(rest),
+      id: newId,
+      children: children ? children.map((child) => cloneRecursive(child)) : [],
+    };
+    clonedNodes.push(cloned);
+    return cloned;
+  }
+
+  const clonedNode = cloneRecursive(root);
+  for (const cloned of clonedNodes) {
+    remapNodeReferences(cloned, idMap);
+  }
+  return { clonedNode, idMap };
+}
+
+/**
  * Recursively clone a node and its entire subtree, generating fresh unique IDs
- * for every node while preserving types, props, and responsive styles.
+ * for every node while preserving every other node field (props, styles, animation,
+ * actions, formConfig) and remapping intra-subtree node-id references.
  */
 export function cloneTreeWithNewIds(
   root: Node,
   idGenerator?: (oldId: string) => string,
   existingIds?: Set<string>,
 ): ClonedSubtreeResult {
-  const idMap = new Map<string, string>();
   const idGen = idGenerator || ((oldId: string) => defaultIdGenerator(oldId, existingIds));
-
-  function cloneRecursive(node: Node): Node {
-    const newId = idGen(node.id);
-    idMap.set(node.id, newId);
-
-    const clonedProps = node.props ? deepClone(node.props) : undefined;
-    const clonedStyles = node.styles ? deepClone(node.styles) : undefined;
-    const clonedChildren = node.children
-      ? node.children.map((child) => cloneRecursive(child))
-      : [];
-
-    return {
-      id: newId,
-      type: node.type,
-      ...(clonedProps ? { props: clonedProps } : {}),
-      ...(clonedStyles ? { styles: clonedStyles } : {}),
-      children: clonedChildren,
-    };
-  }
-
-  const clonedNode = cloneRecursive(root);
-  return { clonedNode, idMap };
+  return cloneNodeTreeWithFreshIds(root, (oldId) => idGen(oldId));
 }

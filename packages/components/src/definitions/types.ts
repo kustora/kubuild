@@ -1,38 +1,8 @@
+import type { BuiltinComponentType } from '@kubuild/schema';
+
 /**
  * All built-in / core component type names provided by @kubuild/components.
+ * Derived from the canonical `BUILTIN_COMPONENT_TYPES` list in `@kubuild/schema`
+ * (the registry-coverage test in this package keeps both in sync).
  */
-export type CoreComponentType =
-  | 'page'
-  | 'section'
-  | 'container'
-  | 'columns'
-  | 'heading'
-  | 'text'
-  | 'paragraph'
-  | 'link'
-  | 'blockquote'
-  | 'badge'
-  | 'code-block'
-  | 'image'
-  | 'video'
-  | 'icon'
-  | 'html-embed'
-  | 'button'
-  | 'button-submit'
-  | 'form'
-  | 'input'
-  | 'textarea'
-  | 'select'
-  | 'checkbox'
-  | 'switch'
-  | 'radio-group'
-  | 'radio'
-  | 'radio-item'
-  | 'file-upload'
-  | 'collection'
-  | 'list'
-  | 'list-item'
-  | 'table'
-  | 'table-row'
-  | 'table-cell';
-
+export type CoreComponentType = BuiltinComponentType;
