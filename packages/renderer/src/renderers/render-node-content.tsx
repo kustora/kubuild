@@ -226,8 +226,8 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
           ? resolvedProps.tag
           : typeof props.tag === 'string'
           ? props.tag
-          : (props.content !== undefined || resolvedProps.content !== undefined) && props.text === undefined && resolvedProps.text === undefined
-          ? 'p'
+          : props.content !== undefined && props.text === undefined
+          ? 'p' // legacy `content`-only text nodes rendered as <p> (deprecated alias, STORA-550)
           : 'span';
       const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && !isVariableBinding(props.content);
 
@@ -298,10 +298,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
             isEditable={isEditable}
             nodeId={node.id}
             onClick={handleLinkClick}
-            onChange={(val, isBlur) => {
-              const propKey = 'text' in props ? 'text' : 'label';
-              onNodePropChange?.(node.id, propKey, val, isBlur);
-            }}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
             href={safeHref}
             target={target}
             rel={computedRel}
@@ -324,15 +321,16 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
       );
     }
     case 'blockquote': {
+      // `text` is canonical; `quote` is a deprecated alias still read for one minor (STORA-550).
       const quote =
-        typeof resolvedProps.quote === 'string'
-          ? resolvedProps.quote
-          : typeof resolvedProps.text === 'string'
+        typeof resolvedProps.text === 'string'
           ? resolvedProps.text
-          : typeof props.quote === 'string'
-          ? props.quote
+          : typeof resolvedProps.quote === 'string'
+          ? resolvedProps.quote
           : typeof props.text === 'string'
           ? props.text
+          : typeof props.quote === 'string'
+          ? props.quote
           : undefined;
       const cite = typeof resolvedProps.cite === 'string' ? resolvedProps.cite : (typeof props.cite === 'string' ? props.cite : undefined);
       const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.quote) && !isVariableBinding(props.text);
@@ -361,10 +359,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
                 value={quote}
                 isEditable={isEditable}
                 nodeId={node.id}
-                onChange={(val, isBlur) => {
-                  const propKey = 'quote' in props ? 'quote' : 'text';
-                  onNodePropChange?.(node.id, propKey, val, isBlur);
-                }}
+                onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
               />
             ) : (
               <p>{quote}</p>
@@ -399,10 +394,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
               value={text}
               isEditable={isEditable}
               nodeId={node.id}
-              onChange={(val, isBlur) => {
-                const propKey = 'text' in props ? 'text' : 'label';
-                onNodePropChange?.(node.id, propKey, val, isBlur);
-              }}
+              onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
             />
           ) : (
             text

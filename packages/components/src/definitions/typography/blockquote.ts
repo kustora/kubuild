@@ -1,5 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
 import { ComponentDefinition } from '../../registry';
+import { canonicalTextPropFields } from '../../canonical-props';
 import { ariaLabelTrait, citeTrait, idTrait, titleTrait } from '../../traits';
 
 export const blockquoteDefinition: ComponentDefinition = {
@@ -21,6 +22,7 @@ export const blockquoteDefinition: ComponentDefinition = {
     'html-embed',
     'custom',
   ],
+  ...canonicalTextPropFields('blockquote'),
   defaultProps: {
     text: '“Simplicity is the soul of efficiency.”',
   },

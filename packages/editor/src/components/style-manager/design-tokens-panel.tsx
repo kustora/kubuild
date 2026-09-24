@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { isSafeThemeTokenKey, themeTokenRef, type Theme, type ThemeTokenGroup } from '@kubuild/schema';
 
 export interface ColorToken {
   id: string;
@@ -89,10 +90,36 @@ export const DEFAULT_TYPOGRAPHY_TOKENS: TypographyToken[] = [
   },
 ];
 
+/** Turns a display name into a safe theme token key (e.g. "Brand Muted" -> "brand-muted"). */
+export function toThemeTokenKey(name: string, fallbackPrefix = 'token'): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .slice(0, 64);
+  return isSafeThemeTokenKey(slug) ? slug : `${fallbackPrefix}-${Date.now().toString(36)}`;
+}
+
 export interface DesignTokensPanelProps {
   colorTokens?: ColorToken[];
   typographyTokens?: TypographyToken[];
+  /**
+   * The document theme (STORA-551). Its color tokens are listed first (overriding
+   * same-named defaults) so swatches always show the document's real values.
+   */
+  theme?: Theme;
+  /**
+   * Called before a token is applied so the host can make sure it exists in the document
+   * theme (a reference to a missing token would render nothing).
+   */
+  onEnsureToken?: (group: ThemeTokenGroup, key: string, value: string) => void;
+  /**
+   * Receives a token *reference* such as `var(--kb-color-primary)`, never the literal
+   * color, so later theme edits restyle the node.
+   */
   onApplyColor?: (property: 'backgroundColor' | 'color' | 'borderColor', value: string) => void;
+  /** Receives styles whose `fontFamily` is a token reference (`var(--kb-font-<id>)`). */
   onApplyTypography?: (styles: Record<string, string>) => void;
   onAddColorToken?: (token: ColorToken) => void;
   onAddTypographyToken?: (token: TypographyToken) => void;
@@ -103,6 +130,8 @@ export interface DesignTokensPanelProps {
 export const DesignTokensPanel: React.FC<DesignTokensPanelProps> = ({
   colorTokens: initialColors = DEFAULT_COLOR_TOKENS,
   typographyTokens: initialTypography = DEFAULT_TYPOGRAPHY_TOKENS,
+  theme,
+  onEnsureToken,
   onApplyColor,
   onApplyTypography,
   onAddColorToken,
@@ -110,7 +139,15 @@ export const DesignTokensPanel: React.FC<DesignTokensPanelProps> = ({
   onDeleteColorToken,
   className = '',
 }) => {
-  const [colors, setColors] = useState<ColorToken[]>(initialColors);
+  const [localColors, setColors] = useState<ColorToken[]>(initialColors);
+  const colors = useMemo<ColorToken[]>(() => {
+    const themeColors = Object.entries(theme?.colors ?? {}).map(([key, value]) => {
+      const known = localColors.find((token) => token.id === key);
+      return { id: key, name: known?.name ?? key, value: String(value), category: known?.category ?? 'custom' } as ColorToken;
+    });
+    const themeKeys = new Set(themeColors.map((token) => token.id));
+    return [...themeColors, ...localColors.filter((token) => !themeKeys.has(token.id))];
+  }, [theme?.colors, localColors]);
   const [typography, setTypography] = useState<TypographyToken[]>(initialTypography);
 
   const [activeTab, setActiveTab] = useState<'colors' | 'typography'>('colors');
@@ -133,12 +170,13 @@ export const DesignTokensPanel: React.FC<DesignTokensPanelProps> = ({
     e.preventDefault();
     if (!newColorName.trim()) return;
     const token: ColorToken = {
-      id: `custom-color-${Date.now()}`,
+      id: toThemeTokenKey(newColorName, 'color'),
       name: newColorName.trim(),
       value: newColorVal,
       category: 'custom',
     };
-    setColors((prev) => [...prev, token]);
+    setColors((prev) => [...prev.filter((existing) => existing.id !== token.id), token]);
+    if (onEnsureToken) onEnsureToken('colors', token.id, token.value);
     if (onAddColorToken) onAddColorToken(token);
     setNewColorName('');
     setIsAddingColor(false);
@@ -161,16 +199,18 @@ export const DesignTokensPanel: React.FC<DesignTokensPanelProps> = ({
     setIsAddingTypo(false);
   };
 
-  const handleApplyColor = (property: 'backgroundColor' | 'color' | 'borderColor', val: string) => {
+  const handleApplyColor = (property: 'backgroundColor' | 'color' | 'borderColor', token: ColorToken) => {
     if (onApplyColor) {
-      onApplyColor(property, val);
+      onEnsureToken?.('colors', token.id, token.value);
+      onApplyColor(property, themeTokenRef('colors', token.id));
     }
   };
 
   const handleApplyTypographyPreset = (token: TypographyToken) => {
     if (onApplyTypography) {
+      onEnsureToken?.('fonts', token.id, token.fontFamily);
       const stylesToApply: Record<string, string> = {
-        fontFamily: token.fontFamily,
+        fontFamily: themeTokenRef('fonts', token.id),
         fontSize: token.fontSize,
         fontWeight: token.fontWeight,
         lineHeight: token.lineHeight,
@@ -303,7 +343,7 @@ export const DesignTokensPanel: React.FC<DesignTokensPanelProps> = ({
                 <button
                   type="button"
                   data-testid={`token-apply-bg-${selectedColorToken.id}`}
-                  onClick={() => handleApplyColor('backgroundColor', selectedColorToken.value)}
+                  onClick={() => handleApplyColor('backgroundColor', selectedColorToken)}
                   className="py-1 text-[10px] font-medium bg-white text-slate-700 hover:bg-slate-100 hover:text-blue-600 rounded border border-slate-200 shadow-2xs transition cursor-pointer"
                 >
                   Background
@@ -311,7 +351,7 @@ export const DesignTokensPanel: React.FC<DesignTokensPanelProps> = ({
                 <button
                   type="button"
                   data-testid={`token-apply-color-${selectedColorToken.id}`}
-                  onClick={() => handleApplyColor('color', selectedColorToken.value)}
+                  onClick={() => handleApplyColor('color', selectedColorToken)}
                   className="py-1 text-[10px] font-medium bg-white text-slate-700 hover:bg-slate-100 hover:text-blue-600 rounded border border-slate-200 shadow-2xs transition cursor-pointer"
                 >
                   Text Color
@@ -319,7 +359,7 @@ export const DesignTokensPanel: React.FC<DesignTokensPanelProps> = ({
                 <button
                   type="button"
                   data-testid={`token-apply-border-${selectedColorToken.id}`}
-                  onClick={() => handleApplyColor('borderColor', selectedColorToken.value)}
+                  onClick={() => handleApplyColor('borderColor', selectedColorToken)}
                   className="py-1 text-[10px] font-medium bg-white text-slate-700 hover:bg-slate-100 hover:text-blue-600 rounded border border-slate-200 shadow-2xs transition cursor-pointer"
                 >
                   Border

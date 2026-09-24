@@ -5,6 +5,7 @@ import { type ComponentRegistry, createDefaultComponentRegistry } from '@kubuild
 import { RenderContext, DEFAULT_RENDER_CONTEXT, Diagnostic } from './render-context';
 import { useModals, modalManager, type ModalManager } from './action-runners';
 import { NodeRenderer, KubuildRenderer, type KubuildRendererProps } from './renderer';
+import { resolveRuntimeTheme, themeToCssProperties } from './theme';
 
 export interface ArtboardPortalHostProps {
   /**
@@ -123,7 +124,7 @@ export const ArtboardPortalHost: React.FC<ArtboardPortalHostProps> = ({
           <div
             key={artboard.id}
             data-kubuild-artboard-portal={artboard.id}
-            style={{ pointerEvents: 'auto' }}
+            style={{ pointerEvents: 'auto', ...themeToCssProperties(resolveRuntimeTheme(artboard.document, context)) }}
           >
             <NodeRenderer
               node={contentNode}

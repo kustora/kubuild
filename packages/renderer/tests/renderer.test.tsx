@@ -415,13 +415,24 @@ describe('STORA-051: Centralized prop resolution & binding type diagnostics', ()
     expect(diagnostics).toEqual([]);
   });
 
-  it('resolves a compatible binding for text.content', () => {
+  it('resolves a compatible binding for text.text', () => {
+    const { html, diagnostics } = renderWithDiagnostics(
+      { id: 't1', type: 'text', props: { text: { type: 'variable', key: 'tagline' } } },
+      { variables: { tagline: 'Build once, render anywhere' } },
+    );
+    expect(html).toContain('Build once, render anywhere');
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('still resolves a binding on the deprecated text.content alias, with a DEPRECATED_PROP diagnostic', () => {
     const { html, diagnostics } = renderWithDiagnostics(
       { id: 't1', type: 'text', props: { content: { type: 'variable', key: 'tagline' } } },
       { variables: { tagline: 'Build once, render anywhere' } },
     );
     expect(html).toContain('Build once, render anywhere');
-    expect(diagnostics).toEqual([]);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ code: 'DEPRECATED_PROP', nodeId: 't1', propName: 'content', canonicalName: 'text' }),
+    ]);
   });
 
   it('resolves compatible bindings for image.src and image.alt', () => {
@@ -519,8 +530,8 @@ describe('STORA-052: Collection rendering', () => {
         type: 'collection',
         props: collectionProps,
         children: [
-          { id: 'item-name', type: 'text', props: { content: { type: 'variable', key: 'item.name' } } },
-          { id: 'item-price', type: 'text', props: { content: 'Price: {{ item.price }}' } },
+          { id: 'item-name', type: 'text', props: { text: { type: 'variable', key: 'item.name' } } },
+          { id: 'item-price', type: 'text', props: { text: 'Price: {{ item.price }}' } },
         ],
       },
     ];

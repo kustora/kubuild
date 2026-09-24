@@ -1,5 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
 import { ComponentDefinition } from '../../registry';
+import { canonicalTextPropFields } from '../../canonical-props';
 import { ariaLabelTrait, idTrait, titleTrait } from '../../traits';
 
 export const paragraphDefinition: ComponentDefinition = {
@@ -8,6 +9,7 @@ export const paragraphDefinition: ComponentDefinition = {
   category: 'typography',
   icon: 'paragraph',
   acceptsChildren: false,
+  ...canonicalTextPropFields('paragraph'),
   defaultProps: {
     text: 'A paragraph of text with clean semantic typography.',
   },

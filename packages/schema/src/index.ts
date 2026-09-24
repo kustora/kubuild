@@ -7,3 +7,5 @@ export * from './template';
 export * from './fixtures';
 export * from './json-schema';
 export * from './builtin-components';
+export * from './theme';
+export * from './canonical-props';

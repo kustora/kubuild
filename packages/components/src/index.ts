@@ -5,3 +5,4 @@ export * from './prop-types';
 export * from './traits';
 export * from './blocks';
 
+export * from './canonical-props';

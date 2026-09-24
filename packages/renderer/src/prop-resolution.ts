@@ -1,4 +1,4 @@
-import { Node, isVariableBinding } from '@kubuild/schema';
+import { Node, isVariableBinding, findDeprecatedPropAliases } from '@kubuild/schema';
 import { ComponentDefinition, ComponentFieldDefinition, primitiveTypeForField } from '@kubuild/components';
 import { resolveBinding, Diagnostic, RenderContext } from '@kubuild/core';
 import { resolveVariable } from './render-context';
@@ -78,11 +78,20 @@ export function resolvePropsForNode(
   context: RenderContext | undefined,
 ): ResolvedNodeProps {
   const rawProps = node.props || {};
+  const deprecatedUsages = findDeprecatedPropAliases(node.type, rawProps);
+  const diagnostics: Diagnostic[] = deprecatedUsages.map((usage) => ({
+    code: 'DEPRECATED_PROP',
+    nodeId: node.id,
+    componentType: node.type,
+    propName: usage.propName,
+    canonicalName: usage.canonicalName,
+    message: `Prop "${usage.propName}" on ${node.type} node "${node.id}" is deprecated; use "${usage.canonicalName}" (run migrateDocument to rename it).`,
+  }));
+
   if (!definition || !definition.propFields || definition.propFields.length === 0) {
-    return { props: rawProps, diagnostics: [] };
+    return { props: rawProps, diagnostics };
   }
 
-  const diagnostics: Diagnostic[] = [];
   const resolved: Record<string, unknown> = { ...rawProps };
 
   for (const field of definition.propFields) {
@@ -90,6 +99,20 @@ export function resolvePropsForNode(
       continue;
     }
     resolved[field.name] = resolveBindableField(node, field, definition, context, diagnostics);
+    // STORA-550: a deprecated alias carrying the visible value (canonical prop absent) is
+    // resolved like the canonical field, so bindings/`{{ }}` in legacy props keep working.
+    const aliasInEffect = deprecatedUsages.find(
+      (usage) => usage.inEffect && usage.canonicalName === field.name,
+    );
+    if (aliasInEffect && resolved[field.name] === undefined) {
+      resolved[field.name] = resolveBindableField(
+        node,
+        { ...field, name: aliasInEffect.propName },
+        definition,
+        context,
+        diagnostics,
+      );
+    }
   }
 
   return { props: resolved, diagnostics };

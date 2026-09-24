@@ -54,6 +54,8 @@ export function createRenderContext(options?: {
   artboardSurface?: ArtboardType;
   /** Host tracking runtime options (e.g. `relayUrl`). Host config, never document data. */
   tracking?: RuntimeTrackingOptions;
+  /** Host theme override merged over `PageDocument.theme` at render time (STORA-551). */
+  theme?: RenderContext['theme'];
 }): RenderContext {
   if (!options) {
     return DEFAULT_RENDER_CONTEXT;
@@ -81,6 +83,7 @@ export function createRenderContext(options?: {
     ...(resolveArtboard ? { resolveArtboard } : {}),
     ...(options.artboardSurface ? { artboardSurface: options.artboardSurface } : {}),
     ...(options.tracking ? { tracking: Object.freeze({ ...options.tracking }) } : {}),
+    ...(options.theme ? { theme: Object.freeze({ ...options.theme }) } : {}),
   });
 }
 

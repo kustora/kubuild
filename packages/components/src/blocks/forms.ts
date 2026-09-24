@@ -58,7 +58,7 @@ export const FORM_STARTER_BLOCKS: BlockDefinition[] = [
               id: gen('paragraph'),
               type: 'paragraph',
               props: {
-                content: 'Have questions or need assistance? Fill out the form below and we will get back to you shortly.',
+                text: 'Have questions or need assistance? Fill out the form below and we will get back to you shortly.',
               },
               styles: {
                 base: {
@@ -316,7 +316,7 @@ export const FORM_STARTER_BLOCKS: BlockDefinition[] = [
               id: gen('paragraph'),
               type: 'paragraph',
               props: {
-                content: 'Subscribe to our newsletter for weekly curated insights, updates, and best practices.',
+                text: 'Subscribe to our newsletter for weekly curated insights, updates, and best practices.',
               },
               styles: {
                 base: {
@@ -494,7 +494,7 @@ export const FORM_STARTER_BLOCKS: BlockDefinition[] = [
             {
               id: gen('badge'),
               type: 'badge',
-              props: { label: 'FREE CONSULTATION', variant: 'primary' },
+              props: { text: 'FREE CONSULTATION', variant: 'primary' },
               styles: { base: { marginBottom: '12px', display: 'inline-block' } },
             },
             {
@@ -514,7 +514,7 @@ export const FORM_STARTER_BLOCKS: BlockDefinition[] = [
               id: gen('paragraph'),
               type: 'paragraph',
               props: {
-                content: 'Share your project details with our solutions team. We will analyze your needs and provide a personalized roadmap.',
+                text: 'Share your project details with our solutions team. We will analyze your needs and provide a personalized roadmap.',
               },
               styles: {
                 base: {

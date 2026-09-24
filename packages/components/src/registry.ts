@@ -69,6 +69,18 @@ export interface ComponentDefinition<TRenderer = unknown> {
    * everything a document needs before accepting it.
    */
   capabilities?: string[];
+  /**
+   * STORA-550: the single canonical prop holding this component's visible text
+   * (e.g. `text` for heading/paragraph, `label` for button). Templates, hosts and the
+   * editor's inline editing must write this name.
+   */
+  canonicalTextProp?: string;
+  /**
+   * STORA-550: deprecated alias -> canonical prop name. The renderer still reads an alias
+   * for one minor version (emitting a `DEPRECATED_PROP` diagnostic) and `migrateDocument`
+   * (`1.1.0 -> 1.2.0`) renames it. Sourced from `CANONICAL_TEXT_PROPS` in `@kubuild/schema`.
+   */
+  deprecatedPropAliases?: Record<string, string>;
 }
 
 export class ComponentRegistry<TRenderer = unknown> {

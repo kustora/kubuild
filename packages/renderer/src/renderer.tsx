@@ -16,6 +16,7 @@ import {
 import { AlertTriangle } from 'lucide-react';
 import { resolveNodeStyles, collectStateStylesCss } from './styles';
 import { collectAnimationStylesCss } from './animation';
+import { resolveRuntimeTheme, themeToCssProperties } from './theme';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
 import { renderNodeContent } from './renderers';
@@ -382,6 +383,12 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
     () => collectAnimationStylesCss(document),
     [document],
   );
+  // Design tokens (STORA-551) exposed as CSS custom properties on the root, so node styles
+  // like `var(--kb-color-primary)` resolve. Host `context.theme` overrides document tokens.
+  const themeStyle = React.useMemo(
+    () => themeToCssProperties(resolveRuntimeTheme(document, context)),
+    [document, context],
+  );
 
   // Stable string key derived from the tracking config — avoids re-injecting on every render
   // because each deserialized JSON parse produces a new object reference even if content is unchanged.
@@ -400,7 +407,7 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
 
   return (
     <RenderContextProvider value={context}>
-      <div className={`kubuild-canvas-root ${className || ''}`}>
+      <div className={`kubuild-canvas-root ${className || ''}`} style={themeStyle}>
         {/* Compiled pseudo-state CSS (:hover/:active/:focus) — STORA-222 */}
         {stateStylesCss ? <style data-kubuild-state-styles>{stateStylesCss}</style> : null}
         {/* Compiled animation & hover micro-interactions CSS — STORA-264 */}
