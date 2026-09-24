@@ -4,7 +4,13 @@ import type { Artboard, Node } from '@kubuild/schema';
 import { type ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import { RenderContext, DEFAULT_RENDER_CONTEXT, Diagnostic } from './render-context';
 import { useModals, modalManager, type ModalManager } from './action-runners';
-import { NodeRenderer, KubuildRenderer, type KubuildRendererProps } from './renderer';
+import {
+  NodeRenderer,
+  KubuildRenderer,
+  resolveResponsiveMode,
+  type KubuildRendererProps,
+} from './renderer';
+import { collectResponsiveStylesCss, type ResponsiveMode } from './styles';
 
 export interface ArtboardPortalHostProps {
   /**
@@ -15,6 +21,8 @@ export interface ArtboardPortalHostProps {
   registry?: ComponentRegistry;
   context?: RenderContext;
   viewport?: 'desktop' | 'tablet' | 'mobile';
+  /** Same semantics and defaulting as `KubuildRenderer`'s `responsive` prop. */
+  responsive?: ResponsiveMode;
   /**
    * Editor mode renders nothing: while authoring, a component artboard is shown as its own
    * canvas surface instead, which is precisely what keeps it from covering the page being
@@ -69,8 +77,9 @@ export const ArtboardPortalHost: React.FC<ArtboardPortalHostProps> = ({
   artboards,
   registry,
   context = DEFAULT_RENDER_CONTEXT,
-  viewport = 'desktop',
+  viewport: viewportProp,
   mode = 'runtime',
+  responsive: responsiveProp,
   modalManager: managerProp,
   container,
   onDiagnostic,
@@ -92,6 +101,9 @@ export const ArtboardPortalHost: React.FC<ArtboardPortalHostProps> = ({
   if (mode === 'editor') {
     return null;
   }
+
+  const viewport = viewportProp ?? 'desktop';
+  const responsive = resolveResponsiveMode(responsiveProp, 'runtime', viewportProp);
 
   const openArtboards = selectOpenComponentArtboards(candidates, modals);
 
@@ -115,6 +127,8 @@ export const ArtboardPortalHost: React.FC<ArtboardPortalHostProps> = ({
       {openArtboards.map((artboard) => {
         const contentNode = getArtboardContentNode(artboard);
         if (!contentNode) return null;
+        const responsiveCss =
+          responsive === 'css' ? collectResponsiveStylesCss(artboard.document) : '';
 
         return ReactDOM.createPortal(
           // `pointerEvents: auto` restores interaction for hosts that mark the portal
@@ -125,6 +139,9 @@ export const ArtboardPortalHost: React.FC<ArtboardPortalHostProps> = ({
             data-kubuild-artboard-portal={artboard.id}
             style={{ pointerEvents: 'auto' }}
           >
+            {responsiveCss ? (
+              <style data-kubuild-responsive-styles>{responsiveCss}</style>
+            ) : null}
             <NodeRenderer
               node={contentNode}
               document={artboard.document}
@@ -132,6 +149,7 @@ export const ArtboardPortalHost: React.FC<ArtboardPortalHostProps> = ({
               context={context}
               viewport={viewport}
               mode="runtime"
+              responsive={responsive}
               onDiagnostic={onDiagnostic}
               onActionDispatch={onActionDispatch}
             />
@@ -177,6 +195,7 @@ export const KubuildProjectRenderer: React.FC<KubuildProjectRendererProps> = ({
         context={rendererProps.context}
         viewport={rendererProps.viewport}
         mode={rendererProps.mode}
+        responsive={rendererProps.responsive}
         modalManager={managerProp}
         container={portalContainer}
         onDiagnostic={rendererProps.onDiagnostic}
