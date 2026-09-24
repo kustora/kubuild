@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { PageDocument, type Artboard, type ArtboardType } from '@kubuild/schema';
-import { ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
+import { ComponentRegistry } from '@kubuild/components';
 import { KubuildRenderer, ArtboardPortalHost } from '@kubuild/renderer';
 import {
   RuntimeContext,
@@ -982,7 +982,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     } else if (activePayload.type === 'component') {
       incomingType = activePayload.componentType;
     } else if (activePayload.type === 'block') {
-      const blockDef = STARTER_BLOCKS.find((b) => b.id === activePayload.blockId);
+      const blockDef =
+        activePayload.block ??
+        useEditorStore.getState().getBlockDefinition(activePayload.blockId);
       if (blockDef) {
         try {
           const sample = blockDef.createNodeTree(() => 'sample');
@@ -1115,7 +1117,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           dropTarget.index,
         );
       } else if (activePayload.type === 'block') {
-        insertBlock(activePayload.blockId, dropTarget.parentId, dropTarget.index);
+        insertBlock(
+          activePayload.block ?? activePayload.blockId,
+          dropTarget.parentId,
+          dropTarget.index,
+        );
       }
     }
 
