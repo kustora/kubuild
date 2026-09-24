@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ComponentRegistry } from '@kubuild/components';
+import { BlockDefinition, ComponentRegistry } from '@kubuild/components';
 import { Boxes, Blocks, Layers } from 'lucide-react';
 import { ComponentPanel } from './component-panel';
 import { BlocksPanel } from './blocks-panel';
@@ -15,6 +15,10 @@ export interface LeftSidebarProps {
   config?: EditorSidebarConfig;
   className?: string;
   onItemInserted?: () => void;
+  /** Blocks for the Blocks tab. Defaults to the store's block registry (STORA-535). */
+  blocks?: BlockDefinition[];
+  /** Overrides the default block insertion (store `insertBlock`). */
+  onInsertBlock?: (block: BlockDefinition) => void;
 }
 
 /**
@@ -27,6 +31,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   config,
   className,
   onItemInserted,
+  blocks,
+  onInsertBlock,
 }) => {
   const tabsList = config?.availableTabs ?? propAvailableTabs ?? ['components', 'blocks', 'layers'];
   const initialTabCandidate = config?.defaultTab ?? propDefaultTab ?? 'components';
@@ -124,7 +130,12 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         )}
         {activeTab === 'blocks' && tabsList.includes('blocks') && (
           <div role="tabpanel" id="tabpanel-blocks" aria-labelledby="tab-blocks" className="h-full">
-            <BlocksPanel registry={registry} onItemInserted={onItemInserted} />
+            <BlocksPanel
+              registry={registry}
+              blocks={blocks}
+              onInsertBlock={onInsertBlock}
+              onItemInserted={onItemInserted}
+            />
           </div>
         )}
         {activeTab === 'layers' && tabsList.includes('layers') && (

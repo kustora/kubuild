@@ -45,6 +45,9 @@ import {
   findArtboardById,
   collectArtboardReferenceNodes,
   stripTrackingSecretsInPlace,
+  validateDocument,
+  DocumentValidationError,
+  DocumentValidationWarning,
 } from '@kubuild/core';
 import {
   ComponentRegistry,
@@ -53,6 +56,7 @@ import {
   BlockDefinition,
 } from '@kubuild/components';
 import type { AiGenerationPlaceholderStatus } from '../ai/generate-page';
+import { getMissingTemplateComponents } from '../utils/template-requirements';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 /** Locales that ship with built-in dictionaries. */
@@ -97,8 +101,76 @@ export interface UpdateFormConfigResult {
 
 export type DragPayload =
   | { type: 'component'; componentType: string }
-  | { type: 'block'; blockId: string }
+  /**
+   * `block` carries the definition itself when the drag source has it (e.g. a `BlocksPanel`
+   * rendered with its own `blocks` prop), so a drop never depends on the id being registered.
+   */
+  | { type: 'block'; blockId: string; block?: BlockDefinition }
   | { type: 'node'; nodeId: string };
+
+/**
+ * How host-supplied blocks (`KubuildEditorProps.blocks`) combine with the built-in
+ * `STARTER_BLOCKS` (STORA-535): `append` keeps the starters and adds (or overrides, by id)
+ * the host blocks; `replace` shows only the host blocks.
+ */
+export type BlocksMode = 'append' | 'replace';
+
+/**
+ * Builds the block registry the Blocks tab, canvas drops and `insertBlock(id)` all read
+ * from (STORA-535). Without host blocks the starters are used as-is. In `append` mode a host
+ * block whose id matches a starter replaces it in place; the rest are appended in order.
+ * Duplicate host ids resolve to the last occurrence.
+ */
+export function resolveBlockRegistry(
+  hostBlocks?: readonly BlockDefinition[] | null,
+  mode: BlocksMode = 'append',
+): BlockDefinition[] {
+  if (!hostBlocks) return [...STARTER_BLOCKS];
+
+  const hostById = new Map<string, BlockDefinition>();
+  for (const block of hostBlocks) hostById.set(block.id, block);
+  const uniqueHost = Array.from(hostById.values());
+
+  if (mode === 'replace') return uniqueHost;
+
+  const starterIds = new Set(STARTER_BLOCKS.map((b) => b.id));
+  return [
+    ...STARTER_BLOCKS.map((b) => hostById.get(b.id) ?? b),
+    ...uniqueHost.filter((b) => !starterIds.has(b.id)),
+  ];
+}
+
+export interface ReplaceDocumentOptions {
+  /**
+   * Record the swap as one undoable history entry and keep the selection where the nodes
+   * still exist (default `false`: history and selection reset, like loading a new page).
+   */
+  keepHistory?: boolean;
+  /** Registry to validate component types / child policies against. */
+  registry?: ComponentRegistry;
+}
+
+export interface ReplaceDocumentResult {
+  success: boolean;
+  /** Blocking validation errors (`validateDocument`) when the document was rejected. */
+  errors: DocumentValidationError[];
+  warnings: DocumentValidationWarning[];
+  error?: string;
+}
+
+export interface ApplyTemplateOptions extends CloneTemplateOptions {
+  /** Registry used for the `requirements.requiredComponents` check and validation. */
+  registry?: ComponentRegistry;
+  /** Undoable by default; pass `false` to start a fresh history instead. */
+  keepHistory?: boolean;
+}
+
+export interface ApplyTemplateResult extends ReplaceDocumentResult {
+  /** The new page document cloned from the template (fresh node ids). */
+  document?: PageDocument;
+  /** Component types the template needs that the registry does not provide. */
+  missingComponents?: string[];
+}
 
 export interface InsertComponentResult {
   success: boolean;
@@ -287,6 +359,14 @@ export interface EditorState {
   /** Active UI locale for the editor and inspector panels (default: 'en'). */
   locale: EditorLocale;
   setLocale: (locale: EditorLocale) => void;
+  /**
+   * Block library (STORA-535): the single source the Blocks tab, canvas drag-and-drop and
+   * `insertBlock(id)` read from. Defaults to `STARTER_BLOCKS`; `KubuildEditor` fills it from
+   * its `blocks` / `blocksMode` props via `resolveBlockRegistry`.
+   */
+  blockRegistry: BlockDefinition[];
+  setBlockRegistry: (blocks: BlockDefinition[]) => void;
+  getBlockDefinition: (blockId: string) => BlockDefinition | undefined;
 
   setDocument: (document: PageDocument) => void;
   setDragPayload: (payload: DragPayload | null) => void;
@@ -438,7 +518,21 @@ export interface EditorState {
   ) => UpdateFormConfigResult;
   undo: () => void;
   redo: () => void;
-  markSaved: () => void;
+  /**
+   * Clears `isDirty`. Pass the document that was actually persisted: if the document has
+   * changed since (edits made while an async save was in flight), it stays dirty.
+   */
+  markSaved: (savedDocument?: PageDocument) => void;
+  /**
+   * Swaps the whole document after validating it with `validateDocument` (STORA-538).
+   * Invalid documents are rejected and the current one is left untouched.
+   */
+  replaceDocument: (document: PageDocument, options?: ReplaceDocumentOptions) => ReplaceDocumentResult;
+  /**
+   * Replaces the current page with a fresh clone of a template (STORA-536). Undoable by
+   * default. Templates whose required components are missing from the registry are refused.
+   */
+  applyTemplate: (template: TemplateRecord, options?: ApplyTemplateOptions) => ApplyTemplateResult;
   copyNode: (nodeId: string) => void;
   pasteNode: (
     targetParentId: string,
@@ -524,6 +618,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeArtboardId: null,
   artboardReturnDocument: null,
   locale: 'en',
+  blockRegistry: [...STARTER_BLOCKS],
+
+  setBlockRegistry: (blocks) => set({ blockRegistry: blocks }),
+  getBlockDefinition: (blockId) => get().blockRegistry.find((b) => b.id === blockId),
 
   setIsAiRunning: (isAiRunning) => set({ isAiRunning }),
   setLocale: (locale) => set({ locale }),
@@ -1003,13 +1101,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     let blockDef: BlockDefinition | undefined;
     if (typeof blockOrId === 'string') {
-      blockDef = STARTER_BLOCKS.find((b) => b.id === blockOrId);
+      blockDef = get().getBlockDefinition(blockOrId);
     } else {
       blockDef = blockOrId;
     }
 
     if (!blockDef) {
-      return { success: false, error: 'Block definition not found.' };
+      return {
+        success: false,
+        error:
+          typeof blockOrId === 'string'
+            ? `Block "${blockOrId}" is not in the block registry.`
+            : 'Block definition not found.',
+      };
     }
 
     const existingIds = collectNodeIdSet(state.document.document);
@@ -1354,7 +1458,76 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     commitDocumentToOwner(get, set, restored);
   },
 
-  markSaved: () => set({ isDirty: false }),
+  markSaved: (savedDocument) => {
+    if (savedDocument && savedDocument !== get().document) return;
+    set({ isDirty: false });
+  },
+
+  replaceDocument: (nextDocument, options = {}) => {
+    const validation = validateDocument(nextDocument, {
+      ...(options.registry ? { componentRegistry: options.registry } : {}),
+      strictChildPolicy: false,
+    });
+    if (!validation.valid) {
+      const first = validation.errors[0];
+      return {
+        success: false,
+        errors: validation.errors,
+        warnings: validation.warnings,
+        error: first
+          ? `Document rejected: ${first.message}${first.path ? ` at ${first.path}` : ''}`
+          : 'Document rejected: validation failed.',
+      };
+    }
+
+    // Isolate the store from later mutations of the host's object.
+    const replacement = deepClone(nextDocument);
+
+    if (!options.keepHistory) {
+      get().setDocument(replacement);
+      return { success: true, errors: [], warnings: validation.warnings };
+    }
+
+    // The swap targets the page, so leave any component-artboard session first.
+    if (get().activeArtboardId) get().activateArtboard(null);
+
+    get().dispatch(() => ({
+      document: replacement,
+      event: {
+        type: 'NODE_REPLACED',
+        timestamp: new Date().toISOString(),
+        nodeId: replacement.document.id,
+        payload: { reason: 'document-replaced' },
+      },
+    }));
+    return { success: true, errors: [], warnings: validation.warnings };
+  },
+
+  applyTemplate: (template, options = {}) => {
+    const { registry, keepHistory = true, ...cloneOptions } = options;
+    if (registry) {
+      const missing = getMissingTemplateComponents(template, registry);
+      if (missing.length > 0) {
+        return {
+          success: false,
+          errors: [],
+          warnings: [],
+          missingComponents: missing,
+          error: `Template "${template.name}" needs components that are not registered: ${missing.join(', ')}.`,
+        };
+      }
+    }
+
+    let cloned: PageDocument;
+    try {
+      cloned = cloneTemplateAsPage(template, cloneOptions);
+    } catch (err) {
+      return { success: false, errors: [], warnings: [], error: formatCommandError(err) };
+    }
+
+    const result = get().replaceDocument(cloned, { keepHistory, registry });
+    return result.success ? { ...result, document: get().document } : result;
+  },
 
   copyNode: (nodeId) => {
     const node = findNodeById(get().document.document, nodeId);
