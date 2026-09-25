@@ -9,7 +9,7 @@ KUBUILD menyediakan kapabilitas impor dan ekspor lengkap langsung dari antarmuka
 
 ## Format Ekspor
 
-- **Paket `.stora` (Arsip ZIP)**: Berisi `manifest.json`, `document.json` (AST lengkap), dan folder `assets/` untuk gambar serta media lokal.
+- **Paket `.stora` (Arsip ZIP)**: Berisi `manifest.json` (versi skema/paket, komponen & kapabilitas yang dibutuhkan, daftar aset dengan checksum SHA-256), `page.json` (`PageDocument` lengkap), `metadata.json`, dan folder `assets/` untuk gambar serta media lokal.
 - **Bundel HTML / CSS Standalone**: Halaman HTML5 semantik bersih tanpa ketergantungan runtime framework.
 - **JSON AST**: Struktur data JSON murni `PageDocument` yang siap disimpan di database atau ditransmisikan via API.
 
@@ -19,3 +19,5 @@ KUBUILD menyediakan kapabilitas impor dan ekspor lengkap langsung dari antarmuka
 - Mengimpor file JSON dokumen KUBUILD dengan validasi skema otomatis.
 - Impor dari snippet HTML atau Figma paste.
 - Menggunakan template bawaan (Landing page, SaaS, Tabel Harga, Newsletter).
+
+Lihat [panduan Ekspor & Impor](/id/guides/import-export/) untuk API programatik (`exportPackage`, `preflightPackage`, `importPackage`, `downloadDocumentAsStora`) beserta opsi `MissingDependencyPolicy` dan `AssetCollisionStrategy`.
