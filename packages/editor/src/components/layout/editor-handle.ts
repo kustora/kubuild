@@ -1,6 +1,7 @@
 import type { StoreApi } from 'zustand';
 import type { PageDocument, TemplateRecord } from '@kubuild/schema';
 import type { BlockDefinition, ComponentRegistry } from '@kubuild/components';
+import type { Diagnostic } from '@kubuild/core';
 import type {
   ApplyTemplateResult,
   EditorState,
@@ -18,7 +19,7 @@ export interface EditorHandle {
   getDocument: () => PageDocument;
   /**
    * Replaces the document after `validateDocument`. Rejected (with the validation errors in
-   * the result) when invalid. `keepHistory: true` makes the swap a single undo step.
+   * the result, plus a `DOCUMENT_INVALID` diagnostic through `onDiagnostic`) when invalid. `keepHistory: true` makes the swap a single undo step.
    */
   replaceDocument: (
     doc: PageDocument,
@@ -52,6 +53,8 @@ export function createEditorHandle(
     registry: () => ComponentRegistry | undefined;
     save?: () => Promise<boolean>;
     onTemplateApplied?: (template: TemplateRecord, doc: PageDocument) => void;
+    /** Receives `DOCUMENT_INVALID` when `replaceDocument` / `applyTemplate` rejects a document. */
+    onDiagnostic?: (diagnostic: Diagnostic) => void;
   },
 ): EditorHandle {
   return {
@@ -60,10 +63,14 @@ export function createEditorHandle(
       store.getState().replaceDocument(doc, {
         keepHistory: replaceOptions.keepHistory,
         registry: options.registry(),
+        onDiagnostic: (diagnostic) => options.onDiagnostic?.(diagnostic),
       }),
     insertBlock: (block, targetId, index) => store.getState().insertBlock(block, targetId, index),
     applyTemplate: (template) => {
-      const result = store.getState().applyTemplate(template, { registry: options.registry() });
+      const result = store.getState().applyTemplate(template, {
+        registry: options.registry(),
+        onDiagnostic: (diagnostic) => options.onDiagnostic?.(diagnostic),
+      });
       if (result.success && result.document) options.onTemplateApplied?.(template, result.document);
       return result;
     },

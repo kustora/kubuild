@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import type { PageDocument, TemplateRecord } from '@kubuild/schema';
-import type { RuntimeContext } from '@kubuild/core';
+import type { Diagnostic, RuntimeContext } from '@kubuild/core';
 import type { ComponentRegistry } from '@kubuild/components';
 import { LayoutTemplate } from 'lucide-react';
 import { useEditorStore } from '../../store';
@@ -13,6 +13,8 @@ export interface TemplateToolbarActionProps {
   context?: RuntimeContext;
   /** Fires after a template replaced the page (the replacement is undoable). */
   onApplyTemplate?: (template: TemplateRecord, doc: PageDocument) => void;
+  /** Receives `DOCUMENT_INVALID` when the template's document fails validation. */
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
 }
 
 /**
@@ -24,6 +26,7 @@ export const TemplateToolbarAction: React.FC<TemplateToolbarActionProps> = ({
   registry,
   context,
   onApplyTemplate,
+  onDiagnostic,
 }) => {
   const applyTemplate = useEditorStore((s) => s.applyTemplate);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -34,7 +37,7 @@ export const TemplateToolbarAction: React.FC<TemplateToolbarActionProps> = ({
 
   const confirmApply = () => {
     if (!pending) return;
-    const result = applyTemplate(pending, { registry });
+    const result = applyTemplate(pending, { registry, onDiagnostic });
     if (result.success && result.document) {
       setError(null);
       setIsPickerOpen(false);

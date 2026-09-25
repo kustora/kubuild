@@ -48,6 +48,7 @@ import {
   validateDocument,
   DocumentValidationError,
   DocumentValidationWarning,
+  DocumentValidationDiagnostic,
 } from '@kubuild/core';
 import {
   ComponentRegistry,
@@ -148,6 +149,11 @@ export interface ReplaceDocumentOptions {
   keepHistory?: boolean;
   /** Registry to validate component types / child policies against. */
   registry?: ComponentRegistry;
+  /**
+   * Receives a `DOCUMENT_INVALID` diagnostic when the document is rejected (STORA-538). The
+   * returned result carries the same errors either way.
+   */
+  onDiagnostic?: (diagnostic: DocumentValidationDiagnostic) => void;
 }
 
 export interface ReplaceDocumentResult {
@@ -163,6 +169,11 @@ export interface ApplyTemplateOptions extends CloneTemplateOptions {
   registry?: ComponentRegistry;
   /** Undoable by default; pass `false` to start a fresh history instead. */
   keepHistory?: boolean;
+  /**
+   * Receives a `DOCUMENT_INVALID` diagnostic (`source: 'applyTemplate'`) when the cloned
+   * template document fails validation (STORA-538).
+   */
+  onDiagnostic?: (diagnostic: DocumentValidationDiagnostic) => void;
 }
 
 export interface ApplyTemplateResult extends ReplaceDocumentResult {
@@ -1470,13 +1481,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
     if (!validation.valid) {
       const first = validation.errors[0];
+      const error = first
+        ? `Document rejected: ${first.message}${first.path ? ` at ${first.path}` : ''}`
+        : 'Document rejected: validation failed.';
+      options.onDiagnostic?.({
+        code: 'DOCUMENT_INVALID',
+        source: 'replaceDocument',
+        ...(first?.nodeId ? { nodeId: first.nodeId } : {}),
+        message: error,
+        errors: validation.errors,
+        warnings: validation.warnings,
+      });
       return {
         success: false,
         errors: validation.errors,
         warnings: validation.warnings,
-        error: first
-          ? `Document rejected: ${first.message}${first.path ? ` at ${first.path}` : ''}`
-          : 'Document rejected: validation failed.',
+        error,
       };
     }
 
@@ -1504,7 +1524,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   applyTemplate: (template, options = {}) => {
-    const { registry, keepHistory = true, ...cloneOptions } = options;
+    const { registry, keepHistory = true, onDiagnostic, ...cloneOptions } = options;
     if (registry) {
       const missing = getMissingTemplateComponents(template, registry);
       if (missing.length > 0) {
@@ -1525,7 +1545,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return { success: false, errors: [], warnings: [], error: formatCommandError(err) };
     }
 
-    const result = get().replaceDocument(cloned, { keepHistory, registry });
+    const result = get().replaceDocument(cloned, {
+      keepHistory,
+      registry,
+      ...(onDiagnostic
+        ? {
+            onDiagnostic: (diagnostic: DocumentValidationDiagnostic) =>
+              onDiagnostic({ ...diagnostic, source: 'applyTemplate', templateId: template.id }),
+          }
+        : {}),
+    });
     return result.success ? { ...result, document: get().document } : result;
   },
 
