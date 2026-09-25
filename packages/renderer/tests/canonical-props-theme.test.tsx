@@ -16,12 +16,21 @@ import {
 
 const registry = createDefaultComponentRegistry();
 
-function renderDoc(children: Node[], extra: Partial<PageDocument> = {}, context = createRenderContext()) {
+function renderDoc(
+  children: Node[],
+  extra: Partial<PageDocument> = {},
+  context = createRenderContext(),
+) {
   const doc = { ...createBlankDocument('Test'), ...extra };
   doc.document.children = children;
   const diagnostics: Diagnostic[] = [];
   const html = renderToString(
-    <KubuildRenderer document={doc} registry={registry} context={context} onDiagnostic={(d) => diagnostics.push(d)} />,
+    <KubuildRenderer
+      document={doc}
+      registry={registry}
+      context={context}
+      onDiagnostic={(d) => diagnostics.push(d)}
+    />,
   );
   return { html, diagnostics };
 }
@@ -38,7 +47,8 @@ function findOnChange(element: unknown): ((value: string, isBlur?: boolean) => v
   }
   const props = (element as { props?: Record<string, unknown> }).props;
   if (!props) return undefined;
-  if (typeof props.onChange === 'function') return props.onChange as (value: string, isBlur?: boolean) => void;
+  if (typeof props.onChange === 'function')
+    return props.onChange as (value: string, isBlur?: boolean) => void;
   return findOnChange(props.children);
 }
 
@@ -76,7 +86,12 @@ describe('STORA-550: renderer reads deprecated aliases with a DEPRECATED_PROP di
     const { html, diagnostics } = renderDoc([node]);
     expect(html).toContain(String(node.props![propName]));
     expect(diagnostics).toContainEqual(
-      expect.objectContaining({ code: 'DEPRECATED_PROP', nodeId: node.id, propName, canonicalName }),
+      expect.objectContaining({
+        code: 'DEPRECATED_PROP',
+        nodeId: node.id,
+        propName,
+        canonicalName,
+      }),
     );
   });
 
@@ -94,7 +109,9 @@ describe('STORA-550: renderer reads deprecated aliases with a DEPRECATED_PROP di
   });
 
   it('prefers the canonical prop when both are present', () => {
-    const { html } = renderDoc([{ id: 'q', type: 'blockquote', props: { text: 'Canonical', quote: 'Alias' } }]);
+    const { html } = renderDoc([
+      { id: 'q', type: 'blockquote', props: { text: 'Canonical', quote: 'Alias' } },
+    ]);
     expect(html).toContain('Canonical');
     expect(html).not.toContain('Alias');
   });
@@ -123,7 +140,14 @@ describe('STORA-551: theme tokens as CSS custom properties', () => {
 
   it('emits document tokens on the renderer root', () => {
     const { html } = renderDoc(
-      [{ id: 's', type: 'section', props: {}, styles: { base: { backgroundColor: 'var(--kb-color-primary)' } } }],
+      [
+        {
+          id: 's',
+          type: 'section',
+          props: {},
+          styles: { base: { backgroundColor: 'var(--kb-color-primary)' } },
+        },
+      ],
       { theme },
     );
     const root = /<div class="kubuild-canvas-root[^"]*" style="([^"]*)"/.exec(html);
@@ -137,7 +161,9 @@ describe('STORA-551: theme tokens as CSS custom properties', () => {
   it('lets the host override tokens through RuntimeContext without touching the document', () => {
     const doc = { ...createBlankDocument('Tenant'), theme };
     const context = createRenderContext({ theme: { colors: { primary: '#ff0066' } } });
-    const html = renderToString(<KubuildRenderer document={doc} registry={registry} context={context} />);
+    const html = renderToString(
+      <KubuildRenderer document={doc} registry={registry} context={context} />,
+    );
     expect(html).toContain('--kb-color-primary:#ff0066');
     expect(html).toContain('--kb-radius-md:8px');
     expect(doc.theme.colors.primary).toBe('#2563eb');

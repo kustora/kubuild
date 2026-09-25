@@ -53,15 +53,27 @@ import {
   TemplateRecordSchema,
 } from '../src/template';
 import { ThemeSchema, ThemeTokenValueSchema } from '../src/theme';
-import { validateDocument, validateNode, validateTheme, isValidPageDocument } from '../src/validate';
+import {
+  validateDocument,
+  validateNode,
+  validateTheme,
+  isValidPageDocument,
+} from '../src/validate';
 
-const ZOD_REFERENCE = /from\s+['"]zod['"]|import\(\s*['"]zod['"]\s*\)|require\(\s*['"]zod['"]\s*\)|\bz\.core\b|ZodType/;
+const ZOD_REFERENCE =
+  /from\s+['"]zod['"]|import\(\s*['"]zod['"]\s*\)|require\(\s*['"]zod['"]\s*\)|\bz\.core\b|ZodType/;
 
 function createBlankDocumentFixture(): Pure.PageDocument {
   return {
     schema: 'stora.page',
     version: '1.2.0',
-    document: { id: 'root', type: 'page', props: {}, styles: {}, children: [{ id: 't1', type: 'text', props: { text: 'Hi' } }] },
+    document: {
+      id: 'root',
+      type: 'page',
+      props: {},
+      styles: {},
+      children: [{ id: 't1', type: 'text', props: { text: 'Hi' } }],
+    },
   };
 }
 
@@ -83,7 +95,9 @@ describe('STORA-552: @kubuild/schema/types mirrors z.infer', () => {
   });
 
   it('forms', () => {
-    expectTypeOf<Pure.ValidationRuleType>().toEqualTypeOf<z.infer<typeof ValidationRuleTypeSchema>>();
+    expectTypeOf<Pure.ValidationRuleType>().toEqualTypeOf<
+      z.infer<typeof ValidationRuleTypeSchema>
+    >();
     expectTypeOf<Pure.ValidateOnEvent>().toEqualTypeOf<z.infer<typeof ValidateOnEventSchema>>();
     expectTypeOf<Pure.ValidationRule>().toEqualTypeOf<z.infer<typeof ValidationRuleSchema>>();
     expectTypeOf<Pure.FormFieldBinding>().toEqualTypeOf<z.infer<typeof FormFieldBindingSchema>>();
@@ -94,19 +108,27 @@ describe('STORA-552: @kubuild/schema/types mirrors z.infer', () => {
     expectTypeOf<Pure.ActionTriggerType>().toEqualTypeOf<z.infer<typeof ActionTriggerTypeSchema>>();
     expectTypeOf<Pure.ActionStepType>().toEqualTypeOf<z.infer<typeof ActionStepTypeSchema>>();
     expectTypeOf<Pure.ConditionOperator>().toEqualTypeOf<z.infer<typeof ConditionOperatorSchema>>();
-    expectTypeOf<Pure.ActionStepCondition>().toEqualTypeOf<z.infer<typeof ActionStepConditionSchema>>();
+    expectTypeOf<Pure.ActionStepCondition>().toEqualTypeOf<
+      z.infer<typeof ActionStepConditionSchema>
+    >();
     expectTypeOf<Pure.ActionStep>().toEqualTypeOf<z.infer<typeof ActionStepSchema>>();
     expectTypeOf<Pure.ActionPipeline>().toEqualTypeOf<z.infer<typeof ActionPipelineSchema>>();
   });
 
   it('tracking', () => {
-    expectTypeOf<Pure.TrackingProviderType>().toEqualTypeOf<z.infer<typeof TrackingProviderTypeSchema>>();
+    expectTypeOf<Pure.TrackingProviderType>().toEqualTypeOf<
+      z.infer<typeof TrackingProviderTypeSchema>
+    >();
     expectTypeOf<Pure.TrackingDelivery>().toEqualTypeOf<z.infer<typeof TrackingDeliverySchema>>();
-    expectTypeOf<Pure.MetaTrackingProviderConfig>().toEqualTypeOf<z.infer<typeof MetaTrackingProviderConfigSchema>>();
+    expectTypeOf<Pure.MetaTrackingProviderConfig>().toEqualTypeOf<
+      z.infer<typeof MetaTrackingProviderConfigSchema>
+    >();
     expectTypeOf<Pure.GoogleTrackingProviderConfig>().toEqualTypeOf<
       z.infer<typeof GoogleTrackingProviderConfigSchema>
     >();
-    expectTypeOf<Pure.GtmTrackingProviderConfig>().toEqualTypeOf<z.infer<typeof GtmTrackingProviderConfigSchema>>();
+    expectTypeOf<Pure.GtmTrackingProviderConfig>().toEqualTypeOf<
+      z.infer<typeof GtmTrackingProviderConfigSchema>
+    >();
     expectTypeOf<Pure.TikTokTrackingProviderConfig>().toEqualTypeOf<
       z.infer<typeof TikTokTrackingProviderConfigSchema>
     >();
@@ -128,10 +150,16 @@ describe('STORA-552: @kubuild/schema/types mirrors z.infer', () => {
   it('manifest & templates', () => {
     expectTypeOf<Pure.ManifestAssetItem>().toEqualTypeOf<z.infer<typeof ManifestAssetItemSchema>>();
     expectTypeOf<Pure.Manifest>().toEqualTypeOf<z.infer<typeof ManifestSchema>>();
-    expectTypeOf<Pure.SafeThumbnailObject>().toEqualTypeOf<z.infer<typeof SafeThumbnailObjectSchema>>();
+    expectTypeOf<Pure.SafeThumbnailObject>().toEqualTypeOf<
+      z.infer<typeof SafeThumbnailObjectSchema>
+    >();
     expectTypeOf<Pure.SafeThumbnail>().toEqualTypeOf<z.infer<typeof SafeThumbnailSchema>>();
-    expectTypeOf<Pure.TemplatePackageRef>().toEqualTypeOf<z.infer<typeof TemplatePackageRefSchema>>();
-    expectTypeOf<Pure.TemplateRequirements>().toEqualTypeOf<z.infer<typeof TemplateRequirementsSchema>>();
+    expectTypeOf<Pure.TemplatePackageRef>().toEqualTypeOf<
+      z.infer<typeof TemplatePackageRefSchema>
+    >();
+    expectTypeOf<Pure.TemplateRequirements>().toEqualTypeOf<
+      z.infer<typeof TemplateRequirementsSchema>
+    >();
     expectTypeOf<Pure.TemplateRecord>().toEqualTypeOf<z.infer<typeof TemplateRecordSchema>>();
   });
 });
@@ -174,7 +202,14 @@ describe('STORA-552: zod-free validator surface', () => {
 
 describe('STORA-552: built declarations are zod-free', () => {
   const dist = resolve(__dirname, '../dist');
-  const builtFiles = ['types.d.ts', 'validate.d.ts', 'types.js', 'types.cjs', 'validate.js', 'validate.cjs'];
+  const builtFiles = [
+    'types.d.ts',
+    'validate.d.ts',
+    'types.js',
+    'types.cjs',
+    'validate.js',
+    'validate.cjs',
+  ];
   const isBuilt = builtFiles.every((file) => existsSync(resolve(dist, file)));
 
   it.skipIf(!isBuilt)('emits the types/validate subpath entries', () => {

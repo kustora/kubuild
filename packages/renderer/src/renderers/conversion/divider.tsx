@@ -33,7 +33,9 @@ export function renderDivider(options: RenderNodeContentOptions): React.ReactEle
       aria-label={label}
     >
       <span aria-hidden="true" style={{ flex: 1, borderTop: line }} />
-      <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748b', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748b', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
       <span aria-hidden="true" style={{ flex: 1, borderTop: line }} />
     </div>
   );

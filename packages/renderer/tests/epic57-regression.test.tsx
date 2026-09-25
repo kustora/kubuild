@@ -30,7 +30,10 @@ function findNode(root: Node, predicate: (node: Node) => boolean): Node | undefi
 function collectFields(root: Node): Node[] {
   const fields: Node[] = [];
   const visit = (node: Node) => {
-    if (['input', 'textarea', 'select'].includes(node.type) && typeof node.props?.name === 'string') {
+    if (
+      ['input', 'textarea', 'select'].includes(node.type) &&
+      typeof node.props?.name === 'string'
+    ) {
       fields.push(node);
     }
     node.children?.forEach(visit);
@@ -58,7 +61,10 @@ async function clickNode(node: Node, document: PageDocument): Promise<void> {
   const inner = (element.props as { children: React.ReactElement }).children;
   const onClick = (inner.props as { onClick?: (e: React.MouseEvent) => unknown }).onClick;
   expect(onClick).toBeTypeOf('function');
-  await onClick!({ stopPropagation: () => {}, preventDefault: () => {} } as unknown as React.MouseEvent);
+  await onClick!({
+    stopPropagation: () => {},
+    preventDefault: () => {},
+  } as unknown as React.MouseEvent);
 }
 
 /** Renders a form node with the real renderer and returns its live form runtime. */
@@ -69,12 +75,22 @@ function renderFormAndCapture(formNode: Node, document: PageDocument): FormRunti
     captured = useFormRuntime();
     return null;
   };
-  registry.register({ type: 'test-form-probe', label: 'Probe', category: 'custom', renderer: Probe });
+  registry.register({
+    type: 'test-form-probe',
+    label: 'Probe',
+    category: 'custom',
+    renderer: Probe,
+  });
   const probedForm: Node = {
     ...formNode,
-    children: [...(formNode.children ?? []), { id: 'probe', type: 'test-form-probe', props: {}, children: [] }],
+    children: [
+      ...(formNode.children ?? []),
+      { id: 'probe', type: 'test-form-probe', props: {}, children: [] },
+    ],
   };
-  renderToString(<NodeRenderer node={probedForm} document={document} registry={registry} mode="runtime" />);
+  renderToString(
+    <NodeRenderer node={probedForm} document={document} registry={registry} mode="runtime" />,
+  );
   expect(captured).not.toBeNull();
   return captured!;
 }
@@ -93,7 +109,10 @@ describe('STORA-534: starter fixture', () => {
   it('uses the canonical pipeline format for the hero button (no legacy props.action)', () => {
     const hero = findNode(starterPageFixture.document, (n) => n.id === 'hero-button')!;
     expect(hero.props?.action).toBeUndefined();
-    expect(hero.actions?.[0]).toMatchObject({ trigger: 'click', steps: [{ type: 'navigate', payload: { url: '/docs' } }] });
+    expect(hero.actions?.[0]).toMatchObject({
+      trigger: 'click',
+      steps: [{ type: 'navigate', payload: { url: '/docs' } }],
+    });
   });
 
   it('clicking "Get Started" navigates to /docs without any host action wiring', async () => {
@@ -130,13 +149,15 @@ describe('STORA-534: built-in form blocks submit their form data', () => {
 
     const tree = block!.createNodeTree();
     const formNode = findNode(tree, (n) => n.type === 'form')!;
-    const submitStep = formNode.actions!.find((p) => p.trigger === 'submit')!.steps.find(
-      (s) => s.type === 'api_request',
-    )!;
+    const submitStep = formNode
+      .actions!.find((p) => p.trigger === 'submit')!
+      .steps.find((s) => s.type === 'api_request')!;
     // The bug: blocks never set `body`; the runner must default to the form values.
     expect(submitStep.payload?.body).toBeUndefined();
 
-    const expected = Object.fromEntries(collectFields(formNode).map((f) => [String(f.props!.name), sampleValue(f)]));
+    const expected = Object.fromEntries(
+      collectFields(formNode).map((f) => [String(f.props!.name), sampleValue(f)]),
+    );
     expect(Object.keys(expected).length).toBeGreaterThan(0);
     const seeded: Node = { ...formNode, props: { ...formNode.props, initialValues: expected } };
 
@@ -157,17 +178,26 @@ describe('STORA-534: built-in form blocks submit their form data', () => {
     const block = FORM_STARTER_BLOCKS.find((b) => b.id === 'form-contact-us')!;
     const source = createBlankDocument('Contact template');
     source.document.children = [block.createNodeTree()];
-    const template = createTemplateRecord({ id: 'tmpl_contact', name: 'Contact', document: source });
+    const template = createTemplateRecord({
+      id: 'tmpl_contact',
+      name: 'Contact',
+      document: source,
+    });
 
     const page = cloneTemplateAsPage(template);
     const formNode = findNode(page.document, (n) => n.type === 'form')!;
     expect(formNode.actions?.[0]?.trigger).toBe('submit');
 
-    const expected = Object.fromEntries(collectFields(formNode).map((f) => [String(f.props!.name), sampleValue(f)]));
+    const expected = Object.fromEntries(
+      collectFields(formNode).map((f) => [String(f.props!.name), sampleValue(f)]),
+    );
     const fetchMock = okFetch();
     vi.stubGlobal('fetch', fetchMock);
 
-    const form = renderFormAndCapture({ ...formNode, props: { ...formNode.props, initialValues: expected } }, page);
+    const form = renderFormAndCapture(
+      { ...formNode, props: { ...formNode.props, initialValues: expected } },
+      page,
+    );
     await expect(form.handleFormSubmit()).resolves.toBe(true);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject(expected);
   });

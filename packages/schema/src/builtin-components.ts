@@ -56,6 +56,16 @@ export const BUILTIN_COMPONENT_TYPES = [
   'modal',
   'drawer',
   'collapsible',
+  // conversion (Epic 60)
+  'countdown',
+  'accordion',
+  'accordion-item',
+  'tabs',
+  'tab-panel',
+  'carousel',
+  'rating',
+  'divider',
+  'spacer',
 ] as const;
 
 export type BuiltinComponentType = (typeof BUILTIN_COMPONENT_TYPES)[number];

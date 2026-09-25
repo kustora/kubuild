@@ -38,7 +38,8 @@ export const THEME_TOKEN_CSS_PREFIX: Readonly<Record<ThemeTokenGroup, string>> =
 });
 
 const THEME_TOKEN_KEY_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
-const DANGEROUS_THEME_VALUE_PATTERN = /javascript:|expression\(|@import|<script|vbscript:|data:text\/html|url\s*\(/i;
+const DANGEROUS_THEME_VALUE_PATTERN =
+  /javascript:|expression\(|@import|<script|vbscript:|data:text\/html|url\s*\(/i;
 const FORBIDDEN_THEME_VALUE_CHARS = /[;{}<>\\]/;
 const MAX_THEME_VALUE_LENGTH = 512;
 
@@ -61,14 +62,17 @@ export function isSafeThemeTokenValue(value: unknown): value is string | number 
 }
 
 export const ThemeTokenKeySchema = z.string().refine(isSafeThemeTokenKey, {
-  message: 'Theme token key must be 1-64 characters of letters, digits, "-" or "_" (starting with a letter or digit)',
+  message:
+    'Theme token key must be 1-64 characters of letters, digits, "-" or "_" (starting with a letter or digit)',
 });
 
 export const ThemeTokenValueSchema = z.union([
   z.string().refine((value) => isSafeThemeTokenValue(value), {
     message: 'Theme token value contains a disallowed or unsafe pattern',
   }),
-  z.number().refine((value) => Number.isFinite(value), { message: 'Theme token value must be finite' }),
+  z
+    .number()
+    .refine((value) => Number.isFinite(value), { message: 'Theme token value must be finite' }),
 ]);
 
 export type ThemeTokenValue = z.infer<typeof ThemeTokenValueSchema>;
@@ -107,7 +111,8 @@ export function themeTokenRef(group: ThemeTokenGroup, key: string): string {
   return `var(${name})`;
 }
 
-const TOKEN_REF_PATTERN = /^var\(\s*--kb-(color|font|radius|space)-([a-zA-Z0-9][a-zA-Z0-9_-]*)\s*(?:,[^)]*)?\)$/;
+const TOKEN_REF_PATTERN =
+  /^var\(\s*--kb-(color|font|radius|space)-([a-zA-Z0-9][a-zA-Z0-9_-]*)\s*(?:,[^)]*)?\)$/;
 const PREFIX_TO_GROUP: Record<string, ThemeTokenGroup> = {
   color: 'colors',
   font: 'fonts',
@@ -152,7 +157,9 @@ export function mergeThemes(...layers: Array<Partial<Theme> | undefined | null>)
  * token whose key or value is unsafe. Safe to call on unvalidated input (e.g. a host
  * runtime override), which is why it re-checks every entry.
  */
-export function themeToCssVariables(theme: Partial<Theme> | undefined | null): Array<[string, string]> {
+export function themeToCssVariables(
+  theme: Partial<Theme> | undefined | null,
+): Array<[string, string]> {
   const entries: Array<[string, string]> = [];
   if (!theme || typeof theme !== 'object') return entries;
   for (const group of THEME_TOKEN_GROUPS) {
@@ -161,7 +168,12 @@ export function themeToCssVariables(theme: Partial<Theme> | undefined | null): A
     for (const [key, value] of Object.entries(tokens)) {
       const name = themeTokenCssVarName(group, key);
       if (!name || !isSafeThemeTokenValue(value)) continue;
-      entries.push([name, typeof value === 'number' && (group === 'radii' || group === 'spacing') ? `${value}px` : String(value)]);
+      entries.push([
+        name,
+        typeof value === 'number' && (group === 'radii' || group === 'spacing')
+          ? `${value}px`
+          : String(value),
+      ]);
     }
   }
   return entries;

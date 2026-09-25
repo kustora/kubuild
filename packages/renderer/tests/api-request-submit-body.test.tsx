@@ -41,7 +41,9 @@ describe('STORA-532: api_request defaults its body to the form values on submit'
     });
 
     it('keeps an explicit body', () => {
-      expect(resolveApiRequestBody({ body: { x: 1 } }, { trigger: 'submit', form })).toEqual({ x: 1 });
+      expect(resolveApiRequestBody({ body: { x: 1 } }, { trigger: 'submit', form })).toEqual({
+        x: 1,
+      });
     });
 
     it('treats body: null as "no body"', () => {
@@ -59,10 +61,14 @@ describe('STORA-532: api_request defaults its body to the form values on submit'
   });
 
   it.each([
-    ['json', (body: unknown) => expect(body).toBe(JSON.stringify({ email: 'a@b.co', plan: 'pro' }))],
+    [
+      'json',
+      (body: unknown) => expect(body).toBe(JSON.stringify({ email: 'a@b.co', plan: 'pro' })),
+    ],
     [
       'urlencoded',
-      (body: unknown) => expect(String(body)).toBe(new URLSearchParams({ email: 'a@b.co', plan: 'pro' }).toString()),
+      (body: unknown) =>
+        expect(String(body)).toBe(new URLSearchParams({ email: 'a@b.co', plan: 'pro' }).toString()),
     ],
     [
       'form-data',
@@ -74,14 +80,22 @@ describe('STORA-532: api_request defaults its body to the form values on submit'
   ])('runner sends form values with bodyFormat=%s', async (bodyFormat, assertBody) => {
     const fetchFn = okFetch();
     const runner = createApiRequestHandler({ fetchFn: fetchFn as unknown as typeof fetch });
-    await runner(step({ bodyFormat }), { trigger: 'submit', form: { email: 'a@b.co', plan: 'pro' } }, new AbortController().signal);
+    await runner(
+      step({ bodyFormat }),
+      { trigger: 'submit', form: { email: 'a@b.co', plan: 'pro' } },
+      new AbortController().signal,
+    );
     assertBody(fetchFn.mock.calls[0][1].body);
   });
 
   it('runner sends no body for explicit body: null on submit', async () => {
     const fetchFn = okFetch();
     const runner = createApiRequestHandler({ fetchFn: fetchFn as unknown as typeof fetch });
-    await runner(step({ body: null }), { trigger: 'submit', form: { email: 'a@b.co' } }, new AbortController().signal);
+    await runner(
+      step({ body: null }),
+      { trigger: 'submit', form: { email: 'a@b.co' } },
+      new AbortController().signal,
+    );
     expect(fetchFn.mock.calls[0][1].body).toBeUndefined();
   });
 
@@ -102,7 +116,11 @@ describe('STORA-532: api_request defaults its body to the form values on submit'
     };
 
     renderToString(
-      <FormRuntimeProvider formId="lead" initialValues={{ email: 'x@y.z', name: 'Grace' }} actions={[pipeline]}>
+      <FormRuntimeProvider
+        formId="lead"
+        initialValues={{ email: 'x@y.z', name: 'Grace' }}
+        actions={[pipeline]}
+      >
         <Capture />
       </FormRuntimeProvider>,
     );

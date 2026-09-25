@@ -7,7 +7,12 @@ const SALES_CATEGORY = 'sales';
 const SALES_CATEGORY_LABEL = 'Sales & Conversion';
 
 /** Full-width section wrapping a centered, max-width container. */
-function sectionShell(gen: Gen, children: Node[], sectionStyles: ResponsiveStyles = {}, maxWidth = '960px'): Node {
+function sectionShell(
+  gen: Gen,
+  children: Node[],
+  sectionStyles: ResponsiveStyles = {},
+  maxWidth = '960px',
+): Node {
   return {
     id: gen('section'),
     type: 'section',
@@ -90,7 +95,13 @@ function faqItem(gen: Gen, question: string, answer: string): Node {
   };
 }
 
-function testimonialSlide(gen: Gen, quote: string, name: string, role: string, rating: number): Node {
+function testimonialSlide(
+  gen: Gen,
+  quote: string,
+  name: string,
+  role: string,
+  rating: number,
+): Node {
   return {
     id: gen('flex'),
     type: 'flex',
@@ -116,7 +127,13 @@ function testimonialSlide(gen: Gen, quote: string, name: string, role: string, r
         type: 'blockquote',
         props: { text: quote },
         styles: {
-          base: { fontSize: '18px', color: '#0f172a', fontStyle: 'italic', margin: '0', lineHeight: '1.6' },
+          base: {
+            fontSize: '18px',
+            color: '#0f172a',
+            fontStyle: 'italic',
+            margin: '0',
+            lineHeight: '1.6',
+          },
         },
       },
       {
@@ -159,7 +176,13 @@ function badgeItem(gen: Gen, iconName: string, label: string): Node {
   };
 }
 
-function planCard(gen: Gen, name: string, price: string, features: string[], highlighted: boolean): Node {
+function planCard(
+  gen: Gen,
+  name: string,
+  price: string,
+  features: string[],
+  highlighted: boolean,
+): Node {
   return {
     id: gen('container'),
     type: 'container',
@@ -202,7 +225,11 @@ function planCard(gen: Gen, name: string, price: string, features: string[], hig
       {
         id: gen('button'),
         type: 'button',
-        props: { label: `Choose ${name}`, href: '#checkout', variant: highlighted ? 'primary' : 'secondary' },
+        props: {
+          label: `Choose ${name}`,
+          href: '#checkout',
+          variant: highlighted ? 'primary' : 'secondary',
+        },
         styles: {
           base: {
             width: '100%',
@@ -230,7 +257,9 @@ function planColumns(gen: Gen, plans: Array<[string, string, string[], boolean]>
       },
       mobile: { gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' },
     },
-    children: plans.map(([name, price, features, highlighted]) => planCard(gen, name, price, features, highlighted)),
+    children: plans.map(([name, price, features, highlighted]) =>
+      planCard(gen, name, price, features, highlighted),
+    ),
   };
 }
 
@@ -250,17 +279,44 @@ export const SALES_STARTER_BLOCKS: BlockDefinition[] = [
       sectionShell(
         gen,
         [
-          ...sectionHeading(gen, 'Frequently Asked Questions', 'Everything you need to know before you buy.'),
+          ...sectionHeading(
+            gen,
+            'Frequently Asked Questions',
+            'Everything you need to know before you buy.',
+          ),
           {
             id: gen('accordion'),
             type: 'accordion',
             props: { allowMultiple: false, defaultOpenIndex: 0, icon: 'chevron', faqSchema: true },
-            styles: { base: { display: 'flex', flexDirection: 'column', width: '100%', borderTop: '1px solid #e2e8f0' } },
+            styles: {
+              base: {
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%',
+                borderTop: '1px solid #e2e8f0',
+              },
+            },
             children: [
-              faqItem(gen, 'What exactly do I get?', 'Instant access to the full program, all bonuses, and every future update.'),
-              faqItem(gen, 'How long do I have access?', 'Lifetime access — learn at your own pace, on any device.'),
-              faqItem(gen, 'Is there a money-back guarantee?', 'Yes. If you are not satisfied within 30 days, we refund you in full.'),
-              faqItem(gen, 'How do I pay?', 'We accept cards, bank transfer, and e-wallets through a secure checkout.'),
+              faqItem(
+                gen,
+                'What exactly do I get?',
+                'Instant access to the full program, all bonuses, and every future update.',
+              ),
+              faqItem(
+                gen,
+                'How long do I have access?',
+                'Lifetime access — learn at your own pace, on any device.',
+              ),
+              faqItem(
+                gen,
+                'Is there a money-back guarantee?',
+                'Yes. If you are not satisfied within 30 days, we refund you in full.',
+              ),
+              faqItem(
+                gen,
+                'How do I pay?',
+                'We accept cards, bank transfer, and e-wallets through a secure checkout.',
+              ),
             ],
           },
         ],
@@ -283,7 +339,14 @@ export const SALES_STARTER_BLOCKS: BlockDefinition[] = [
           {
             id: gen('carousel'),
             type: 'carousel',
-            props: { autoplay: true, interval: 6000, loop: true, showDots: true, showArrows: true, ariaLabel: 'Testimonials' },
+            props: {
+              autoplay: true,
+              interval: 6000,
+              loop: true,
+              showDots: true,
+              showArrows: true,
+              ariaLabel: 'Testimonials',
+            },
             styles: {
               base: {
                 position: 'relative',
@@ -294,9 +357,27 @@ export const SALES_STARTER_BLOCKS: BlockDefinition[] = [
               },
             },
             children: [
-              testimonialSlide(gen, 'This completely changed how I run my business. Worth every cent.', 'Sarah K.', 'Founder', 5),
-              testimonialSlide(gen, 'Clear, practical, and easy to follow. I saw results in the first week.', 'Budi S.', 'Marketing Lead', 4.5),
-              testimonialSlide(gen, 'The support team is amazing and the material is top-notch.', 'Aisha R.', 'Freelancer', 5),
+              testimonialSlide(
+                gen,
+                'This completely changed how I run my business. Worth every cent.',
+                'Sarah K.',
+                'Founder',
+                5,
+              ),
+              testimonialSlide(
+                gen,
+                'Clear, practical, and easy to follow. I saw results in the first week.',
+                'Budi S.',
+                'Marketing Lead',
+                4.5,
+              ),
+              testimonialSlide(
+                gen,
+                'The support team is amazing and the material is top-notch.',
+                'Aisha R.',
+                'Freelancer',
+                5,
+              ),
             ],
           },
         ],
@@ -408,7 +489,9 @@ export const SALES_STARTER_BLOCKS: BlockDefinition[] = [
                     id: gen('heading'),
                     type: 'heading',
                     props: { text: '30-Day Money-Back Guarantee', level: 3 },
-                    styles: { base: { fontSize: '22px', fontWeight: '800', color: '#14532d', margin: '0' } },
+                    styles: {
+                      base: { fontSize: '22px', fontWeight: '800', color: '#14532d', margin: '0' },
+                    },
                   },
                   {
                     id: gen('paragraph'),
@@ -416,7 +499,9 @@ export const SALES_STARTER_BLOCKS: BlockDefinition[] = [
                     props: {
                       text: 'Try it risk-free. If it is not right for you, email us within 30 days and we will refund every cent — no questions asked.',
                     },
-                    styles: { base: { fontSize: '15px', color: '#166534', margin: '0', lineHeight: '1.6' } },
+                    styles: {
+                      base: { fontSize: '15px', color: '#166534', margin: '0', lineHeight: '1.6' },
+                    },
                   },
                 ],
               },
@@ -465,7 +550,9 @@ export const SALES_STARTER_BLOCKS: BlockDefinition[] = [
             id: gen('paragraph'),
             type: 'paragraph',
             props: { text: 'Trusted by 10,000+ customers.' },
-            styles: { base: { fontSize: '14px', color: '#64748b', textAlign: 'center', margin: '0' } },
+            styles: {
+              base: { fontSize: '14px', color: '#64748b', textAlign: 'center', margin: '0' },
+            },
           },
         ],
         { base: { paddingTop: '32px', paddingBottom: '32px' } },
@@ -479,48 +566,60 @@ export const SALES_STARTER_BLOCKS: BlockDefinition[] = [
     description: 'Monthly/yearly tabs comparing pricing plans side by side',
     icon: 'columns',
     createNodeTree: (gen = defaultGenId) =>
-      sectionShell(
-        gen,
-        [
-          ...sectionHeading(gen, 'Choose Your Plan', 'Switch between monthly and yearly billing.'),
-          {
-            id: gen('tabs'),
-            type: 'tabs',
-            props: { activeIndex: 0, ariaLabel: 'Billing period' },
-            styles: { base: { display: 'flex', flexDirection: 'column', width: '100%' } },
-            children: [
-              {
-                id: gen('tab-panel'),
-                type: 'tab-panel',
-                props: { label: 'Monthly' },
-                styles: { base: { paddingTop: '24px' } },
-                children: [
-                  planColumns(gen, [
-                    ['Basic', '$19 / mo', ['1 project', 'Email support', 'Core features'], false],
-                    ['Pro', '$49 / mo', ['Unlimited projects', 'Priority support', 'All features'], true],
-                  ]),
-                ],
-              },
-              {
-                id: gen('tab-panel'),
-                type: 'tab-panel',
-                props: { label: 'Yearly' },
-                styles: { base: { paddingTop: '24px' } },
-                children: [
-                  planColumns(gen, [
-                    ['Basic', '$190 / yr', ['1 project', 'Email support', 'Core features', '2 months free'], false],
-                    ['Pro', '$490 / yr', ['Unlimited projects', 'Priority support', 'All features', '2 months free'], true],
-                  ]),
-                ],
-              },
-            ],
-          },
-          {
-            id: gen('spacer'),
-            type: 'spacer',
-            styles: { base: { width: '100%', height: '16px' }, mobile: { height: '8px' } },
-          },
-        ],
-      ),
+      sectionShell(gen, [
+        ...sectionHeading(gen, 'Choose Your Plan', 'Switch between monthly and yearly billing.'),
+        {
+          id: gen('tabs'),
+          type: 'tabs',
+          props: { activeIndex: 0, ariaLabel: 'Billing period' },
+          styles: { base: { display: 'flex', flexDirection: 'column', width: '100%' } },
+          children: [
+            {
+              id: gen('tab-panel'),
+              type: 'tab-panel',
+              props: { label: 'Monthly' },
+              styles: { base: { paddingTop: '24px' } },
+              children: [
+                planColumns(gen, [
+                  ['Basic', '$19 / mo', ['1 project', 'Email support', 'Core features'], false],
+                  [
+                    'Pro',
+                    '$49 / mo',
+                    ['Unlimited projects', 'Priority support', 'All features'],
+                    true,
+                  ],
+                ]),
+              ],
+            },
+            {
+              id: gen('tab-panel'),
+              type: 'tab-panel',
+              props: { label: 'Yearly' },
+              styles: { base: { paddingTop: '24px' } },
+              children: [
+                planColumns(gen, [
+                  [
+                    'Basic',
+                    '$190 / yr',
+                    ['1 project', 'Email support', 'Core features', '2 months free'],
+                    false,
+                  ],
+                  [
+                    'Pro',
+                    '$490 / yr',
+                    ['Unlimited projects', 'Priority support', 'All features', '2 months free'],
+                    true,
+                  ],
+                ]),
+              ],
+            },
+          ],
+        },
+        {
+          id: gen('spacer'),
+          type: 'spacer',
+          styles: { base: { width: '100%', height: '16px' }, mobile: { height: '8px' } },
+        },
+      ]),
   },
 ];

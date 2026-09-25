@@ -91,8 +91,8 @@ export const TemplateToolbarAction: React.FC<TemplateToolbarActionProps> = ({
         title="Replace the current page?"
         description={
           <>
-            The page content will be replaced with <strong>{pending?.name}</strong>. You can
-            revert this with Undo (Ctrl/Cmd+Z).
+            The page content will be replaced with <strong>{pending?.name}</strong>. You can revert
+            this with Undo (Ctrl/Cmd+Z).
           </>
         }
         confirmLabel="Replace page"

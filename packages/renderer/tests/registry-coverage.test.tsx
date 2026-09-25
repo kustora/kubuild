@@ -49,7 +49,10 @@ describe('registry coverage: every default registry type has a renderer', () => 
   });
 
   it('control: an unregistered type does hit the fallback', () => {
-    const html = render({ id: 'n_x', type: 'definitely-not-registered', props: {}, children: [] }, 'editor');
+    const html = render(
+      { id: 'n_x', type: 'definitely-not-registered', props: {}, children: [] },
+      'editor',
+    );
     expect(html).toContain('data-kubuild-unknown');
   });
 

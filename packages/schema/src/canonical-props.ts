@@ -26,10 +26,18 @@ export const CANONICAL_TEXT_PROPS: Readonly<Record<string, CanonicalTextPropRule
   heading: { canonical: 'text', aliases: ['content'], legacyReadOrder: ['text', 'content'] },
   text: { canonical: 'text', aliases: ['content'], legacyReadOrder: ['text', 'content'] },
   paragraph: { canonical: 'text', aliases: ['content'], legacyReadOrder: ['text', 'content'] },
-  link: { canonical: 'text', aliases: ['label', 'content'], legacyReadOrder: ['text', 'label', 'content'] },
+  link: {
+    canonical: 'text',
+    aliases: ['label', 'content'],
+    legacyReadOrder: ['text', 'label', 'content'],
+  },
   badge: { canonical: 'text', aliases: ['label'], legacyReadOrder: ['text', 'label'] },
   blockquote: { canonical: 'text', aliases: ['quote'], legacyReadOrder: ['quote', 'text'] },
-  button: { canonical: 'label', aliases: ['text', 'content'], legacyReadOrder: ['label', 'text', 'content'] },
+  button: {
+    canonical: 'label',
+    aliases: ['text', 'content'],
+    legacyReadOrder: ['label', 'text', 'content'],
+  },
 });
 
 /** Returns the canonical text prop rule for a component type, if it has one. */

@@ -17,8 +17,16 @@ export function clampTabIndex(index: number, count: number): number {
 }
 
 const TabsView: React.FC<{ options: RenderNodeContentOptions }> = ({ options }) => {
-  const { node, domId, styles, mode, handleClick, childrenElements, selectedNodeId, onNodePropChange } =
-    options;
+  const {
+    node,
+    domId,
+    styles,
+    mode,
+    handleClick,
+    childrenElements,
+    selectedNodeId,
+    onNodePropChange,
+  } = options;
   const panels = useMemo(() => node.children ?? [], [node.children]);
   const count = panels.length;
   const propIndex = clampTabIndex(readNumber(options, 'activeIndex', 0), count);
@@ -74,7 +82,12 @@ const TabsView: React.FC<{ options: RenderNodeContentOptions }> = ({ options }) 
         role="tablist"
         aria-label={readAriaLabel(options)}
         aria-orientation="horizontal"
-        style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #e2e8f0', overflowX: 'auto' }}
+        style={{
+          display: 'flex',
+          gap: '4px',
+          borderBottom: '1px solid #e2e8f0',
+          overflowX: 'auto',
+        }}
       >
         {panels.map((panel, i) => {
           const rawLabel = panel.props?.label;

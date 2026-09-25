@@ -1,4 +1,9 @@
-import type { ActionRegistry, PipelineExecutionContext, PipelineStepHandler, RenderContext } from '@kubuild/core';
+import type {
+  ActionRegistry,
+  PipelineExecutionContext,
+  PipelineStepHandler,
+  RenderContext,
+} from '@kubuild/core';
 import type { ActionStep, PageDocument } from '@kubuild/schema';
 import { navigateRunner } from './action-runners/navigation-utils';
 import {
@@ -30,14 +35,19 @@ export const BUILTIN_LEGACY_ACTION_TYPES: readonly string[] = Object.freeze(
 );
 
 export function hasBuiltinLegacyAction(actionType?: string): boolean {
-  return Boolean(actionType && Object.prototype.hasOwnProperty.call(BUILTIN_LEGACY_ACTION_RUNNERS, actionType));
+  return Boolean(
+    actionType && Object.prototype.hasOwnProperty.call(BUILTIN_LEGACY_ACTION_RUNNERS, actionType),
+  );
 }
 
 /**
  * True when a legacy action type will do something: the host registered a handler for it
  * or a built-in handler exists.
  */
-export function isLegacyActionResolvable(actionRegistry: ActionRegistry | undefined, actionType?: string): boolean {
+export function isLegacyActionResolvable(
+  actionRegistry: ActionRegistry | undefined,
+  actionType?: string,
+): boolean {
   if (!actionType) return false;
   return Boolean(actionRegistry?.get(actionType)) || hasBuiltinLegacyAction(actionType);
 }
@@ -51,7 +61,9 @@ export async function runBuiltinLegacyAction(
   payload: Record<string, unknown> | undefined,
   options: { nodeId?: string; document?: PageDocument; context?: RenderContext },
 ): Promise<unknown> {
-  const runner = hasBuiltinLegacyAction(actionType) ? BUILTIN_LEGACY_ACTION_RUNNERS[actionType] : undefined;
+  const runner = hasBuiltinLegacyAction(actionType)
+    ? BUILTIN_LEGACY_ACTION_RUNNERS[actionType]
+    : undefined;
   if (!runner) {
     throw new Error(`No built-in handler for legacy action type "${actionType}".`);
   }

@@ -14,13 +14,21 @@ export function readString(options: RenderNodeContentOptions, name: string, fall
   return String(v);
 }
 
-export function readNumber(options: RenderNodeContentOptions, name: string, fallback: number): number {
+export function readNumber(
+  options: RenderNodeContentOptions,
+  name: string,
+  fallback: number,
+): number {
   const v = readProp(options, name);
   const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
   return Number.isFinite(n) ? n : fallback;
 }
 
-export function readBoolean(options: RenderNodeContentOptions, name: string, fallback: boolean): boolean {
+export function readBoolean(
+  options: RenderNodeContentOptions,
+  name: string,
+  fallback: boolean,
+): boolean {
   const v = readProp(options, name);
   if (typeof v === 'boolean') return v;
   if (v === 'true') return true;

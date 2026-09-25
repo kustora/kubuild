@@ -140,7 +140,11 @@ const AccordionIcon: React.FC<{ icon: string; open: boolean }> = ({ icon, open }
     strokeLinejoin: 'round' as const,
     'aria-hidden': true,
     focusable: 'false' as const,
-    style: { flexShrink: 0, transition: 'transform 200ms ease', transform: icon === 'chevron' && open ? 'rotate(180deg)' : undefined },
+    style: {
+      flexShrink: 0,
+      transition: 'transform 200ms ease',
+      transform: icon === 'chevron' && open ? 'rotate(180deg)' : undefined,
+    },
   };
   if (icon === 'plus') {
     return (
@@ -200,7 +204,13 @@ const AccordionItemView: React.FC<{ options: RenderNodeContentOptions }> = ({ op
   };
 
   return (
-    <div id={domId} style={styles} onClick={handleClick} data-kubuild-node={node.id} data-state={isOpen ? 'open' : 'closed'}>
+    <div
+      id={domId}
+      style={styles}
+      onClick={handleClick}
+      data-kubuild-node={node.id}
+      data-state={isOpen ? 'open' : 'closed'}
+    >
       <button
         type="button"
         id={headerId}

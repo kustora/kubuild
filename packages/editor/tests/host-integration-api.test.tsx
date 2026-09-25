@@ -11,7 +11,10 @@ import { useEditorStore, resolveBlockRegistry } from '../src/store';
 import { BlocksPanel } from '../src/components/panels/blocks-panel';
 import { createEditorSaveController } from '../src/components/layout/save-controller';
 import { createEditorHandle } from '../src/components/layout/editor-handle';
-import { TemplatePicker, resolveTemplateThumbnailUrl } from '../src/components/templates/template-picker';
+import {
+  TemplatePicker,
+  resolveTemplateThumbnailUrl,
+} from '../src/components/templates/template-picker';
 import { KubuildEditor } from '../src/components/layout/editor';
 import { getMissingTemplateComponents } from '../src/utils/template-requirements';
 
@@ -23,7 +26,8 @@ const hostBlock: BlockDefinition = {
   category: 'host-sales',
   categoryLabel: 'Sales Sections',
   description: 'FAQ section from the host',
-  thumbnailSvg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
+  thumbnailSvg:
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
   createNodeTree: (gen = (p = 'node') => `${p}-x`) => ({
     id: gen('section'),
     type: 'section',
@@ -56,7 +60,10 @@ function makeTemplate(overrides: Partial<Record<string, unknown>> = {}): Templat
 
 const insertText = (id: string) =>
   useEditorStore.getState().dispatch((doc) =>
-    insertNode(doc, { parentId: doc.document.id, node: { id, type: 'text', props: { text: id } } }),
+    insertNode(doc, {
+      parentId: doc.document.id,
+      node: { id, type: 'text', props: { text: id } },
+    }),
   );
 
 beforeEach(() => {
@@ -75,7 +82,9 @@ describe('STORA-535: block registry', () => {
 
   it('replace uses only host blocks (deduplicated by id)', () => {
     const dup = { ...hostBlock, name: 'Second' };
-    expect(resolveBlockRegistry([hostBlock, dup], 'replace').map((b) => b.name)).toEqual(['Second']);
+    expect(resolveBlockRegistry([hostBlock, dup], 'replace').map((b) => b.name)).toEqual([
+      'Second',
+    ]);
     expect(resolveBlockRegistry(undefined, 'replace')).toHaveLength(STARTER_BLOCKS.length);
   });
 
@@ -115,7 +124,10 @@ describe('STORA-535: block registry', () => {
 describe('STORA-538: replaceDocument / EditorHandle', () => {
   it('rejects an invalid document with validation errors and keeps the current one', () => {
     const before = useEditorStore.getState().document;
-    const bad = { ...docWithHeading(), document: { id: '', type: 'page' } } as unknown as PageDocument;
+    const bad = {
+      ...docWithHeading(),
+      document: { id: '', type: 'page' },
+    } as unknown as PageDocument;
     const result = useEditorStore.getState().replaceDocument(bad, { registry });
     expect(result.success).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
@@ -155,7 +167,9 @@ describe('STORA-538: replaceDocument / EditorHandle', () => {
     const next = docWithHeading('Host');
     useEditorStore.getState().replaceDocument(next);
     next.document.children![0].props!.text = 'mutated';
-    expect(findNodeById(useEditorStore.getState().document.document, 'h1')?.props?.text).toBe('Host');
+    expect(findNodeById(useEditorStore.getState().document.document, 'h1')?.props?.text).toBe(
+      'Host',
+    );
   });
 
   it('handle.insertBlock accepts a definition or an id plus target', () => {
@@ -213,7 +227,11 @@ describe('STORA-536: templates', () => {
       requirements: { requiredComponents: ['host-order-form'], requiredCapabilities: [] },
     });
     const html = renderToString(
-      <TemplatePicker templates={[makeTemplate(), blocked]} registry={registry} onApply={() => {}} />,
+      <TemplatePicker
+        templates={[makeTemplate(), blocked]}
+        registry={registry}
+        onApply={() => {}}
+      />,
     );
     expect(html).toContain('data-testid="template-picker"');
     expect(html).toContain('data-template-id="tpl-landing"');
@@ -229,9 +247,15 @@ describe('STORA-536: templates', () => {
 
   it('resolveTemplateThumbnailUrl drops unsafe URLs', () => {
     expect(resolveTemplateThumbnailUrl('javascript:alert(1)')).toBeNull();
-    expect(resolveTemplateThumbnailUrl({ url: 'https://a.test/x.png' })).toBe('https://a.test/x.png');
+    expect(resolveTemplateThumbnailUrl({ url: 'https://a.test/x.png' })).toBe(
+      'https://a.test/x.png',
+    );
     expect(
-      resolveTemplateThumbnailUrl({ type: 'asset', assetId: 'a', fallbackUrl: 'https://a.test/y.png' }),
+      resolveTemplateThumbnailUrl({
+        type: 'asset',
+        assetId: 'a',
+        fallbackUrl: 'https://a.test/y.png',
+      }),
     ).toBe('https://a.test/y.png');
     expect(resolveTemplateThumbnailUrl({ type: 'asset', assetId: 'a' })).toBeNull();
   });

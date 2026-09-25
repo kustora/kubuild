@@ -20,7 +20,14 @@ function legacyDoc(children: Node[], version = '1.1.0'): Record<string, unknown>
   return {
     schema: 'stora.page',
     version,
-    metadata: { title: 'Legacy', description: '', author: '', tags: [], category: 'general', version: '1.0.0' },
+    metadata: {
+      title: 'Legacy',
+      description: '',
+      author: '',
+      tags: [],
+      category: 'general',
+      version: '1.0.0',
+    },
     document: { id: 'root', type: 'page', props: {}, styles: {}, children },
   };
 }
@@ -86,7 +93,9 @@ describe('STORA-550: canonical text prop migration (1.1.0 -> 1.2.0)', () => {
   });
 
   it('migrates older documents through the whole chain', () => {
-    const result = migrateDocument(legacyDoc([{ id: 'p1', type: 'paragraph', props: { content: 'Old' } }], '1.0.0'));
+    const result = migrateDocument(
+      legacyDoc([{ id: 'p1', type: 'paragraph', props: { content: 'Old' } }], '1.0.0'),
+    );
     expect(result.success).toBe(true);
     expect(result.diagnostic.migrationPath).toEqual(['1.0.0', '1.1.0', '1.2.0']);
     expect(findNodeById(result.document!.document, 'p1')?.props).toEqual({ text: 'Old' });
@@ -96,9 +105,13 @@ describe('STORA-550: canonical text prop migration (1.1.0 -> 1.2.0)', () => {
     const tree = {
       id: 'root',
       type: 'page',
-      children: [{ id: 's', type: 'section', children: [{ id: 'b', type: 'badge', props: { label: 'x' } }] }],
+      children: [
+        { id: 's', type: 'section', children: [{ id: 'b', type: 'badge', props: { label: 'x' } }] },
+      ],
     };
-    expect(canonicalizeTextPropsInPlace(tree)).toEqual(['document.children.0.children.0.props.label']);
+    expect(canonicalizeTextPropsInPlace(tree)).toEqual([
+      'document.children.0.children.0.props.label',
+    ]);
     expect(tree.children[0].children[0].props).toEqual({ text: 'x' });
   });
 
@@ -131,7 +144,12 @@ function currentDoc(theme?: unknown): PageDocument {
           id: 'hero',
           type: 'section',
           props: {},
-          styles: { base: { backgroundColor: 'var(--kb-color-primary)', borderRadius: 'var(--kb-radius-md)' } },
+          styles: {
+            base: {
+              backgroundColor: 'var(--kb-color-primary)',
+              borderRadius: 'var(--kb-radius-md)',
+            },
+          },
           children: [],
         },
       ],
@@ -169,15 +187,21 @@ describe('STORA-551: document theme', () => {
   });
 
   it('updateTheme merges, removes tokens with null and rejects unsafe values', () => {
-    const first = updateTheme(currentDoc(), { theme: { colors: { primary: '#111111', accent: '#222222' } } });
+    const first = updateTheme(currentDoc(), {
+      theme: { colors: { primary: '#111111', accent: '#222222' } },
+    });
     expect(first.event.type).toBe('THEME_UPDATED');
     expect(first.document.theme).toEqual({ colors: { primary: '#111111', accent: '#222222' } });
 
-    const second = updateTheme(first.document, { theme: { colors: { accent: null }, radii: { md: '6px' } } });
+    const second = updateTheme(first.document, {
+      theme: { colors: { accent: null }, radii: { md: '6px' } },
+    });
     expect(second.document.theme).toEqual({ colors: { primary: '#111111' }, radii: { md: '6px' } });
     expect(first.document.theme).toEqual({ colors: { primary: '#111111', accent: '#222222' } }); // immutable
 
-    expect(() => updateTheme(second.document, { theme: { colors: { primary: 'red;}' } } })).toThrow();
+    expect(() =>
+      updateTheme(second.document, { theme: { colors: { primary: 'red;}' } } }),
+    ).toThrow();
     expect(updateTheme(second.document, { theme: null }).document.theme).toBeUndefined();
   });
 
@@ -188,6 +212,9 @@ describe('STORA-551: document theme', () => {
     expect(exported.page.theme).toEqual({ colors: { primary: '#2563eb' }, spacing: { lg: 24 } });
     const imported = await importPackage(exported.archive);
     if (!imported.success) throw new Error(JSON.stringify(imported));
-    expect(imported.document.theme).toEqual({ colors: { primary: '#2563eb' }, spacing: { lg: 24 } });
+    expect(imported.document.theme).toEqual({
+      colors: { primary: '#2563eb' },
+      spacing: { lg: 24 },
+    });
   });
 });

@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { ValidationRule, ValidateOnEvent, ActionPipeline, PageDocument, Node } from '@kubuild/schema';
+import type {
+  ValidationRule,
+  ValidateOnEvent,
+  ActionPipeline,
+  PageDocument,
+  Node,
+} from '@kubuild/schema';
 import { icons as lucideIcons, Loader2 } from 'lucide-react';
 import { useFormRuntime, type FormFieldBindingInput } from '../form-context';
 import { executeNodeActions } from '../action-dispatcher';
@@ -15,7 +21,11 @@ import { toPascalCase } from './media-utils';
  * registered under the node's `name` and `required` is enforced by form validation.
  */
 
-type ActionDispatchFn = (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
+type ActionDispatchFn = (
+  actionType: string,
+  payload: Record<string, unknown> | undefined,
+  nodeId: string,
+) => void;
 
 interface FieldActionProps {
   actions?: ActionPipeline[];
@@ -47,7 +57,9 @@ const EMPTY_RULES: ValidationRule[] = [];
  * default values are visible to the first submit, and again in an effect for cleanup) —
  * the same pattern the built-in input/checkbox nodes use.
  */
-function useRegisteredField(binding: FormFieldBindingInput | null): ReturnType<typeof useFormRuntime> {
+function useRegisteredField(
+  binding: FormFieldBindingInput | null,
+): ReturnType<typeof useFormRuntime> {
   const formRuntime = useFormRuntime();
   if (formRuntime && binding?.name) {
     formRuntime.registerField(binding);
@@ -56,7 +68,14 @@ function useRegisteredField(binding: FormFieldBindingInput | null): ReturnType<t
   const { defaultValue, required, disabled, rules, validateOn } = binding || {};
   useEffect(() => {
     if (!formRuntime || !name) return;
-    return formRuntime.registerField({ name, defaultValue, required, disabled, rules: rules || [], validateOn });
+    return formRuntime.registerField({
+      name,
+      defaultValue,
+      required,
+      disabled,
+      rules: rules || [],
+      validateOn,
+    });
   }, [formRuntime, name, defaultValue, required, disabled, rules, validateOn]);
   return formRuntime;
 }
@@ -100,7 +119,12 @@ function FieldFeedback({
         </span>
       ) : null}
       {error ? (
-        <span id={id ? `${id}-error` : undefined} role="alert" style={errorTextStyle} data-kubuild-field-error>
+        <span
+          id={id ? `${id}-error` : undefined}
+          role="alert"
+          style={errorTextStyle}
+          data-kubuild-field-error
+        >
           {error}
         </span>
       ) : null}
@@ -142,7 +166,9 @@ export const FormRadioGroupNode: React.FC<FormRadioGroupNodeProps> = ({
   children,
 }) => {
   const formRuntime = useRegisteredField(
-    name ? { name, defaultValue: defaultSelected || undefined, required, disabled, rules: EMPTY_RULES } : null,
+    name
+      ? { name, defaultValue: defaultSelected || undefined, required, disabled, rules: EMPTY_RULES }
+      : null,
   );
 
   const groupContext = useMemo<RadioGroupContextValue | null>(
@@ -150,7 +176,8 @@ export const FormRadioGroupNode: React.FC<FormRadioGroupNodeProps> = ({
     [name, required, disabled],
   );
 
-  const error = formRuntime && name && formRuntime.touched[name] ? formRuntime.errors[name] : undefined;
+  const error =
+    formRuntime && name && formRuntime.touched[name] ? formRuntime.errors[name] : undefined;
   const groupStyle: React.CSSProperties = {
     ...style,
     ...(orientation === 'horizontal' ? { flexDirection: 'row', flexWrap: 'wrap' } : {}),
@@ -233,7 +260,14 @@ export const FormSwitchNode: React.FC<FormSwitchNodeProps> = (props) => {
 
   const formRuntime = useRegisteredField(
     name
-      ? { name, defaultValue: defaultChecked ? onValue : false, required, disabled, rules: rules || [], validateOn }
+      ? {
+          name,
+          defaultValue: defaultChecked ? onValue : false,
+          required,
+          disabled,
+          rules: rules || [],
+          validateOn,
+        }
       : null,
   );
   const [localChecked, setLocalChecked] = useState<boolean>(defaultChecked);
@@ -259,7 +293,14 @@ export const FormSwitchNode: React.FC<FormSwitchNodeProps> = (props) => {
 
   const handleBlur = () => {
     if (bound) formRuntime!.setFieldTouched(name!, true);
-    runFieldActions(props, 'switch', 'blur', formRuntime, name || id || 'switch', isChecked ? onValue : false);
+    runFieldActions(
+      props,
+      'switch',
+      'blur',
+      formRuntime,
+      name || id || 'switch',
+      isChecked ? onValue : false,
+    );
   };
 
   const size = SWITCH_SIZES[switchSize] || SWITCH_SIZES.md;
@@ -311,7 +352,12 @@ export const FormSwitchNode: React.FC<FormSwitchNodeProps> = (props) => {
           style={visuallyHiddenStyle}
           data-field={name}
         />
-        <span aria-hidden="true" style={trackStyle} data-kubuild-switch-track data-state={isChecked ? 'on' : 'off'}>
+        <span
+          aria-hidden="true"
+          style={trackStyle}
+          data-kubuild-switch-track
+          data-state={isChecked ? 'on' : 'off'}
+        >
           <span style={thumbStyle} />
         </span>
         {isEditable ? (
@@ -320,7 +366,9 @@ export const FormSwitchNode: React.FC<FormSwitchNodeProps> = (props) => {
             value={label}
             isEditable={isEditable}
             nodeId={dataKubuildNode || ''}
-            onChange={(val, isBlur) => onNodePropChange?.(dataKubuildNode || '', 'label', val, isBlur)}
+            onChange={(val, isBlur) =>
+              onNodePropChange?.(dataKubuildNode || '', 'label', val, isBlur)
+            }
           />
         ) : (
           <span>{label}</span>
@@ -426,13 +474,20 @@ export const FormFileUploadNode: React.FC<FormFileUploadNodeProps> = (props) => 
     setSizeError(nextSizeError);
     setSelected(accepted);
 
-    const nextValue = multiple ? accepted : accepted[0] ?? null;
+    const nextValue = multiple ? accepted : (accepted[0] ?? null);
     if (bound) {
       formRuntime!.setFieldValue(name!, nextValue);
       formRuntime!.setFieldTouched(name!, true, !nextSizeError);
       if (nextSizeError) formRuntime!.setFieldError(name!, nextSizeError);
     }
-    runFieldActions(props, 'file-upload', 'change', formRuntime, name || id || 'file-upload', nextValue);
+    runFieldActions(
+      props,
+      'file-upload',
+      'change',
+      formRuntime,
+      name || id || 'file-upload',
+      nextValue,
+    );
   };
 
   // Keep the local selection in sync when the form is reset.
@@ -451,7 +506,9 @@ export const FormFileUploadNode: React.FC<FormFileUploadNodeProps> = (props) => 
           value={label}
           isEditable={isEditable}
           nodeId={dataKubuildNode || ''}
-          onChange={(val, isBlur) => onNodePropChange?.(dataKubuildNode || '', 'label', val, isBlur)}
+          onChange={(val, isBlur) =>
+            onNodePropChange?.(dataKubuildNode || '', 'label', val, isBlur)
+          }
         />
       ) : label ? (
         <label htmlFor={inputId}>{label}</label>
@@ -474,7 +531,10 @@ export const FormFileUploadNode: React.FC<FormFileUploadNodeProps> = (props) => 
         data-field={name}
       />
       {showPreview && selected.length > 0 ? (
-        <ul data-kubuild-file-preview style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#475569' }}>
+        <ul
+          data-kubuild-file-preview
+          style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#475569' }}
+        >
           {selected.map((file) => (
             <li key={`${file.name}-${file.size}`}>
               {file.name} ({formatFileSize(file.size)})
@@ -493,7 +553,9 @@ export const FormFileUploadNode: React.FC<FormFileUploadNodeProps> = (props) => 
 
 const SPINNER_KEYFRAMES = '@keyframes kubuild-spin{to{transform:rotate(360deg)}}';
 
-function resolveLucideIcon(name?: string): React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }> | null {
+function resolveLucideIcon(
+  name?: string,
+): React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }> | null {
   if (!name) return null;
   const registry = lucideIcons as unknown as Record<string, React.ComponentType<{ size?: number }>>;
   return registry[toPascalCase(name)] || registry[name] || null;
@@ -555,8 +617,7 @@ export const FormButtonSubmitNode: React.FC<FormButtonSubmitNodeProps> = ({
 }) => {
   const formRuntime = useFormRuntime();
   const [isHandlingClick, setIsHandlingClick] = useState(false);
-  const isBusy =
-    isHandlingClick || (buttonType === 'submit' && formRuntime?.isSubmitting === true);
+  const isBusy = isHandlingClick || (buttonType === 'submit' && formRuntime?.isSubmitting === true);
   const isEffectivelyDisabled = Boolean(disabled) || (autoDisableOnSubmit && isBusy);
 
   const handleClick = async (e: React.MouseEvent) => {
@@ -594,7 +655,13 @@ export const FormButtonSubmitNode: React.FC<FormButtonSubmitNodeProps> = ({
       aria-label={ariaLabel}
       title={title}
       tabIndex={isEffectivelyDisabled ? -1 : 0}
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', ...style }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        ...style,
+      }}
       onClick={isEffectivelyDisabled ? undefined : handleClick}
       data-kubuild-node={dataKubuildNode}
       data-variant={variant}
@@ -619,7 +686,9 @@ export const FormButtonSubmitNode: React.FC<FormButtonSubmitNodeProps> = ({
           value={label}
           isEditable={isEditable}
           nodeId={dataKubuildNode || ''}
-          onChange={(val, isBlur) => onNodePropChange?.(dataKubuildNode || '', 'label', val, isBlur)}
+          onChange={(val, isBlur) =>
+            onNodePropChange?.(dataKubuildNode || '', 'label', val, isBlur)
+          }
         />
       ) : (
         <span>{text}</span>

@@ -68,25 +68,41 @@ describe('STORA-531: switch', () => {
 });
 
 describe('STORA-531: radio-group / radio-item', () => {
-  const group = (props: Record<string, unknown>, childType: 'radio' | 'radio-item' = 'radio-item'): Node => ({
+  const group = (
+    props: Record<string, unknown>,
+    childType: 'radio' | 'radio-item' = 'radio-item',
+  ): Node => ({
     id: 'rg',
     type: 'radio-group',
     props: { name: 'plan', required: true, ...props },
     children: [
-      { id: 'r1', type: childType, props: { name: 'stale_name', label: 'Basic', value: 'basic' }, children: [] },
-      { id: 'r2', type: childType, props: { name: 'stale_name', label: 'Pro', value: 'pro' }, children: [] },
+      {
+        id: 'r1',
+        type: childType,
+        props: { name: 'stale_name', label: 'Basic', value: 'basic' },
+        children: [],
+      },
+      {
+        id: 'r2',
+        type: childType,
+        props: { name: 'stale_name', label: 'Pro', value: 'pro' },
+        children: [],
+      },
     ],
   });
 
-  it.each(['radio', 'radio-item'] as const)('%s children use the group name and default selection', async (childType) => {
-    const { html, form } = renderInForm([group({ defaultSelected: 'pro' }, childType)]);
-    expect(html).toContain('role="radiogroup"');
-    expect(html).not.toContain('stale_name');
-    expect(html.match(/name="plan"/g)?.length).toBe(2);
-    expect(form.getFieldBinding('plan')?.required).toBe(true);
-    expect(form.getFieldBinding('stale_name')).toBeUndefined();
-    expect(await form.handleFormSubmit()).toBe(true);
-  });
+  it.each(['radio', 'radio-item'] as const)(
+    '%s children use the group name and default selection',
+    async (childType) => {
+      const { html, form } = renderInForm([group({ defaultSelected: 'pro' }, childType)]);
+      expect(html).toContain('role="radiogroup"');
+      expect(html).not.toContain('stale_name');
+      expect(html.match(/name="plan"/g)?.length).toBe(2);
+      expect(form.getFieldBinding('plan')?.required).toBe(true);
+      expect(form.getFieldBinding('stale_name')).toBeUndefined();
+      expect(await form.handleFormSubmit()).toBe(true);
+    },
+  );
 
   it('required group without a selection fails validation', async () => {
     const { form } = renderInForm([group({ defaultSelected: '' })]);
@@ -139,7 +155,13 @@ describe('STORA-531: button-submit', () => {
   const button = (props: Record<string, unknown>): Node => ({
     id: 'bs',
     type: 'button-submit',
-    props: { label: 'Send', loadingText: 'Sending…', showSpinner: true, autoDisableOnSubmit: true, ...props },
+    props: {
+      label: 'Send',
+      loadingText: 'Sending…',
+      showSpinner: true,
+      autoDisableOnSubmit: true,
+      ...props,
+    },
     children: [],
   });
 
@@ -179,7 +201,10 @@ describe('STORA-531: button-submit', () => {
   });
 
   it('submitting with showSpinner=false and autoDisableOnSubmit=false', () => {
-    const html = renderWithSubmitting(button({ showSpinner: false, autoDisableOnSubmit: false }), true);
+    const html = renderWithSubmitting(
+      button({ showSpinner: false, autoDisableOnSubmit: false }),
+      true,
+    );
     expect(html).toContain('Sending…');
     expect(html).not.toContain('data-kubuild-spinner');
     expect(html).not.toContain('disabled=""');

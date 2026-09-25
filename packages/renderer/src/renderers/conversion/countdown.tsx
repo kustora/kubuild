@@ -91,7 +91,14 @@ export function resolveFixedDeadline(targetDate: string, timeZone = 'UTC'): numb
   const match = WALL_TIME_RE.exec(value);
   if (!match) return null;
   const [, y, mo, d, h = '0', mi = '0', s = '0'] = match;
-  const wallAsUtc = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
+  const wallAsUtc = Date.UTC(
+    Number(y),
+    Number(mo) - 1,
+    Number(d),
+    Number(h),
+    Number(mi),
+    Number(s),
+  );
   if (!Number.isFinite(wallAsUtc)) return null;
 
   const zone = timeZone && timeZone.trim() ? timeZone.trim() : 'UTC';
@@ -199,7 +206,8 @@ const CountdownView: React.FC<{ options: RenderNodeContentOptions }> = ({ option
   const { node, domId, styles, mode, handleClick } = options;
   const isEditor = mode === 'editor';
 
-  const countdownMode = readString(options, 'mode', 'evergreen') === 'fixed' ? 'fixed' : 'evergreen';
+  const countdownMode =
+    readString(options, 'mode', 'evergreen') === 'fixed' ? 'fixed' : 'evergreen';
   const durationMs = Math.max(0, readNumber(options, 'durationMinutes', 15)) * 60_000;
   const targetDate = readString(options, 'targetDate');
   const timezone = readString(options, 'timezone', 'UTC');
@@ -318,16 +326,30 @@ const CountdownView: React.FC<{ options: RenderNodeContentOptions }> = ({ option
 
   let display: React.ReactNode;
   if (format === 'd h m s') {
-    const values = parts ? [parts.days, parts.hours, parts.minutes, parts.seconds] : [null, null, null, null];
+    const values = parts
+      ? [parts.days, parts.hours, parts.minutes, parts.seconds]
+      : [null, null, null, null];
     display = values.map((value, i) => (
       <span
         key={i}
         data-kubuild-countdown-unit={['days', 'hours', 'minutes', 'seconds'][i]}
-        style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', minWidth: '2.5em' }}
+        style={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          minWidth: '2.5em',
+        }}
       >
         <span>{value === null ? '--' : i === 0 ? String(value) : pad2(value)}</span>
         {unitLabels[i] ? (
-          <span style={{ fontSize: '0.4em', fontWeight: 500, opacity: 0.75, textTransform: 'uppercase' }}>
+          <span
+            style={{
+              fontSize: '0.4em',
+              fontWeight: 500,
+              opacity: 0.75,
+              textTransform: 'uppercase',
+            }}
+          >
             {unitLabels[i]}
           </span>
         ) : null}
@@ -336,7 +358,11 @@ const CountdownView: React.FC<{ options: RenderNodeContentOptions }> = ({ option
   } else {
     display = (
       <span data-kubuild-countdown-value="">
-        {remainingMs === null ? (format === 'mm:ss' ? '--:--' : '--:--:--') : formatCountdown(remainingMs, format)}
+        {remainingMs === null
+          ? format === 'mm:ss'
+            ? '--:--'
+            : '--:--:--'
+          : formatCountdown(remainingMs, format)}
       </span>
     );
   }

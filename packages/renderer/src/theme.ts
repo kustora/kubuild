@@ -18,7 +18,9 @@ export function resolveRuntimeTheme(
  * (`{ '--kb-color-primary': '#2563eb' }`). Unsafe keys/values are dropped, so this is safe
  * to call on an unvalidated host override.
  */
-export function themeToCssProperties(theme: Partial<Theme> | undefined | null): React.CSSProperties {
+export function themeToCssProperties(
+  theme: Partial<Theme> | undefined | null,
+): React.CSSProperties {
   const style: Record<string, string> = {};
   for (const [name, value] of themeToCssVariables(theme)) {
     style[name] = value;

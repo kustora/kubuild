@@ -60,20 +60,33 @@ describe('STORA-543: countdown', () => {
   it('resolves fixed deadlines in the given timezone (and honours explicit offsets)', () => {
     expect(resolveFixedDeadline('2026-12-31T23:59', 'UTC')).toBe(Date.UTC(2026, 11, 31, 23, 59));
     // Asia/Jakarta is UTC+7 with no DST.
-    expect(resolveFixedDeadline('2026-12-31T23:59', 'Asia/Jakarta')).toBe(Date.UTC(2026, 11, 31, 16, 59));
+    expect(resolveFixedDeadline('2026-12-31T23:59', 'Asia/Jakarta')).toBe(
+      Date.UTC(2026, 11, 31, 16, 59),
+    );
     // New York in July is UTC-4 (EDT), in January UTC-5 (EST).
-    expect(resolveFixedDeadline('2026-07-01T12:00', 'America/New_York')).toBe(Date.UTC(2026, 6, 1, 16, 0));
-    expect(resolveFixedDeadline('2026-01-15T12:00', 'America/New_York')).toBe(Date.UTC(2026, 0, 15, 17, 0));
-    expect(resolveFixedDeadline('2026-12-31T23:59:00+07:00', 'UTC')).toBe(Date.UTC(2026, 11, 31, 16, 59));
+    expect(resolveFixedDeadline('2026-07-01T12:00', 'America/New_York')).toBe(
+      Date.UTC(2026, 6, 1, 16, 0),
+    );
+    expect(resolveFixedDeadline('2026-01-15T12:00', 'America/New_York')).toBe(
+      Date.UTC(2026, 0, 15, 17, 0),
+    );
+    expect(resolveFixedDeadline('2026-12-31T23:59:00+07:00', 'UTC')).toBe(
+      Date.UTC(2026, 11, 31, 16, 59),
+    );
     // Invalid timezone falls back to UTC; garbage yields null.
-    expect(resolveFixedDeadline('2026-12-31T23:59', 'Not/AZone')).toBe(Date.UTC(2026, 11, 31, 23, 59));
+    expect(resolveFixedDeadline('2026-12-31T23:59', 'Not/AZone')).toBe(
+      Date.UTC(2026, 11, 31, 23, 59),
+    );
     expect(resolveFixedDeadline('', 'UTC')).toBeNull();
     expect(resolveFixedDeadline('next friday', 'UTC')).toBeNull();
   });
 
   it('persists the evergreen deadline and reuses it on the next visit', () => {
     const store = new Map<string, string>();
-    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) };
+    const storage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    };
     const first = resolveEvergreenDeadline({ key: 'k', durationMs: 60_000, now: 1_000, storage });
     expect(first).toBe(61_000);
     const second = resolveEvergreenDeadline({ key: 'k', durationMs: 60_000, now: 30_000, storage });
@@ -92,16 +105,32 @@ describe('STORA-543: countdown', () => {
         throw new Error('QuotaExceededError');
       },
     };
-    const first = resolveEvergreenDeadline({ key: 'x', durationMs: 60_000, now: 0, storage: throwing });
-    const second = resolveEvergreenDeadline({ key: 'x', durationMs: 60_000, now: 10_000, storage: throwing });
+    const first = resolveEvergreenDeadline({
+      key: 'x',
+      durationMs: 60_000,
+      now: 0,
+      storage: throwing,
+    });
+    const second = resolveEvergreenDeadline({
+      key: 'x',
+      durationMs: 60_000,
+      now: 10_000,
+      storage: throwing,
+    });
     expect(first).toBe(60_000);
     expect(second).toBe(60_000);
-    expect(resolveEvergreenDeadline({ key: 'y', durationMs: 5_000, now: 0, storage: null })).toBe(5_000);
+    expect(resolveEvergreenDeadline({ key: 'y', durationMs: 5_000, now: 0, storage: null })).toBe(
+      5_000,
+    );
   });
 
   it('renders an accessible timer showing the full duration (SSR-deterministic)', () => {
     const html = render([
-      { id: 'cd', type: 'countdown', props: { mode: 'evergreen', durationMinutes: 90, format: 'hh:mm:ss', label: 'Ends in' } },
+      {
+        id: 'cd',
+        type: 'countdown',
+        props: { mode: 'evergreen', durationMinutes: 90, format: 'hh:mm:ss', label: 'Ends in' },
+      },
     ]);
     expect(html).toContain('role="timer"');
     expect(html).toContain('aria-label="Ends in"');
@@ -111,7 +140,13 @@ describe('STORA-543: countdown', () => {
 
   it('is frozen in editor mode, even for a fixed deadline in the past', () => {
     const evergreen = render(
-      [{ id: 'cd', type: 'countdown', props: { mode: 'evergreen', durationMinutes: 15, format: 'mm:ss' } }],
+      [
+        {
+          id: 'cd',
+          type: 'countdown',
+          props: { mode: 'evergreen', durationMinutes: 15, format: 'mm:ss' },
+        },
+      ],
       'editor',
     );
     expect(evergreen).toContain('15:00');
@@ -122,7 +157,12 @@ describe('STORA-543: countdown', () => {
         {
           id: 'cd2',
           type: 'countdown',
-          props: { mode: 'fixed', targetDate: '2000-01-01T00:00', expireBehavior: 'hide', format: 'mm:ss' },
+          props: {
+            mode: 'fixed',
+            targetDate: '2000-01-01T00:00',
+            expireBehavior: 'hide',
+            format: 'mm:ss',
+          },
         },
       ],
       'editor',
@@ -134,7 +174,11 @@ describe('STORA-543: countdown', () => {
 
   it('renders placeholder text for fixed mode until the client clock is known', () => {
     const html = render([
-      { id: 'cd', type: 'countdown', props: { mode: 'fixed', targetDate: '2099-01-01T00:00', format: 'd h m s' } },
+      {
+        id: 'cd',
+        type: 'countdown',
+        props: { mode: 'fixed', targetDate: '2099-01-01T00:00', format: 'd h m s' },
+      },
     ]);
     expect(html).toContain('data-kubuild-countdown-unit="days"');
     expect(html).toContain('--');
@@ -155,7 +199,11 @@ describe('STORA-543: countdown', () => {
       props: {},
       actions: [
         pipeline as never,
-        { id: 'p-click', trigger: 'click', steps: [{ id: 's2', type: 'close_modal', payload: {} }] } as never,
+        {
+          id: 'p-click',
+          trigger: 'click',
+          steps: [{ id: 's2', type: 'close_modal', payload: {} }],
+        } as never,
       ],
     };
     const onActionDispatch = vi.fn();
@@ -166,7 +214,11 @@ describe('STORA-543: countdown', () => {
       onActionDispatch,
     } as unknown as RenderNodeContentOptions);
     expect(onActionDispatch).toHaveBeenCalledTimes(1);
-    expect(onActionDispatch).toHaveBeenCalledWith('open_modal', { modalId: 'offer-ended-test' }, 'cd');
+    expect(onActionDispatch).toHaveBeenCalledWith(
+      'open_modal',
+      { modalId: 'offer-ended-test' },
+      'cd',
+    );
   });
 });
 
@@ -176,8 +228,18 @@ describe('STORA-544: accordion', () => {
     type: 'accordion',
     props: { allowMultiple: false, defaultOpenIndex: 1, faqSchema: true },
     children: [
-      { id: 'i1', type: 'accordion-item', props: { title: 'Q1?' }, children: [{ id: 'p1', type: 'paragraph', props: { text: 'Answer one' } }] },
-      { id: 'i2', type: 'accordion-item', props: { title: 'Q2?' }, children: [{ id: 'p2', type: 'paragraph', props: { text: 'Answer </script> two' } }] },
+      {
+        id: 'i1',
+        type: 'accordion-item',
+        props: { title: 'Q1?' },
+        children: [{ id: 'p1', type: 'paragraph', props: { text: 'Answer one' } }],
+      },
+      {
+        id: 'i2',
+        type: 'accordion-item',
+        props: { title: 'Q2?' },
+        children: [{ id: 'p2', type: 'paragraph', props: { text: 'Answer </script> two' } }],
+      },
     ],
   };
 
@@ -206,7 +268,9 @@ describe('STORA-544: accordion', () => {
     expect(runtime).toContain('\\u003c/script\\u003e two');
     expect(render([faq], 'editor')).not.toContain('application/ld+json');
 
-    const ld = buildFaqJsonLd(faq) as { mainEntity: Array<{ name: string; acceptedAnswer: { text: string } }> };
+    const ld = buildFaqJsonLd(faq) as {
+      mainEntity: Array<{ name: string; acceptedAnswer: { text: string } }>;
+    };
     expect(ld.mainEntity).toHaveLength(2);
     expect(ld.mainEntity[0]).toMatchObject({ name: 'Q1?', acceptedAnswer: { text: 'Answer one' } });
     expect(serializeJsonForScript({ a: '<b>&' })).toBe('{"a":"\\u003cb\\u003e\\u0026"}');
@@ -225,16 +289,30 @@ describe('STORA-545: tabs', () => {
     type: 'tabs',
     props: { activeIndex: 1, ariaLabel: 'Billing' },
     children: [
-      { id: 'tp1', type: 'tab-panel', props: { label: 'Monthly' }, children: [{ id: 't1', type: 'text', props: { text: 'Monthly body' } }] },
-      { id: 'tp2', type: 'tab-panel', props: { label: 'Yearly' }, children: [{ id: 't2', type: 'text', props: { text: 'Yearly body' } }] },
+      {
+        id: 'tp1',
+        type: 'tab-panel',
+        props: { label: 'Monthly' },
+        children: [{ id: 't1', type: 'text', props: { text: 'Monthly body' } }],
+      },
+      {
+        id: 'tp2',
+        type: 'tab-panel',
+        props: { label: 'Yearly' },
+        children: [{ id: 't2', type: 'text', props: { text: 'Yearly body' } }],
+      },
     ],
   };
 
   it('renders the ARIA tabs pattern with the configured active tab', () => {
     const html = render([tabs]);
     expect(html).toContain('role="tablist" aria-label="Billing"');
-    expect(html).toContain('role="tab" id="tabs-tab-0" aria-selected="false" aria-controls="tp1" tabindex="-1"');
-    expect(html).toContain('role="tab" id="tabs-tab-1" aria-selected="true" aria-controls="tp2" tabindex="0"');
+    expect(html).toContain(
+      'role="tab" id="tabs-tab-0" aria-selected="false" aria-controls="tp1" tabindex="-1"',
+    );
+    expect(html).toContain(
+      'role="tab" id="tabs-tab-1" aria-selected="true" aria-controls="tp2" tabindex="0"',
+    );
     expect(html).toMatch(/id="tp1"[^>]*role="tabpanel" aria-labelledby="tabs-tab-0"[^>]*hidden/);
     expect(html).not.toMatch(/id="tp2"[^>]*hidden/);
   });
@@ -302,7 +380,9 @@ describe('STORA-547: rating', () => {
   });
 
   it('renders an accessible image with the configured size and color', () => {
-    const html = render([{ id: 'r', type: 'rating', props: { value: 4.5, max: 5, size: 18, color: '#ff0000' } }]);
+    const html = render([
+      { id: 'r', type: 'rating', props: { value: 4.5, max: 5, size: 18, color: '#ff0000' } },
+    ]);
     expect(html).toContain('role="img" aria-label="4.5 out of 5"');
     expect(html.match(/data-kubuild-rating-star=/g)).toHaveLength(5);
     expect(html).toContain('data-kubuild-rating-star="0.5"');
@@ -313,7 +393,9 @@ describe('STORA-547: rating', () => {
 
 describe('STORA-548: divider & spacer', () => {
   it('renders a plain rule or a labelled separator', () => {
-    const plain = render([{ id: 'd', type: 'divider', props: { lineStyle: 'dashed', thickness: 2, color: '#333333' } }]);
+    const plain = render([
+      { id: 'd', type: 'divider', props: { lineStyle: 'dashed', thickness: 2, color: '#333333' } },
+    ]);
     expect(plain).toContain('<hr id="d"');
     expect(plain).toContain('border-top:2px dashed #333333');
 
@@ -330,8 +412,22 @@ describe('STORA-548: divider & spacer', () => {
       styles: { base: { height: '48px' }, mobile: { height: '12px' } },
     };
     const doc = docWith([spacer]);
-    const desktop = renderToString(<KubuildRenderer document={doc} registry={registry} viewport="desktop" showToastContainer={false} />);
-    const mobile = renderToString(<KubuildRenderer document={doc} registry={registry} viewport="mobile" showToastContainer={false} />);
+    const desktop = renderToString(
+      <KubuildRenderer
+        document={doc}
+        registry={registry}
+        viewport="desktop"
+        showToastContainer={false}
+      />,
+    );
+    const mobile = renderToString(
+      <KubuildRenderer
+        document={doc}
+        registry={registry}
+        viewport="mobile"
+        showToastContainer={false}
+      />,
+    );
     expect(desktop).toContain('height:48px');
     expect(mobile).toContain('height:12px');
     expect(desktop).toContain('aria-hidden="true"');
@@ -342,7 +438,14 @@ describe('STORA-549: sales blocks render without unknown-component fallbacks', (
   it.each(SALES_STARTER_BLOCKS.map((b) => [b.id, b] as const))('%s', (_id, block) => {
     const doc = createBlankDocument('Sales');
     doc.document.children = [block.createNodeTree()];
-    const html = renderToString(<KubuildRenderer document={doc} registry={registry} mode="editor" showToastContainer={false} />);
+    const html = renderToString(
+      <KubuildRenderer
+        document={doc}
+        registry={registry}
+        mode="editor"
+        showToastContainer={false}
+      />,
+    );
     expect(html).not.toContain('data-kubuild-unknown');
     expect(html).not.toContain('data-kubuild-error');
   });

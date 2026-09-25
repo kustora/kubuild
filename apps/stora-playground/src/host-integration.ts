@@ -35,39 +35,69 @@ export const HOST_BLOCKS: BlockDefinition[] = [
       type: 'section',
       props: {},
       styles: {
-        base: { paddingTop: '56px', paddingBottom: '56px', paddingLeft: '24px', paddingRight: '24px', backgroundColor: '#f8fafc' },
+        base: {
+          paddingTop: '56px',
+          paddingBottom: '56px',
+          paddingLeft: '24px',
+          paddingRight: '24px',
+          backgroundColor: '#f8fafc',
+        },
       },
       children: [
         {
           id: gen('heading'),
           type: 'heading',
           props: { text: 'What our customers say', level: 2 },
-          styles: { base: { textAlign: 'center', fontSize: '32px', fontWeight: '700', marginBottom: '32px' } },
+          styles: {
+            base: {
+              textAlign: 'center',
+              fontSize: '32px',
+              fontWeight: '700',
+              marginBottom: '32px',
+            },
+          },
         },
         {
           id: gen('columns'),
           type: 'columns',
           props: { columns: 3, gap: '24px' },
-          styles: { base: { display: 'flex', gap: '24px', width: '100%', maxWidth: '1100px', margin: '0 auto' } },
-          children: ['“Setup took five minutes.”', '“Our conversion rate doubled.”', '“Support is fantastic.”'].map(
-            (quote, i) => ({
-              id: gen('container'),
-              type: 'container',
-              props: { tag: 'div' },
-              styles: {
-                base: { flex: '1 1 0%', minWidth: '0', padding: '24px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' },
+          styles: {
+            base: {
+              display: 'flex',
+              gap: '24px',
+              width: '100%',
+              maxWidth: '1100px',
+              margin: '0 auto',
+            },
+          },
+          children: [
+            '“Setup took five minutes.”',
+            '“Our conversion rate doubled.”',
+            '“Support is fantastic.”',
+          ].map((quote, i) => ({
+            id: gen('container'),
+            type: 'container',
+            props: { tag: 'div' },
+            styles: {
+              base: {
+                flex: '1 1 0%',
+                minWidth: '0',
+                padding: '24px',
+                backgroundColor: '#ffffff',
+                borderRadius: '12px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
               },
-              children: [
-                { id: gen('paragraph'), type: 'paragraph', props: { content: quote } },
-                {
-                  id: gen('text'),
-                  type: 'text',
-                  props: { content: ['Ayu, Jakarta', 'Budi, Bandung', 'Citra, Surabaya'][i] },
-                  styles: { base: { fontWeight: '600', color: '#475569', marginTop: '12px' } },
-                },
-              ],
-            }),
-          ),
+            },
+            children: [
+              { id: gen('paragraph'), type: 'paragraph', props: { text: quote } },
+              {
+                id: gen('text'),
+                type: 'text',
+                props: { text: ['Ayu, Jakarta', 'Budi, Bandung', 'Citra, Surabaya'][i] },
+                styles: { base: { fontWeight: '600', color: '#475569', marginTop: '12px' } },
+              },
+            ],
+          })),
         },
       ],
     }),
@@ -83,11 +113,15 @@ function thankYouDocument(): PageDocument {
       props: {},
       styles: { base: { paddingTop: '96px', paddingBottom: '96px', textAlign: 'center' } },
       children: [
-        { id: 'thanks-heading', type: 'heading', props: { text: 'Thank you for your order!', level: 1 } },
+        {
+          id: 'thanks-heading',
+          type: 'heading',
+          props: { text: 'Thank you for your order!', level: 1 },
+        },
         {
           id: 'thanks-text',
           type: 'paragraph',
-          props: { content: 'A confirmation email is on its way. See you soon.' },
+          props: { text: 'A confirmation email is on its way. See you soon.' },
           styles: { base: { color: '#475569', marginTop: '16px' } },
         },
       ],

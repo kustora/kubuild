@@ -38,7 +38,8 @@ export const ratingDefinition: ComponentDefinition = {
       label: 'Accessible Label',
       type: 'string',
       defaultValue: '{value} out of {max}',
-      description: 'Screen reader text; {value} and {max} are replaced (e.g. "{value} dari {max}").',
+      description:
+        'Screen reader text; {value} and {max} are replaced (e.g. "{value} dari {max}").',
     },
   ],
   traits: [idTrait()],

@@ -6,7 +6,9 @@ function collectAliasUsages(node: Node, path: string, out: string[]): void {
   for (const usage of findDeprecatedPropAliases(node.type, node.props)) {
     out.push(`${path} (${node.type}#${node.id}): "${usage.propName}" -> "${usage.canonicalName}"`);
   }
-  node.children?.forEach((child, index) => collectAliasUsages(child, `${path}.children.${index}`, out));
+  node.children?.forEach((child, index) =>
+    collectAliasUsages(child, `${path}.children.${index}`, out),
+  );
 }
 
 describe('STORA-550: canonical text prop names', () => {

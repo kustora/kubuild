@@ -56,7 +56,15 @@ describe('Epic 60 conversion component definitions', () => {
   });
 
   it('allows top-level conversion components inside sections/containers but keeps item types scoped', () => {
-    for (const type of ['countdown', 'accordion', 'tabs', 'carousel', 'rating', 'divider', 'spacer']) {
+    for (const type of [
+      'countdown',
+      'accordion',
+      'tabs',
+      'carousel',
+      'rating',
+      'divider',
+      'spacer',
+    ]) {
       expect(CONTENT_CHILD_TYPES).toContain(type);
       expect(registry.canInsertChild('section', type).valid, type).toBe(true);
       expect(registry.canInsertChild('container', type).valid, type).toBe(true);
@@ -137,8 +145,12 @@ describe('STORA-549: sales starter blocks', () => {
   );
 
   it('uses the Epic 60 components it advertises', () => {
-    const typesIn = (node: Node): string[] => [node.type, ...(node.children ?? []).flatMap(typesIn)];
-    const byId = (id: string) => typesIn(SALES_STARTER_BLOCKS.find((b) => b.id === id)!.createNodeTree());
+    const typesIn = (node: Node): string[] => [
+      node.type,
+      ...(node.children ?? []).flatMap(typesIn),
+    ];
+    const byId = (id: string) =>
+      typesIn(SALES_STARTER_BLOCKS.find((b) => b.id === id)!.createNodeTree());
     expect(byId('sales-faq')).toContain('accordion-item');
     expect(byId('sales-testimonials')).toEqual(expect.arrayContaining(['carousel', 'rating']));
     expect(byId('sales-countdown-banner')).toContain('countdown');

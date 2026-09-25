@@ -35,7 +35,9 @@ export const accordionDefinition: ComponentDefinition = {
     {
       type: 'accordion-item',
       props: { title: 'How do I get access?' },
-      children: [{ type: 'paragraph', props: { text: 'You receive an email right after checkout.' } }],
+      children: [
+        { type: 'paragraph', props: { text: 'You receive an email right after checkout.' } },
+      ],
     },
   ],
   propFields: [

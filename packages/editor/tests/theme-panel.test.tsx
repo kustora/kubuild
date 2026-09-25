@@ -4,7 +4,10 @@ import { renderToString } from 'react-dom/server';
 import { createBlankDocument, updateTheme } from '@kubuild/core';
 import { useEditorStore } from '../src/store';
 import { ThemePanel } from '../src/components/style-manager/theme-panel';
-import { DesignTokensPanel, toThemeTokenKey } from '../src/components/style-manager/design-tokens-panel';
+import {
+  DesignTokensPanel,
+  toThemeTokenKey,
+} from '../src/components/style-manager/design-tokens-panel';
 import { StyleManagerAccordion } from '../src/components/style-manager/style-manager-accordion';
 
 describe('STORA-551: editor theme editing', () => {
@@ -14,7 +17,10 @@ describe('STORA-551: editor theme editing', () => {
 
   it('ThemePanel lists the document tokens of the active group', () => {
     const html = renderToString(
-      <ThemePanel theme={{ colors: { primary: '#2563eb', accent: '#8b5cf6' } }} onChange={() => {}} />,
+      <ThemePanel
+        theme={{ colors: { primary: '#2563eb', accent: '#8b5cf6' } }}
+        onChange={() => {}}
+      />,
     );
     expect(html).toContain('data-testid="theme-panel"');
     expect(html).toContain('data-testid="theme-token-colors-primary"');
@@ -23,14 +29,20 @@ describe('STORA-551: editor theme editing', () => {
   });
 
   it('DesignTokensPanel shows document theme colors (overriding same-named defaults) first', () => {
-    const html = renderToString(<DesignTokensPanel theme={{ colors: { primary: '#ff0066', brand: '#123456' } }} />);
+    const html = renderToString(
+      <DesignTokensPanel theme={{ colors: { primary: '#ff0066', brand: '#123456' } }} />,
+    );
     expect(html).toContain('data-testid="color-swatch-brand"');
-    expect(html.indexOf('color-swatch-primary')).toBeLessThan(html.indexOf('color-swatch-secondary'));
+    expect(html.indexOf('color-swatch-primary')).toBeLessThan(
+      html.indexOf('color-swatch-secondary'),
+    );
     expect(html).toContain('#ff0066');
   });
 
   it('the style accordion exposes the Page Theme section', () => {
-    const html = renderToString(<StyleManagerAccordion styles={{}} onCommitStyle={() => {}} initialState={{}} />);
+    const html = renderToString(
+      <StyleManagerAccordion styles={{}} onCommitStyle={() => {}} initialState={{}} />,
+    );
     expect(html).toContain('data-testid="sector-tokens"');
   });
 

@@ -159,7 +159,9 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
                       <LayoutTemplate className="w-6 h-6 text-slate-300" aria-hidden="true" />
                     )}
                   </div>
-                  <span className="text-xs font-semibold text-slate-800 truncate">{template.name}</span>
+                  <span className="text-xs font-semibold text-slate-800 truncate">
+                    {template.name}
+                  </span>
                   {template.description && (
                     <span className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
                       {template.description}
@@ -170,7 +172,10 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
                       {template.category || 'general'}
                     </span>
                     {(template.tags ?? []).map((tag) => (
-                      <span key={tag} className="text-[9px] text-slate-500 bg-slate-100 px-1 rounded">
+                      <span
+                        key={tag}
+                        className="text-[9px] text-slate-500 bg-slate-100 px-1 rounded"
+                      >
                         {`#${tag}`}
                       </span>
                     ))}
@@ -200,7 +205,11 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
             {selected?.document ? (
               // Read-only: no pointer events, and the renderer runs in editor mode so
               // page-load actions and tracking never fire from a preview.
-              <div className="pointer-events-none select-none bg-white" style={{ zoom: 0.5 }} aria-hidden="true">
+              <div
+                className="pointer-events-none select-none bg-white"
+                style={{ zoom: 0.5 }}
+                aria-hidden="true"
+              >
                 <KubuildRenderer
                   document={selected.document}
                   registry={registry}
@@ -212,7 +221,9 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-xs text-slate-400 p-6 text-center">
-                {selected ? 'This template has no inline document to preview.' : 'Select a template to preview it.'}
+                {selected
+                  ? 'This template has no inline document to preview.'
+                  : 'Select a template to preview it.'}
               </div>
             )}
           </div>

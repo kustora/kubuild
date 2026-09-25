@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Node, PageDocument } from '@kubuild/schema';
 import { collectNodeIds } from '@kubuild/schema';
-import {
-  cloneTemplateAsPage,
-  createTemplateRecord,
-} from '../src/io/template-utils';
+import { cloneTemplateAsPage, createTemplateRecord } from '../src/io/template-utils';
 import { cloneTreeWithNewIds } from '../src/document/command-tree-utils';
 import { duplicateNode } from '../src/document/commands';
 
@@ -80,12 +77,22 @@ function buildFormTemplateDoc(): PageDocument {
                 {
                   id: 's_api',
                   type: 'api_request',
-                  payload: { url: 'https://api.example.com/leads', method: 'POST', body: '{{form}}' },
+                  payload: {
+                    url: 'https://api.example.com/leads',
+                    method: 'POST',
+                    body: '{{form}}',
+                  },
                   onSuccess: [
                     { id: 's_reset', type: 'reset_form', payload: { formId: 'lead-form' } },
                     { id: 's_modal', type: 'open_modal', payload: { modalNodeId: 'thanks-modal' } },
                   ],
-                  onError: [{ id: 's_toast', type: 'show_toast', payload: { message: 'Failed', type: 'error' } }],
+                  onError: [
+                    {
+                      id: 's_toast',
+                      type: 'show_toast',
+                      payload: { message: 'Failed', type: 'error' },
+                    },
+                  ],
                 },
               ],
             },
@@ -129,13 +136,17 @@ function findById(root: Node, id: string): Node | undefined {
 function stripIds(value: unknown, reverseMap: Map<string, string>): unknown {
   if (typeof value === 'string') {
     if (reverseMap.has(value)) return reverseMap.get(value);
-    if (value.startsWith('#') && reverseMap.has(value.slice(1))) return `#${reverseMap.get(value.slice(1))}`;
+    if (value.startsWith('#') && reverseMap.has(value.slice(1)))
+      return `#${reverseMap.get(value.slice(1))}`;
     return value;
   }
   if (Array.isArray(value)) return value.map((v) => stripIds(v, reverseMap));
   if (value && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, stripIds(v, reverseMap)]),
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+        k,
+        stripIds(v, reverseMap),
+      ]),
     );
   }
   return value;
@@ -222,7 +233,9 @@ describe('STORA-530: subtree duplication preserves all node fields', () => {
     const { clonedNode, idMap } = cloneTreeWithNewIds(source.document);
     const form = findById(clonedNode, idMap.get('lead-form')!)!;
     expect(form.formConfig?.formId).toBe(idMap.get('lead-form'));
-    expect(form.actions![0].steps[0].onSuccess![1].payload).toEqual({ modalNodeId: idMap.get('thanks-modal') });
+    expect(form.actions![0].steps[0].onSuccess![1].payload).toEqual({
+      modalNodeId: idMap.get('thanks-modal'),
+    });
     expect(findById(clonedNode, idMap.get('hero')!)!.animation?.type).toBe('fade-up');
   });
 

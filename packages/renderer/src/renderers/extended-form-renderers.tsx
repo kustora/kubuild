@@ -15,7 +15,9 @@ const str = (value: unknown): string | undefined => (typeof value === 'string' ?
  * Registered form types beyond the basic input set (STORA-531):
  * `switch`, `file-upload`, `radio-group`, `radio-item`, `button-submit`.
  */
-export function renderExtendedFormNode(options: RenderNodeContentOptions): React.ReactElement | null {
+export function renderExtendedFormNode(
+  options: RenderNodeContentOptions,
+): React.ReactElement | null {
   const {
     node,
     domId,
@@ -39,7 +41,8 @@ export function renderExtendedFormNode(options: RenderNodeContentOptions): React
     (resolvedProps.rules as ValidationRule[]) ||
     (props.rules as ValidationRule[]) ||
     [];
-  const validateOn = (resolvedProps.validateOn as ValidateOnEvent) || (props.validateOn as ValidateOnEvent);
+  const validateOn =
+    (resolvedProps.validateOn as ValidateOnEvent) || (props.validateOn as ValidateOnEvent);
   const required = resolvedProps.required === true;
   const disabled = resolvedProps.disabled === true;
   const actionProps = {
@@ -78,7 +81,8 @@ export function renderExtendedFormNode(options: RenderNodeContentOptions): React
       );
     }
     case 'file-upload': {
-      const maxFileSize = typeof resolvedProps.maxFileSize === 'number' ? resolvedProps.maxFileSize : undefined;
+      const maxFileSize =
+        typeof resolvedProps.maxFileSize === 'number' ? resolvedProps.maxFileSize : undefined;
       return (
         <FormFileUploadNode
           id={domId}
@@ -106,9 +110,9 @@ export function renderExtendedFormNode(options: RenderNodeContentOptions): React
     }
     case 'radio-group': {
       const explicitDefault = str(resolvedProps.defaultSelected);
-      const childDefault = node.children
-        ?.find((child) => child.props?.defaultChecked === true && typeof child.props?.value === 'string')
-        ?.props?.value as string | undefined;
+      const childDefault = node.children?.find(
+        (child) => child.props?.defaultChecked === true && typeof child.props?.value === 'string',
+      )?.props?.value as string | undefined;
       return (
         <FormRadioGroupNode
           id={domId}

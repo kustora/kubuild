@@ -9,7 +9,12 @@ export const CAROUSEL_SWIPE_THRESHOLD = 40;
  * Pure slide-index step (exported for tests). With `loop` the index wraps around;
  * without it, it stops at the first/last slide.
  */
-export function stepCarouselIndex(current: number, delta: number, count: number, loop: boolean): number {
+export function stepCarouselIndex(
+  current: number,
+  delta: number,
+  count: number,
+  loop: boolean,
+): number {
   if (count <= 0) return 0;
   const next = current + delta;
   if (loop) return ((next % count) + count) % count;
@@ -17,7 +22,11 @@ export function stepCarouselIndex(current: number, delta: number, count: number,
 }
 
 /** Direction of a completed touch gesture: -1 (swipe left → next), 1 (swipe right → prev) or 0. */
-export function swipeDirection(startX: number, endX: number, threshold = CAROUSEL_SWIPE_THRESHOLD): -1 | 0 | 1 {
+export function swipeDirection(
+  startX: number,
+  endX: number,
+  threshold = CAROUSEL_SWIPE_THRESHOLD,
+): -1 | 0 | 1 {
   const dx = endX - startX;
   if (Math.abs(dx) < threshold) return 0;
   return dx < 0 ? -1 : 1;

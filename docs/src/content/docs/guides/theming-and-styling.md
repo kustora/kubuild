@@ -21,8 +21,8 @@ These values live in one place, the `BREAKPOINTS` constant exported from `@kubui
 ```ts
 import { BREAKPOINTS, BREAKPOINT_MEDIA_QUERIES, getBreakpointForWidth } from '@kubuild/schema';
 
-BREAKPOINTS.tablet;            // { minWidth: 768, maxWidth: 1023 }
-getBreakpointForWidth(390);    // 'mobile'
+BREAKPOINTS.tablet; // { minWidth: 768, maxWidth: 1023 }
+getBreakpointForWidth(390); // 'mobile'
 ```
 
 ### How the renderer applies breakpoints

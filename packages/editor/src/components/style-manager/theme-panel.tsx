@@ -83,7 +83,9 @@ export const ThemePanel: React.FC<ThemePanelProps> = ({ theme, onChange, classNa
             data-testid={`theme-tab-${group}`}
             onClick={() => setActiveGroup(group)}
             className={`flex-1 px-1.5 py-0.5 text-[11px] font-medium rounded cursor-pointer ${
-              activeGroup === group ? 'bg-white text-blue-600 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeGroup === group
+                ? 'bg-white text-blue-600 font-semibold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {GROUP_LABELS[group]}
@@ -93,20 +95,31 @@ export const ThemePanel: React.FC<ThemePanelProps> = ({ theme, onChange, classNa
 
       <div className="flex flex-col gap-1" data-testid={`theme-tokens-${activeGroup}`}>
         {tokens.length === 0 && (
-          <span className="text-[11px] text-slate-400">No {GROUP_LABELS[activeGroup].toLowerCase()} tokens yet.</span>
+          <span className="text-[11px] text-slate-400">
+            No {GROUP_LABELS[activeGroup].toLowerCase()} tokens yet.
+          </span>
         )}
         {tokens.map(([key, value]) => (
-          <div key={key} className="flex items-center gap-1.5" data-testid={`theme-token-${activeGroup}-${key}`}>
-            {activeGroup === 'colors' && typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) && (
-              <input
-                type="color"
-                aria-label={`${key} color`}
-                value={value}
-                onChange={(e) => commit(key, e.target.value)}
-                className="w-6 h-6 rounded border border-slate-300 cursor-pointer p-0.5 shrink-0"
-              />
-            )}
-            <span className="text-[11px] font-medium text-slate-700 w-20 truncate" title={themeTokenRef(activeGroup, key)}>
+          <div
+            key={key}
+            className="flex items-center gap-1.5"
+            data-testid={`theme-token-${activeGroup}-${key}`}
+          >
+            {activeGroup === 'colors' &&
+              typeof value === 'string' &&
+              /^#[0-9a-f]{6}$/i.test(value) && (
+                <input
+                  type="color"
+                  aria-label={`${key} color`}
+                  value={value}
+                  onChange={(e) => commit(key, e.target.value)}
+                  className="w-6 h-6 rounded border border-slate-300 cursor-pointer p-0.5 shrink-0"
+                />
+              )}
+            <span
+              className="text-[11px] font-medium text-slate-700 w-20 truncate"
+              title={themeTokenRef(activeGroup, key)}
+            >
               {key}
             </span>
             <input
@@ -132,7 +145,11 @@ export const ThemePanel: React.FC<ThemePanelProps> = ({ theme, onChange, classNa
         ))}
       </div>
 
-      <form onSubmit={handleAdd} className="flex items-center gap-1.5" data-testid="theme-add-token-form">
+      <form
+        onSubmit={handleAdd}
+        className="flex items-center gap-1.5"
+        data-testid="theme-add-token-form"
+      >
         <input
           type="text"
           data-testid="theme-add-token-key"

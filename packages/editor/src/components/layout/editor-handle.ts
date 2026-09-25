@@ -20,7 +20,10 @@ export interface EditorHandle {
    * Replaces the document after `validateDocument`. Rejected (with the validation errors in
    * the result) when invalid. `keepHistory: true` makes the swap a single undo step.
    */
-  replaceDocument: (doc: PageDocument, options?: { keepHistory?: boolean }) => ReplaceDocumentResult;
+  replaceDocument: (
+    doc: PageDocument,
+    options?: { keepHistory?: boolean },
+  ) => ReplaceDocumentResult;
   /**
    * Inserts a block — a `BlockDefinition` or the id of one in the block registry — into
    * `targetId` (default: the selected node, else the page root).

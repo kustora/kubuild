@@ -48,7 +48,11 @@ export const dividerDefinition: ComponentDefinition = {
   },
   validateProps: (props) => {
     const v = props.lineStyle;
-    if (v !== undefined && !isVariableBinding(v) && !['solid', 'dashed', 'dotted'].includes(v as string)) {
+    if (
+      v !== undefined &&
+      !isVariableBinding(v) &&
+      !['solid', 'dashed', 'dotted'].includes(v as string)
+    ) {
       return ['Divider "lineStyle" must be one of: solid, dashed, dotted.'];
     }
     return [];

@@ -295,3 +295,26 @@ describe('STORA-542: runtime CSS matches code generator output', () => {
     );
   });
 });
+
+describe('Integration: theme tokens + responsive media rules (STORA-540 x STORA-551)', () => {
+  const themedDoc = {
+    ...multiBreakpointDoc,
+    version: '1.2.0',
+    theme: { colors: { primary: '#2563eb' } },
+  } as PageDocument;
+
+  it('code generator emits the :root token block alongside breakpoint @media rules', () => {
+    const css = generateDocumentCss(themedDoc, { includeReset: false });
+    expect(css).toMatch(/:root \{[^}]*--kb-color-primary: #2563eb;/);
+    const rootIdx = css.indexOf(':root');
+    expect(rootIdx).toBeGreaterThanOrEqual(0);
+    expect(css.indexOf('@media')).toBeGreaterThan(rootIdx);
+    expect(css).toMatch(/\.kb-node-grid-1 \{\n {4}grid-template-columns: 1fr;/);
+  });
+
+  it('runtime renderer sets theme custom properties on the root and emits the responsive stylesheet', () => {
+    const html = renderToString(<KubuildRenderer document={themedDoc} />);
+    expect(html).toContain('--kb-color-primary:#2563eb');
+    expect(html).toContain('data-kubuild-responsive-styles');
+  });
+});

@@ -106,7 +106,8 @@ export const countdownDefinition: ComponentDefinition = {
         { label: 'Hide timer', value: 'hide' },
         { label: 'Keep showing zeros', value: 'zero' },
       ],
-      description: 'Add an "On Expire" action pipeline to redirect, show a toast, open a modal, etc.',
+      description:
+        'Add an "On Expire" action pipeline to redirect, show a toast, open a modal, etc.',
     },
     {
       name: 'expiredText',
@@ -129,7 +130,8 @@ export const countdownDefinition: ComponentDefinition = {
       label: 'Storage Key',
       type: 'string',
       defaultValue: '',
-      description: 'Share one deadline across pages by using the same key (defaults to the node id).',
+      description:
+        'Share one deadline across pages by using the same key (defaults to the node id).',
     },
   ],
   traits: [

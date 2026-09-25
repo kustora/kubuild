@@ -85,7 +85,8 @@ export interface StyleDefinition extends Record<string, StyleValue> {
   flexGrow?: number | string;
   flexShrink?: number | string;
   flexBasis?: string | number;
-  alignSelf?: 'auto' | 'flex-start' | 'flex-end' | 'center' | 'baseline' | 'stretch' | (string & {});
+  alignSelf?:
+    'auto' | 'flex-start' | 'flex-end' | 'center' | 'baseline' | 'stretch' | (string & {});
   width?: string | number;
   height?: string | number;
   minWidth?: string | number;
@@ -208,7 +209,8 @@ export interface FormConfig {
  * Actions
  * -------------------------------------------------------------------------------------- */
 
-export type ActionTriggerType = 'click' | 'submit' | 'change' | 'blur' | 'focus' | 'load';
+export type ActionTriggerType =
+  'click' | 'submit' | 'change' | 'blur' | 'focus' | 'load' | 'expire';
 
 export type ActionStepType =
   | 'api_request'

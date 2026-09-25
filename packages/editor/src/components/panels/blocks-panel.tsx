@@ -351,7 +351,9 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
                       data-testid="block-card"
                       data-block-id={block.id}
                       onClick={() => handleInsert(block)}
-                      title={block.description || `Click to insert or drag to canvas: ${block.name}`}
+                      title={
+                        block.description || `Click to insert or drag to canvas: ${block.name}`
+                      }
                       className="flex flex-col justify-between p-2 rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:shadow-md hover:bg-blue-50/20 transition-all text-left group cursor-grab active:cursor-grabbing select-none"
                     >
                       {/* Thumbnail Illustration */}

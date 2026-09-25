@@ -61,19 +61,35 @@ describe('STORA-533: built-in handlers for legacy action types', () => {
     const location = stubWindowLocation();
     const hostNavigate = vi.fn();
     const context = createMinimalRenderContext({ actions: { navigate: hostNavigate } });
-    dispatchAction({ action: { type: 'navigate', payload: { url: '/docs' } }, nodeId: 'btn', document: doc, context });
+    dispatchAction({
+      action: { type: 'navigate', payload: { url: '/docs' } },
+      nodeId: 'btn',
+      document: doc,
+      context,
+    });
     await flush();
-    expect(hostNavigate).toHaveBeenCalledWith({ url: '/docs' }, expect.objectContaining({ nodeId: 'btn' }));
+    expect(hostNavigate).toHaveBeenCalledWith(
+      { url: '/docs' },
+      expect.objectContaining({ nodeId: 'btn' }),
+    );
     expect(location.assign).not.toHaveBeenCalled();
   });
 
   it('open_modal / close_modal drive the context modal manager', async () => {
     const modalManager = new ModalManager();
     const context = { modalManager } as unknown as RenderContext;
-    dispatchAction({ action: { type: 'open_modal', payload: { modalId: 'promo' } }, document: doc, context });
+    dispatchAction({
+      action: { type: 'open_modal', payload: { modalId: 'promo' } },
+      document: doc,
+      context,
+    });
     await flush();
     expect(modalManager.isModalOpen('promo')).toBe(true);
-    dispatchAction({ action: { type: 'close_modal', payload: { modalId: 'promo' } }, document: doc, context });
+    dispatchAction({
+      action: { type: 'close_modal', payload: { modalId: 'promo' } },
+      document: doc,
+      context,
+    });
     await flush();
     expect(modalManager.isModalOpen('promo')).toBe(false);
   });
@@ -82,7 +98,11 @@ describe('STORA-533: built-in handlers for legacy action types', () => {
     const toastManager = new ToastManager();
     const show = vi.spyOn(toastManager, 'showToast');
     const context = { toastManager } as unknown as RenderContext;
-    dispatchAction({ action: { type: 'show_toast', payload: { message: 'Saved!' } }, document: doc, context });
+    dispatchAction({
+      action: { type: 'show_toast', payload: { message: 'Saved!' } },
+      document: doc,
+      context,
+    });
     await flush();
     expect(show).toHaveBeenCalled();
     expect(JSON.stringify(show.mock.calls[0])).toContain('Saved!');
@@ -137,7 +157,9 @@ describe('STORA-533: unknown legacy actions are visible in editor mode', () => {
     children: [],
   });
   const render = (node: Node, mode: 'editor' | 'runtime', context?: RenderContext) =>
-    renderToString(<NodeRenderer node={node} document={doc} registry={registry} mode={mode} context={context} />);
+    renderToString(
+      <NodeRenderer node={node} document={doc} registry={registry} mode={mode} context={context} />,
+    );
 
   it('shows an UNKNOWN_ACTION badge on the canvas for an unhandled type', () => {
     const html = render(button({ type: 'launch_rocket' }), 'editor');
@@ -150,8 +172,12 @@ describe('STORA-533: unknown legacy actions are visible in editor mode', () => {
       'data-kubuild-diagnostic',
     );
     const context = createMinimalRenderContext({ actions: { launch_rocket: vi.fn() } });
-    expect(render(button({ type: 'launch_rocket' }), 'editor', context)).not.toContain('data-kubuild-diagnostic');
-    expect(render(button({ type: 'launch_rocket' }), 'runtime')).not.toContain('data-kubuild-diagnostic');
+    expect(render(button({ type: 'launch_rocket' }), 'editor', context)).not.toContain(
+      'data-kubuild-diagnostic',
+    );
+    expect(render(button({ type: 'launch_rocket' }), 'runtime')).not.toContain(
+      'data-kubuild-diagnostic',
+    );
   });
 
   it('getUnresolvedLegacyActionType', () => {

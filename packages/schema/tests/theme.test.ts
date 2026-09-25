@@ -14,7 +14,9 @@ import {
 
 describe('STORA-551: ThemeSchema', () => {
   it('accepts safe tokens and rejects CSS/markup injection', () => {
-    expect(ThemeSchema.safeParse({ colors: { primary: '#2563eb' }, radii: { md: 8 } }).success).toBe(true);
+    expect(
+      ThemeSchema.safeParse({ colors: { primary: '#2563eb' }, radii: { md: 8 } }).success,
+    ).toBe(true);
     for (const bad of [
       { colors: { primary: 'red;}' } },
       { colors: { primary: '<script>' } },
@@ -33,7 +35,10 @@ describe('STORA-551: ThemeSchema', () => {
       document: { id: 'root', type: 'page' },
     });
     expect(parsed.theme).toEqual({ colors: { primary: '#000' } });
-    const json = getPageDocumentJsonSchema() as { properties: Record<string, unknown>; definitions: Record<string, unknown> };
+    const json = getPageDocumentJsonSchema() as {
+      properties: Record<string, unknown>;
+      definitions: Record<string, unknown>;
+    };
     expect(json.properties.theme).toEqual({ $ref: '#/definitions/theme' });
     expect(json.definitions.theme).toBeDefined();
   });
@@ -49,7 +54,10 @@ describe('STORA-551: ThemeSchema', () => {
   });
 
   it('flattens to custom properties and merges overrides token-by-token', () => {
-    const merged = mergeThemes({ colors: { primary: '#000', accent: '#111' } }, { colors: { primary: '#fff', bad: 'a;b' } });
+    const merged = mergeThemes(
+      { colors: { primary: '#000', accent: '#111' } },
+      { colors: { primary: '#fff', bad: 'a;b' } },
+    );
     expect(merged).toEqual({ colors: { primary: '#fff', accent: '#111' } });
     expect(themeToCssVariables({ radii: { md: 8 }, fonts: { body: 'Inter' } })).toEqual([
       ['--kb-font-body', 'Inter'],

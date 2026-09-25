@@ -29,7 +29,16 @@ export type { SchemaValidationIssue, SchemaValidationResult } from './types';
 interface SafeParser {
   safeParse(input: unknown):
     | { success: true; data: unknown }
-    | { success: false; error: { issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string; code: string }> } };
+    | {
+        success: false;
+        error: {
+          issues: ReadonlyArray<{
+            path: ReadonlyArray<PropertyKey>;
+            message: string;
+            code: string;
+          }>;
+        };
+      };
 }
 
 function run<T>(schema: SafeParser, input: unknown): SchemaValidationResult<T> {
