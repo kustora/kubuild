@@ -33,6 +33,8 @@ export interface ActionStepFormProps {
   onUpdateBranches?: (branches: { onSuccess?: ActionStep[]; onError?: ActionStep[] }) => void;
   className?: string;
   hideBranches?: boolean;
+  /** Trigger of the pipeline this step belongs to (e.g. `submit`), used for trigger-specific hints. */
+  trigger?: string;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -172,8 +174,11 @@ export const ApiRequestStepForm: React.FC<{
   payload: Record<string, unknown>;
   document?: PageDocument;
   onChange: (payload: Record<string, unknown>) => void;
-}> = ({ payload, document, onChange }) => {
+  /** Trigger of the owning pipeline; on `submit` an omitted body defaults to the form values. */
+  pipelineTrigger?: string;
+}> = ({ payload, document, onChange, pipelineTrigger }) => {
   const method = (payload.method as string) || 'GET';
+  const showSubmitBodyDefaultHint = pipelineTrigger === 'submit' && payload.body === undefined;
   const url = (payload.url as string) || '';
   const bodyFormat = (payload.bodyFormat as string) || (payload.bodyType as string) || 'json';
   const timeout = typeof payload.timeout === 'number' ? payload.timeout : '';
@@ -506,6 +511,16 @@ export const ApiRequestStepForm: React.FC<{
               </select>
             </div>
           </div>
+
+          {showSubmitBodyDefaultHint && (
+            <div
+              data-testid="body-submit-default-hint"
+              className="text-[11px] text-blue-300 bg-blue-500/10 border border-blue-500/30 rounded-lg px-2.5 py-1.5"
+            >
+              Default: entire form data. Leave the body empty to send all form field values
+              (same as <code className="font-mono">{'{{form}}'}</code>).
+            </div>
+          )}
 
           {bodyMode === 'fields' ? (
             /* Form Inputs Mode (Key-Value Builder with Variable Autocomplete) */
@@ -1420,6 +1435,7 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
   onUpdateBranches,
   className = '',
   hideBranches = false,
+  trigger,
 }) => {
   const [label, setLabel] = useState<string>(step.label || '');
   const [continueOnError, setContinueOnError] = useState<boolean>(Boolean(step.continueOnError));
@@ -1443,7 +1459,14 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
     const payload = step.payload || {};
     switch (step.type) {
       case 'api_request':
-        return <ApiRequestStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
+        return (
+          <ApiRequestStepForm
+            payload={payload}
+            document={document}
+            onChange={onUpdatePayload}
+            pipelineTrigger={trigger}
+          />
+        );
       case 'show_toast':
         return <ShowToastStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'navigate':

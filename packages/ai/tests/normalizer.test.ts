@@ -91,7 +91,7 @@ describe('normalizer', () => {
 
       const normalized = normalizeAndValidatePageDocument(bareNode);
       expect(normalized.schema).toBe('stora.page');
-      expect(normalized.version).toBe('1.1.0');
+      expect(normalized.version).toBe('1.2.0');
       expect(normalized.document.type).toBe('page');
       expect(normalized.document.children?.[0].type).toBe('section');
     });

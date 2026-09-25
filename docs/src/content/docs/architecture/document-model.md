@@ -68,4 +68,4 @@ interface ResponsiveStyle {
 }
 ```
 
-When rendering on a tablet viewport, the renderer merges `base` styles with `tablet` overrides seamlessly.
+Each breakpoint layer is merged on top of `base` on its own. Layers do not cascade into each other. Ranges come from the shared `BREAKPOINTS` constant in `@kubuild/schema`: `mobile` < 768px, `tablet` 768–1023px, `desktop` ≥ 1024px. Published pages apply the layers as scoped `@media` rules (`responsive: 'css'`). The editor canvas merges the previewed viewport's layer into inline styles (`responsive: 'viewport'`). The Theming & Responsive Design guide has the details.

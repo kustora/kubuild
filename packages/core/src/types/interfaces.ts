@@ -1,4 +1,5 @@
-import { Artboard, ArtboardType, PageDocument } from '@kubuild/schema';
+import { Artboard, ArtboardType, PageDocument, Theme } from '@kubuild/schema';
+import type { DocumentValidationError, DocumentValidationWarning } from '../validation/validator';
 
 export interface AssetInfo {
   id: string;
@@ -83,12 +84,50 @@ export interface TrackingDiagnostic {
   error?: unknown;
 }
 
+/**
+ * Non-fatal diagnostic for a node that still uses a deprecated prop alias (STORA-550), e.g. a
+ * `paragraph` with `content` instead of the canonical `text`. The renderer keeps reading the
+ * alias for one minor version; migrating the document (`migrateDocument`) removes it.
+ */
+export interface DeprecatedPropDiagnostic {
+  code: 'DEPRECATED_PROP';
+  nodeId?: string;
+  componentType: string;
+  /** The deprecated alias found on the node. */
+  propName: string;
+  /** The canonical prop name to use instead. */
+  canonicalName: string;
+  message: string;
+}
+
+/**
+ * Diagnostic for a whole document the editor refused to load (STORA-538): `replaceDocument`
+ * (host `EditorHandle` or store) or `applyTemplate` ran `validateDocument` and the result was
+ * invalid. The current document is left untouched; the same errors are also returned in the
+ * call's result.
+ */
+export interface DocumentValidationDiagnostic {
+  code: 'DOCUMENT_INVALID';
+  /** Which entry point rejected the document. */
+  source: 'replaceDocument' | 'applyTemplate';
+  /** Id of the template being applied, when `source` is `'applyTemplate'`. */
+  templateId?: string;
+  /** Node of the first blocking error, when it points at one. */
+  nodeId?: string;
+  message: string;
+  /** Blocking validation errors from `validateDocument`. */
+  errors: DocumentValidationError[];
+  warnings: DocumentValidationWarning[];
+}
+
 export type Diagnostic =
   | ActionDiagnostic
   | PropBindingDiagnostic
   | CollectionDiagnostic
   | AiGenerationDiagnostic
-  | TrackingDiagnostic;
+  | TrackingDiagnostic
+  | DeprecatedPropDiagnostic
+  | DocumentValidationDiagnostic;
 
 /**
  * Host-supplied runtime tracking options (NOT part of the document). Server-side delivery
@@ -136,6 +175,12 @@ export type RenderContext = Readonly<{
   artboardSurface?: ArtboardType;
   /** Host tracking runtime options (relay endpoint etc.). Never stored in the document. */
   tracking?: RuntimeTrackingOptions;
+  /**
+   * Host theme override (STORA-551), merged token-by-token over `PageDocument.theme` at
+   * render time — e.g. a per-tenant brand color — without modifying the document. Unsafe
+   * keys/values are dropped by the renderer.
+   */
+  theme?: Readonly<Partial<Theme>>;
 }>;
 
 export type RuntimeContext = RenderContext;

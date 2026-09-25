@@ -86,6 +86,12 @@ export const TRIGGER_OPTIONS: TriggerMeta[] = [
     description: 'Triggered automatically when the component mounts',
     badge: 'Load',
   },
+  {
+    type: 'expire',
+    label: 'On Expire',
+    description: 'Triggered once when a countdown timer reaches zero',
+    badge: 'Expire',
+  },
 ];
 
 export interface StepTypeMeta {
@@ -839,6 +845,7 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                           <ActionStepForm
                             step={step}
                             document={document}
+                            trigger={selectedTrigger}
                             onUpdatePayload={(newPayload) =>
                               handleUpdateStepPayload(step.id, newPayload)
                             }

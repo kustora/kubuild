@@ -11,6 +11,9 @@ import { EffectsSectorControls } from './effects-sector-controls';
 import { BackgroundImageControls } from './background-image-controls';
 import { ColorGradientPicker } from './color-gradient-picker';
 import { DesignTokensPanel } from './design-tokens-panel';
+import { ThemePanel } from './theme-panel';
+import { updateTheme } from '@kubuild/core';
+import { useEditorStore } from '../../store';
 import { InheritanceIndicator, InheritanceSummaryBar } from './inheritance-indicator';
 import { useTranslation } from '../../i18n';
 import type { AssetProvider } from '@kubuild/core';
@@ -733,18 +736,71 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
           </button>
           {showTokens && (
             <div className="p-3 border-t border-slate-100 bg-white" data-testid="tokens-accordion-content">
-              <DesignTokensPanel
-                onApplyColor={(prop, val) => onCommitStyle(prop, val)}
-                onApplyTypography={(typoStyles) => {
-                  Object.entries(typoStyles).forEach(([prop, val]) => {
-                    onCommitStyle(prop, val);
-                  });
-                }}
-              />
+              <DocumentThemeTokens onCommitStyle={onCommitStyle} />
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+/**
+ * STORA-551: document-level theme editing + token application, wired to the editor store.
+ * Tokens live in `PageDocument.theme` (changed only through the `updateTheme` command, so
+ * undo/redo works); applying a token writes a `var(--kb-*)` reference into the node style.
+ */
+const DocumentThemeTokens: React.FC<{ onCommitStyle: (property: string, value: string) => void }> = ({
+  onCommitStyle,
+}) => {
+  const theme = useEditorStore((s) => s.document?.theme);
+  const dispatch = useEditorStore((s) => s.dispatch);
+  const [showTheme, setShowTheme] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="rounded border border-slate-200" data-testid="document-theme-section">
+        <button
+          type="button"
+          data-testid="document-theme-toggle"
+          onClick={() => setShowTheme((prev) => !prev)}
+          className="w-full flex items-center justify-between px-2 py-1 text-left text-[11px] font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 cursor-pointer"
+        >
+          <span>Page Theme</span>
+          <span className="text-slate-400">{showTheme ? '−' : '+'}</span>
+        </button>
+        {showTheme && (
+          <div className="p-2 border-t border-slate-100">
+            <ThemePanel
+              theme={theme}
+              onChange={(patch) => {
+                try {
+                  dispatch((doc) => updateTheme(doc, { theme: patch }));
+                } catch {
+                  // Rejected by ThemeSchema (unsafe value); ThemePanel already guards input.
+                }
+              }}
+            />
+          </div>
+        )}
+      </div>
+      <DesignTokensPanel
+        theme={theme}
+        onEnsureToken={(group, key, value) => {
+          if (theme?.[group]?.[key] !== undefined) return;
+          try {
+            dispatch((doc) => updateTheme(doc, { theme: { [group]: { [key]: value } } }));
+          } catch {
+            // Unsafe token value: leave the theme untouched.
+          }
+        }}
+        onApplyColor={(prop, val) => onCommitStyle(prop, val)}
+        onApplyTypography={(typoStyles) => {
+          Object.entries(typoStyles).forEach(([prop, val]) => {
+            onCommitStyle(prop, val);
+          });
+        }}
+      />
     </div>
   );
 };

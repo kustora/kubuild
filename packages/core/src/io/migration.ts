@@ -4,6 +4,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   SCHEMA_NAME,
   ResponsiveStyles,
+  getCanonicalTextPropRule,
 } from '@kubuild/schema';
 import { deepClone } from '../document/command-tree-utils';
 import { validateDocument } from '../validation/validator';
@@ -23,7 +24,7 @@ export interface MigrationError {
   details?: Record<string, unknown>;
 }
 
-export type MigrationWarningCode = 'TRACKING_SECRET_REMOVED';
+export type MigrationWarningCode = 'TRACKING_SECRET_REMOVED' | 'PROP_ALIAS_MIGRATED';
 
 /**
  * Non-fatal note emitted by a migration step (the migration still succeeds).
@@ -308,6 +309,77 @@ defaultMigrationRegistry.register({
 });
 
 /**
+ * Moves deprecated text-prop aliases (`content`, `label`, `quote`, ...) onto each
+ * component's canonical prop name (STORA-550), in place. The canonical value becomes
+ * whatever the pre-1.2.0 renderer actually displayed (its `legacyReadOrder`), so a
+ * migrated document renders identically. Returns the dotted paths of rewritten props.
+ */
+export function canonicalizeTextPropsInPlace(root: unknown, basePath = 'document'): string[] {
+  const changed: string[] = [];
+
+  const walk = (value: unknown, path: string): void => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const node = value as Record<string, unknown>;
+    const props = node.props;
+    const rule = typeof node.type === 'string' ? getCanonicalTextPropRule(node.type) : undefined;
+
+    if (rule && props && typeof props === 'object' && !Array.isArray(props)) {
+      const record = props as Record<string, unknown>;
+      const presentAliases = rule.aliases.filter((alias) => record[alias] !== undefined);
+      if (presentAliases.length > 0) {
+        const displayedKey = rule.legacyReadOrder.find((key) => record[key] !== undefined);
+        // A legacy `text` node whose only text lived in `content` rendered as <p>, not <span>;
+        // keep that when the tag was implicit.
+        if (
+          node.type === 'text' &&
+          displayedKey === 'content' &&
+          record.as === undefined &&
+          record.tag === undefined
+        ) {
+          record.as = 'p';
+        }
+        if (displayedKey !== undefined && displayedKey !== rule.canonical) {
+          record[rule.canonical] = record[displayedKey];
+        }
+        for (const alias of presentAliases) {
+          delete record[alias];
+          changed.push(`${path}.props.${alias}`);
+        }
+      }
+    }
+
+    if (Array.isArray(node.children)) {
+      node.children.forEach((child, index) => walk(child, `${path}.children.${index}`));
+    }
+  };
+
+  walk(root, basePath);
+  return changed;
+}
+
+// 6. 1.1.0 -> 1.2.0: canonical text prop names (STORA-550); `theme` becomes a known field (STORA-551)
+defaultMigrationRegistry.register({
+  fromVersion: '1.1.0',
+  toVersion: '1.2.0',
+  description:
+    'Rename deprecated text prop aliases to canonical names (heading/text/paragraph/link/badge/blockquote -> text, button -> label)',
+  migrate: (rawDoc: Record<string, unknown>, context) => {
+    const migrated = deepClone(rawDoc);
+    migrated.version = '1.2.0';
+    const changed = canonicalizeTextPropsInPlace(migrated.document);
+    if (changed.length > 0) {
+      context.warn({
+        code: 'PROP_ALIAS_MIGRATED',
+        message: 'Deprecated text prop aliases were renamed to their canonical names.',
+        step: '1.1.0->1.2.0',
+        paths: changed,
+      });
+    }
+    return migrated;
+  },
+});
+
+/**
  * Check whether a migration path exists between source and target versions.
  */
 export function canMigrate(
@@ -447,8 +519,20 @@ export function migrateDocument(
     };
   }
 
-  // 4. If dry-run mode, return simulation success without modifying
+  // 4. If dry-run mode, simulate the steps on a private clone (so the diagnostic can report
+  // what *would* change) and return without producing a document.
   if (dryRun) {
+    const simulatedWarnings: MigrationWarning[] = [];
+    try {
+      let simulated = deepClone(doc);
+      for (let i = 0; i < path.length - 1; i++) {
+        const step = registry.getStep(path[i], path[i + 1]);
+        if (!step) break;
+        simulated = step.migrate(simulated, { warn: (w) => simulatedWarnings.push(w) });
+      }
+    } catch {
+      // Simulation is best-effort; the real run reports execution failures.
+    }
     return {
       success: true,
       diagnostic: {
@@ -458,6 +542,7 @@ export function migrateDocument(
         migrationPath: path,
         stepsApplied: path.length - 1,
         dryRun: true,
+        ...(simulatedWarnings.length > 0 ? { warnings: simulatedWarnings } : {}),
       },
     };
   }

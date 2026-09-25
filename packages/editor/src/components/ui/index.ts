@@ -3,3 +3,4 @@ export * from './icons';
 export * from './variable-autocomplete-input';
 export * from './variable-picker';
 export * from './language-switcher';
+export * from './confirm-dialog';

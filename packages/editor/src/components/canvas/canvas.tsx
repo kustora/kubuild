@@ -1,6 +1,12 @@
 import React, { useLayoutEffect, useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { PageDocument, type Artboard, type ArtboardType } from '@kubuild/schema';
-import { ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
+import {
+  PageDocument,
+  findDeprecatedPropAliases,
+  getBreakpointForWidth,
+  type Artboard,
+  type ArtboardType,
+} from '@kubuild/schema';
+import { ComponentRegistry } from '@kubuild/components';
 import { KubuildRenderer, ArtboardPortalHost } from '@kubuild/renderer';
 import {
   RuntimeContext,
@@ -242,11 +248,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     return 1200;
   };
 
-  const getBreakpointFromWidth = (w: number): Viewport => {
-    if (w < 768) return 'mobile';
-    if (w < 1024) return 'tablet';
-    return 'desktop';
-  };
+  const getBreakpointFromWidth = (w: number): Viewport => getBreakpointForWidth(w);
 
   // Per-page responsive state map
   const [pageResponsiveMap, setPageResponsiveMap] = useState<
@@ -982,7 +984,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     } else if (activePayload.type === 'component') {
       incomingType = activePayload.componentType;
     } else if (activePayload.type === 'block') {
-      const blockDef = STARTER_BLOCKS.find((b) => b.id === activePayload.blockId);
+      const blockDef =
+        activePayload.block ??
+        useEditorStore.getState().getBlockDefinition(activePayload.blockId);
       if (blockDef) {
         try {
           const sample = blockDef.createNodeTree(() => 'sample');
@@ -1115,7 +1119,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           dropTarget.index,
         );
       } else if (activePayload.type === 'block') {
-        insertBlock(activePayload.blockId, dropTarget.parentId, dropTarget.index);
+        insertBlock(
+          activePayload.block ?? activePayload.blockId,
+          dropTarget.parentId,
+          dropTarget.index,
+        );
       }
     }
 
@@ -1391,7 +1399,17 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     onNodePropChange={(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => {
                       if (previewMode) return;
                       if (!isBlur && typeof value === 'string' && value.trim() === '') return;
-                      updateNodeProps(nodeId, { [propName]: value }, registry);
+                      // STORA-550: inline edits write the canonical prop; drop deprecated aliases
+                      // so a legacy node doesn't end up with two competing text props.
+                      const editedNode = findNodeById(activeDoc.document, nodeId);
+                      const aliasRemovals = editedNode
+                        ? Object.fromEntries(
+                            findDeprecatedPropAliases(editedNode.type, editedNode.props)
+                              .filter((usage) => usage.canonicalName === propName)
+                              .map((usage) => [usage.propName, undefined]),
+                          )
+                        : {};
+                      updateNodeProps(nodeId, { ...aliasRemovals, [propName]: value }, registry);
                     }}
                     onActionDispatch={(
                       actionType: string,

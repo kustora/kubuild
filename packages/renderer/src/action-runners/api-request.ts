@@ -319,6 +319,28 @@ async function parseResponseBody(response: Response): Promise<unknown> {
 }
 
 /**
+ * Resolves the body an `api_request` step should send.
+ *
+ * - `body` defined (string/object/array): sent as-is.
+ * - `body: null`: explicitly "no body".
+ * - `body` omitted inside a pipeline fired by a form `submit`: defaults to the form's values
+ *   (`context.form`), so a submit pipeline posts the form data without having to spell out
+ *   `body: "{{form}}"`. Outside submit pipelines an omitted body still means no body.
+ */
+export function resolveApiRequestBody(
+  payload: { body?: unknown },
+  context: PipelineExecutionContext,
+): unknown {
+  if (payload.body !== undefined) {
+    return payload.body;
+  }
+  if (context.trigger === 'submit' && context.form && typeof context.form === 'object') {
+    return { ...context.form };
+  }
+  return undefined;
+}
+
+/**
  * Creates an API Request Step Handler configured with custom options or default settings.
  */
 export function createApiRequestHandler(
@@ -370,7 +392,7 @@ export function createApiRequestHandler(
 
     const { body, headers } = prepareRequestBody(
       method,
-      payload.body,
+      resolveApiRequestBody(payload, context),
       payload.bodyFormat || payload.bodyType,
       mergedHeaders,
     );

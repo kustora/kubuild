@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { STARTER_BLOCKS, BlockDefinition, ComponentRegistry } from '@kubuild/components';
-import { insertNode, collectNodeIdSet } from '@kubuild/core';
+import { BlockDefinition, ComponentRegistry } from '@kubuild/components';
 import { useEditorStore } from '../../store';
 import { ComponentIcon } from '../ui/icons';
 import { Image as ImageIcon } from 'lucide-react';
 
 export interface BlocksPanelProps {
   registry?: ComponentRegistry;
+  /** Blocks to list. Defaults to the store's block registry (STORA-535). */
   blocks?: BlockDefinition[];
   className?: string;
   onInsertBlock?: (block: BlockDefinition) => void;
@@ -17,6 +17,25 @@ export interface BlocksPanelProps {
  * Thumbnail schematic preview component for blocks
  */
 export const BlockThumbnail: React.FC<{ block: BlockDefinition }> = ({ block }) => {
+  if (block.thumbnailSvg) {
+    // Rendered as an <img> data URI, never inlined: SVG markup inside <img> can't run
+    // scripts or reach the editor DOM, whatever the host put in it.
+    return (
+      <div
+        data-testid="block-thumbnail-svg"
+        className="w-full h-12 bg-slate-50 border border-slate-200 rounded flex items-center justify-center overflow-hidden"
+      >
+        <img
+          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(block.thumbnailSvg)}`}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="max-w-full max-h-full object-contain"
+        />
+      </div>
+    );
+  }
+
   switch (block.id) {
     case 'layout-1-col':
       return (
@@ -199,20 +218,29 @@ export const BlockThumbnail: React.FC<{ block: BlockDefinition }> = ({ block }) 
  * Displays grid of ready-to-use layout & pre-composed template block cards per category.
  */
 export const BlocksPanel: React.FC<BlocksPanelProps> = ({
-  blocks = STARTER_BLOCKS,
+  blocks: propBlocks,
   className,
   onInsertBlock,
   onItemInserted,
 }) => {
-  const { document, selectedNodeId, dispatch, selectNode } = useEditorStore();
+  const registryBlocks = useEditorStore((s) => s.blockRegistry);
+  const insertBlock = useEditorStore((s) => s.insertBlock);
+  const blocks = propBlocks ?? registryBlocks;
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    blocks.forEach((b) => set.add(b.category));
-    return ['all', ...Array.from(set)];
+  // Category id → display label; the first block declaring a `categoryLabel` wins.
+  const categoryLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    blocks.forEach((b) => {
+      if (!labels.has(b.category) || (b.categoryLabel && labels.get(b.category) === b.category)) {
+        labels.set(b.category, b.categoryLabel ?? b.category);
+      }
+    });
+    return labels;
   }, [blocks]);
+
+  const categories = useMemo(() => ['all', ...Array.from(categoryLabels.keys())], [categoryLabels]);
 
   const filteredBlocks = useMemo(() => {
     return blocks.filter((b) => {
@@ -225,6 +253,17 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
     });
   }, [blocks, selectedCategory, searchQuery]);
 
+  // Grouped by category, in registry order, so host categories show up as their own group.
+  const groupedBlocks = useMemo(() => {
+    const groups = new Map<string, BlockDefinition[]>();
+    filteredBlocks.forEach((b) => {
+      const group = groups.get(b.category);
+      if (group) group.push(b);
+      else groups.set(b.category, [b]);
+    });
+    return Array.from(groups.entries());
+  }, [filteredBlocks]);
+
   const handleInsert = (block: BlockDefinition) => {
     if (onInsertBlock) {
       onInsertBlock(block);
@@ -232,30 +271,9 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
       return;
     }
 
-    const existingIds = collectNodeIdSet(document.document);
-    let counter = 1;
-    const generateId = (prefix = 'block') => {
-      let id = `${prefix}-${Date.now().toString(36)}-${counter++}`;
-      while (existingIds.has(id)) {
-        id = `${prefix}-${Date.now().toString(36)}-${counter++}`;
-      }
-      existingIds.add(id);
-      return id;
-    };
-
-    const nodeTree = block.createNodeTree(generateId);
-    const targetParentId = selectedNodeId ?? document.document.id;
-
-    try {
-      dispatch((doc) => insertNode(doc, { parentId: targetParentId, node: nodeTree }));
-      selectNode(nodeTree.id);
-      onItemInserted?.();
-    } catch {
-      // Fallback: insert at page root
-      dispatch((doc) => insertNode(doc, { parentId: document.document.id, node: nodeTree }));
-      selectNode(nodeTree.id);
-      onItemInserted?.();
-    }
+    // Same command path as canvas drops and the imperative `insertBlock` handle.
+    const result = insertBlock(block);
+    if (result.success) onItemInserted?.();
   };
 
   const setDragPayload = useEditorStore((s) => s.setDragPayload);
@@ -265,7 +283,7 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
     e.dataTransfer.setData('text/plain', `block:${block.id}`);
     e.dataTransfer.setData('application/kubuild-drag-type', 'block');
     e.dataTransfer.setData('application/kubuild-block-id', block.id);
-    setDragPayload({ type: 'block', blockId: block.id });
+    setDragPayload({ type: 'block', blockId: block.id, block });
   };
 
   const handleDragEnd = () => {
@@ -301,7 +319,7 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            {cat === 'all' ? 'All Blocks' : cat}
+            {cat === 'all' ? 'All Blocks' : (categoryLabels.get(cat) ?? cat)}
           </button>
         ))}
       </div>
@@ -311,37 +329,53 @@ export const BlocksPanel: React.FC<BlocksPanelProps> = ({
         {filteredBlocks.length === 0 ? (
           <div className="text-center py-8 text-xs text-slate-400">No blocks found.</div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5">
-            {filteredBlocks.map((block) => (
-              <button
-                key={block.id}
-                type="button"
-                draggable={true}
-                onDragStart={(e) => handleDragStart(e, block)}
-                onDragEnd={handleDragEnd}
-                data-testid="block-card"
-                data-block-id={block.id}
-                onClick={() => handleInsert(block)}
-                title={block.description || `Click to insert or drag to canvas: ${block.name}`}
-                className="flex flex-col justify-between p-2 rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:shadow-md hover:bg-blue-50/20 transition-all text-left group cursor-grab active:cursor-grabbing select-none"
+          <div className="flex flex-col gap-4">
+            {groupedBlocks.map(([category, groupBlocks]) => (
+              <section
+                key={category}
+                data-testid="block-group"
+                data-block-category={category}
+                aria-label={categoryLabels.get(category) ?? category}
               >
-                {/* Thumbnail Illustration */}
-                <div className="mb-2 w-full pointer-events-none">
-                  <BlockThumbnail block={block} />
-                </div>
+                <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  {categoryLabels.get(category) ?? category}
+                </h3>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {groupBlocks.map((block) => (
+                    <button
+                      key={block.id}
+                      type="button"
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, block)}
+                      onDragEnd={handleDragEnd}
+                      data-testid="block-card"
+                      data-block-id={block.id}
+                      onClick={() => handleInsert(block)}
+                      title={
+                        block.description || `Click to insert or drag to canvas: ${block.name}`
+                      }
+                      className="flex flex-col justify-between p-2 rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:shadow-md hover:bg-blue-50/20 transition-all text-left group cursor-grab active:cursor-grabbing select-none"
+                    >
+                      {/* Thumbnail Illustration */}
+                      <div className="mb-2 w-full pointer-events-none">
+                        <BlockThumbnail block={block} />
+                      </div>
 
-                {/* Card Title & Info */}
-                <div className="w-full pointer-events-none">
-                  <div className="flex items-center justify-between gap-1 mb-0.5">
-                    <span className="text-[11px] font-semibold text-slate-800 group-hover:text-blue-600 truncate">
-                      {block.name}
-                    </span>
-                  </div>
-                  <span className="inline-block text-[9px] uppercase tracking-wider font-semibold text-slate-400 bg-slate-100 px-1 py-0.2 rounded">
-                    {block.category}
-                  </span>
+                      {/* Card Title & Info */}
+                      <div className="w-full pointer-events-none">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <span className="text-[11px] font-semibold text-slate-800 group-hover:text-blue-600 truncate">
+                            {block.name}
+                          </span>
+                        </div>
+                        <span className="inline-block text-[9px] uppercase tracking-wider font-semibold text-slate-400 bg-slate-100 px-1 py-0.2 rounded">
+                          {categoryLabels.get(block.category) ?? block.category}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </button>
+              </section>
             ))}
           </div>
         )}

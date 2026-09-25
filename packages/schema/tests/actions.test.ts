@@ -33,7 +33,7 @@ import {
 } from '../src/actions';
 
 describe('ActionTriggerTypeSchema & Type Guards', () => {
-  const validTriggers = ['click', 'submit', 'change', 'blur', 'focus', 'load'];
+  const validTriggers = ['click', 'submit', 'change', 'blur', 'focus', 'load', 'expire'];
 
   it.each(validTriggers)('accepts valid trigger: %s', (trigger) => {
     expect(ActionTriggerTypeSchema.safeParse(trigger).success).toBe(true);
