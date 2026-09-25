@@ -15,7 +15,7 @@ Paket `@kubuild/schema` mendefinisikan *single source of truth* untuk format dok
 import { SCHEMA_NAME, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
 
 console.log(SCHEMA_NAME);            // "stora.page"
-console.log(CURRENT_SCHEMA_VERSION); // "1.0.0"
+console.log(CURRENT_SCHEMA_VERSION); // "1.2.0"
 ```
 
 ---
