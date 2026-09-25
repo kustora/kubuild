@@ -770,8 +770,15 @@ export function App() {
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
         onImport={(importedDoc) => {
-          const result = editorRef.current?.replaceDocument(importedDoc, { keepHistory: true });
-          if (!result?.success) handleDocChange(importedDoc);
+          const editor = editorRef.current;
+          // Editor not mounted yet: fall back to the controlled document prop.
+          if (!editor) {
+            handleDocChange(importedDoc);
+            return;
+          }
+          const result = editor.replaceDocument(importedDoc, { keepHistory: true });
+          // Rejected documents must not bypass validation through the controlled prop.
+          if (!result.success) console.error(result.error ?? 'Imported document rejected', result.errors);
         }}
         registry={registry}
       />
