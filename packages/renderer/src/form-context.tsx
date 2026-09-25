@@ -405,6 +405,8 @@ export const FormRuntimeProvider: React.FC<FormRuntimeProviderProps> = ({
             for (const pipeline of submitPipelines) {
               const execResult = await executor.execute(pipeline, {
                 context: {
+                  // Lets runners apply submit-specific defaults (e.g. api_request posting the form values).
+                  trigger: 'submit',
                   form: currentValues,
                   variables: renderContext?.variables ? { ...renderContext.variables } : {},
                   nodeId,

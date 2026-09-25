@@ -14,8 +14,15 @@ import {
   Diagnostic,
 } from './render-context';
 import { AlertTriangle } from 'lucide-react';
-import { resolveNodeStyles, collectStateStylesCss } from './styles';
+import {
+  resolveNodeStyles,
+  resolveBaseNodeStyles,
+  collectStateStylesCss,
+  collectResponsiveStylesCss,
+  type ResponsiveMode,
+} from './styles';
 import { collectAnimationStylesCss } from './animation';
+import { resolveRuntimeTheme, themeToCssProperties } from './theme';
 import { ComponentErrorBoundary } from './error-boundary';
 import { resolvePropsForNode } from './prop-resolution';
 import { renderNodeContent } from './renderers';
@@ -23,6 +30,7 @@ import { ToastContainer } from './action-runners/toast-container';
 import { useModal, modalManager, type ModalManager } from './action-runners';
 import { executeNodeActions, useNodeLoadActions } from './action-dispatcher';
 import { injectTrackingScripts } from './tracking/tracking-manager';
+import { isLegacyActionResolvable } from './legacy-actions';
 
 // Re-export all nodes and media utilities for backward compatibility
 export * from './nodes';
@@ -32,8 +40,20 @@ export interface KubuildRendererProps {
   document: PageDocument;
   registry?: ComponentRegistry;
   context?: RenderContext;
+  /**
+   * Preview a single viewport's styles (merged into inline styles). Passing it selects
+   * `responsive: 'viewport'` unless `responsive` is set explicitly.
+   */
   viewport?: 'desktop' | 'tablet' | 'mobile';
   mode?: 'editor' | 'runtime';
+  /**
+   * How `styles.desktop/tablet/mobile` are applied (STORA-540):
+   * - `'css'`: base inline + scoped `@media` rules, so the real screen width decides
+   *   (SSR-safe, no viewport guessing). Default for `mode="runtime"` without `viewport`.
+   * - `'viewport'`: merge the layer named by `viewport` inline. Default for `mode="editor"`
+   *   or whenever `viewport` is passed (device-frame previews).
+   */
+  responsive?: ResponsiveMode;
   className?: string;
   showToastContainer?: boolean;
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
@@ -55,6 +75,11 @@ export interface NodeRendererProps {
   context?: RenderContext;
   viewport?: 'desktop' | 'tablet' | 'mobile';
   mode?: 'editor' | 'runtime';
+  /**
+   * `'css'` renders only the base layer inline; the caller must also emit
+   * `collectResponsiveStylesCss(document)` (KubuildRenderer does). Defaults to `'viewport'`.
+   */
+  responsive?: ResponsiveMode;
   onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
   onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
@@ -96,6 +121,7 @@ export function NodeRenderer({
   context: propContext,
   viewport = 'desktop',
   mode = 'runtime',
+  responsive = 'viewport',
   onNodeClick,
   onDiagnostic,
   onActionDispatch,
@@ -104,7 +130,8 @@ export function NodeRenderer({
   instanceSuffix = '',
 }: NodeRendererProps): React.ReactElement {
   const context = propContext || DEFAULT_RENDER_CONTEXT;
-  const styles = resolveNodeStyles(node.styles, viewport);
+  const styles =
+    responsive === 'css' ? resolveBaseNodeStyles(node.styles) : resolveNodeStyles(node.styles, viewport);
   const props = node.props || {};
   const definition = registry.get(node.type);
   const domId = instanceSuffix ? `${node.id}${instanceSuffix}` : node.id;
@@ -150,6 +177,7 @@ export function NodeRenderer({
         document,
         context,
         onDiagnostic,
+        allowBuiltinHandlers: mode !== 'editor',
       });
       if (onActionDispatch && isActionBinding(props.action)) {
         onActionDispatch(props.action.type, resolveActionPayload(context, props.action.payload), node.id);
@@ -166,6 +194,7 @@ export function NodeRenderer({
       context={context}
       viewport={viewport}
       mode={mode}
+      responsive={responsive}
       onNodeClick={onNodeClick}
       onDiagnostic={onDiagnostic}
       onActionDispatch={onActionDispatch}
@@ -188,6 +217,7 @@ export function NodeRenderer({
       context={itemContext}
       viewport={viewport}
       mode={mode}
+      responsive={responsive}
       onNodeClick={onNodeClick}
       onDiagnostic={onDiagnostic}
       onActionDispatch={onActionDispatch}
@@ -286,6 +316,13 @@ export function NodeRenderer({
     }
   }
 
+  // Editor-only: make a legacy `props.action` that nothing will handle visible on the canvas,
+  // instead of only surfacing UNKNOWN_ACTION through onDiagnostic when it is clicked.
+  const unresolvedLegacyAction =
+    mode === 'editor' && props.action && !props.disabled
+      ? getUnresolvedLegacyActionType(props.action, context)
+      : null;
+
   return (
     <ComponentErrorBoundary
       nodeId={node.id}
@@ -293,17 +330,81 @@ export function NodeRenderer({
       mode={mode}
       onDiagnostic={onDiagnostic}
     >
-      {content}
+      {unresolvedLegacyAction !== null ? (
+        <>
+          {content}
+          <UnresolvedActionBadge nodeId={node.id} actionType={unresolvedLegacyAction} />
+        </>
+      ) : (
+        content
+      )}
     </ComponentErrorBoundary>
   );
+}
+
+function UnresolvedActionBadge({ nodeId, actionType }: { nodeId: string; actionType: string }): React.ReactElement {
+  return (
+    <span
+      role="note"
+      data-kubuild-diagnostic="UNKNOWN_ACTION"
+      data-kubuild-diagnostic-node={nodeId}
+      title={`No action handler registered for action type "${actionType}". Register it in the render context's actionRegistry or convert it to an action pipeline.`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        marginLeft: '4px',
+        padding: '1px 6px',
+        borderRadius: '4px',
+        backgroundColor: '#fffbeb',
+        border: '1px solid #f59e0b',
+        color: '#b45309',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '11px',
+        lineHeight: '16px',
+        verticalAlign: 'middle',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <AlertTriangle size={12} aria-hidden="true" />
+      Unknown action: {actionType}
+    </span>
+  );
+}
+
+/**
+ * Returns the action type of a legacy `props.action` binding that no host handler and no
+ * built-in handler will execute (or `'invalid'` for a malformed binding); `null` when it
+ * resolves.
+ */
+export function getUnresolvedLegacyActionType(action: unknown, context?: RenderContext): string | null {
+  if (!isActionBinding(action)) {
+    return 'invalid';
+  }
+  return isLegacyActionResolvable(context?.actionRegistry, action.type) ? null : action.type;
+}
+
+/**
+ * Pick the responsive strategy: an explicit `responsive` wins; otherwise published pages
+ * (`mode="runtime"` with no `viewport`) use real `@media` rules, while the editor canvas and
+ * device-frame previews (which pass `viewport`) keep the per-viewport inline merge.
+ */
+export function resolveResponsiveMode(
+  responsive: ResponsiveMode | undefined,
+  mode: 'editor' | 'runtime',
+  viewport: 'desktop' | 'tablet' | 'mobile' | undefined,
+): ResponsiveMode {
+  if (responsive) return responsive;
+  return mode === 'runtime' && viewport === undefined ? 'css' : 'viewport';
 }
 
 const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
   document,
   registry = createDefaultComponentRegistry(),
   context,
-  viewport = 'desktop',
+  viewport: viewportProp,
   mode = 'runtime',
+  responsive: responsiveProp,
   className,
   showToastContainer = true,
   onNodeClick,
@@ -316,6 +417,15 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
     return <div className={className}>Empty Document</div>;
   }
 
+  const viewport = viewportProp ?? 'desktop';
+  const responsive = resolveResponsiveMode(responsiveProp, mode, viewportProp);
+
+  // Breakpoint @media rules for `responsive: 'css'` — pure function of the document, so the
+  // server-rendered <style> matches the client's on hydration (STORA-540).
+  const responsiveStylesCss = React.useMemo(
+    () => (responsive === 'css' ? collectResponsiveStylesCss(document) : ''),
+    [document, responsive],
+  );
   const stateStylesCss = React.useMemo(
     () => collectStateStylesCss(document),
     [document],
@@ -323,6 +433,12 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
   const animStylesCss = React.useMemo(
     () => collectAnimationStylesCss(document),
     [document],
+  );
+  // Design tokens (STORA-551) exposed as CSS custom properties on the root, so node styles
+  // like `var(--kb-color-primary)` resolve. Host `context.theme` overrides document tokens.
+  const themeStyle = React.useMemo(
+    () => themeToCssProperties(resolveRuntimeTheme(document, context)),
+    [document, context],
   );
 
   // Stable string key derived from the tracking config — avoids re-injecting on every render
@@ -342,7 +458,11 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
 
   return (
     <RenderContextProvider value={context}>
-      <div className={`kubuild-canvas-root ${className || ''}`}>
+      <div className={`kubuild-canvas-root ${className || ''}`} style={themeStyle}>
+        {/* Compiled breakpoint overrides as scoped @media rules — STORA-540 */}
+        {responsiveStylesCss ? (
+          <style data-kubuild-responsive-styles>{responsiveStylesCss}</style>
+        ) : null}
         {/* Compiled pseudo-state CSS (:hover/:active/:focus) — STORA-222 */}
         {stateStylesCss ? <style data-kubuild-state-styles>{stateStylesCss}</style> : null}
         {/* Compiled animation & hover micro-interactions CSS — STORA-264 */}
@@ -354,6 +474,7 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
           context={context}
           viewport={viewport}
           mode={mode}
+          responsive={responsive}
           onNodeClick={onNodeClick}
           onDiagnostic={onDiagnostic}
           onActionDispatch={onActionDispatch}

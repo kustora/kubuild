@@ -1,8 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { PageDocument } from '@kubuild/schema';
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { PageDocument, getBreakpointForWidth } from '@kubuild/schema';
+import type { TemplateRecord } from '@kubuild/schema';
 import type { PixelCredentialOption } from '@kubuild/schema';
 import type { SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
-import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
+import {
+  BlockDefinition,
+  ComponentRegistry,
+  createDefaultComponentRegistry,
+} from '@kubuild/components';
 import {
   RuntimeContext,
   VariableCatalog,
@@ -10,10 +15,26 @@ import {
   buildSampleVariablesFromCatalog,
   AssetProvider,
 } from '@kubuild/core';
-import { useEditorStore, Viewport, EditorLocale } from '../../store';
+import {
+  useEditorStore,
+  Viewport,
+  EditorLocale,
+  BlocksMode,
+  resolveBlockRegistry,
+} from '../../store';
 import { TranslationOverridesContext, TranslationOverrides } from '../../i18n';
 import { createControlledStoreSync, ControlledStoreSync } from './controlled-store-sync';
 import { buildEditorPreviewContext } from './preview-context';
+import {
+  createEditorSaveController,
+  EditorAutosaveOptions,
+  EditorSaveController,
+  EditorSaveHandler,
+  EditorSaveState,
+} from './save-controller';
+import { createEditorHandle, EditorHandle } from './editor-handle';
+import { SaveStatusButton } from './save-status';
+import { TemplateToolbarAction } from '../templates/template-toolbar-action';
 import { EditorCanvas, EditorPageItem } from '../canvas';
 import { MultiDevicePreview } from '../canvas/multi-device-preview';
 import { EditorToolbar } from './toolbar';
@@ -106,10 +127,45 @@ export interface KubuildEditorProps {
    * so uploaded and `asset://` images resolve on the canvas.
    */
   assetProvider?: AssetProvider;
+  /**
+   * Host block library (STORA-535), shown in the Blocks tab and usable from canvas drops and
+   * `ref.insertBlock(id)`. Combined with `STARTER_BLOCKS` according to `blocksMode`.
+   */
+  blocks?: BlockDefinition[];
+  /** `append` (default): starters + host blocks (same id overrides). `replace`: host blocks only. */
+  blocksMode?: BlocksMode;
+  /**
+   * Page templates (STORA-536). When non-empty, the toolbar gets a "Templates" action that
+   * replaces the page with a template after an in-editor confirmation (undoable).
+   */
+  templates?: TemplateRecord[];
+  /** Fires after a template replaced the page, with the new (cloned) document. */
+  onApplyTemplate?: (template: TemplateRecord, doc: PageDocument) => void;
+  /**
+   * Persists the document (STORA-537). Enables the Save button + status, Cmd/Ctrl+S, and
+   * resets `isDirty` once it resolves. A rejection shows the `error` status.
+   */
+  onSave?: EditorSaveHandler;
+  /** Fires whenever the editor's dirty state flips. */
+  onDirtyChange?: (isDirty: boolean) => void;
+  /** Save automatically `debounceMs` after the last edit (requires `onSave`). */
+  autosave?: EditorAutosaveOptions;
+  /**
+   * Show the browser's "leave site?" prompt while there are unsaved changes. Defaults to
+   * `true` when `onSave` is set (without it the editor can't know when changes are saved).
+   */
+  warnOnUnsavedChanges?: boolean;
   className?: string;
 }
 
-export const KubuildEditor: React.FC<KubuildEditorProps> = ({
+export type { EditorHandle };
+
+/**
+ * The visual editor. Pass a `ref` to get an `EditorHandle` (STORA-538) for imperative
+ * `getDocument` / `replaceDocument` / `insertBlock` / `undo` / `redo` / `save`.
+ */
+export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(function KubuildEditor(
+  {
   initialDocument,
   pages,
   activePageId,
@@ -131,8 +187,18 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   onManageCredentials,
   onSaveTrackingSecret,
   assetProvider,
+  blocks,
+  blocksMode = 'append',
+  templates,
+  onApplyTemplate,
+  onSave,
+  onDirtyChange,
+  autosave,
+  warnOnUnsavedChanges,
   className,
-}) => {
+  },
+  ref,
+) {
   const trackingRelayUrl = context?.tracking?.relayUrl;
   const document = useEditorStore((state) => state.document);
   const setDocument = useEditorStore((state) => state.setDocument);
@@ -267,13 +333,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         setDocument(targetPage.document);
         const vp =
           targetPage.viewport ||
-          (targetPage.width
-            ? targetPage.width < 768
-              ? 'mobile'
-              : targetPage.width < 1024
-                ? 'tablet'
-                : 'desktop'
-            : 'desktop');
+          (targetPage.width ? getBreakpointForWidth(targetPage.width) : 'desktop');
         const w = targetPage.width ?? defaultWidthForViewport(vp);
         setViewport(vp);
         setFluidWidth(w);
@@ -316,13 +376,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         }
         const vp =
           target.viewport ||
-          (target.width
-            ? target.width < 768
-              ? 'mobile'
-              : target.width < 1024
-                ? 'tablet'
-                : 'desktop'
-            : 'desktop');
+          (target.width ? getBreakpointForWidth(target.width) : 'desktop');
         const w = target.width ?? defaultWidthForViewport(vp);
         if (vp !== useEditorStore.getState().viewport) {
           setViewport(vp);
@@ -434,6 +488,94 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   // still render zero AI UI.
   const resolvedAiConfig = useMemo(() => resolveAiEditorConfig(ai), [ai]);
   const aiFeatureEnabled = isAnyAiFeatureEnabled(resolvedAiConfig);
+
+  // STORA-535: one block registry in the store feeds the Blocks tab, canvas drops and
+  // `insertBlock(id)`.
+  const setBlockRegistry = useEditorStore((state) => state.setBlockRegistry);
+  useEffect(() => {
+    setBlockRegistry(resolveBlockRegistry(blocks, blocksMode));
+  }, [blocks, blocksMode, setBlockRegistry]);
+
+  // STORA-537: save / dirty orchestration. Callbacks go through refs so the controller
+  // (and its store subscription) lives for the editor's whole lifetime.
+  const isDirty = useEditorStore((state) => state.isDirty);
+  const onSaveRef = React.useRef(onSave);
+  onSaveRef.current = onSave;
+  const onDirtyChangeRef = React.useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
+  const autosaveRef = React.useRef(autosave);
+  autosaveRef.current = autosave;
+  const onApplyTemplateRef = React.useRef(onApplyTemplate);
+  onApplyTemplateRef.current = onApplyTemplate;
+  const registryRef = React.useRef(registry);
+  registryRef.current = registry;
+  const onDiagnosticRef = React.useRef(onDiagnostic);
+  onDiagnosticRef.current = onDiagnostic;
+  const saveControllerRef = React.useRef<EditorSaveController | null>(null);
+  const [saveState, setSaveState] = useState<EditorSaveState>({
+    status: 'idle',
+    error: null,
+    lastSavedAt: null,
+  });
+
+  useEffect(() => {
+    const controller = createEditorSaveController(useEditorStore, {
+      onSave: () => onSaveRef.current,
+      onDirtyChange: () => onDirtyChangeRef.current,
+      autosave: () => autosaveRef.current,
+    });
+    saveControllerRef.current = controller;
+    const unsubscribe = controller.subscribe(setSaveState);
+    return () => {
+      unsubscribe();
+      controller.dispose();
+      saveControllerRef.current = null;
+    };
+  }, []);
+
+  const triggerSave = useCallback(
+    () => saveControllerRef.current?.save() ?? Promise.resolve(false),
+    [],
+  );
+
+  const hasOnSave = !!onSave;
+  useEffect(() => {
+    if (!hasOnSave || typeof window === 'undefined') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 's') {
+        // Works from inputs too, and always suppresses the browser's "Save page" dialog.
+        e.preventDefault();
+        void triggerSave();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [hasOnSave, triggerSave]);
+
+  const shouldWarnOnUnload = (warnOnUnsavedChanges ?? hasOnSave) && isDirty;
+  useEffect(() => {
+    if (!shouldWarnOnUnload || typeof window === 'undefined') return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Legacy browsers only show the prompt when returnValue is set.
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [shouldWarnOnUnload]);
+
+  // STORA-538: imperative handle.
+  useImperativeHandle(
+    ref,
+    () =>
+      createEditorHandle(useEditorStore, {
+        registry: () => registryRef.current,
+        save: triggerSave,
+        onTemplateApplied: (template, doc) => onApplyTemplateRef.current?.(template, doc),
+        onDiagnostic: (diagnostic) => onDiagnosticRef.current?.(diagnostic),
+      }),
+    [triggerSave],
+  );
 
   // Seed the panel mode from config once at mount (STORA-503) — after that, the store's
   // own toggle/setAiChatMode actions are the single source of truth.
@@ -590,6 +732,16 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           )}
 
           <div className="flex items-center gap-2 shrink-0">
+            {templates && templates.length > 0 && (
+              <TemplateToolbarAction
+                templates={templates}
+                registry={registry}
+                context={previewContext}
+                onApplyTemplate={onApplyTemplate}
+                onDiagnostic={onDiagnostic}
+              />
+            )}
+
             <EditorToolbar
               registry={registry}
               config={resolvedConfig.toolbar}
@@ -645,6 +797,14 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
             <div className="hidden xl:block text-xs text-slate-500 shrink-0 font-mono">
               {selectedNodeId ? `Selected: #${selectedNodeId}` : 'No element selected'}
             </div>
+          )}
+
+          {onSave && (
+            <SaveStatusButton
+              saveState={saveState}
+              isDirty={isDirty}
+              onSave={() => void triggerSave()}
+            />
           )}
         </div>
       )}
@@ -902,4 +1062,4 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   return (
     <TranslationOverridesContext.Provider value={translations}>{shell}</TranslationOverridesContext.Provider>
   );
-};
+});

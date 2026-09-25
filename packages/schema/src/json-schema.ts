@@ -30,7 +30,7 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
       type: 'string',
       pattern: '^\\d+(\\.\\d+)*$',
       description: 'Schema version of the document',
-      default: '1.1.0',
+      default: '1.2.0',
     },
     metadata: {
       $ref: '#/definitions/documentMetadata',
@@ -41,8 +41,33 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
     tracking: {
       $ref: '#/definitions/trackingConfig',
     },
+    theme: {
+      $ref: '#/definitions/theme',
+    },
   },
   definitions: {
+    themeTokenMap: {
+      type: 'object',
+      propertyNames: { pattern: '^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$' },
+      additionalProperties: {
+        type: ['string', 'number'],
+        maxLength: 512,
+        pattern: '^[^;{}<>\\\\]*$',
+      },
+      description: 'Design tokens keyed by name. Values must not contain ; { } < > or backslashes.',
+    },
+    theme: {
+      type: 'object',
+      description:
+        'Document design tokens, emitted as CSS custom properties (--kb-color-*, --kb-font-*, --kb-radius-*, --kb-space-*) and referenced from styles as var(--kb-color-<key>).',
+      properties: {
+        colors: { $ref: '#/definitions/themeTokenMap' },
+        fonts: { $ref: '#/definitions/themeTokenMap' },
+        radii: { $ref: '#/definitions/themeTokenMap' },
+        spacing: { $ref: '#/definitions/themeTokenMap' },
+      },
+      additionalProperties: false,
+    },
     trackingConfig: {
       type: 'object',
       description:
@@ -304,7 +329,7 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
         },
         trigger: {
           type: 'string',
-          enum: ['click', 'submit', 'change', 'blur', 'focus', 'load'],
+          enum: ['click', 'submit', 'change', 'blur', 'focus', 'load', 'expire'],
         },
         label: { type: 'string' },
         debounceMs: { type: 'number', minimum: 0 },
@@ -743,7 +768,7 @@ export const ACTION_PIPELINE_JSON_SCHEMA_V1 = {
     },
     trigger: {
       type: 'string',
-      enum: ['click', 'submit', 'change', 'blur', 'focus', 'load'],
+      enum: ['click', 'submit', 'change', 'blur', 'focus', 'load', 'expire'],
       description: 'DOM or component event that triggers the action pipeline',
     },
     label: {

@@ -110,6 +110,30 @@ const pipelineData = {
 const pipeline: ActionPipeline = ActionPipelineSchema.parse(pipelineData);
 ```
 
+### Zod-free types and validation (hosts on another zod major)
+
+`@kubuild/schema/types` contains plain TypeScript interfaces (`PageDocument`, `Node`,
+`ResponsiveStyles`, `ActionPipeline`, `TemplateRecord`, `Theme`, ...) with no zod import, and
+`@kubuild/schema/validate` exposes validators whose signatures only use those types:
+
+```ts
+import type { PageDocument } from '@kubuild/schema/types';
+import { validateDocument } from '@kubuild/schema/validate';
+
+const result = validateDocument(json);
+if (result.success) {
+  const doc: PageDocument = result.data;
+} else {
+  console.log(result.issues); // [{ path: 'document.type', message: '...', code: '...' }]
+}
+```
+
+### Theme tokens
+
+`PageDocument.theme` holds `colors`, `fonts`, `radii` and `spacing` tokens. The renderer emits
+them as CSS custom properties (`--kb-color-*`, `--kb-font-*`, `--kb-radius-*`, `--kb-space-*`)
+and styles reference them as `var(--kb-color-primary)` (see `themeTokenRef`).
+
 ---
 
 ## 📄 License

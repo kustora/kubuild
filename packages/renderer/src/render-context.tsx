@@ -20,6 +20,8 @@ import {
   PageDocument,
 } from '@kubuild/schema';
 
+import { hasBuiltinLegacyAction, runBuiltinLegacyAction } from './legacy-actions';
+
 export type { RenderContext, RuntimeContext, ActionDiagnostic, Diagnostic, RuntimeTrackingOptions };
 
 /**
@@ -52,6 +54,8 @@ export function createRenderContext(options?: {
   artboardSurface?: ArtboardType;
   /** Host tracking runtime options (e.g. `relayUrl`). Host config, never document data. */
   tracking?: RuntimeTrackingOptions;
+  /** Host theme override merged over `PageDocument.theme` at render time (STORA-551). */
+  theme?: RenderContext['theme'];
 }): RenderContext {
   if (!options) {
     return DEFAULT_RENDER_CONTEXT;
@@ -79,6 +83,7 @@ export function createRenderContext(options?: {
     ...(resolveArtboard ? { resolveArtboard } : {}),
     ...(options.artboardSurface ? { artboardSurface: options.artboardSurface } : {}),
     ...(options.tracking ? { tracking: Object.freeze({ ...options.tracking }) } : {}),
+    ...(options.theme ? { theme: Object.freeze({ ...options.theme }) } : {}),
   });
 }
 
@@ -289,6 +294,12 @@ export interface DispatchActionOptions {
   document: PageDocument;
   context?: RenderContext;
   onDiagnostic?: (diagnostic: Diagnostic) => void;
+  /**
+   * Whether built-in handlers for legacy types (navigate, open_modal, …) may run when the host
+   * registered none. Defaults to true; the renderer passes false in editor mode so clicking a
+   * button on the canvas never navigates the editor away.
+   */
+  allowBuiltinHandlers?: boolean;
   [key: string]: unknown;
 }
 
@@ -318,8 +329,16 @@ export function dispatchAction(options: DispatchActionOptions): boolean {
   }
 
   const handler = context?.actionRegistry?.get(action.type);
+  // Host handlers win; otherwise fall back to a built-in runner for legacy types that have
+  // a pipeline equivalent (navigate / open_modal / close_modal / toggle_modal / show_toast).
+  const useBuiltin = !handler && hasBuiltinLegacyAction(action.type);
 
-  if (!handler) {
+  if (useBuiltin && options.allowBuiltinHandlers === false) {
+    // Resolvable at runtime, intentionally inert here (e.g. editor canvas): not an error.
+    return false;
+  }
+
+  if (!handler && !useBuiltin) {
     const diagnostic: ActionDiagnostic = {
       code: 'UNKNOWN_ACTION',
       actionType: action.type,
@@ -346,6 +365,21 @@ export function dispatchAction(options: DispatchActionOptions): boolean {
     onDiagnostic?.(diagnostic);
     context?.onDiagnostic?.(diagnostic);
     return false;
+  }
+
+  if (!handler) {
+    runBuiltinLegacyAction(action.type, resolvedPayload, { nodeId, document, context }).catch((error) => {
+      const diagnostic: ActionDiagnostic = {
+        code: 'ACTION_EXECUTION_ERROR',
+        actionType: action.type,
+        nodeId,
+        message: `Built-in "${action.type}" action failed: ${error instanceof Error ? error.message : String(error)}`,
+        error,
+      };
+      onDiagnostic?.(diagnostic);
+      context?.onDiagnostic?.(diagnostic);
+    });
+    return true;
   }
 
   const executionContext: ActionExecutionContext = {

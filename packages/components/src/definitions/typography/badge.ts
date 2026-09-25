@@ -1,5 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
 import { ComponentDefinition } from '../../registry';
+import { canonicalTextPropFields } from '../../canonical-props';
 import { ariaLabelTrait, idTrait, titleTrait } from '../../traits';
 
 export const badgeDefinition: ComponentDefinition = {
@@ -8,6 +9,7 @@ export const badgeDefinition: ComponentDefinition = {
   category: 'typography',
   icon: 'badge',
   acceptsChildren: false,
+  ...canonicalTextPropFields('badge'),
   defaultProps: {
     text: 'Badge',
     variant: 'default',

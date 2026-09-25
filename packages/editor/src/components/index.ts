@@ -6,4 +6,5 @@ export * from './modals';
 export * from './panels';
 export * from './style-manager';
 export * from './table-editor';
+export * from './templates';
 export * from './ui';

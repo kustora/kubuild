@@ -12,6 +12,8 @@ export const ActionTriggerTypeSchema = z.enum([
   'blur',
   'focus',
   'load',
+  // Fired once by time-bound components (e.g. `countdown`) when they reach zero.
+  'expire',
 ]);
 
 export type ActionTriggerType = z.infer<typeof ActionTriggerTypeSchema>;
@@ -108,7 +110,11 @@ export const ApiRequestStepPayloadSchema = z.object({
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']).default('GET'),
   headers: z.record(z.string(), z.string()).optional(),
   queryParams: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
-  body: z.union([z.string(), z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
+  /**
+   * Request body. Omitted inside a form `submit` pipeline → the form's values are sent;
+   * `null` → explicitly no body.
+   */
+  body: z.union([z.string(), z.record(z.string(), z.unknown()), z.array(z.unknown())]).nullable().optional(),
   bodyFormat: z.enum(['json', 'form-data', 'formData', 'urlencoded', 'url-encoded', 'raw', 'text']).optional(),
   bodyType: z.enum(['json', 'form-data', 'formData', 'urlencoded', 'url-encoded', 'raw', 'text']).optional(),
   timeout: z.number().positive('Timeout must be greater than 0 ms').optional(),

@@ -187,6 +187,30 @@ export const ComponentIcon: React.FC<ComponentIconProps> = ({
           <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
         </svg>
       );
+    case 'clock':
+    case 'countdown':
+      return (
+        <svg {...iconProps}>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      );
+    case 'tabs':
+    case 'tab-panel':
+      return (
+        <svg {...iconProps}>
+          <rect width="18" height="14" x="3" y="7" rx="2" />
+          <path d="M3 9V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+      );
+    case 'carousel':
+      return (
+        <svg {...iconProps}>
+          <rect width="12" height="14" x="6" y="5" rx="2" />
+          <path d="M2 7v10" />
+          <path d="M22 7v10" />
+        </svg>
+      );
     case 'html-embed':
       return (
         <svg {...iconProps}>

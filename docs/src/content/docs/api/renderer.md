@@ -26,8 +26,8 @@ import { createDefaultComponentRegistry } from '@kubuild/components';
     variables: { username: 'Jane Doe' },
     actions: { onSubscribe: (payload) => handleSubscribe(payload) },
   }}
-  viewport="desktop" // 'desktop' | 'tablet' | 'mobile'
   mode="runtime"     // 'runtime' | 'editor' | 'preview'
+  // responsive defaults to 'css' here: real @media queries pick tablet/mobile styles
   className="landing-page"
   onNodeClick={(nodeId, e) => console.log('Clicked node:', nodeId)}
   onDiagnostic={(diag) => console.warn(diag)}
@@ -41,7 +41,8 @@ import { createDefaultComponentRegistry } from '@kubuild/components';
 | `document` | `PageDocument` | **required** | The document AST tree to render. |
 | `registry` | `ComponentRegistry` | `createDefaultComponentRegistry()` | Component registry mapping node types to definitions and renderers. |
 | `context` | `RenderContext` | `undefined` | Host runtime context (variables, actions, asset resolver). |
-| `viewport` | `'desktop' \| 'tablet' \| 'mobile'` | `'desktop'` | Target viewport for responsive style computation. |
+| `viewport` | `'desktop' \| 'tablet' \| 'mobile'` | `undefined` (treated as `'desktop'`) | Preview a single viewport. That layer is merged into inline styles. Passing it switches the default `responsive` mode to `'viewport'`. |
+| `responsive` | `'css' \| 'viewport'` | `'css'` when `mode="runtime"` and no `viewport` is given, otherwise `'viewport'` | `'css'` renders `base` inline and emits breakpoint layers as `@media` rules scoped to `[data-kubuild-node]`, using `BREAKPOINTS` from `@kubuild/schema`. It is SSR-safe and gives the same output on server and client. `'viewport'` merges the `viewport` layer inline, which is what editor and device previews use. |
 | `mode` | `'runtime' \| 'editor' \| 'preview'` | `'runtime'` | Execution mode. In `editor` mode, error boundaries render inline diagnostic boxes; in `runtime` mode, errors fail gracefully. |
 | `className` | `string` | `undefined` | CSS class for the root wrapper div. |
 | `onNodeClick` | `(nodeId: string, event: React.MouseEvent) => void` | `undefined` | Node selection click handler. |
@@ -76,13 +77,15 @@ import { RenderContextProvider } from '@kubuild/renderer';
 
 ## Styling & Animation Compilers
 
-### 1. `resolveNodeStyles(node, viewport, state?)`
-Resolves cascading responsive styles for a specific node and viewport (`base` -> `tablet` -> `mobile`), returning a clean React CSS `style` object.
+### 1. `resolveNodeStyles(styles, viewport)`
+Merges `base` with the single `viewport` layer (`desktop`, `tablet` or `mobile`) and returns a clean React CSS `style` object. This is what `responsive: 'viewport'` renders inline.
 
 ```typescript
-import { resolveNodeStyles } from '@kubuild/renderer';
+import { resolveNodeStyles, collectResponsiveStylesCss } from '@kubuild/renderer';
 
-const cssStyles = resolveNodeStyles(buttonNode, 'mobile', ':hover');
+const cssStyles = resolveNodeStyles(buttonNode.styles, 'mobile');
+// The `responsive: 'css'` counterpart: scoped @media rules for the whole document
+const mediaCss = collectResponsiveStylesCss(document);
 ```
 
 ### 2. `collectStateStylesCss(document)`

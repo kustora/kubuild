@@ -129,7 +129,7 @@ Mentransformasi builder `kubuild` menjadi **Figma-grade web builder engine**, di
 ### 4.3 Module 3: Responsive Cascade & Fluid Breakpoint Engine
 
 #### 4.3.1 Breakpoint Cascade Rules
-- Urutan warisan: `base` (Desktop) → `tablet` (≤ 768px) → `mobile` (≤ 480px).
+- Urutan warisan: `base` → `tablet` (768–1023px) / `mobile` (< 768px); `desktop` ≥ 1024px. Nilai resmi ada di `BREAKPOINTS` (`@kubuild/schema`, STORA-541). Setiap layer hanya digabung dengan `base`.
 - Setiap perubahan properti di breakpoint turunan hanya menyimpan override differensial (tidak menduplikasi seluruh object style).
 
 #### 4.3.2 Visual Inheritance & Reset Indicators

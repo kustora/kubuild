@@ -8,5 +8,6 @@ export * from './grid-controls';
 export * from './effects-sector-controls';
 export * from './color-gradient-picker';
 export * from './design-tokens-panel';
+export * from './theme-panel';
 export * from './inheritance-indicator';
 export * from './background-image-controls';

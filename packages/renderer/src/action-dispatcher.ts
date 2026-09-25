@@ -68,6 +68,7 @@ export async function executeNodeActions(
 
   // Build merged execution context
   const executionContext: Record<string, unknown> = {
+    trigger,
     form: formContext ? { ...formContext.values } : {},
     variables: context?.variables ? { ...context.variables } : {},
     nodeId: node.id,
