@@ -1,5 +1,52 @@
 # @kubuild/renderer
 
+## 0.8.0
+
+### Minor Changes
+
+- Host Integration API, conversion components, responsive runtime CSS, and document theming:
+
+  - **@kubuild/editor**:
+    - Host Integration API: `KubuildEditor` forwards imperative `EditorHandle` ref (`getDocument`, `replaceDocument`, `insertBlock`, `applyTemplate`, `undo`, `redo`, `isDirty`, `save`).
+    - Save controller: added `onSave`, `onDirtyChange`, `autosave`, `warnOnUnsavedChanges`, Save status indicator button, and `Cmd/Ctrl+S` shortcut.
+    - Host blocks & templates: supports custom host blocks (`blocks`, `blocksMode`), template picker (`templates`, `onApplyTemplate`, `TemplatePicker`, `TemplatePickerDialog`), and template requirement validation.
+    - Diagnostics: emits error diagnostic when `replaceDocument` rejects invalid document data.
+    - UI Polish: increased default inspector width to 300px and improved layout & styling of color gradient picker controls.
+
+  - **@kubuild/renderer**:
+    - Responsive CSS: emits scoped `@media` rules in runtime mode using shared `BREAKPOINTS`.
+    - Conversion renderers: added support for Accordion, Carousel, Countdown (with `expire` trigger handling), Divider, Rating, and Tabs.
+    - Extended form components: added renderers for Switch, FileUpload, RadioGroup, RadioItem, and ButtonSubmit.
+    - Form submission: automatically forwards form values when `api_request` action omits explicit body payload.
+    - Action handlers: added built-in compatibility handlers for legacy action types.
+
+  - **@kubuild/components**:
+    - Conversion components: registered definitions for `accordion`, `carousel`, `countdown`, `divider`, `rating`, and `tabs`.
+    - Sales starter blocks: added pre-built templates for pricing, testimonials, features, and guarantees.
+    - Canonical props: added canonical text prop helpers and validation.
+
+  - **@kubuild/schema**:
+    - Breakpoints: added shared `BREAKPOINTS` constant (`desktop`, `tablet`, `mobile`).
+    - Action trigger: added `expire` action trigger for time-bound components.
+    - Theming: added `DocumentTheme` and document-level theming schema.
+    - Canonical text props: standardized text props across typography and component schemas.
+    - Types: lightweight standalone schema validators and direct TypeScript types.
+
+  - **@kubuild/core**:
+    - Template cloning: preserves all node fields and metadata when cloning templates.
+    - Theme & canonical props: integrated theme resolution and canonical text props into command tree and migrations.
+    - Built-in components: canonical derivation of `CORE_BUILTIN_COMPONENTS`.
+
+  - **@kubuild/react** & **@kubuild/ai**:
+    - Version bump aligned with monorepo fixed version group.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/schema@0.8.0
+  - @kubuild/core@0.8.0
+  - @kubuild/components@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes
