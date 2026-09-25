@@ -509,6 +509,8 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   onApplyTemplateRef.current = onApplyTemplate;
   const registryRef = React.useRef(registry);
   registryRef.current = registry;
+  const onDiagnosticRef = React.useRef(onDiagnostic);
+  onDiagnosticRef.current = onDiagnostic;
   const saveControllerRef = React.useRef<EditorSaveController | null>(null);
   const [saveState, setSaveState] = useState<EditorSaveState>({
     status: 'idle',
@@ -570,6 +572,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
         registry: () => registryRef.current,
         save: triggerSave,
         onTemplateApplied: (template, doc) => onApplyTemplateRef.current?.(template, doc),
+        onDiagnostic: (diagnostic) => onDiagnosticRef.current?.(diagnostic),
       }),
     [triggerSave],
   );
@@ -735,6 +738,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
                 registry={registry}
                 context={previewContext}
                 onApplyTemplate={onApplyTemplate}
+                onDiagnostic={onDiagnostic}
               />
             )}
 

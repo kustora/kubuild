@@ -134,6 +134,64 @@ describe('STORA-538: replaceDocument / EditorHandle', () => {
     expect(useEditorStore.getState().document).toBe(before);
   });
 
+  it('emits a DOCUMENT_INVALID diagnostic through the handle when a document is rejected', () => {
+    const onDiagnostic = vi.fn();
+    const handle = createEditorHandle(useEditorStore, { registry: () => registry, onDiagnostic });
+    const before = handle.getDocument();
+    const bad = {
+      ...docWithHeading(),
+      document: { id: '', type: 'page' },
+    } as unknown as PageDocument;
+    const result = handle.replaceDocument(bad, { keepHistory: true });
+    expect(result.success).toBe(false);
+    expect(handle.getDocument()).toBe(before);
+    expect(handle.canUndo()).toBe(false);
+    expect(onDiagnostic).toHaveBeenCalledTimes(1);
+    const diagnostic = onDiagnostic.mock.calls[0][0];
+    expect(diagnostic).toMatchObject({
+      code: 'DOCUMENT_INVALID',
+      source: 'replaceDocument',
+      message: result.error,
+    });
+    expect(diagnostic.errors).toEqual(result.errors);
+    expect(diagnostic.warnings).toEqual(result.warnings);
+  });
+
+  it('emits no diagnostic when a valid document is accepted', () => {
+    const onDiagnostic = vi.fn();
+    const handle = createEditorHandle(useEditorStore, { registry: () => registry, onDiagnostic });
+    expect(handle.replaceDocument(docWithHeading('Valid')).success).toBe(true);
+    expect(onDiagnostic).not.toHaveBeenCalled();
+  });
+
+  it('store replaceDocument without onDiagnostic still rejects silently (backward compatible)', () => {
+    const bad = {
+      ...docWithHeading(),
+      document: { id: '', type: 'page' },
+    } as unknown as PageDocument;
+    expect(() => useEditorStore.getState().replaceDocument(bad)).not.toThrow();
+  });
+
+  it('applyTemplate reports an invalid template document with source applyTemplate', () => {
+    const onDiagnostic = vi.fn();
+    const handle = createEditorHandle(useEditorStore, { registry: () => registry, onDiagnostic });
+    const before = handle.getDocument();
+    const template = makeTemplate();
+    // Props are cloned verbatim, so an oversized string trips the validator's security limit.
+    template.document!.document.children![0].props!.text = 'x'.repeat(100_001);
+    const result = handle.applyTemplate(template);
+    expect(result.success).toBe(false);
+    expect(handle.getDocument()).toBe(before);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(onDiagnostic).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'DOCUMENT_INVALID',
+        source: 'applyTemplate',
+        templateId: template.id,
+      }),
+    );
+  });
+
   it('replace → undo restores the previous document when keepHistory is true', () => {
     const handle = createEditorHandle(useEditorStore, { registry: () => registry });
     const original = handle.getDocument();

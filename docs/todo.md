@@ -1248,13 +1248,13 @@ Sumber: temuan integrasi KUBUILD `0.7.0` sebagai page builder funnel di aplikasi
 | Epic Key | Epic Name | Package Target | Jumlah Task | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | **EPIC-57** | Correctness Bugs (data loss & silent failures) | `@kubuild/core`, `@kubuild/renderer`, `@kubuild/components` | 5 Tasks | 5/5 Done |
-| **EPIC-58** | Host Integration API (blocks, templates, save, replace) | `@kubuild/editor`, `@kubuild/react`, `@kubuild/components` | 5 Tasks | 3/5 Done, 1 In Progress, 1 To Do |
+| **EPIC-58** | Host Integration API (blocks, templates, save, replace) | `@kubuild/editor`, `@kubuild/react`, `@kubuild/components` | 5 Tasks | 4/5 Done, 1 To Do |
 | **EPIC-59** | Responsive Runtime Rendering | `@kubuild/renderer` | 3 Tasks | 3/3 Done |
 | **EPIC-60** | Conversion Components (sales/funnel pages) | `@kubuild/components`, `@kubuild/renderer` | 7 Tasks | 7/7 Done |
 | **EPIC-61** | Schema Consistency, Theming & Types | `@kubuild/schema`, `@kubuild/core`, `@kubuild/editor` | 4 Tasks | 4/4 Done |
 | **EPIC-62** | Documentation Accuracy | `docs/` | 3 Tasks | 0/3 Done, 3 To Do |
 
-Ringkasan status: **22 Done**, **1 In Progress**, **4 To Do** (total 27).
+Ringkasan status: **23 Done**, **0 In Progress**, **4 To Do** (total 27).
 
 ## Epic: Correctness Bugs
 
@@ -1403,8 +1403,7 @@ Epic key: `EPIC-58` — package target: `@kubuild/editor`, `@kubuild/react`.
 - **Summary:** Imperative handle: `replaceDocument`, `getDocument`, `insertBlock`
 - **Description:** `initialDocument` hanya men-seed editor sekali; mengganti dokumen dari luar (mis. setelah menerapkan template di server, atau revert ke versi published) memaksa host me-remount editor dan kehilangan history/selection.
 - **Priority:** Medium
-- **Status:** In Progress
-- **Catatan:** `replaceDocument` memvalidasi dan menolak dokumen tidak valid, tetapi error hanya dikembalikan di hasil (`{ success: false, errors, error }`); belum ada diagnostic lewat `onDiagnostic`.
+- **Status:** Done
 - **Package:** `@kubuild/editor`, `@kubuild/react`
 - **Dependencies:** STORA-535
 - **Acceptance Criteria:**

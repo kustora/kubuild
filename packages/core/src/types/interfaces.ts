@@ -1,4 +1,5 @@
 import { Artboard, ArtboardType, PageDocument, Theme } from '@kubuild/schema';
+import type { DocumentValidationError, DocumentValidationWarning } from '../validation/validator';
 
 export interface AssetInfo {
   id: string;
@@ -99,13 +100,34 @@ export interface DeprecatedPropDiagnostic {
   message: string;
 }
 
+/**
+ * Diagnostic for a whole document the editor refused to load (STORA-538): `replaceDocument`
+ * (host `EditorHandle` or store) or `applyTemplate` ran `validateDocument` and the result was
+ * invalid. The current document is left untouched; the same errors are also returned in the
+ * call's result.
+ */
+export interface DocumentValidationDiagnostic {
+  code: 'DOCUMENT_INVALID';
+  /** Which entry point rejected the document. */
+  source: 'replaceDocument' | 'applyTemplate';
+  /** Id of the template being applied, when `source` is `'applyTemplate'`. */
+  templateId?: string;
+  /** Node of the first blocking error, when it points at one. */
+  nodeId?: string;
+  message: string;
+  /** Blocking validation errors from `validateDocument`. */
+  errors: DocumentValidationError[];
+  warnings: DocumentValidationWarning[];
+}
+
 export type Diagnostic =
   | ActionDiagnostic
   | PropBindingDiagnostic
   | CollectionDiagnostic
   | AiGenerationDiagnostic
   | TrackingDiagnostic
-  | DeprecatedPropDiagnostic;
+  | DeprecatedPropDiagnostic
+  | DocumentValidationDiagnostic;
 
 /**
  * Host-supplied runtime tracking options (NOT part of the document). Server-side delivery
