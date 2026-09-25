@@ -173,7 +173,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   const DEFAULT_LEFT_SIDEBAR_WIDTH = 320;
   const MIN_LEFT_SIDEBAR_WIDTH = 220;
 
-  const DEFAULT_INSPECTOR_WIDTH = 288;
+  const DEFAULT_INSPECTOR_WIDTH = 300;
   const MIN_INSPECTOR_WIDTH = 260;
 
   const DEFAULT_AI_CHAT_WIDTH = 320;

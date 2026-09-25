@@ -345,14 +345,14 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
       {/* Solid Mode Controls */}
       {mode === 'solid' && (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
             <input
               type="color"
               data-testid="color-picker-native-input"
               value={color}
               disabled={disabled}
               onChange={(e) => handleColorChange(e.target.value)}
-              className="w-8 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+              className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
             />
             <input
               type="text"
@@ -360,7 +360,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
               value={getFormattedValue()}
               disabled={disabled}
               onChange={(e) => handleColorChange(e.target.value)}
-              className="flex-1 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 font-mono shadow-2xs"
+              className="flex-1 min-w-0 text-[11px] bg-white text-slate-900 border border-slate-300 rounded px-2 py-1 font-mono shadow-2xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             {/* Format toggle button */}
             <button
@@ -371,7 +371,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
                 const nextFormat: ColorFormat = format === 'hex' ? 'rgba' : format === 'rgba' ? 'hsl' : 'hex';
                 setFormat(nextFormat);
               }}
-              className="px-1.5 py-1 text-[10px] font-bold uppercase rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-600 cursor-pointer shadow-2xs"
+              className="shrink-0 px-2 py-1 text-[10px] font-bold uppercase rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-600 cursor-pointer shadow-2xs whitespace-nowrap"
             >
               {format}
             </button>
@@ -383,7 +383,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
               <span className="text-[10px] font-medium text-slate-500">{t.opacity}</span>
               <span className="text-[10px] font-mono text-slate-500">{Math.round(alpha * 100)}%</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <input
                 type="range"
                 data-testid="color-picker-alpha-slider"
@@ -393,7 +393,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
                 value={alpha}
                 disabled={disabled}
                 onChange={(e) => handleAlphaChange(parseFloat(e.target.value) || 0)}
-                className="flex-1 accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                className="flex-1 min-w-0 accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
               />
               <input
                 type="number"
@@ -403,7 +403,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
                 value={Math.round(alpha * 100)}
                 disabled={disabled}
                 onChange={(e) => handleAlphaChange((parseFloat(e.target.value) || 0) / 100)}
-                className="w-12 text-xs bg-white text-slate-900 border border-slate-300 rounded px-1 py-0.5 text-right font-mono"
+                className="w-12 shrink-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-1 py-0.5 text-right font-mono"
               />
             </div>
           </div>
@@ -427,7 +427,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
                 <span className="text-[10px] font-medium text-slate-500">Gradient Angle</span>
                 <span className="text-[10px] font-mono text-slate-500">{angle}°</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <input
                   type="range"
                   data-testid="gradient-angle-slider"
@@ -437,7 +437,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
                   value={angle}
                   disabled={disabled}
                   onChange={(e) => handleAngleChange(parseInt(e.target.value, 10) || 0)}
-                  className="flex-1 accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                  className="flex-1 min-w-0 accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
                 />
                 <input
                   type="number"
@@ -447,7 +447,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
                   value={angle}
                   disabled={disabled}
                   onChange={(e) => handleAngleChange(parseInt(e.target.value, 10) || 0)}
-                  className="w-14 text-xs bg-white text-slate-900 border border-slate-300 rounded px-1 py-0.5 text-right font-mono"
+                  className="w-14 shrink-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-1 py-0.5 text-right font-mono"
                 />
               </div>
             </div>
@@ -470,7 +470,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
 
             <div className="flex flex-col gap-1.5">
               {stops.map((stop, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-white p-1.5 rounded border border-slate-200 shadow-2xs">
+                <div key={idx} className="flex items-center gap-2 bg-white p-1.5 rounded border border-slate-200 shadow-2xs min-w-0">
                   <input
                     type="color"
                     data-testid={`gradient-stop-color-${idx}`}
@@ -488,7 +488,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
                     value={stop.position}
                     disabled={disabled}
                     onChange={(e) => handleStopPosChange(idx, parseInt(e.target.value, 10) || 0)}
-                    className="flex-1 accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                    className="flex-1 min-w-0 accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
                   />
                   <span className="text-[10px] font-mono text-slate-500 w-8 text-right shrink-0">
                     {stop.position}%
@@ -499,7 +499,7 @@ export const ColorGradientPicker: React.FC<ColorGradientPickerProps> = ({
                       data-testid={`gradient-remove-stop-${idx}`}
                       disabled={disabled}
                       onClick={() => handleRemoveStop(idx)}
-                      className="text-slate-400 hover:text-red-600 p-0.5 rounded cursor-pointer text-xs"
+                      className="text-slate-400 hover:text-red-600 p-0.5 rounded cursor-pointer text-xs shrink-0"
                       title="Remove stop"
                     >
                       ×
