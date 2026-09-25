@@ -19,6 +19,7 @@ import {
   CollectedAssetReference,
 } from '../document/document-utils';
 import type { AssetProvider } from '../types/interfaces';
+import { stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer';
 
 export interface ExportAssetData {
   data: Uint8Array | ArrayBuffer | Blob | string;
@@ -329,6 +330,8 @@ export async function exportPackage(
   }
 
   const pageDoc: PageDocument = JSON.parse(JSON.stringify(validation.data));
+  // Defensive: a shareable .stora package must never carry tracking secrets.
+  stripDocumentTrackingSecretsInPlace(pageDoc);
 
   // Merge optional metadata overrides safely
   if (options.metadata) {

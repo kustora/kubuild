@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TrackEventStepPayload, TrackEventStepPayloadSchema } from './tracking';
 
 /**
  * Action Trigger Types
@@ -11,6 +12,8 @@ export const ActionTriggerTypeSchema = z.enum([
   'blur',
   'focus',
   'load',
+  // Fired once by time-bound components (e.g. `countdown`) when they reach zero.
+  'expire',
 ]);
 
 export type ActionTriggerType = z.infer<typeof ActionTriggerTypeSchema>;
@@ -29,8 +32,10 @@ export const ActionStepTypeSchema = z.enum([
   'show_toast',
   'open_modal',
   'close_modal',
+  'toggle_modal',
   'copy_clipboard',
   'custom_event',
+  'track_event',
 ]);
 
 export type ActionStepType = z.infer<typeof ActionStepTypeSchema>;
@@ -105,7 +110,11 @@ export const ApiRequestStepPayloadSchema = z.object({
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']).default('GET'),
   headers: z.record(z.string(), z.string()).optional(),
   queryParams: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
-  body: z.union([z.string(), z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
+  /**
+   * Request body. Omitted inside a form `submit` pipeline → the form's values are sent;
+   * `null` → explicitly no body.
+   */
+  body: z.union([z.string(), z.record(z.string(), z.unknown()), z.array(z.unknown())]).nullable().optional(),
   bodyFormat: z.enum(['json', 'form-data', 'formData', 'urlencoded', 'url-encoded', 'raw', 'text']).optional(),
   bodyType: z.enum(['json', 'form-data', 'formData', 'urlencoded', 'url-encoded', 'raw', 'text']).optional(),
   timeout: z.number().positive('Timeout must be greater than 0 ms').optional(),
@@ -189,6 +198,31 @@ export const CloseModalStepPayloadSchema = z.object({
 export type CloseModalStepPayload = z.infer<typeof CloseModalStepPayloadSchema>;
 
 /**
+ * 7b. Toggle Modal Step Payload Schema
+ * Flips a modal/drawer/collapsible between open and closed. The renderer's
+ * `toggle_modal` runner resolves the target from the first non-empty of
+ * `modalId`, `modalNodeId`, `targetNodeId`, `nodeId`.
+ */
+export const ToggleModalStepPayloadSchema = z
+  .object({
+    modalId: z.string().optional(),
+    modalNodeId: z.string().optional(),
+    targetNodeId: z.string().optional(),
+    nodeId: z.string().optional(),
+  })
+  .refine(
+    (data) =>
+      [data.modalId, data.modalNodeId, data.targetNodeId, data.nodeId].some(
+        (id) => typeof id === 'string' && id.trim().length > 0,
+      ),
+    {
+      message: 'Modal ID or Modal Node ID cannot be empty',
+    },
+  );
+
+export type ToggleModalStepPayload = z.infer<typeof ToggleModalStepPayloadSchema>;
+
+/**
  * 8. Copy Clipboard Step Payload Schema
  */
 export const CopyClipboardStepPayloadSchema = z.object({
@@ -223,8 +257,10 @@ export const StepPayloadSchemas = {
   show_toast: ShowToastStepPayloadSchema,
   open_modal: OpenModalStepPayloadSchema,
   close_modal: CloseModalStepPayloadSchema,
+  toggle_modal: ToggleModalStepPayloadSchema,
   copy_clipboard: CopyClipboardStepPayloadSchema,
   custom_event: CustomEventStepPayloadSchema,
+  track_event: TrackEventStepPayloadSchema,
 } as const;
 
 /**

@@ -53,12 +53,24 @@ export * from './media';
 export * from './data';
 export * from './form';
 export * from './interactive';
+export * from './conversion';
 
 import {
   modalDefinition,
   drawerDefinition,
   collapsibleDefinition,
 } from './interactive';
+import {
+  accordionDefinition,
+  accordionItemDefinition,
+  carouselDefinition,
+  countdownDefinition,
+  dividerDefinition,
+  ratingDefinition,
+  spacerDefinition,
+  tabPanelDefinition,
+  tabsDefinition,
+} from './conversion';
 
 export const coreComponentDefinitions: ComponentDefinition[] = [
   pageDefinition,
@@ -99,6 +111,16 @@ export const coreComponentDefinitions: ComponentDefinition[] = [
   modalDefinition,
   drawerDefinition,
   collapsibleDefinition,
+  // Conversion components (Epic 60)
+  countdownDefinition,
+  accordionDefinition,
+  accordionItemDefinition,
+  tabsDefinition,
+  tabPanelDefinition,
+  carouselDefinition,
+  ratingDefinition,
+  dividerDefinition,
+  spacerDefinition,
 ];
 
 export function createDefaultComponentRegistry(): ComponentRegistry {

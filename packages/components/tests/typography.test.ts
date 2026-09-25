@@ -46,7 +46,7 @@ describe('Typography Components (heading, text)', () => {
     });
 
     it('rejects missing content', () => {
-      expect(textDefinition.validateProps?.({})).toEqual(['Text requires a non-empty "content".']);
+      expect(textDefinition.validateProps?.({})).toEqual(['Text requires a non-empty "text".']);
     });
   });
 

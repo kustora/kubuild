@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import type { ValidationRule, ValidateOnEvent, ActionPipeline, PageDocument, Node } from '@kubuild/schema';
 import { useFormRuntime } from '../form-context';
 import { EditableText } from './editable-text';
+import { RadioGroupContext } from './radio-group-context';
 import { executeNodeActions } from '../action-dispatcher';
 import type { RenderContext, Diagnostic } from '../render-context';
 
@@ -787,12 +788,12 @@ export interface FormRadioNodeProps {
 
 export const FormRadioNode: React.FC<FormRadioNodeProps> = ({
   id,
-  name,
+  name: ownName,
   label = '',
   value = '',
   defaultChecked = false,
-  required,
-  disabled,
+  required: ownRequired,
+  disabled: ownDisabled,
   rules,
   validateOn,
   style,
@@ -808,8 +809,15 @@ export const FormRadioNode: React.FC<FormRadioNodeProps> = ({
   onNodePropChange,
 }) => {
   const formRuntime = useFormRuntime();
+  // Inside a `radio-group` the group owns the field binding (name, required, default
+  // selection); the radio only reads/writes the shared value.
+  const group = useContext(RadioGroupContext);
+  const inGroup = Boolean(group?.name);
+  const name = inGroup ? group!.name : ownName;
+  const required = inGroup ? group!.required : ownRequired;
+  const disabled = Boolean(ownDisabled || group?.disabled);
 
-  if (formRuntime && name) {
+  if (formRuntime && name && !inGroup) {
     formRuntime.registerField({
       name,
       defaultValue: defaultChecked ? value : undefined,
@@ -821,7 +829,7 @@ export const FormRadioNode: React.FC<FormRadioNodeProps> = ({
   }
 
   useEffect(() => {
-    if (!formRuntime || !name) return;
+    if (!formRuntime || !name || inGroup) return;
     const unregister = formRuntime.registerField({
       name,
       defaultValue: defaultChecked ? value : undefined,
@@ -833,7 +841,7 @@ export const FormRadioNode: React.FC<FormRadioNodeProps> = ({
     return () => {
       unregister();
     };
-  }, [formRuntime, name, defaultChecked, value, required, disabled, rules, validateOn]);
+  }, [formRuntime, name, inGroup, defaultChecked, value, required, disabled, rules, validateOn]);
 
   const isChecked =
     formRuntime && name

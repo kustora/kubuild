@@ -1,0 +1,89 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`STORA-542: runtime CSS matches code generator output > emits the same overrides under the same media queries > code generator css 1`] = `
+"/* ==========================================================================
+   Component Styles
+   ========================================================================== */
+.kb-node-hero {
+  display: flex;
+  flex-direction: row;
+  padding: 64px;
+  gap: 24px;
+}
+
+.kb-node-grid-1 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.kb-node-card-1 {
+  width: 100%;
+  border-radius: 12px;
+  flex: 1 1 0%;
+}
+
+/* ==========================================================================
+   Interactive & Hover States
+   ========================================================================== */
+.kb-node-hero:hover {
+  background-color: #1e293b;
+}
+
+/* ==========================================================================
+   Desktop Breakpoint (min-width: 1024px)
+   ========================================================================== */
+@media (min-width: 1024px) {
+  .kb-node-hero {
+    padding: 96px;
+  }
+}
+
+/* ==========================================================================
+   Tablet Breakpoint (min-width: 768px) and (max-width: 1023.98px)
+   ========================================================================== */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .kb-node-hero {
+    padding: 40px;
+  }
+
+  .kb-node-grid-1 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ==========================================================================
+   Mobile Breakpoint (max-width: 767.98px)
+   ========================================================================== */
+@media (max-width: 767.98px) {
+  .kb-node-hero {
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .kb-node-grid-1 {
+    grid-template-columns: 1fr;
+  }
+
+  .kb-node-card-1 {
+    font-size: 14px;
+    font-weight: 600;
+    flex: unset;
+  }
+}"
+`;
+
+exports[`STORA-542: runtime CSS matches code generator output > emits the same overrides under the same media queries > runtime responsive css 1`] = `
+"@media (min-width: 1024px) {
+  [data-kubuild-node="hero"] { padding: 96px !important; }
+}
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  [data-kubuild-node="hero"] { padding: 40px !important; }
+  [data-kubuild-node="grid-1"] { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 767.98px) {
+  [data-kubuild-node="hero"] { flex-direction: column !important; padding: 16px !important; gap: 12px !important; }
+  [data-kubuild-node="grid-1"] { grid-template-columns: 1fr !important; }
+  [data-kubuild-node="card-1"] { font-size: 14px !important; font-weight: 600 !important; flex: unset !important; }
+}"
+`;

@@ -17,7 +17,6 @@ export const imageDefinition: ComponentDefinition = {
   },
   propFields: [
     { name: 'src', label: 'Image URL', type: 'string' },
-    { name: 'asset', label: 'Asset Reference', type: 'json' },
     { name: 'alt', label: 'Alt Text', type: 'string', defaultValue: 'Default image' },
     { name: 'width', label: 'Width', type: 'number' },
     { name: 'height', label: 'Height', type: 'number' },

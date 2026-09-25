@@ -1,5 +1,98 @@
 # @kubuild/ai
 
+## 0.7.0
+
+### Minor Changes
+
+- [#53](https://github.com/kustora/kubuild/pull/53) [`eb46301`](https://github.com/kustora/kubuild/commit/eb46301e7ea6b56008f00db5236de155a0d91c8a) Thanks [@riziqalbab](https://github.com/riziqalbab)! - AI docs-audit fixes.
+
+  - `@kubuild/ai`: `generatePage()` now honours `plan` (generates each planned section, like `streamPage()`) and `sectionCount` (same phrasing as the planner). `createAiHandler` only streams `full-page`/`chat`/`agent`; `stream: true` for `plan`/`section`/`refactor` now returns the normal JSON response instead of running a full-page stream.
+  - `@kubuild/ai`: new `instructions` request field (chat, agent, full-page, section, refactor, plan) appended after the built-in system prompt — never replacing it. `createAiHandler` accepts `allowClientInstructions` (default `true`) and `maxClientInstructionsLength` (default 4000); `systemPrompt` in the request body is accepted as a deprecated alias. `useAiChat` `sendMessage({ instructions })` and `useAiAgent` `run({ instructions })` forward it.
+  - `@kubuild/ai`: `planPage` marks a fallback plan with `usedFallback: true` (on the response and on the plan) plus a `PLAN_FALLBACK` warning; a provider failure is now a `PLAN_ERROR` instead of a silent fallback. `useAiGenerator().planPage` resolves `null` on failure like the other hook methods instead of throwing.
+  - `@kubuild/ai`: agent op summaries, tool-failure summaries and agent fallback summaries are now English.
+  - `@kubuild/editor`: the AI chat panel shows visible Generate and Enhance buttons (gated by `features.generate` / `features.enhance`), sends `systemPromptPrefix` as `instructions` on every request, shows a notice when a plan is a fallback, and routes its copy through the editor i18n (`aiChat` namespace, English + Indonesian).
+  - `@kubuild/editor`: while `isAiRunning` is true, undo/redo are disabled (toolbar and keyboard), a second concurrent AI request cannot start, and the toolbar's AI Chat button shows a spinner.
+
+- [#53](https://github.com/kustora/kubuild/pull/53) [`97bc7c9`](https://github.com/kustora/kubuild/commit/97bc7c90f1a7a2729dce857a042e5e1fcd395655) Thanks [@riziqalbab](https://github.com/riziqalbab)! - **BREAKING (tracking): secrets no longer live in the document.** Tracking is now backend/tech-agnostic: the document keeps only public IDs, flags and an opaque `credentialId`; the host owns every secret and delivers server-side events through a relay.
+
+  - **schema**: removed `capiAccessToken`, `serverRelayUrl` (meta/google/gtm/tiktok), `measurementProtocolSecret`, TikTok `accessToken`, and custom `endpointUrl`/`headers` from the tracking provider schemas (old documents still parse; the fields are stripped). `PixelCredentialOption` is metadata-only (`id, name, provider, pixelId?, measurementId?, containerId?, hasSecret?, isActive?`). New: `TrackingProviderSecrets` (+ per-provider secret schemas), `LEGACY_TRACKING_SECRET_KEYS`, versioned relay protocol `TrackingRelayRequestSchema` / `TrackingRelayResponseSchema` (v1) with JSON Schema exports (`getTrackingRelayRequestJsonSchema`, `getTrackingRelayResponseJsonSchema`, `getTrackingProviderSecretsJsonSchema`) so PHP/Go/… backends can implement a relay. `track_event` `provider` now accepts `'gtm'` (dataLayer push). `CURRENT_SCHEMA_VERSION` is now `1.1.0`; the page JSON Schema describes `tracking` and lists `track_event`.
+  - **core**: `dispatchServerTracking(event, config, options)` gets secrets only via `options.resolveSecrets: TrackingSecretResolver` (keyed by the config's `credentialId`); a missing secret skips that provider with a `reason` instead of throwing. The `send*` helpers now take a `secrets` argument. New `createTrackingRelayHandler({ getConfig, resolveSecrets, allowedOrigins?, fetchFn? })` — a Web-standard `Request`/`Response` relay that validates the body, loads the trusted config from the host and takes client IP/UA from headers. New migration `1.0.0 -> 1.1.0` strips secrets and reports a `TRACKING_SECRET_REMOVED` warning (`MigrationDiagnostic.warnings`); `.stora` import/export and the migration of current-version docs strip them defensively (`sanitizeDocumentTracking`, `stripDocumentTrackingSecretsInPlace`). `RenderContext.tracking` (`RuntimeTrackingOptions`: `relayUrl`, `documentId`, `relayHeaders`, `credentials`, `fetchFn`, `onLog`) is host config.
+  - **renderer**: the browser never calls `dispatchServerTracking`. Server delivery only POSTs a v1 relay request to `context.tracking.relayUrl`; without it, the server part is skipped with a `TRACKING_RELAY_NOT_CONFIGURED` diagnostic/log and the client pixel still fires. `serverRelayUrl` in step payloads/documents is ignored. `'gtm'` pushes to `window.dataLayer`.
+  - **editor**: credential pickers select by `credentialId` from metadata-only `trackingCredentials`. New `onSaveTrackingSecret?: ({ provider, secrets, name? }) => Promise<{ credentialId }>` prop on `KubuildEditor`; without it, secret inputs are disabled with an explanation. Relay/endpoint URL inputs are gone (relay shown read-only from `context.tracking.relayUrl`). `updateDocumentTracking` and JSON export strip secrets.
+
+  **Migration**: run documents through `migrateDocument` (or import them) — secrets are removed and a warning lists the removed paths. Store each secret in your backend, give the editor `trackingCredentials` + `onSaveTrackingSecret`, set `credentialId` on the provider, pass `context={{ tracking: { relayUrl, documentId } }}` to the renderer and mount `createTrackingRelayHandler` (or your own relay implementing the v1 JSON Schema).
+
+### Patch Changes
+
+- Updated dependencies [[`97bc7c9`](https://github.com/kustora/kubuild/commit/97bc7c90f1a7a2729dce857a042e5e1fcd395655), [`125a60a`](https://github.com/kustora/kubuild/commit/125a60aea85d0d9fc4418a8db2bd2cceb1077e50)]:
+  - @kubuild/schema@0.7.0
+  - @kubuild/core@0.7.0
+  - @kubuild/components@0.7.0
+
+## 0.6.0
+
+### Minor Changes
+
+- • Tracking Schemas & Config: Introduced tracking.ts and tracking.ts supporting standard and custom events across providers (Meta Pixel, GA4,
+  TikTok Events API, Custom Webhooks).
+  • Server Tracking Relay: Server-side tracking runtime in server-tracking.ts featuring Event ID deduplication, SHA-256 user data hashing, Meta
+  Conversions API (CAPI), and GA4 Measurement Protocol.
+  • Action Step Runner: Added a dedicated track_event action runner in tracking.ts with runtime variable interpolation.
+  • Editor UI: Added the tracking-settings-modal.tsx in the toolbar and refactored the NodePixelEventSection in inspector-panel.tsx for
+  streamlined pixel configuration.
+
+  #### 2. Asset Management Integration (AssetProvider)
+
+  • Integrated AssetProvider into inspector-panel.tsx, traits-panel.tsx, and background image controls for direct uploads.
+  • Introduced AssetManagerModal and asset gallery browsing for media source controls.
+
+  #### 3. AI Chat Panel & State Enhancements
+
+  • Added isAiRunning state and setter in store.ts to centrally manage AI execution status.
+  • Added visual loading indicators and improved page plan handling in ai-chat-panel.tsx.
+  ──────
+
+  ### 📦 Version 0.5.0
+
+  • AI Page Planning (planPage): Users can generate and approve a structured page outline before triggering full-page AI document generation.
+  • Background Image Decoration: Visual background image controls and property normalization in the style manager.
+  • Child Policy Validation: Enhanced validation rules for parent-child component relationships with warnings and updated layout component
+  definitions.
+  ──────
+
+  ### 📦 Version 0.4.0
+
+  • AI Agent Mode (Tool-Calling Agent):
+  • Multi-step AI agent using document tools (createDocumentTools) to inspect outline, locate nodes, and perform surgical edits (AgentOps)
+  without full-page regeneration.
+  • Safe transaction batching via store.ts (an entire agent turn is undone in a single undo step).
+  • Live tool-call timeline with op-by-op review (Apply / Discard).
+  • Internationalization (i18n): Added localization support for English (en) and Indonesian (id).
+  ──────
+
+  ### 📦 Version 0.3.1
+
+  • Pinch-to-zoom & Two-Finger Pan: Multi-touch canvas navigation gestures for mobile and tablet devices.
+  • Mobile Floating Action Pill: Bottom action bar offering Move Up, Move Down, Quick Edit, and Delete actions on touch screens.
+  • Touch Optimizations: Bounding-box recomputation throttling, coarse-pointer hover state disabling, and auto-closing drawers upon element
+  insertion.
+  ──────
+
+  ### 📦 Version 0.3.0
+
+  • Initial @kubuild/ai Release: Multi-provider adapter layer (OpenAI, Anthropic, Gemini, Ollama) and Server-Sent Events (SSE) token streaming.
+  • Interactive Components: Added native support for modal, drawer, and collapsible.
+  • Canvas Multi-Artboards: Free positioning, dragging, and deletion of component artboards on the canvas.
+  • Dimension Controls: Added object-fit and object-position controls in the inspector.
+  • Responsive Navbar: Mobile hamburger menu and dropdown support.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/components@0.6.0
+  - @kubuild/core@0.6.0
+  - @kubuild/schema@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

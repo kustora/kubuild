@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
 import { findNodeById, findNodeLocation } from '@kubuild/core';
-import { isVariableBinding, PageDocument, AnimationConfig } from '@kubuild/schema';
+import { isVariableBinding, PageDocument, AnimationConfig, ActionPipeline } from '@kubuild/schema';
+import type { PixelCredentialOption } from '@kubuild/schema';
 import { useEditorStore, Viewport } from '../../store';
 import { VariableBindingControl, toBindingValue } from '../ui/variable-picker';
 import { AssetManagerModal } from '../modals/asset-manager-modal';
 import { ActionBuilderModal } from '../action-builder/action-builder-modal';
+import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
 import { TableSpreadsheetEditor } from '../table-editor/table-spreadsheet-editor';
 import { BoxModelEditor } from '../style-manager/box-model-editor';
 import { StyleManagerAccordion } from '../style-manager/style-manager-accordion';
@@ -13,12 +15,15 @@ import { TraitsPanel } from './traits-panel';
 import { ActionPropControl } from './action-prop-control';
 import { ComponentIcon } from '../ui/icons';
 import { replayNodeAnimation } from '@kubuild/renderer';
-import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles } from 'lucide-react';
+import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles, Radio, Upload, Image as ImageIcon, Link2 } from 'lucide-react';
 
 import { StyleSectorId } from '../style-manager/style-manager-accordion';
 import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config';
 import { useTranslation } from '../../i18n';
+import type { MediaTranslations } from '../../i18n';
 import { LanguageSwitcher } from '../ui/language-switcher';
+import type { AssetProvider } from '@kubuild/core';
+
 
 export interface InspectorPanelProps {
   registry: ComponentRegistry;
@@ -32,6 +37,16 @@ export interface InspectorPanelProps {
    * matching every other AI feature's opt-in-only behavior.
    */
   aiConfig?: ResolvedAiEditorConfig;
+  /** Saved pixel credentials for the account/workspace (fetched by the host app). */
+  trackingCredentials?: PixelCredentialOption[];
+  /** Opens the host app's credential management page (e.g. /dashboard/marketing). */
+  onManageCredentials?: () => void;
+  /** Stores a tracking secret on the host; returns the credentialId kept in the document. */
+  onSaveTrackingSecret?: SaveTrackingSecretHandler;
+  /** Host tracking relay URL, shown read-only in the tracking modal. */
+  trackingRelayUrl?: string;
+  /** Host asset provider for direct uploads and asset management */
+  assetProvider?: AssetProvider;
 }
 
 const SPACING_FIELDS: Array<{ name: string; label: string }> = [
@@ -140,12 +155,34 @@ const StringPropControl: React.FC<StringPropControlProps> = ({
   );
 };
 
+function getAssetDisplayName(urlOrData: string, media: MediaTranslations): string {
+  if (!urlOrData) return '';
+  if (urlOrData.startsWith('data:image/')) return media.embeddedImage;
+  if (urlOrData.startsWith('blob:')) return media.blobFile;
+  try {
+    const parsed = new URL(urlOrData);
+    const pathname = parsed.pathname;
+    const segments = pathname.split('/').filter(Boolean);
+    const last = segments[segments.length - 1];
+    if (last) {
+      const decoded = decodeURIComponent(last);
+      const cleanName = decoded.replace(/^(\d{10,14}|[a-f0-9-]{36})[-_]/, '');
+      return cleanName || decoded;
+    }
+  } catch {
+    const segments = urlOrData.split('/').filter(Boolean);
+    return segments[segments.length - 1] || urlOrData;
+  }
+  return media.imageAsset;
+}
+
 interface MediaSrcPropControlProps {
   nodeId: string;
   field: ComponentFieldDefinition;
   value: unknown;
   onCommit: (field: ComponentFieldDefinition, value: unknown, isBlur: boolean) => void;
   onOpenAssetPicker: () => void;
+  assetProvider?: AssetProvider;
 }
 
 const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
@@ -154,11 +191,16 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
   value,
   onCommit,
   onOpenAssetPicker,
+  assetProvider,
 }) => {
   const valueStr = typeof value === 'string' ? value : '';
   const [text, setText] = useState(valueStr);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFocusedRef = useRef(false);
+  const { media } = useTranslation().t;
 
   useEffect(() => {
     if (!isFocusedRef.current) {
@@ -182,27 +224,47 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
     onCommit(field, text, false);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setText(dataUrl);
-      onCommit(field, dataUrl, true);
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+
+    if (assetProvider?.upload) {
+      setIsUploading(true);
+      setUploadError(null);
+      try {
+        const info = await assetProvider.upload(file);
+        setText(info.url);
+        onCommit(field, info.url, true);
+        setShowUrlInput(false);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : media.uploadFailed;
+        setUploadError(msg);
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setText(dataUrl);
+        onCommit(field, dataUrl, true);
+        setShowUrlInput(false);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleClear = () => {
     setText('');
     onCommit(field, '', true);
+    setShowUrlInput(false);
   };
 
-  const isLocalFilePath = text.trim().startsWith('file:') || /^[a-zA-Z]:\\/.test(text.trim());
   const isDataUrl = text.startsWith('data:image/');
   const hasPreview = text.trim().length > 0 && (isDataUrl || text.startsWith('http://') || text.startsWith('https://') || text.startsWith('blob:'));
+  const isLocalFilePath = text.trim().startsWith('file:') || /^[a-zA-Z]:\\/.test(text.trim());
+  const displayName = getAssetDisplayName(text, media);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -212,74 +274,180 @@ const MediaSrcPropControl: React.FC<MediaSrcPropControlProps> = ({
         onChange={handleFileUpload}
         accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml, image/gif, image/avif"
         className="hidden"
+        disabled={isUploading}
       />
-      <div className="flex items-center gap-1.5">
-        <input
-          type="text"
-          value={text}
-          onFocus={handleFocus}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          placeholder="https://... or upload local image"
-          className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono text-[11px]"
-        />
-        <button
-          type="button"
-          title="Upload local image from device"
-          aria-label="Upload local image from device"
-          onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          <span className="text-[11px]">Upload</span>
-        </button>
-        <button
-          type="button"
-          title="Browse Asset Gallery"
-          aria-label="Browse Asset Gallery"
-          onClick={onOpenAssetPicker}
-          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </button>
-      </div>
 
-      {hasPreview && (
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded p-1.5">
-          <img
-            src={text}
-            alt="Preview"
-            className="w-8 h-8 object-cover rounded border border-slate-300 bg-white"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
-          />
-          <div className="flex-1 min-w-0 flex flex-col">
-            <span className="text-[11px] font-medium text-slate-700 truncate">
-              {isDataUrl ? 'Local Image (Embedded)' : text}
-            </span>
-            <span className="text-[10px] text-slate-400">
-              {isDataUrl ? 'Base64 image data' : 'URL / Asset'}
-            </span>
+      {hasPreview ? (
+        <div className="flex flex-col gap-1.5">
+          {/* Preview Card without showing ugly raw URL */}
+          <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 shadow-2xs">
+            {/* Top row: Thumbnail + Details + Remove button */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded border border-slate-300 bg-white overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                <img
+                  src={text}
+                  alt={media.previewAlt}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <span className="text-xs font-semibold text-slate-800 truncate" title={displayName}>
+                  {displayName}
+                </span>
+                <span className="text-[10px] text-slate-400 truncate">
+                  {isDataUrl ? media.localImage : media.imageAsset}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleClear}
+                title={media.removeImage}
+                aria-label={media.removeImage}
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded border border-slate-200 bg-white transition cursor-pointer shadow-2xs shrink-0"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            </div>
+
+            {/* Bottom action row: Replace / Gallery */}
+            <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200/60">
+              <button
+                type="button"
+                title={isUploading ? media.uploadingImage : media.replaceImageTitle}
+                aria-label={media.replaceImageAria}
+                disabled={isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 py-1.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-700 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center justify-center gap-1.5 font-medium cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                {isUploading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                <span className="text-[11px]">{isUploading ? media.uploading : media.replace}</span>
+              </button>
+              <button
+                type="button"
+                title={media.browseGallery}
+                aria-label={media.browseGallery}
+                disabled={isUploading}
+                onClick={onOpenAssetPicker}
+                className="py-1.5 px-2.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center justify-center gap-1 text-xs font-medium cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span className="text-[11px]">{media.gallery}</span>
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClear}
-            title="Clear image"
-            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer text-xs"
-          >
-            <X className="w-3.5 h-3.5" aria-hidden="true" />
-          </button>
+
+          {/* Optional toggle for manual URL if needed */}
+          {showUrlInput ? (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <input
+                type="text"
+                value={text}
+                disabled={isUploading}
+                onFocus={handleFocus}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="https://..."
+                className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowUrlInput(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 text-xs"
+                title={media.hideUrl}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(true)}
+              className="text-[10px] text-slate-400 hover:text-slate-600 self-start flex items-center gap-1 hover:underline cursor-pointer"
+            >
+              <Link2 className="w-3 h-3" />
+              <span>{media.useManualUrl}</span>
+            </button>
+          )}
         </div>
+      ) : (
+        /* When NO image is selected yet */
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              title={isUploading ? media.uploadingImage : media.uploadFromDevice}
+              aria-label={media.uploadFromDevice}
+              disabled={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 py-2 px-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/50 hover:bg-blue-50/30 hover:border-blue-400 text-slate-600 hover:text-blue-600 transition flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer disabled:opacity-50"
+            >
+              {isUploading ? (
+                <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              <span>{isUploading ? media.uploading : media.uploadImage}</span>
+            </button>
+            <button
+              type="button"
+              title={media.browseGallery}
+              aria-label={media.browseGallery}
+              disabled={isUploading}
+              onClick={onOpenAssetPicker}
+              className="py-2 px-2.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer shadow-2xs"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span className="text-[11px]">{media.gallery}</span>
+            </button>
+          </div>
+
+          {showUrlInput ? (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <input
+                type="text"
+                value={text}
+                disabled={isUploading}
+                onFocus={handleFocus}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="https://..."
+                className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowUrlInput(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 text-xs"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(true)}
+              className="text-[10px] text-slate-400 hover:text-slate-600 self-start flex items-center gap-1 hover:underline cursor-pointer"
+            >
+              <Link2 className="w-3 h-3" />
+              <span>{media.useManualUrl}</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {uploadError && (
+        <span className="text-[10px] text-red-500 font-medium">{uploadError}</span>
       )}
 
       {isLocalFilePath && (
         <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 leading-tight">
-          Browsers cannot open direct local paths (<code className="font-mono">file://</code>). Click <strong>Upload</strong> above to select and load the local image directly.
+          {media.localPathWarning(media.replace)}
         </div>
       )}
     </div>
@@ -543,6 +711,217 @@ export const StateEditingBadge: React.FC<{ state: string }> = ({ state }) => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NodePixelEventSection — inline pixel event config per element
+// Reads/writes a specially-labelled ActionPipeline (label = '_kubuild_pixel')
+// so the existing handleClick → executeNodeActions in renderer fires it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PIXEL_PIPELINE_LABEL = '_kubuild_pixel';
+
+const META_STANDARD_EVENTS_LIST = [
+  'PageView','Purchase','Lead','AddToCart','InitiateCheckout',
+  'ViewContent','Search','AddPaymentInfo','CompleteRegistration',
+  'Contact','Donate','FindLocation','Schedule','Subscribe',
+];
+
+interface NodePixelEventSectionProps {
+  nodeId: string;
+  actions?: ActionPipeline[];
+  onUpdateActions: (actions: ActionPipeline[]) => void;
+}
+
+const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, actions = [], onUpdateActions }) => {
+  const existing = actions.find((p) => p.label === PIXEL_PIPELINE_LABEL);
+  const existingPayload = existing?.steps?.[0]?.type === 'track_event'
+    ? (existing.steps[0].payload as { eventName?: string; eventType?: string; provider?: string })
+    : undefined;
+
+  const [eventName, setEventName] = useState(existingPayload?.eventName ?? '');
+  const [eventType, setEventType] = useState<'standard' | 'custom'>(
+    existingPayload?.eventType === 'custom' ? 'custom' : 'standard',
+  );
+  const [provider, setProvider] = useState(existingPayload?.provider ?? 'all');
+  const [isExpanded, setIsExpanded] = useState(!!existing);
+
+  useEffect(() => {
+    const p = actions.find((a) => a.label === PIXEL_PIPELINE_LABEL);
+    const pay = p?.steps?.[0]?.type === 'track_event'
+      ? (p.steps[0].payload as { eventName?: string; eventType?: string; provider?: string })
+      : undefined;
+    setEventName(pay?.eventName ?? '');
+    setEventType(pay?.eventType === 'custom' ? 'custom' : 'standard');
+    setProvider(pay?.provider ?? 'all');
+    setIsExpanded(!!p);
+  }, [nodeId]);
+
+  const handleSave = () => {
+    if (!eventName.trim()) return;
+    const pixelPipeline: ActionPipeline = {
+      id: existing?.id ?? `pixel-${nodeId}`,
+      label: PIXEL_PIPELINE_LABEL,
+      trigger: 'click',
+      enabled: true,
+      steps: [{
+        id: `pixel-step-${nodeId}`,
+        type: 'track_event',
+        payload: { eventName: eventName.trim(), eventType, provider, delivery: 'client_only', enabled: true, params: {}, userData: {} },
+      }],
+    };
+    onUpdateActions([...actions.filter((p) => p.label !== PIXEL_PIPELINE_LABEL), pixelPipeline]);
+  };
+
+  const handleRemove = () => {
+    onUpdateActions(actions.filter((p) => p.label !== PIXEL_PIPELINE_LABEL));
+    setEventName(''); setEventType('standard'); setProvider('all'); setIsExpanded(false);
+  };
+
+  const isConfigured = !!existing && !!existingPayload?.eventName;
+
+  return (
+    <div className="pb-3 border-b border-slate-200 shrink-0">
+      <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors">
+        <button
+          type="button"
+          onClick={() => setIsExpanded((v) => !v)}
+          aria-expanded={isExpanded}
+          className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-slate-500 shrink-0">
+              <Radio className="w-3.5 h-3.5" />
+            </span>
+            <span className="text-xs font-semibold text-slate-700 truncate">Event Pixel</span>
+            {isConfigured && (
+              <span
+                title={`Event: ${existingPayload!.eventName}`}
+                className="px-1.5 py-0.2 text-[9px] font-bold bg-purple-100 text-purple-700 rounded-full border border-purple-200 leading-none truncate max-w-[120px]"
+              >
+                {existingPayload!.eventName}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            {isConfigured && (
+              <button
+                type="button"
+                title="Hapus Event Pixel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemove();
+                }}
+                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+              >
+                <ComponentIcon iconOrType="reset" size={11} />
+              </button>
+            )}
+            <span
+              className={`text-slate-400 transform transition-transform duration-200 ${
+                isExpanded ? 'rotate-180' : 'rotate-0'
+              }`}
+            >
+              <ComponentIcon iconOrType="chevron-down" size={13} />
+            </span>
+          </div>
+        </button>
+
+        {isExpanded && (
+          <div className="p-3 border-t border-slate-100 bg-white flex flex-col gap-3 animate-fadeIn">
+            {/* Type toggle */}
+            <div className="flex flex-col gap-1">
+              <label className="block text-[11px] font-medium text-slate-600">Tipe Event</label>
+              <div className="flex rounded border border-slate-300 bg-slate-100 p-0.5 shadow-2xs">
+                {(['standard', 'custom'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => { setEventType(t); setEventName(''); }}
+                    className={`flex-1 py-1 px-2 text-xs font-medium rounded transition flex items-center justify-center cursor-pointer ${
+                      eventType === t
+                        ? 'bg-white text-purple-700 shadow-xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
+                  >
+                    {t === 'standard' ? 'Standard' : 'Custom'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Event Name */}
+            <div className="flex flex-col gap-1">
+              <label className="block text-[11px] font-medium text-slate-600">Nama Event</label>
+              {eventType === 'standard' ? (
+                <select
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs cursor-pointer"
+                >
+                  <option value="">— Pilih event standard —</option>
+                  {META_STANDARD_EVENTS_LIST.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  placeholder="Contoh: ButtonClick, WhatsAppClick"
+                  className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs"
+                />
+              )}
+            </div>
+
+            {/* Platform */}
+            <div className="flex flex-col gap-1">
+              <label className="block text-[11px] font-medium text-slate-600">Platform Target</label>
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs cursor-pointer"
+              >
+                <option value="all">Semua Platform</option>
+                <option value="meta">Meta (Facebook) Pixel</option>
+                <option value="google">Google Analytics (GA4)</option>
+                <option value="gtm">Google Tag Manager (dataLayer)</option>
+                <option value="tiktok">TikTok Pixel</option>
+              </select>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!eventName.trim()}
+                className="flex-1 py-1.5 px-3 text-xs font-medium bg-purple-600 hover:bg-purple-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded transition shadow-2xs cursor-pointer"
+              >
+                Simpan Event
+              </button>
+              {isConfigured && (
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="px-2.5 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition cursor-pointer"
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+
+            {isConfigured && (
+              <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2 rounded border border-slate-200">
+                Event <code className="text-purple-600 font-mono font-semibold">{existingPayload!.eventName}</code> dikirim ke{' '}
+                <span className="font-medium text-slate-700">{existingPayload!.provider === 'all' ? 'semua platform' : existingPayload!.provider}</span> saat elemen ini diklik.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   registry,
   className,
@@ -550,6 +929,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   selectedNodeId: propSelectedNodeId,
   config,
   aiConfig,
+  trackingCredentials,
+  onManageCredentials,
+  onSaveTrackingSecret,
+  trackingRelayUrl,
+  assetProvider,
 }) => {
   const storeState = useEditorStore((s) => s);
   const document = propDocument ?? storeState.document;
@@ -564,6 +948,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     updateNodeStateStyle,
     updateNodeAnimation,
     updateNodeFormConfig,
+    updateNodeActions,
     variableCatalog,
     insertComponent,
     deleteComponent,
@@ -591,8 +976,12 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const [assetPickerField, setAssetPickerField] = useState<string | null>(null);
   // STORA-340 — Visual Action Builder modal state
   const [isActionBuilderOpen, setIsActionBuilderOpen] = useState<boolean>(false);
+  // Pixel Tracking modal — opened from the inspector's Pixel Tracking card
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState<boolean>(false);
   // Active pseudo-state layer for the style manager — STORA-221.
   const [activeState, setActiveState] = useState<string>('default');
+  // Component props accordion open state
+  const [isPropsOpen, setIsPropsOpen] = useState<boolean>(true);
 
   useEffect(() => {
     if (!showStyles && showTraits && activeTab !== 'traits') {
@@ -607,6 +996,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
   useEffect(() => {
     setFieldErrors({});
+    setIsPropsOpen(true);
   }, [node?.id]);
 
   if (!node || !definition) {
@@ -747,6 +1137,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               value={currentValue}
               onCommit={commitProp}
               onOpenAssetPicker={() => setAssetPickerField(field.name)}
+              assetProvider={assetProvider}
             />
           );
         }
@@ -839,6 +1230,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             const result = updateNodeProps(node.id, { [assetPickerField]: url }, registry);
             setError(`prop:${assetPickerField}`, result.success ? null : result.error ?? 'Invalid value.');
           }}
+          assetProvider={assetProvider}
         />
       )}
       {/* STORA-340 — Action Builder Modal */}
@@ -847,6 +1239,17 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           isOpen
           onClose={() => setIsActionBuilderOpen(false)}
           nodeId={node.id}
+        />
+      )}
+      {/* Pixel Tracking Modal — opened from the inspector Pixel section */}
+      {isTrackingModalOpen && (
+        <TrackingSettingsModal
+          isOpen
+          onClose={() => setIsTrackingModalOpen(false)}
+          credentials={trackingCredentials}
+          onManageCredentials={onManageCredentials}
+          onSaveTrackingSecret={onSaveTrackingSecret}
+          trackingRelayUrl={trackingRelayUrl}
         />
       )}
       {/* Tab bar: Style / Traits — STORA-211 */}
@@ -890,7 +1293,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 p-3 min-w-0">
       {/* STORA-340 — Interactivity & Action Builder Card */}
-      <div className="pb-3 border-b border-slate-200">
+      <div className="pb-3 border-b border-slate-200 shrink-0">
         <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 transition">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
@@ -922,11 +1325,71 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         </div>
       </div>
 
+      {/* ── Pixel Tracking section — separate from action events ───────── */}
+      <div className="pb-3 border-b border-slate-200 shrink-0">
+        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-purple-300 transition">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+              <Radio className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold text-slate-700 leading-tight">Pixel Tracking</span>
+              <span className="text-[10px] text-slate-500 truncate">
+                {document?.tracking?.enabled === false
+                  ? 'Tracking dinonaktifkan'
+                  : (() => {
+                      const p = document?.tracking?.providers;
+                      if (!p) return 'Belum ada pixel dikonfigurasi';
+                      const active = [
+                        p.meta?.enabled !== false && p.meta?.pixelId,
+                        p.google?.enabled !== false && p.google?.measurementId,
+                        p.gtm?.enabled !== false && p.gtm?.containerId,
+                        p.tiktok?.enabled !== false && p.tiktok?.pixelId,
+                      ].filter(Boolean).length;
+                      return active > 0 ? `${active} provider aktif` : 'Belum ada pixel dikonfigurasi';
+                    })()}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            data-testid="open-pixel-tracking-btn"
+            onClick={() => setIsTrackingModalOpen(true)}
+            className="px-2.5 py-1 text-xs font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+          >
+            <Radio className="w-3 h-3" />
+            <span>Pixel</span>
+            {document?.tracking?.enabled !== false &&
+              (() => {
+                const p = document?.tracking?.providers;
+                const active = p ? [
+                  p.meta?.enabled !== false && p.meta?.pixelId,
+                  p.google?.enabled !== false && p.google?.measurementId,
+                  p.gtm?.enabled !== false && p.gtm?.containerId,
+                  p.tiktok?.enabled !== false && p.tiktok?.pixelId,
+                ].filter(Boolean).length : 0;
+                return active > 0 ? (
+                  <span className="ml-0.5 px-1 py-0.2 text-[9px] font-bold bg-purple-600 text-white rounded-full">
+                    {active}
+                  </span>
+                ) : null;
+              })()}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Per-element pixel event — fires on click via executeNodeActions ── */}
+      <NodePixelEventSection
+        nodeId={node.id}
+        actions={node.actions}
+        onUpdateActions={(actions) => updateNodeActions(node.id, actions)}
+      />
+
       {/* STORA-511 — "Ask AI about this component": opens the AI Chat Panel (if hidden)
           with this node already attached as context, and focuses its input. Only ever
           rendered when a node is selected (guaranteed here) and `features.enhance` is on. */}
       {aiConfig?.enabled && aiConfig.features.enhance && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50/60 border border-blue-200 hover:border-blue-300 transition">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
@@ -956,7 +1419,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'list' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               List Items ({node.children?.length ?? 0})
@@ -1016,7 +1479,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'table' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               Spreadsheet Grid
@@ -1144,7 +1607,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       {node.type === 'table-row' && (
-        <div className="pb-3 border-b border-slate-200">
+        <div className="pb-3 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               Row Cells ({node.children?.length ?? 0})
@@ -1162,44 +1625,86 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
       {activeTab === 'style' && (
         <>
-          {showProps && (
-            <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                {definition.type === 'heading'
-                  ? t.textSettings
-                  : t.componentSettings(definition.label)}
-              </div>
-              <div className="flex flex-col gap-3">
-                {(definition.propFields ?? []).map((field) => {
-                  const currentValue = node.props?.[field.name];
-                  const bound = isVariableBinding(currentValue);
-                  const fieldLabel =
-                    definition.type === 'heading' && field.name === 'level'
-                      ? t.titleSize
-                      : field.label;
-                  return (
-                    <div key={field.name}>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">{fieldLabel}</label>
-                      {!bound && renderPropControl(field)}
-                      {isBindableField(field) && (
-                        <VariableBindingControl
-                          field={field}
-                          currentValue={currentValue}
-                          catalog={variableCatalog}
-                          onBind={(key) => commitProp(field, toBindingValue(key), true)}
-                          onRevert={() => commitProp(field, field.defaultValue ?? '', true)}
-                        />
-                      )}
-                      <ErrorText message={fieldErrors[`prop:${field.name}`]} />
-                    </div>
-                  );
-                })}
-              </div>
+          {showProps && definition.propFields && definition.propFields.length > 0 && (
+            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors mb-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsPropsOpen((v) => !v)}
+                aria-expanded={isPropsOpen}
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none border-0 m-0"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-slate-500 shrink-0 flex items-center justify-center">
+                    <ComponentIcon iconOrType={definition.icon || 'settings'} size={14} />
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700 truncate leading-normal">
+                    {definition.type === 'heading'
+                      ? t.textSettings
+                      : t.componentSettings(definition.label)}
+                  </span>
+                </div>
+                <span
+                  className={`text-slate-400 shrink-0 transform transition-transform duration-200 ${
+                    isPropsOpen ? 'rotate-180' : 'rotate-0'
+                  }`}
+                >
+                  <ComponentIcon iconOrType="chevron-down" size={13} />
+                </span>
+              </button>
+
+              {isPropsOpen && (
+                <div className="p-3 border-t border-slate-100 bg-white flex flex-col gap-3 animate-fadeIn">
+                  {definition.propFields.map((field) => {
+                    const currentValue = node.props?.[field.name];
+                    const bound = isVariableBinding(currentValue);
+                    const fieldLabel =
+                      definition.type === 'heading' && field.name === 'level'
+                        ? t.titleSize
+                        : field.label;
+                    return (
+                      <div key={field.name}>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">{fieldLabel}</label>
+                        {!bound && renderPropControl(field)}
+                        {isBindableField(field) && (
+                          <VariableBindingControl
+                            field={field}
+                            currentValue={currentValue}
+                            catalog={variableCatalog}
+                            onBind={(key) => {
+                              const currentFallback =
+                                typeof currentValue === 'string' && currentValue.trim().length > 0
+                                  ? currentValue
+                                  : (definition.defaultProps?.[field.name] as string | undefined) ??
+                                    (field.defaultValue as string | undefined);
+                              commitProp(field, toBindingValue(key, currentFallback), true);
+                            }}
+                            onRevert={() => {
+                              const fallback =
+                                isVariableBinding(currentValue) && currentValue.fallback !== undefined
+                                  ? currentValue.fallback
+                                  : (definition.defaultProps?.[field.name] as unknown) ??
+                                    field.defaultValue ??
+                                    '';
+                              commitProp(field, fallback, true);
+                            }}
+                            onUpdateFallback={(fallback) => {
+                              if (isVariableBinding(currentValue)) {
+                                commitProp(field, { ...currentValue, fallback: fallback || undefined }, true);
+                              }
+                            }}
+                          />
+                        )}
+                        <ErrorText message={fieldErrors[`prop:${field.name}`]} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
           {showStyles && (
-            <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full">
+            <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full shrink-0">
               {/* Active state warning badge — STORA-223 */}
               {activeState !== 'default' && <StateEditingBadge state={activeState} />}
               {/* Pseudo-state selector — STORA-221 */}
@@ -1263,6 +1768,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 }}
                 errors={fieldErrors}
                 breakpoint={activeBreakpoint}
+                assetProvider={assetProvider}
               />
             </div>
           )}
@@ -1282,6 +1788,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             }
           }}
           className="p-0"
+          assetProvider={assetProvider}
         />
       )}
       </div>

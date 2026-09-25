@@ -72,6 +72,7 @@ describe('ActionPropControl Component', () => {
         'set_state',
         'reset_form',
         'custom_event',
+        'track_event',
       ];
 
       for (const t of expectedTypes) {
@@ -108,6 +109,12 @@ describe('ActionPropControl Component', () => {
       expect(formatActionSummary({ type: 'custom_event', payload: { eventName: 'btn:click' } })).toBe(
         'Emit "btn:click"',
       );
+      expect(
+        formatActionSummary({
+          type: 'track_event',
+          payload: { eventName: 'ClickWhatsApp', eventType: 'custom', provider: 'meta' },
+        }),
+      ).toBe('Track ClickWhatsApp (Custom) [meta]');
     });
   });
 
@@ -194,6 +201,26 @@ describe('ActionPropControl Component', () => {
 
       expect(html).toContain('Toast');
       expect(html).toContain('[SUCCESS] &quot;Account updated successfully!&quot;');
+    });
+
+    it('renders track event action summary properly for custom button event', () => {
+      const onCommit = vi.fn();
+      const actionValue = {
+        type: 'track_event',
+        payload: { eventName: 'ClickWhatsApp', eventType: 'custom', provider: 'all' },
+      };
+
+      const html = renderToString(
+        <ActionPropControl
+          nodeId="btn-wa"
+          field={dummyField}
+          value={actionValue}
+          onCommit={onCommit}
+        />,
+      );
+
+      expect(html).toContain('Track Pixel');
+      expect(html).toContain('Track ClickWhatsApp (Custom) [all]');
     });
   });
 });

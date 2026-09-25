@@ -26,8 +26,8 @@ import { createDefaultComponentRegistry } from '@kubuild/components';
     variables: { username: 'Budi Santoso' },
     actions: { onSubscribe: (payload) => handleSubscribe(payload) },
   }}
-  viewport="desktop" // 'desktop' | 'tablet' | 'mobile'
   mode="runtime"     // 'runtime' | 'editor' | 'preview'
+  // default responsive di sini adalah 'css': media query asli memilih style tablet/mobile
   className="landing-page"
   onNodeClick={(nodeId, e) => console.log('Node diklik:', nodeId)}
   onDiagnostic={(diag) => console.warn(diag)}
@@ -41,7 +41,8 @@ import { createDefaultComponentRegistry } from '@kubuild/components';
 | `document` | `PageDocument` | **wajib** | Pohon AST dokumen yang akan dirender. |
 | `registry` | `ComponentRegistry` | `createDefaultComponentRegistry()` | Registry komponen pemetaan tipe node ke definisi dan renderer. |
 | `context` | `RenderContext` | `undefined` | Konteks runtime host (variabel, aksi, resolver aset). |
-| `viewport` | `'desktop' \| 'tablet' \| 'mobile'` | `'desktop'` | Breakpoint target untuk kalkulasi style responsif. |
+| `viewport` | `'desktop' \| 'tablet' \| 'mobile'` | `undefined` (dianggap `'desktop'`) | Preview satu viewport. Layer-nya digabung ke style inline. Jika diberikan, mode `responsive` default menjadi `'viewport'`. |
+| `responsive` | `'css' \| 'viewport'` | `'css'` untuk `mode="runtime"` tanpa `viewport`, selain itu `'viewport'` | `'css'` merender `base` inline dan menghasilkan layer breakpoint sebagai rule `@media` yang ter-scope ke `[data-kubuild-node]`, memakai `BREAKPOINTS` dari `@kubuild/schema`. Mode ini aman untuk SSR dan outputnya sama di server dan client. `'viewport'` menggabungkan layer `viewport` ke style inline, dipakai untuk editor dan preview device. |
 | `mode` | `'runtime' \| 'editor' \| 'preview'` | `'runtime'` | Mode eksekusi. Pada mode `editor`, error boundary merender kotak diagnostik merah; pada mode `runtime`, error ditangani secara senyap. |
 | `className` | `string` | `undefined` | Class CSS untuk wrapper div root. |
 | `onNodeClick` | `(nodeId: string, event: React.MouseEvent) => void` | `undefined` | Penangan klik seleksi node. |
@@ -76,13 +77,15 @@ import { RenderContextProvider } from '@kubuild/renderer';
 
 ## Kompiler Styling & Animasi
 
-### 1. `resolveNodeStyles(node, viewport, state?)`
-Mengkalkulasi style responsif bertingkat untuk node dan viewport tertentu (`base` -> `tablet` -> `mobile`), menghasilkan objek `style` CSS React.
+### 1. `resolveNodeStyles(styles, viewport)`
+Menggabungkan `base` dengan satu layer `viewport` (`desktop`, `tablet`, atau `mobile`) dan menghasilkan objek `style` CSS React. Inilah yang dirender inline oleh `responsive: 'viewport'`.
 
 ```typescript
-import { resolveNodeStyles } from '@kubuild/renderer';
+import { resolveNodeStyles, collectResponsiveStylesCss } from '@kubuild/renderer';
 
-const cssStyles = resolveNodeStyles(buttonNode, 'mobile', ':hover');
+const cssStyles = resolveNodeStyles(buttonNode.styles, 'mobile');
+// Padanan untuk `responsive: 'css'`: rule @media ter-scope untuk seluruh dokumen
+const mediaCss = collectResponsiveStylesCss(document);
 ```
 
 ### 2. `collectStateStylesCss(document)`

@@ -390,7 +390,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
               id: gen('paragraph'),
               type: 'paragraph',
               props: {
-                content:
+                text:
                   'A visual builder designed for maximum craft, responsiveness, and performance.',
               },
               styles: {
@@ -449,7 +449,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
         {
           id: gen('badge'),
           type: 'badge',
-          props: { label: 'PRO FEATURE', variant: 'primary' },
+          props: { text: 'PRO FEATURE', variant: 'primary' },
           styles: { base: { marginBottom: '12px', display: 'inline-block' } },
         },
         {
@@ -464,7 +464,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
           id: gen('paragraph'),
           type: 'paragraph',
           props: {
-            content: 'Engineered for sub-millisecond render updates and zero runtime overhead.',
+            text: 'Engineered for sub-millisecond render updates and zero runtime overhead.',
           },
           styles: { base: { fontSize: '14px', color: '#64748b', lineHeight: '1.5' } },
         },
@@ -528,7 +528,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
             {
               id: gen('paragraph'),
               type: 'paragraph',
-              props: { content: 'High dynamic range gradients crafted for modern presentations.' },
+              props: { text: 'High dynamic range gradients crafted for modern presentations.' },
               styles: { base: { fontSize: '13px', color: '#64748b', lineHeight: '1.4' } },
             },
           ],
@@ -562,7 +562,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
         {
           id: gen('badge'),
           type: 'badge',
-          props: { label: 'MOST POPULAR', variant: 'primary' },
+          props: { text: 'MOST POPULAR', variant: 'primary' },
           styles: { base: { marginBottom: '12px', display: 'inline-block' } },
         },
         {
@@ -582,7 +582,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
         {
           id: gen('paragraph'),
           type: 'paragraph',
-          props: { content: 'Includes unlimited pages, custom domains, and team collaboration.' },
+          props: { text: 'Includes unlimited pages, custom domains, and team collaboration.' },
           styles: { base: { fontSize: '14px', color: '#64748b', marginBottom: '24px' } },
         },
         {
@@ -639,7 +639,7 @@ export const UI_STARTER_BLOCKS: BlockDefinition[] = [
         {
           id: gen('paragraph'),
           type: 'paragraph',
-          props: { content: 'Start building with zero installation and instant live preview.' },
+          props: { text: 'Start building with zero installation and instant live preview.' },
           styles: {
             base: { fontSize: '16px', color: '#94a3b8', marginBottom: '24px', maxWidth: '600px', margin: '0 auto 24px auto' },
           },

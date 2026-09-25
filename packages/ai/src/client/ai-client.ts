@@ -95,6 +95,8 @@ export class KubuildAiClient {
       {
         mode: 'full-page',
         ...params,
+        // This method parses a JSON response; use `streamPage()` for SSE.
+        stream: false,
       },
       options?.signal,
     );
@@ -243,7 +245,15 @@ export class KubuildAiClient {
 
     const json = (await res.json()) as AiGenerateResponse<PagePlan>;
     if (!json.success || !json.data) {
-      throw new Error(json.error?.message || 'Failed to generate page plan');
+      const error = new Error(json.error?.message || 'Failed to generate page plan');
+      (error as unknown as { code?: string }).code = json.error?.code;
+      throw error;
+    }
+
+    // Surface the engine's fallback marker on the plan itself, so callers that only look
+    // at the returned plan can still tell the user it is a generic default.
+    if (json.usedFallback && !json.data.usedFallback) {
+      return { ...json.data, usedFallback: true };
     }
 
     return json.data;

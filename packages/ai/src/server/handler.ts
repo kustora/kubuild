@@ -11,6 +11,10 @@ import type {
   AiStreamEvent,
   PagePlan,
 } from '../types';
+import { joinInstructions } from '../core/prompt-compiler';
+
+/** Default cap for client-supplied `instructions` (characters). */
+export const DEFAULT_MAX_CLIENT_INSTRUCTIONS_LENGTH = 4000;
 
 export interface AiApiRequestBody {
   mode?: AiGenerationMode;
@@ -34,6 +38,52 @@ export interface AiApiRequestBody {
   /** Agent mode (STORA-530) — the snapshot the agent reads and patches. */
   document?: PageDocument;
   maxSteps?: number;
+  /**
+   * Client-supplied extra instructions. Appended AFTER the engine's built-in system prompt
+   * (never replacing it), length-capped, and ignored entirely when the handler was created
+   * with `allowClientInstructions: false`.
+   */
+  instructions?: string;
+  /** @deprecated Alias of `instructions`, accepted for older clients. Same rules apply. */
+  systemPrompt?: string;
+}
+
+/** Controls how client-supplied `instructions` are accepted by the handler. */
+export interface ClientInstructionsOptions {
+  /**
+   * Whether to honour `instructions` (and its deprecated alias `systemPrompt`) from the
+   * request body. Default: `true`. Set `false` on endpoints where end users — not your own
+   * editor build — can call the handler and you don't want them steering the model.
+   */
+  allowClientInstructions?: boolean;
+  /**
+   * Maximum accepted length (characters) of client instructions; longer text is truncated.
+   * Default: 4000.
+   */
+  maxClientInstructionsLength?: number;
+}
+
+/**
+ * Extracts the client instructions from a request body, applying the handler's
+ * allow/cap options. Returns `undefined` when there is nothing (allowed) to append.
+ */
+export function resolveClientInstructions(
+  payload: AiApiRequestBody,
+  options?: ClientInstructionsOptions,
+): string | undefined {
+  if (options?.allowClientInstructions === false) return undefined;
+  const text = joinInstructions(
+    typeof payload.instructions === 'string' ? payload.instructions : undefined,
+    typeof payload.systemPrompt === 'string' ? payload.systemPrompt : undefined,
+  );
+  if (!text) return undefined;
+  const rawMax = options?.maxClientInstructionsLength;
+  const max =
+    typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 0
+      ? Math.floor(rawMax)
+      : DEFAULT_MAX_CLIENT_INSTRUCTIONS_LENGTH;
+  if (max === 0) return undefined;
+  return text.length > max ? text.slice(0, max) : text;
 }
 
 export async function processAiRequest(
@@ -41,6 +91,7 @@ export async function processAiRequest(
   body: unknown,
   signal?: AbortSignal,
   agent?: KubuildAiAgent,
+  instructionsOptions?: ClientInstructionsOptions,
 ): Promise<{ status: number; response: AiGenerateResponse<unknown> }> {
   if (!body || typeof body !== 'object') {
     return {
@@ -57,6 +108,7 @@ export async function processAiRequest(
 
   const payload = body as AiApiRequestBody;
   const mode = payload.mode || 'full-page';
+  const instructions = resolveClientInstructions(payload, instructionsOptions);
 
   if (mode === 'full-page') {
     if (!payload.prompt || typeof payload.prompt !== 'string') {
@@ -81,6 +133,7 @@ export async function processAiRequest(
         conversationHistory: payload.conversationHistory ?? payload.messages,
         sectionCount: payload.sectionCount,
         plan: payload.plan,
+        instructions,
       },
       { signal },
     );
@@ -109,6 +162,7 @@ export async function processAiRequest(
         stylePreference: payload.stylePreference,
         targetSectionType: payload.targetSectionType,
         parentContext: payload.parentContext,
+        instructions,
       },
       { signal },
     );
@@ -136,6 +190,7 @@ export async function processAiRequest(
         node: payload.node,
         instruction: payload.instruction,
         stylePreference: payload.stylePreference,
+        instructions,
       },
       { signal },
     );
@@ -163,6 +218,7 @@ export async function processAiRequest(
         messages: payload.messages,
         currentDocument: payload.currentDocument,
         selectedNodeId: payload.selectedNodeId,
+        instructions,
       },
       { signal },
     );
@@ -185,6 +241,7 @@ export async function processAiRequest(
         selectedNodeId: payload.selectedNodeId,
         stylePreference: payload.stylePreference,
         maxSteps: payload.maxSteps,
+        instructions,
       },
       { signal },
     );
@@ -216,6 +273,7 @@ export async function processAiRequest(
         locale: payload.locale,
         sectionCount: payload.sectionCount,
         conversationHistory: payload.conversationHistory ?? payload.messages,
+        instructions,
       },
       { signal },
     );
@@ -292,7 +350,7 @@ function validateAgentPayload(
 /**
  * Options for {@link createAiHandler} (STORA-519).
  */
-export interface CreateAiHandlerOptions {
+export interface CreateAiHandlerOptions extends ClientInstructionsOptions {
   /**
    * Enables agent mode (STORA-530) on this endpoint. Without it, `mode: 'agent'` requests
    * are answered with a 501 rather than silently falling back to chat.
@@ -412,9 +470,19 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
 
       const body = (await request.json().catch(() => null)) as AiApiRequestBody | null;
 
-      // Handle opt-in SSE Streaming
-      if (body && typeof body === 'object' && body.stream === true) {
-        const mode = body.mode || 'full-page';
+      // Handle opt-in SSE Streaming. Only full-page, chat and agent have a streaming
+      // implementation; `section`, `refactor` and `plan` are single request/response
+      // operations, so `stream: true` for them falls through to the JSON response below
+      // (which is exactly what `KubuildAiClient` parses for those modes).
+      const streamMode = body && typeof body === 'object' ? body.mode || 'full-page' : null;
+      if (
+        body &&
+        typeof body === 'object' &&
+        body.stream === true &&
+        (streamMode === 'full-page' || streamMode === 'chat' || streamMode === 'agent')
+      ) {
+        const mode = streamMode;
+        const instructions = resolveClientInstructions(body, options);
 
         // Agent streaming (STORA-530) — emits agent-step/tool-call/tool-result events as
         // the loop runs, then a terminal agent-complete carrying the ops to replay.
@@ -435,6 +503,7 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
                 selectedNodeId: body.selectedNodeId,
                 stylePreference: body.stylePreference,
                 maxSteps: body.maxSteps,
+                instructions,
               },
               { signal: request.signal },
             ),
@@ -467,6 +536,7 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
                 messages: body.messages!,
                 currentDocument: body.currentDocument,
                 selectedNodeId: body.selectedNodeId,
+                instructions,
               },
               { signal: request.signal },
             ),
@@ -501,6 +571,7 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
               conversationHistory: body.conversationHistory ?? body.messages,
               sectionCount: body.sectionCount,
               plan: body.plan,
+              instructions,
             },
             { signal: request.signal },
           ),
@@ -514,6 +585,7 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
         body,
         request.signal,
         options?.agent,
+        options,
       );
 
       return new Response(JSON.stringify(response), {

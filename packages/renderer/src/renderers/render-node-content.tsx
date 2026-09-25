@@ -14,7 +14,6 @@ import { resolveBinding, sanitizeUrl, sanitizeHtml } from '@kubuild/core';
 import {
   RenderContext,
   resolveAssetSync,
-  isActionRegistered,
   Diagnostic,
 } from '../render-context';
 import { FormRuntimeProvider } from '../form-context';
@@ -34,6 +33,9 @@ import {
   aspectRatioToCss,
 } from '../nodes';
 import { renderInteractiveNode } from './interactive-renderers';
+import { renderExtendedFormNode } from './extended-form-renderers';
+import { hasBuiltinLegacyAction, isLegacyActionResolvable } from '../legacy-actions';
+import { renderConversionNode } from './conversion';
 
 export interface RenderNodeContentOptions {
   node: Node;
@@ -225,8 +227,8 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
           ? resolvedProps.tag
           : typeof props.tag === 'string'
           ? props.tag
-          : (props.content !== undefined || resolvedProps.content !== undefined) && props.text === undefined && resolvedProps.text === undefined
-          ? 'p'
+          : props.content !== undefined && props.text === undefined
+          ? 'p' // legacy `content`-only text nodes rendered as <p> (deprecated alias, STORA-550)
           : 'span';
       const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && !isVariableBinding(props.content);
 
@@ -297,10 +299,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
             isEditable={isEditable}
             nodeId={node.id}
             onClick={handleLinkClick}
-            onChange={(val, isBlur) => {
-              const propKey = 'text' in props ? 'text' : 'label';
-              onNodePropChange?.(node.id, propKey, val, isBlur);
-            }}
+            onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
             href={safeHref}
             target={target}
             rel={computedRel}
@@ -323,15 +322,16 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
       );
     }
     case 'blockquote': {
+      // `text` is canonical; `quote` is a deprecated alias still read for one minor (STORA-550).
       const quote =
-        typeof resolvedProps.quote === 'string'
-          ? resolvedProps.quote
-          : typeof resolvedProps.text === 'string'
+        typeof resolvedProps.text === 'string'
           ? resolvedProps.text
-          : typeof props.quote === 'string'
-          ? props.quote
+          : typeof resolvedProps.quote === 'string'
+          ? resolvedProps.quote
           : typeof props.text === 'string'
           ? props.text
+          : typeof props.quote === 'string'
+          ? props.quote
           : undefined;
       const cite = typeof resolvedProps.cite === 'string' ? resolvedProps.cite : (typeof props.cite === 'string' ? props.cite : undefined);
       const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.quote) && !isVariableBinding(props.text);
@@ -360,10 +360,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
                 value={quote}
                 isEditable={isEditable}
                 nodeId={node.id}
-                onChange={(val, isBlur) => {
-                  const propKey = 'quote' in props ? 'quote' : 'text';
-                  onNodePropChange?.(node.id, propKey, val, isBlur);
-                }}
+                onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
               />
             ) : (
               <p>{quote}</p>
@@ -398,10 +395,7 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
               value={text}
               isEditable={isEditable}
               nodeId={node.id}
-              onChange={(val, isBlur) => {
-                const propKey = 'text' in props ? 'text' : 'label';
-                onNodePropChange?.(node.id, propKey, val, isBlur);
-              }}
+              onChange={(val, isBlur) => onNodePropChange?.(node.id, 'text', val, isBlur)}
             />
           ) : (
             text
@@ -639,13 +633,36 @@ export function renderTableNode(options: RenderNodeContentOptions): React.ReactE
 }
 
 /**
+ * Creates an inline SVG data-URI placeholder for image nodes when no image URL
+ * is available (e.g. in editor mode when bound to a variable with an empty sample value).
+ * Renders an accessible, non-broken visual box on canvas and ensures <img> keeps a valid src.
+ */
+export function createPlaceholderImage(label?: string): string {
+  const cleanLabel = (label || 'Image').replace(/[<>&"]/g, '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400" fill="none">
+    <rect width="100%" height="100%" fill="#f8fafc"/>
+    <rect x="2" y="2" width="596" height="396" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="6 6" rx="8"/>
+    <g fill="#94a3b8" transform="translate(268, 140)">
+      <rect width="64" height="64" rx="8" fill="#e2e8f0"/>
+      <circle cx="24" cy="24" r="6" fill="#94a3b8"/>
+      <path d="m56 48-12-16-10 12-8-8-14 16h44z" fill="#94a3b8"/>
+    </g>
+    <text x="300" y="235" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="500" text-anchor="middle" fill="#64748b">
+      ${cleanLabel}
+    </text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/**
  * Media nodes: image, video, icon, html-embed
  */
 export function renderMediaNode(options: RenderNodeContentOptions): React.ReactElement | null {
-  const { node, domId, styles, resolvedProps, props, context, mode, handleClick } = options;
+  const { node, domId, styles, resolvedProps, props, context, mode, handleClick, definition } = options;
 
   switch (node.type) {
     case 'image': {
+      const boundSrc = isVariableBinding(props.src) ? props.src : undefined;
       const rawSrc =
         resolvedProps.src !== undefined
           ? resolvedProps.src
@@ -656,8 +673,21 @@ export function renderMediaNode(options: RenderNodeContentOptions): React.ReactE
 
       if (isAssetReference(rawSrc)) {
         src = resolveAssetSync(context?.assetProvider, rawSrc.assetId) || rawSrc.fallbackUrl;
-      } else if (typeof rawSrc === 'string') {
+      } else if (typeof rawSrc === 'string' && rawSrc.trim().length > 0) {
         src = resolveAssetSync(context?.assetProvider, rawSrc) || rawSrc;
+      }
+
+      // If resolved src is empty or missing, check author fallback or editor placeholder
+      if (!src || !src.trim()) {
+        if (boundSrc && typeof boundSrc.fallback === 'string' && boundSrc.fallback.trim().length > 0) {
+          src = boundSrc.fallback;
+        } else if (mode === 'editor') {
+          src = boundSrc
+            ? createPlaceholderImage(`{${boundSrc.key}}`)
+            : (typeof definition?.defaultProps?.src === 'string' && definition.defaultProps.src.trim().length > 0
+                ? definition.defaultProps.src
+                : createPlaceholderImage('Image'));
+        }
       }
 
       const alt = typeof resolvedProps.alt === 'string' ? resolvedProps.alt : (typeof props.alt === 'string' ? props.alt : '');
@@ -665,7 +695,10 @@ export function renderMediaNode(options: RenderNodeContentOptions): React.ReactE
       const loading = resolvedProps.loading === 'eager' ? 'eager' : 'lazy';
       const width = typeof resolvedProps.width === 'number' ? resolvedProps.width : undefined;
       const height = typeof resolvedProps.height === 'number' ? resolvedProps.height : undefined;
-      const safeSrc = src ? sanitizeUrl(src, '') : undefined;
+      let safeSrc = src ? sanitizeUrl(src, '') : undefined;
+      if (!safeSrc && mode === 'editor') {
+        safeSrc = createPlaceholderImage(boundSrc ? `{${boundSrc.key}}` : 'Image');
+      }
 
       // `objectFit` is a style property (set from the Dimension sector, per breakpoint).
       // The legacy `fit` prop stays supported for imported documents, but only fills in
@@ -897,8 +930,9 @@ export function renderFormNode(options: RenderNodeContentOptions): React.ReactEl
       if (props.action && !disabled) {
         const actionType = typeof props.action === 'object' ? (props.action as any).type : props.action;
         actionAttrs['data-kubuild-action'] = actionType;
-        if (context?.actionRegistry) {
-          const isResolved = isActionRegistered(context.actionRegistry, actionType);
+        if (context?.actionRegistry || hasBuiltinLegacyAction(actionType)) {
+          // Resolved = a host handler or a built-in legacy handler (STORA-533) will run it.
+          const isResolved = isLegacyActionResolvable(context?.actionRegistry, actionType);
           actionAttrs['data-kubuild-action-resolved'] = isResolved ? 'true' : 'false';
         }
       }
@@ -1410,6 +1444,10 @@ export function renderNodeContent(options: RenderNodeContentOptions): React.Reac
   const form = renderFormNode(options);
   if (form) return form;
 
+  // 7b. Extended form nodes: switch, file-upload, radio-group, radio-item, button-submit
+  const extendedForm = renderExtendedFormNode(options);
+  if (extendedForm) return extendedForm;
+
   // 8. Collection node
   const collection = renderCollectionNode(options);
   if (collection) return collection;
@@ -1417,6 +1455,10 @@ export function renderNodeContent(options: RenderNodeContentOptions): React.Reac
   // 9. Interactive nodes: modal, drawer, collapsible
   const interactive = renderInteractiveNode(options);
   if (interactive) return interactive;
+
+  // 9b. Conversion components (Epic 60): countdown, accordion, tabs, carousel, rating, divider, spacer
+  const conversion = renderConversionNode(options);
+  if (conversion) return conversion;
 
   // 10. Fallback for unknown / custom elements without custom renderers
   return renderFallbackNode(options);

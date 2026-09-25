@@ -1,7 +1,9 @@
 export * from './renderer';
 export * from './artboard-portal-host';
 export * from './styles';
+export * from './theme';
 export * from './render-context';
+export * from './legacy-actions';
 export * from './form-context';
 export * from './error-boundary';
 export * from './preview-adapter';
@@ -11,3 +13,4 @@ export * from './nodes';
 export * from './renderers';
 export * from './action-runners';
 export * from './action-dispatcher';
+export * from './tracking/tracking-manager';

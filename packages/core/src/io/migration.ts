@@ -4,9 +4,11 @@ import {
   CURRENT_SCHEMA_VERSION,
   SCHEMA_NAME,
   ResponsiveStyles,
+  getCanonicalTextPropRule,
 } from '@kubuild/schema';
 import { deepClone } from '../document/command-tree-utils';
 import { validateDocument } from '../validation/validator';
+import { stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer';
 
 export type MigrationErrorCode =
   | 'NO_MIGRATION_PATH'
@@ -22,6 +24,20 @@ export interface MigrationError {
   details?: Record<string, unknown>;
 }
 
+export type MigrationWarningCode = 'TRACKING_SECRET_REMOVED' | 'PROP_ALIAS_MIGRATED';
+
+/**
+ * Non-fatal note emitted by a migration step (the migration still succeeds).
+ */
+export interface MigrationWarning {
+  code: MigrationWarningCode | (string & {});
+  message: string;
+  /** Step that emitted the warning, e.g. "1.0.0->1.1.0". */
+  step?: string;
+  /** Dotted document paths affected. */
+  paths?: string[];
+}
+
 export interface MigrationDiagnostic {
   success: boolean;
   sourceVersion: string;
@@ -30,6 +46,8 @@ export interface MigrationDiagnostic {
   stepsApplied: number;
   dryRun: boolean;
   errors?: MigrationError[];
+  /** Non-fatal notes, e.g. tracking secrets stripped from the document. */
+  warnings?: MigrationWarning[];
 }
 
 export interface MigrationResult {
@@ -40,7 +58,7 @@ export interface MigrationResult {
 
 export interface MigrateOptions {
   /**
-   * Target schema version (defaults to CURRENT_SCHEMA_VERSION = "1.0.0").
+   * Target schema version (defaults to CURRENT_SCHEMA_VERSION).
    */
   targetVersion?: string;
   /**
@@ -57,7 +75,16 @@ export interface MigrateOptions {
   validate?: boolean;
 }
 
-export type MigrationFunction = (rawDoc: Record<string, unknown>) => Record<string, unknown>;
+/** Context handed to each migration step. */
+export interface MigrationStepContext {
+  /** Records a non-fatal warning on the final `MigrationDiagnostic`. */
+  warn: (warning: MigrationWarning) => void;
+}
+
+export type MigrationFunction = (
+  rawDoc: Record<string, unknown>,
+  context: MigrationStepContext,
+) => Record<string, unknown>;
 
 export interface MigrationStep {
   fromVersion: string;
@@ -258,6 +285,100 @@ defaultMigrationRegistry.register({
   },
 });
 
+// 5. 1.0.0 -> 1.1.0: tracking secrets move out of the document (host-owned, resolved by credentialId)
+defaultMigrationRegistry.register({
+  fromVersion: '1.0.0',
+  toVersion: '1.1.0',
+  description:
+    'Remove tracking secrets and server destinations (capiAccessToken, accessToken, measurementProtocolSecret, serverRelayUrl, custom endpointUrl/headers) from the document',
+  migrate: (rawDoc: Record<string, unknown>, context) => {
+    const migrated = deepClone(rawDoc);
+    migrated.version = '1.1.0';
+    const removed = stripDocumentTrackingSecretsInPlace(migrated);
+    if (removed.length > 0) {
+      context.warn({
+        code: 'TRACKING_SECRET_REMOVED',
+        message:
+          'Tracking secret removed; re-link credential via credentialId (secrets are now stored by the host and resolved server-side).',
+        step: '1.0.0->1.1.0',
+        paths: removed,
+      });
+    }
+    return migrated;
+  },
+});
+
+/**
+ * Moves deprecated text-prop aliases (`content`, `label`, `quote`, ...) onto each
+ * component's canonical prop name (STORA-550), in place. The canonical value becomes
+ * whatever the pre-1.2.0 renderer actually displayed (its `legacyReadOrder`), so a
+ * migrated document renders identically. Returns the dotted paths of rewritten props.
+ */
+export function canonicalizeTextPropsInPlace(root: unknown, basePath = 'document'): string[] {
+  const changed: string[] = [];
+
+  const walk = (value: unknown, path: string): void => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const node = value as Record<string, unknown>;
+    const props = node.props;
+    const rule = typeof node.type === 'string' ? getCanonicalTextPropRule(node.type) : undefined;
+
+    if (rule && props && typeof props === 'object' && !Array.isArray(props)) {
+      const record = props as Record<string, unknown>;
+      const presentAliases = rule.aliases.filter((alias) => record[alias] !== undefined);
+      if (presentAliases.length > 0) {
+        const displayedKey = rule.legacyReadOrder.find((key) => record[key] !== undefined);
+        // A legacy `text` node whose only text lived in `content` rendered as <p>, not <span>;
+        // keep that when the tag was implicit.
+        if (
+          node.type === 'text' &&
+          displayedKey === 'content' &&
+          record.as === undefined &&
+          record.tag === undefined
+        ) {
+          record.as = 'p';
+        }
+        if (displayedKey !== undefined && displayedKey !== rule.canonical) {
+          record[rule.canonical] = record[displayedKey];
+        }
+        for (const alias of presentAliases) {
+          delete record[alias];
+          changed.push(`${path}.props.${alias}`);
+        }
+      }
+    }
+
+    if (Array.isArray(node.children)) {
+      node.children.forEach((child, index) => walk(child, `${path}.children.${index}`));
+    }
+  };
+
+  walk(root, basePath);
+  return changed;
+}
+
+// 6. 1.1.0 -> 1.2.0: canonical text prop names (STORA-550); `theme` becomes a known field (STORA-551)
+defaultMigrationRegistry.register({
+  fromVersion: '1.1.0',
+  toVersion: '1.2.0',
+  description:
+    'Rename deprecated text prop aliases to canonical names (heading/text/paragraph/link/badge/blockquote -> text, button -> label)',
+  migrate: (rawDoc: Record<string, unknown>, context) => {
+    const migrated = deepClone(rawDoc);
+    migrated.version = '1.2.0';
+    const changed = canonicalizeTextPropsInPlace(migrated.document);
+    if (changed.length > 0) {
+      context.warn({
+        code: 'PROP_ALIAS_MIGRATED',
+        message: 'Deprecated text prop aliases were renamed to their canonical names.',
+        step: '1.1.0->1.2.0',
+        paths: changed,
+      });
+    }
+    return migrated;
+  },
+});
+
 /**
  * Check whether a migration path exists between source and target versions.
  */
@@ -324,6 +445,19 @@ export function migrateDocument(
   // 2. If already on target version
   if (sourceVersion === targetVersion) {
     const cloned = deepClone(doc) as unknown as PageDocument;
+    // Defensive: a current-version document must never carry tracking secrets either.
+    const removedSecrets = stripDocumentTrackingSecretsInPlace(cloned);
+    const currentWarnings: MigrationWarning[] =
+      removedSecrets.length > 0
+        ? [
+            {
+              code: 'TRACKING_SECRET_REMOVED',
+              message:
+                'Tracking secret removed; re-link credential via credentialId (secrets are stored by the host and resolved server-side).',
+              paths: removedSecrets,
+            },
+          ]
+        : [];
     if (validate) {
       const validation = validateDocument(cloned);
       if (!validation.valid) {
@@ -357,6 +491,7 @@ export function migrateDocument(
         migrationPath: [sourceVersion],
         stepsApplied: 0,
         dryRun,
+        ...(currentWarnings.length > 0 ? { warnings: currentWarnings } : {}),
       },
     };
   }
@@ -384,8 +519,20 @@ export function migrateDocument(
     };
   }
 
-  // 4. If dry-run mode, return simulation success without modifying
+  // 4. If dry-run mode, simulate the steps on a private clone (so the diagnostic can report
+  // what *would* change) and return without producing a document.
   if (dryRun) {
+    const simulatedWarnings: MigrationWarning[] = [];
+    try {
+      let simulated = deepClone(doc);
+      for (let i = 0; i < path.length - 1; i++) {
+        const step = registry.getStep(path[i], path[i + 1]);
+        if (!step) break;
+        simulated = step.migrate(simulated, { warn: (w) => simulatedWarnings.push(w) });
+      }
+    } catch {
+      // Simulation is best-effort; the real run reports execution failures.
+    }
     return {
       success: true,
       diagnostic: {
@@ -395,6 +542,7 @@ export function migrateDocument(
         migrationPath: path,
         stepsApplied: path.length - 1,
         dryRun: true,
+        ...(simulatedWarnings.length > 0 ? { warnings: simulatedWarnings } : {}),
       },
     };
   }
@@ -402,6 +550,8 @@ export function migrateDocument(
   // 5. Execute migration path steps sequentially
   let currentDoc = deepClone(doc);
   let stepsApplied = 0;
+  const warnings: MigrationWarning[] = [];
+  const stepContext: MigrationStepContext = { warn: (w) => warnings.push(w) };
 
   for (let i = 0; i < path.length - 1; i++) {
     const fromVer = path[i];
@@ -430,7 +580,7 @@ export function migrateDocument(
     }
 
     try {
-      currentDoc = step.migrate(currentDoc);
+      currentDoc = step.migrate(currentDoc, stepContext);
       stepsApplied++;
     } catch (err: unknown) {
       const error: MigrationError = {
@@ -490,6 +640,7 @@ export function migrateDocument(
       migrationPath: path,
       stepsApplied,
       dryRun: false,
+      ...(warnings.length > 0 ? { warnings } : {}),
     },
   };
 }

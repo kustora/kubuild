@@ -13,6 +13,7 @@ import {
   ResetFormStepForm,
   CopyClipboardStepForm,
   CustomEventStepForm,
+  TrackEventStepForm,
   KeyValueEditor,
 } from '../src/components/action-builder/action-step-form';
 import {
@@ -337,6 +338,39 @@ describe('STORA-341: Action Step Parameter Configuration Forms', () => {
       expect(html).toContain('value="Submit Customer Lead"');
       expect(html).toContain('HTTP Method &amp; Endpoint URL');
       expect(html).toContain('Continue pipeline execution if this step fails');
+    });
+
+    it('renders TrackEventStepForm when step type is track_event', () => {
+      const step: ActionStep = {
+        id: 'step-track-1',
+        type: 'track_event',
+        label: 'Track Lead Generation',
+        payload: {
+          eventName: 'Lead',
+          delivery: 'both',
+          provider: 'meta',
+          params: { currency: 'IDR', value: '150000' },
+          userData: { email: '{{form.email}}' },
+        },
+      };
+
+      const html = renderToString(
+        <ActionStepForm
+          step={step}
+          document={sampleDoc}
+          onUpdatePayload={() => {}}
+          onUpdateMeta={() => {}}
+        />,
+      );
+
+      expect(html).toContain('data-testid="action-step-form-step-track-1"');
+      expect(html).toContain('Enable This Tracking Step');
+      expect(html).toContain('Event Name');
+      expect(html).toContain('Target Platform');
+      expect(html).toContain('Delivery Channel');
+      expect(html).toContain('Event ID / Deduplication Key');
+      expect(html).toContain('Event Parameters');
+      expect(html).toContain('User Data for CAPI Matching');
     });
   });
 });

@@ -86,6 +86,12 @@ export const TRIGGER_OPTIONS: TriggerMeta[] = [
     description: 'Triggered automatically when the component mounts',
     badge: 'Load',
   },
+  {
+    type: 'expire',
+    label: 'On Expire',
+    description: 'Triggered once when a countdown timer reaches zero',
+    badge: 'Expire',
+  },
 ];
 
 export interface StepTypeMeta {
@@ -251,6 +257,10 @@ export function formatStepSummary(step: ActionStep): string {
     case 'close_modal': {
       const targetId = (payload.modalNodeId as string) || (payload.modalId as string) || '';
       return `Close Modal #${targetId}`;
+    }
+    case 'toggle_modal': {
+      const targetId = (payload.modalNodeId as string) || (payload.modalId as string) || '';
+      return `Toggle #${targetId}`;
     }
     case 'set_state': {
       const key = (payload.key as string) || '';
@@ -835,6 +845,7 @@ export const ActionBuilderModal: React.FC<ActionBuilderModalProps> = ({
                           <ActionStepForm
                             step={step}
                             document={document}
+                            trigger={selectedTrigger}
                             onUpdatePayload={(newPayload) =>
                               handleUpdateStepPayload(step.id, newPayload)
                             }

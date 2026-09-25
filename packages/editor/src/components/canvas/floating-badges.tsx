@@ -68,6 +68,10 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
         pointerEvents: 'auto',
         transform: selectedRect.top < 28 ? 'translateY(0)' : 'translateY(-100%)',
       }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Element Tag Label */}
@@ -85,7 +89,14 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           data-testid="floating-badge-select-parent"
           title="Select Parent"
           aria-label="Select Parent"
-          onClick={() => selectNode(parentId)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            selectNode(parentId);
+          }}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <ArrowUp className="w-3.5 h-3.5" aria-hidden="true" />
@@ -96,10 +107,17 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
       {!isRoot && (
         <div
           data-testid="floating-badge-move"
+          data-node-id={node.id}
           title="Move / Drag"
           aria-label="Move"
           draggable={true}
-          onDragStart={onDragStart}
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', node.id);
+            e.dataTransfer.setData('application/kubuild-drag-type', 'node');
+            e.dataTransfer.setData('application/kubuild-node-id', node.id);
+            onDragStart?.(e);
+          }}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 cursor-grab active:cursor-grabbing transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <Move className="w-3.5 h-3.5" aria-hidden="true" />
@@ -113,7 +131,14 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           data-testid="floating-badge-move-up"
           title="Move Up"
           aria-label="Move Up"
-          onClick={() => moveComponentUp(node.id, registry)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            moveComponentUp(node.id, registry);
+          }}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" />
@@ -127,7 +152,14 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           data-testid="floating-badge-move-down"
           title="Move Down"
           aria-label="Move Down"
-          onClick={() => moveComponentDown(node.id, registry)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            moveComponentDown(node.id, registry);
+          }}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
@@ -141,7 +173,14 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           data-testid="floating-badge-duplicate"
           title="Duplicate (⌘D)"
           aria-label="Duplicate"
-          onClick={() => duplicateComponent(node.id, registry)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            duplicateComponent(node.id, registry);
+          }}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <Copy className="w-3.5 h-3.5" aria-hidden="true" />
@@ -155,7 +194,14 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           data-testid="floating-badge-detach-artboard"
           title="Detach to its own frame (edit it on a separate canvas surface)"
           aria-label="Detach to its own frame"
-          onClick={() => detachNodeToArtboard(node.id, { name: label })}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            detachNodeToArtboard(node.id, { name: label });
+          }}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
@@ -169,7 +215,14 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           data-testid="floating-badge-open-artboard"
           title="Edit the frame this opens"
           aria-label="Edit the frame this opens"
-          onClick={() => activateArtboard(node.props?.artboardId as string)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            activateArtboard(node.props?.artboardId as string);
+          }}
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
@@ -183,7 +236,15 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           data-testid="floating-badge-delete"
           title="Delete (Backspace / Del)"
           aria-label="Delete"
-          onClick={() => deleteComponent(node.id)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteComponent(node.id);
+            selectNode(null);
+          }}
           className="px-1.5 py-1 hover:bg-red-500 active:bg-red-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />

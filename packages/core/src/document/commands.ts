@@ -11,6 +11,9 @@ import {
   ActionPipelineSchema,
   FormConfig,
   FormConfigSchema,
+  Theme,
+  ThemeSchema,
+  THEME_TOKEN_GROUPS,
 } from '@kubuild/schema';
 import {
   deepClone,
@@ -32,7 +35,8 @@ export type DocumentChangeType =
   | 'NODE_DUPLICATED'
   | 'NODE_WRAPPED'
   | 'NODE_UNGROUPED'
-  | 'NODE_REPLACED';
+  | 'NODE_REPLACED'
+  | 'THEME_UPDATED';
 
 export interface DocumentChangeEvent {
   type: DocumentChangeType;
@@ -938,3 +942,67 @@ export function replaceNode(
   };
 }
 
+export interface UpdateThemeParams {
+  /**
+   * Token changes. With `merge` (default) each group is merged token-by-token and a token
+   * set to `null` is removed; without `merge` the theme is replaced. `null` removes the
+   * whole theme.
+   */
+  theme: { [G in keyof Theme]?: Record<string, string | number | null> | null } | null;
+  merge?: boolean;
+}
+
+/**
+ * Update the document-level design tokens (`PageDocument.theme`, STORA-551).
+ * The result is validated with `ThemeSchema`, so unsafe keys/values (CSS injection) throw.
+ * Returns a new PageDocument and a THEME_UPDATED event keyed to the root node.
+ */
+export function updateTheme(document: PageDocument, params: UpdateThemeParams): CommandResult {
+  const { theme, merge = true } = params;
+  const newDoc = deepClone(document);
+  const previousTheme = newDoc.theme ? deepClone(newDoc.theme) : undefined;
+
+  if (theme === null) {
+    delete newDoc.theme;
+  } else {
+    const next: Record<string, Record<string, unknown>> = {};
+    for (const group of THEME_TOKEN_GROUPS) {
+      const base = merge ? { ...((previousTheme?.[group] as Record<string, unknown> | undefined) ?? {}) } : {};
+      const patch = theme[group];
+      if (patch === null) {
+        continue;
+      }
+      if (patch) {
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === null) {
+            delete base[key];
+          } else {
+            base[key] = value;
+          }
+        }
+      }
+      if (Object.keys(base).length > 0) {
+        next[group] = base;
+      }
+    }
+    const parsed = ThemeSchema.parse(next);
+    if (Object.keys(parsed).length > 0) {
+      newDoc.theme = parsed;
+    } else {
+      delete newDoc.theme;
+    }
+  }
+
+  return {
+    document: newDoc,
+    event: {
+      type: 'THEME_UPDATED',
+      timestamp: new Date().toISOString(),
+      nodeId: newDoc.document.id,
+      payload: {
+        theme: newDoc.theme,
+        previousTheme,
+      },
+    },
+  };
+}

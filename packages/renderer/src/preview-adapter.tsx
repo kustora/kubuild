@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { PageDocument, type Artboard } from '@kubuild/schema';
+import { PageDocument, BREAKPOINTS, type Artboard } from '@kubuild/schema';
 import type { ComponentRegistry } from '@kubuild/components';
 import { RenderContext, Diagnostic } from './render-context';
 import { KubuildRenderer } from './renderer';
@@ -40,11 +40,11 @@ export interface ViewportConfig {
  * Configurable host breakpoints for responsive viewport resolution
  */
 export interface ViewportBreakpoints {
-  /** Maximum screen width considered mobile (default: 480) */
+  /** Maximum screen width considered mobile (default: `BREAKPOINTS.mobile.maxWidth`, 767) */
   mobile: number;
-  /** Maximum screen width considered tablet (default: 768) */
+  /** Maximum screen width considered tablet (default: `BREAKPOINTS.tablet.maxWidth`, 1023) */
   tablet: number;
-  /** Screen width threshold considered desktop (default: 1024) */
+  /** Screen width threshold considered desktop (default: `BREAKPOINTS.desktop.minWidth`, 1024) */
   desktop: number;
 }
 
@@ -76,12 +76,13 @@ export const DEFAULT_VIEWPORT_CONFIGS: Record<ViewportDevice, ViewportConfig> = 
 });
 
 /**
- * Default breakpoint thresholds
+ * Default breakpoint thresholds, derived from the shared `BREAKPOINTS` (STORA-541) so the
+ * preview picks the same layer the runtime `@media` rules and the code generator do.
  */
 export const DEFAULT_BREAKPOINTS: ViewportBreakpoints = Object.freeze({
-  mobile: 480,
-  tablet: 768,
-  desktop: 1024,
+  mobile: BREAKPOINTS.mobile.maxWidth as number,
+  tablet: BREAKPOINTS.tablet.maxWidth as number,
+  desktop: BREAKPOINTS.desktop.minWidth,
 });
 
 /**

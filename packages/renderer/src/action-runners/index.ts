@@ -5,7 +5,13 @@ import {
   type ApiRequestRunnerOptions,
 } from './api-request';
 import { showToastRunner, openModalRunner, closeModalRunner, toggleModalRunner } from './ui-feedback';
-import { navigateRunner, copyClipboardRunner, resetFormRunner } from './navigation-utils';
+import {
+  navigateRunner,
+  copyClipboardRunner,
+  resetFormRunner,
+  customEventRunner,
+} from './navigation-utils';
+import { trackEventRunner } from './tracking';
 
 export * from './api-request';
 export * from './toast-manager';
@@ -13,6 +19,7 @@ export * from './toast-container';
 export * from './modal-manager';
 export * from './ui-feedback';
 export * from './navigation-utils';
+export * from './tracking';
 
 /**
  * Options for configuring built-in action runners.
@@ -41,6 +48,8 @@ export function createDefaultActionRunners(
     navigate: navigateRunner,
     copy_clipboard: copyClipboardRunner,
     reset_form: resetFormRunner,
+    custom_event: customEventRunner,
+    track_event: trackEventRunner,
     ...(options?.handlers || {}),
   };
 }

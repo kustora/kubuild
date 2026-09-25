@@ -1,5 +1,6 @@
 import { isActionBinding, isVariableBinding } from '@kubuild/schema';
 import { ComponentDefinition } from '../../registry';
+import { canonicalTextPropFields } from '../../canonical-props';
 import {
   ariaLabelTrait,
   autoDisableOnSubmitTrait,
@@ -24,6 +25,7 @@ export const buttonDefinition: ComponentDefinition = {
   icon: 'mouse-pointer',
   acceptsChildren: false,
   capabilities: ['actionRegistry'],
+  ...canonicalTextPropFields('button'),
   defaultProps: {
     label: 'Click Me',
     variant: 'primary',

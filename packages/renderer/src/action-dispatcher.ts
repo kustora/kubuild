@@ -68,12 +68,22 @@ export async function executeNodeActions(
 
   // Build merged execution context
   const executionContext: Record<string, unknown> = {
+    trigger,
     form: formContext ? { ...formContext.values } : {},
     variables: context?.variables ? { ...context.variables } : {},
     nodeId: node.id,
     document,
     toastManager: (context as unknown as Record<string, unknown> | undefined)?.['toastManager'],
     modalManager: (context as unknown as Record<string, unknown> | undefined)?.['modalManager'],
+    trackingConfig: (context as unknown as Record<string, unknown> | undefined)?.['trackingConfig'] ||
+      (document as unknown as { tracking?: unknown })?.tracking ||
+      (document as unknown as { metadata?: { tracking?: unknown } })?.metadata?.tracking,
+    // Host-provided tracking runtime (relay URL etc.) — never read from the document.
+    trackingRuntime: context?.tracking,
+    reportDiagnostic: (diagnostic: Diagnostic) => {
+      onDiagnostic?.(diagnostic);
+      context?.onDiagnostic?.(diagnostic);
+    },
     ...(extraContext || {}),
   };
 

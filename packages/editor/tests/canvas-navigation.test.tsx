@@ -134,7 +134,7 @@ describe('Canvas Navigation (STORA-230, STORA-231, STORA-232)', () => {
       expect(updatedContainer?.children?.length).toBe(2);
     });
 
-    it('clicking Delete removes the active node', () => {
+    it('clicking Delete removes the active node and clears selectedNodeId', () => {
       const doc = createTestDoc();
       useEditorStore.getState().setDocument(doc);
       useEditorStore.getState().selectNode('btn-1');
@@ -144,6 +144,23 @@ describe('Canvas Navigation (STORA-230, STORA-231, STORA-232)', () => {
 
       const updatedContainer = useEditorStore.getState().document.document.children?.[0].children?.[0];
       expect(updatedContainer?.children?.length).toBe(0);
+      expect(useEditorStore.getState().selectedNodeId).toBeNull();
+    });
+
+    it('renders floating action badge with move handle data-node-id for dragging', () => {
+      const doc = createTestDoc();
+      const html = renderToString(
+        <FloatingActionBadges
+          selectedNodeId="btn-1"
+          document={doc}
+          registry={registry}
+          selectedRect={{ top: 100, left: 50, width: 120, height: 40 }}
+        />,
+      );
+
+      expect(html).toContain('data-testid="floating-badge-delete"');
+      expect(html).toContain('data-node-id="btn-1"');
+      expect(html).toContain('data-testid="floating-action-badges"');
     });
   });
 

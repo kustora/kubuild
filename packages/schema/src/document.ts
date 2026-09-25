@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { ActionPipeline, ActionPipelineSchema } from './actions';
 import { FormConfig, FormConfigSchema } from './form';
+import { TrackingConfig, TrackingConfigSchema } from './tracking';
+import { ThemeSchema } from './theme';
 
 export const SCHEMA_NAME = 'stora.page' as const;
-export const CURRENT_SCHEMA_VERSION = '1.0.0' as const;
+export const CURRENT_SCHEMA_VERSION = '1.2.0' as const;
 
 /**
  * Asset Reference Schema
@@ -313,6 +315,7 @@ export const DocumentMetadataSchema = z.object({
   category: z.string().optional().default('general'),
   version: z.string().optional().default('1.0.0'),
   custom: z.record(z.string(), z.unknown()).optional(),
+  tracking: TrackingConfigSchema.optional(),
 });
 
 export type DocumentMetadata = z.infer<typeof DocumentMetadataSchema>;
@@ -324,11 +327,16 @@ export type DocumentMetadata = z.infer<typeof DocumentMetadataSchema>;
  * - version: schema version string (e.g. "1.0.0")
  * - metadata: serializable metadata
  * - document: root page node
+ * - tracking: optional dynamic pixel & CAPI tracking configuration
+ * - theme: optional design tokens (colors/fonts/radii/spacing), emitted as CSS custom
+ *   properties and referenced from node styles as `var(--kb-color-<key>)` (STORA-551)
  */
 export const PageDocumentSchema = z.object({
   schema: z.literal(SCHEMA_NAME),
   version: z.string().min(1, 'Schema version is required').default(CURRENT_SCHEMA_VERSION),
   metadata: DocumentMetadataSchema.optional(),
+  tracking: TrackingConfigSchema.optional(),
+  theme: ThemeSchema.optional(),
   document: RootPageNodeSchema,
 });
 
@@ -409,6 +417,7 @@ export const ProjectDocumentSchema = z.object({
   schema: z.literal(PROJECT_SCHEMA_NAME),
   version: z.string().min(1, 'Schema version is required').default(CURRENT_PROJECT_SCHEMA_VERSION),
   metadata: DocumentMetadataSchema.optional(),
+  tracking: TrackingConfigSchema.optional(),
   artboards: z.array(ArtboardSchema).min(1, 'A project needs at least one artboard'),
   activeArtboardId: z.string().optional(),
 });

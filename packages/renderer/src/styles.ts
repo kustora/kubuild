@@ -1,4 +1,11 @@
-import { PageDocument, Node, ResponsiveStyles } from '@kubuild/schema';
+import {
+  PageDocument,
+  Node,
+  ResponsiveStyles,
+  BREAKPOINT_MEDIA_QUERIES,
+  BREAKPOINT_ORDER,
+  type BreakpointName,
+} from '@kubuild/schema';
 import React from 'react';
 
 /**
@@ -134,15 +141,149 @@ export function normalizeStyleObject(
   return style as React.CSSProperties;
 }
 
+/**
+ * How the renderer applies `styles.desktop` / `styles.tablet` / `styles.mobile` (STORA-540).
+ *
+ * - `'viewport'`: merge `base` with the single layer named by the `viewport` prop into the
+ *   inline style. Used by the editor canvas, where each device frame previews one viewport
+ *   regardless of the real browser width.
+ * - `'css'`: inline style is `base` only; breakpoint layers are emitted as `@media` rules
+ *   scoped to `[data-kubuild-node="…"]`, so the real browser width picks the layer. Output
+ *   depends only on the document, so server and client render identical markup.
+ */
+export type ResponsiveMode = 'css' | 'viewport';
+
 export function resolveNodeStyles(
   styles?: ResponsiveStyles,
-  viewport: 'desktop' | 'tablet' | 'mobile' = 'desktop',
+  viewport: BreakpointName = 'desktop',
 ): React.CSSProperties {
   if (!styles) return {};
   const base = (styles.base as Record<string, unknown>) || {};
   const override = (styles[viewport] as Record<string, unknown>) || {};
   const merged = { ...base, ...override };
   return normalizeStyleObject(merged);
+}
+
+/** Normalized `base` layer only — the inline style used by `responsive: 'css'`. */
+export function resolveBaseNodeStyles(styles?: ResponsiveStyles): React.CSSProperties {
+  if (!styles) return {};
+  return normalizeStyleObject((styles.base as Record<string, unknown>) || {});
+}
+
+function isEmptyStyleValue(value: unknown): boolean {
+  return value === undefined || value === null || value === '';
+}
+
+/**
+ * Split a node's responsive styles into the always-on `base` style plus, per breakpoint,
+ * only the declarations that differ from it.
+ *
+ * Each override is computed on the *normalized* merge (`base` + layer), i.e. exactly what
+ * `resolveNodeStyles(styles, breakpoint)` returns, so CSS output reproduces the
+ * `viewport`-mode result at every width. A property present in `base` but dropped by the
+ * merge (e.g. the implicit `flex` that `width: 'fill'` adds) is reset with `unset`.
+ */
+export function resolveResponsiveStyleLayers(styles?: ResponsiveStyles): {
+  base: Record<string, unknown>;
+  overrides: Partial<Record<BreakpointName, Record<string, unknown>>>;
+} {
+  const base = resolveBaseNodeStyles(styles) as Record<string, unknown>;
+  const overrides: Partial<Record<BreakpointName, Record<string, unknown>>> = {};
+  if (!styles) return { base, overrides };
+
+  for (const breakpoint of BREAKPOINT_ORDER) {
+    const layer = styles[breakpoint];
+    if (!layer || typeof layer !== 'object' || Object.keys(layer).length === 0) continue;
+    const resolved = resolveNodeStyles(styles, breakpoint) as Record<string, unknown>;
+    const diff: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(resolved)) {
+      if (isEmptyStyleValue(value)) continue;
+      if (value !== base[key]) diff[key] = value;
+    }
+    for (const [key, value] of Object.entries(base)) {
+      if (isEmptyStyleValue(value)) continue;
+      if (isEmptyStyleValue(resolved[key])) diff[key] = 'unset';
+    }
+    if (Object.keys(diff).length > 0) overrides[breakpoint] = diff;
+  }
+
+  return { base, overrides };
+}
+
+export interface ResponsiveCssRule {
+  nodeId: string;
+  declarations: string;
+}
+
+/**
+ * Walk a node tree and collect per-breakpoint override declarations in tree order.
+ * Shared by the runtime renderer (`collectResponsiveStylesCss`) and the static code
+ * generator, so both emit the same overrides under the same media queries (STORA-542).
+ */
+export function collectResponsiveCssRules(
+  root: Node | undefined | null,
+  options: { important?: boolean } = {},
+): Record<BreakpointName, ResponsiveCssRule[]> {
+  const rules: Record<BreakpointName, ResponsiveCssRule[]> = {
+    desktop: [],
+    tablet: [],
+    mobile: [],
+  };
+  if (!root) return rules;
+
+  const walk = (node: Node): void => {
+    if (node.styles) {
+      const { overrides } = resolveResponsiveStyleLayers(node.styles);
+      for (const breakpoint of BREAKPOINT_ORDER) {
+        const diff = overrides[breakpoint];
+        if (!diff) continue;
+        const declarations = cssPropertiesToDeclarations(diff, options);
+        if (declarations) rules[breakpoint].push({ nodeId: node.id, declarations });
+      }
+    }
+    node.children?.forEach(walk);
+  };
+
+  walk(root);
+  return rules;
+}
+
+/** Scoped attribute selector matching the element the renderer tags with a node id. */
+export function nodeAttributeSelector(nodeId: string): string {
+  return `[data-kubuild-node="${escapeCssIdent(nodeId)}"]`;
+}
+
+/**
+ * Produce the `@media` stylesheet for `responsive: 'css'` (STORA-540), e.g.
+ *
+ *   @media (max-width: 767.98px) {
+ *     [data-kubuild-node="grid-1"] { grid-template-columns: 1fr !important; }
+ *   }
+ *
+ * Declarations use `!important` because the `base` layer (and component defaults) are
+ * inline styles, which otherwise beat any stylesheet rule. Pseudo-state rules from
+ * `collectStateStylesCss` still win while active since `[…]:hover` is more specific.
+ * The output is a pure function of the document (no `window`/`matchMedia` access), so
+ * SSR and hydration produce byte-identical `<style>` content.
+ */
+export function collectResponsiveStylesCss(
+  document: PageDocument | undefined | null,
+  options: { important?: boolean } = { important: true },
+): string {
+  if (!document?.document) return '';
+  const rules = collectResponsiveCssRules(document.document, {
+    important: options.important !== false,
+  });
+  const blocks: string[] = [];
+  for (const breakpoint of BREAKPOINT_ORDER) {
+    const list = rules[breakpoint];
+    if (list.length === 0) continue;
+    const body = list
+      .map((rule) => `  ${nodeAttributeSelector(rule.nodeId)} { ${rule.declarations} }`)
+      .join('\n');
+    blocks.push(`@media ${BREAKPOINT_MEDIA_QUERIES[breakpoint]} {\n${body}\n}`);
+  }
+  return blocks.join('\n');
 }
 
 /**
@@ -161,6 +302,71 @@ function escapeCssIdent(value: string): string {
 }
 
 /**
+ * CSS properties that React leaves unitless when given a number in an inline `style`.
+ * Everything else gets `px` appended, so serialized stylesheets (media queries, states,
+ * exported CSS) must do the same or `fontSize: 28` would render inline but be dropped
+ * as an invalid declaration in a stylesheet.
+ */
+const UNITLESS_CSS_PROPERTIES = new Set([
+  'animationIterationCount',
+  'aspectRatio',
+  'borderImageOutset',
+  'borderImageSlice',
+  'borderImageWidth',
+  'boxFlex',
+  'boxFlexGroup',
+  'boxOrdinalGroup',
+  'columnCount',
+  'columns',
+  'flex',
+  'flexGrow',
+  'flexPositive',
+  'flexShrink',
+  'flexNegative',
+  'flexOrder',
+  'gridArea',
+  'gridRow',
+  'gridRowEnd',
+  'gridRowSpan',
+  'gridRowStart',
+  'gridColumn',
+  'gridColumnEnd',
+  'gridColumnSpan',
+  'gridColumnStart',
+  'fontWeight',
+  'lineClamp',
+  'lineHeight',
+  'opacity',
+  'order',
+  'orphans',
+  'scale',
+  'tabSize',
+  'widows',
+  'zIndex',
+  'zoom',
+  'fillOpacity',
+  'floodOpacity',
+  'stopOpacity',
+  'strokeDasharray',
+  'strokeDashoffset',
+  'strokeMiterlimit',
+  'strokeOpacity',
+  'strokeWidth',
+]);
+
+function formatCssDeclarationValue(key: string, value: unknown): string {
+  if (
+    typeof value === 'number' &&
+    value !== 0 &&
+    !key.startsWith('--') &&
+    !UNITLESS_CSS_PROPERTIES.has(key)
+  ) {
+    return `${value}px`;
+  }
+  return escapeCssValue(value);
+}
+
+/**
  * Serialize a style definition object into CSS declarations.
  * camelCase keys are converted to kebab-case CSS properties.
  */
@@ -169,7 +375,19 @@ export function styleDefinitionToCssDeclarations(
   options?: { important?: boolean },
 ): string {
   if (!styleDefinition || typeof styleDefinition !== 'object') return '';
-  const normalized = normalizeStyleObject(styleDefinition);
+  return cssPropertiesToDeclarations(
+    normalizeStyleObject(styleDefinition) as Record<string, unknown>,
+    options,
+  );
+}
+
+/**
+ * Serialize an already-normalized style object into CSS declarations (no re-normalization).
+ */
+function cssPropertiesToDeclarations(
+  normalized: Record<string, unknown>,
+  options?: { important?: boolean },
+): string {
   const declarations: string[] = [];
   const suffix = options?.important ? ' !important' : '';
   for (const [key, value] of Object.entries(normalized)) {
@@ -183,7 +401,7 @@ export function styleDefinitionToCssDeclarations(
       // if not vendor prefix, trim leading dash
       property = property.substring(1);
     }
-    declarations.push(`${property}: ${escapeCssValue(value)}${suffix};`);
+    declarations.push(`${property}: ${formatCssDeclarationValue(key, value)}${suffix};`);
   }
   return declarations.join(' ');
 }
@@ -217,7 +435,7 @@ export function collectStateStylesCss(
         // Only accept pseudo-class-looking selectors to avoid selector injection.
         const safeState = /^::?[a-zA-Z-]+$/.test(state) ? state : null;
         if (!safeState) continue;
-        rules.push(`[data-kubuild-node="${escapeCssIdent(node.id)}"]${safeState} { ${declarations} }`);
+        rules.push(`${nodeAttributeSelector(node.id)}${safeState} { ${declarations} }`);
       }
     }
     node.children?.forEach(walk);

@@ -10,4 +10,12 @@ describe('@kubuild/react exports', () => {
     expect(kubuildReact.KubuildEditor).toBeDefined();
     expect(kubuildReact.useEditorStore).toBeDefined();
   });
+
+  it('re-exports the editor i18n API and LanguageSwitcher', () => {
+    expect(kubuildReact.LanguageSwitcher).toBeDefined();
+    expect(kubuildReact.registerEditorLocale).toBeDefined();
+    expect(kubuildReact.getTranslation).toBeDefined();
+    expect(kubuildReact.useTranslation).toBeDefined();
+    expect(kubuildReact.TranslationOverridesContext).toBeDefined();
+  });
 });

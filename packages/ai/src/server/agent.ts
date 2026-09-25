@@ -10,7 +10,11 @@ import type {
   AiToolUseBlock,
   KubuildAiEngineOptions,
 } from '../types';
-import { buildAgentSystemPrompt, compileComponentCatalog } from '../core/prompt-compiler';
+import {
+  buildAgentSystemPrompt,
+  compileComponentCatalog,
+  joinInstructions,
+} from '../core/prompt-compiler';
 import { getMessageText } from '../core/messages';
 import type { KubuildAiEngine } from './engine';
 import { createDocumentTools, toToolDefinitions, type AgentTool } from './tools';
@@ -112,7 +116,7 @@ export class KubuildAiAgent {
       const available = this.tools.map((t) => t.definition.name).join(', ');
       return {
         ok: false,
-        summary: `Tool "${call.name}" tidak dikenal`,
+        summary: `Tool "${call.name}" is unknown`,
         snapshot,
         block: {
           type: 'tool_result',
@@ -228,7 +232,7 @@ export class KubuildAiAgent {
       selectedNodeId: request.selectedNodeId,
       prefix: this.options.systemPromptPrefix,
       stylePreference: request.stylePreference,
-      additionalContext: request.systemPrompt,
+      additionalContext: joinInstructions(request.instructions, request.systemPrompt),
     });
 
     const toolDefinitions = toToolDefinitions(this.tools);
@@ -331,12 +335,12 @@ export class KubuildAiAgent {
 
       if (stoppedBy === 'complete' && step >= maxSteps && !summary) {
         stoppedBy = 'max-steps';
-        summary = `Berhenti setelah ${maxSteps} langkah. ${ops.length} perubahan sudah disiapkan — periksa hasilnya lalu minta lanjutan bila perlu.`;
+        summary = `Stopped after ${maxSteps} steps. ${ops.length} change(s) prepared — review them and ask to continue if needed.`;
         this.log('warn', `[AGENT] hit maxSteps (${maxSteps}) with ${ops.length} op(s)`);
       }
 
       if (stoppedBy === 'aborted' && !summary) {
-        summary = `Dihentikan. ${ops.length} perubahan sempat disiapkan.`;
+        summary = `Stopped. ${ops.length} change(s) were prepared before stopping.`;
       }
 
       yield {
@@ -358,7 +362,7 @@ export class KubuildAiAgent {
         type: 'agent-complete',
         result: {
           ops,
-          summary: summary || `Terjadi error: ${message}`,
+          summary: summary || `An error occurred: ${message}`,
           stepsUsed: step,
           stoppedBy: 'error',
           usage: { promptTokens, completionTokens },

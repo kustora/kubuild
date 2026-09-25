@@ -1,6 +1,12 @@
 import React, { useLayoutEffect, useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { PageDocument, type Artboard, type ArtboardType } from '@kubuild/schema';
-import { ComponentRegistry, STARTER_BLOCKS } from '@kubuild/components';
+import {
+  PageDocument,
+  findDeprecatedPropAliases,
+  getBreakpointForWidth,
+  type Artboard,
+  type ArtboardType,
+} from '@kubuild/schema';
+import { ComponentRegistry } from '@kubuild/components';
 import { KubuildRenderer, ArtboardPortalHost } from '@kubuild/renderer';
 import {
   RuntimeContext,
@@ -78,6 +84,8 @@ export interface EditorCanvasProps {
   componentArtboards?: Artboard[];
   /** Overrides the store's `activeArtboardId` for this render. */
   activeArtboardId?: string | null;
+  /** Overrides the store's `selectedNodeId` for this render. */
+  selectedNodeId?: string | null;
   className?: string;
 }
 
@@ -143,10 +151,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onPagesChange,
   componentArtboards: propComponentArtboards,
   activeArtboardId: propActiveArtboardId,
+  selectedNodeId: propSelectedNodeId,
   className,
 }) => {
   const storeDoc = useEditorStore((s) => s.document);
-  const selectedNodeId = useEditorStore((s) => s.selectedNodeId);
+  const storeSelectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const selectedNodeIds = useEditorStore((s) => s.selectedNodeIds);
   const hoveredNodeId = useEditorStore((s) => s.hoveredNodeId);
   const dragPayload = useEditorStore((s) => s.dragPayload);
@@ -175,6 +184,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const setComponentArtboardWidth = useEditorStore((s) => s.setComponentArtboardWidth);
 
   const document = propDoc ?? storeDoc;
+  const selectedNodeId =
+    propSelectedNodeId !== undefined ? propSelectedNodeId : storeSelectedNodeId;
   const aiGenerationStatus = propAiGenerationStatus ?? storeAiGenerationStatus;
   const componentArtboards = propComponentArtboards ?? storeComponentArtboards;
   const activeArtboardId =
@@ -237,11 +248,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     return 1200;
   };
 
-  const getBreakpointFromWidth = (w: number): Viewport => {
-    if (w < 768) return 'mobile';
-    if (w < 1024) return 'tablet';
-    return 'desktop';
-  };
+  const getBreakpointFromWidth = (w: number): Viewport => getBreakpointForWidth(w);
 
   // Per-page responsive state map
   const [pageResponsiveMap, setPageResponsiveMap] = useState<
@@ -816,6 +823,18 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     if (previewMode || e.button !== 0) return;
 
     const target = e.target as HTMLElement;
+
+    // Ignore clicks on floating action badges, interactive overlays, or buttons so they don't trigger canvas marquee/pan
+    if (
+      target.closest('[data-testid="floating-action-badges"]') ||
+      target.closest('[data-testid="resize-handles"]') ||
+      target.closest('[data-testid="spacing-sliders"]') ||
+      target.closest('button') ||
+      target.closest('[role="button"]')
+    ) {
+      return;
+    }
+
     const clickedNode = target.closest('[data-kubuild-node]');
     const isRootOrEmpty = !clickedNode || clickedNode.getAttribute('data-kubuild-node') === document.document.id;
 
@@ -925,7 +944,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       return;
     }
     const el = target.closest('[data-kubuild-node]');
-    const nodeId = el?.getAttribute('data-kubuild-node');
+    const nodeId =
+      el?.getAttribute('data-kubuild-node') ||
+      target.getAttribute('data-node-id') ||
+      target.closest('[data-node-id]')?.getAttribute('data-node-id') ||
+      selectedNodeId;
     if (!nodeId || nodeId === document.document.id) {
       e.preventDefault();
       return;
@@ -961,7 +984,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     } else if (activePayload.type === 'component') {
       incomingType = activePayload.componentType;
     } else if (activePayload.type === 'block') {
-      const blockDef = STARTER_BLOCKS.find((b) => b.id === activePayload.blockId);
+      const blockDef =
+        activePayload.block ??
+        useEditorStore.getState().getBlockDefinition(activePayload.blockId);
       if (blockDef) {
         try {
           const sample = blockDef.createNodeTree(() => 'sample');
@@ -1094,7 +1119,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           dropTarget.index,
         );
       } else if (activePayload.type === 'block') {
-        insertBlock(activePayload.blockId, dropTarget.parentId, dropTarget.index);
+        insertBlock(
+          activePayload.block ?? activePayload.blockId,
+          dropTarget.parentId,
+          dropTarget.index,
+        );
       }
     }
 
@@ -1370,7 +1399,17 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     onNodePropChange={(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => {
                       if (previewMode) return;
                       if (!isBlur && typeof value === 'string' && value.trim() === '') return;
-                      updateNodeProps(nodeId, { [propName]: value }, registry);
+                      // STORA-550: inline edits write the canonical prop; drop deprecated aliases
+                      // so a legacy node doesn't end up with two competing text props.
+                      const editedNode = findNodeById(activeDoc.document, nodeId);
+                      const aliasRemovals = editedNode
+                        ? Object.fromEntries(
+                            findDeprecatedPropAliases(editedNode.type, editedNode.props)
+                              .filter((usage) => usage.canonicalName === propName)
+                              .map((usage) => [usage.propName, undefined]),
+                          )
+                        : {};
+                      updateNodeProps(nodeId, { ...aliasRemovals, [propName]: value }, registry);
                     }}
                     onActionDispatch={(
                       actionType: string,

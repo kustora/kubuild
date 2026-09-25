@@ -33,6 +33,8 @@ export interface ActionStepFormProps {
   onUpdateBranches?: (branches: { onSuccess?: ActionStep[]; onError?: ActionStep[] }) => void;
   className?: string;
   hideBranches?: boolean;
+  /** Trigger of the pipeline this step belongs to (e.g. `submit`), used for trigger-specific hints. */
+  trigger?: string;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -172,8 +174,11 @@ export const ApiRequestStepForm: React.FC<{
   payload: Record<string, unknown>;
   document?: PageDocument;
   onChange: (payload: Record<string, unknown>) => void;
-}> = ({ payload, document, onChange }) => {
+  /** Trigger of the owning pipeline; on `submit` an omitted body defaults to the form values. */
+  pipelineTrigger?: string;
+}> = ({ payload, document, onChange, pipelineTrigger }) => {
   const method = (payload.method as string) || 'GET';
+  const showSubmitBodyDefaultHint = pipelineTrigger === 'submit' && payload.body === undefined;
   const url = (payload.url as string) || '';
   const bodyFormat = (payload.bodyFormat as string) || (payload.bodyType as string) || 'json';
   const timeout = typeof payload.timeout === 'number' ? payload.timeout : '';
@@ -506,6 +511,16 @@ export const ApiRequestStepForm: React.FC<{
               </select>
             </div>
           </div>
+
+          {showSubmitBodyDefaultHint && (
+            <div
+              data-testid="body-submit-default-hint"
+              className="text-[11px] text-blue-300 bg-blue-500/10 border border-blue-500/30 rounded-lg px-2.5 py-1.5"
+            >
+              Default: entire form data. Leave the body empty to send all form field values
+              (same as <code className="font-mono">{'{{form}}'}</code>).
+            </div>
+          )}
 
           {bodyMode === 'fields' ? (
             /* Form Inputs Mode (Key-Value Builder with Variable Autocomplete) */
@@ -1143,6 +1158,272 @@ export const CustomEventStepForm: React.FC<{
 };
 
 // ------------------------------------------------------------------------------------------------
+// 10. Track Event Step Form (Pixel & Server CAPI)
+// ------------------------------------------------------------------------------------------------
+
+export interface TrackEventStepFormProps {
+  payload: Record<string, unknown>;
+  document?: PageDocument;
+  onChange: (updatedPayload: Record<string, unknown>) => void;
+}
+
+const STANDARD_TRACKING_EVENTS = [
+  'PageView',
+  'ViewContent',
+  'AddToCart',
+  'InitiateCheckout',
+  'Purchase',
+  'Lead',
+  'Contact',
+  'CompleteRegistration',
+  'Subscribe',
+  'Search',
+  'SubmitApplication',
+  'Schedule',
+];
+
+export const TrackEventStepForm: React.FC<TrackEventStepFormProps> = ({
+  payload,
+  document,
+  onChange,
+}) => {
+  const eventName = (payload.eventName as string) || 'Lead';
+  const isCustomEvent = !STANDARD_TRACKING_EVENTS.includes(eventName);
+  const [selectedEventChoice, setSelectedEventChoice] = useState<string>(
+    isCustomEvent ? 'custom' : eventName,
+  );
+  const [customEventInput, setCustomEventInput] = useState<string>(
+    isCustomEvent ? eventName : '',
+  );
+
+  const provider = (payload.provider as string) || 'all';
+  const delivery = (payload.delivery as string) || 'both';
+  const eventId = (payload.eventId as string) || '';
+  const params = (payload.params as Record<string, unknown>) || {};
+  const userData = (payload.userData as Record<string, unknown>) || {};
+  const enabled = payload.enabled !== false;
+
+  const handleEventSelect = (val: string) => {
+    setSelectedEventChoice(val);
+    if (val === 'custom') {
+      onChange({ ...payload, eventName: customEventInput || 'CustomEvent', eventType: 'custom' });
+    } else {
+      onChange({ ...payload, eventName: val, eventType: 'standard' });
+    }
+  };
+
+  const handleCustomEventInputChange = (val: string) => {
+    setCustomEventInput(val);
+    onChange({ ...payload, eventName: val, eventType: 'custom' });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Event Active toggle */}
+      <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+        <span className="text-xs text-slate-300 font-medium">Enable This Tracking Step</span>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onChange({ ...payload, enabled: e.target.checked })}
+          className="rounded border-slate-600 bg-slate-950 text-blue-600 focus:ring-0 accent-blue-600 w-4 h-4 cursor-pointer"
+        />
+      </div>
+
+      {/* Event Name */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            Event Name
+          </label>
+          <span className="text-[10px] text-blue-400 font-medium">
+            {isCustomEvent ? 'Custom Event' : 'Standard Event'}
+          </span>
+        </div>
+
+        {/* Quick event presets for button click conversions */}
+        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mr-0.5">Presets:</span>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedEventChoice('custom');
+              setCustomEventInput('ClickWhatsApp');
+              onChange({
+                ...payload,
+                eventName: 'ClickWhatsApp',
+                eventType: 'custom',
+                params: { ...params, channel: 'whatsapp' },
+              });
+            }}
+            className="px-2 py-0.5 text-[11px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded transition cursor-pointer"
+          >
+            WhatsApp Click
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedEventChoice('custom');
+              setCustomEventInput('ButtonClick');
+              onChange({
+                ...payload,
+                eventName: 'ButtonClick',
+                eventType: 'custom',
+                params: { ...params, button_id: 'btn_click' },
+              });
+            }}
+            className="px-2 py-0.5 text-[11px] bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded transition cursor-pointer"
+          >
+            Button Click
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedEventChoice('Lead');
+              setCustomEventInput('');
+              onChange({
+                ...payload,
+                eventName: 'Lead',
+                eventType: 'standard',
+              });
+            }}
+            className="px-2 py-0.5 text-[11px] bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded transition cursor-pointer"
+          >
+            Lead
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedEventChoice('Purchase');
+              setCustomEventInput('');
+              onChange({
+                ...payload,
+                eventName: 'Purchase',
+                eventType: 'standard',
+                params: { ...params, value: params.value ?? 0, currency: params.currency ?? 'IDR' },
+              });
+            }}
+            className="px-2 py-0.5 text-[11px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded transition cursor-pointer"
+          >
+            Purchase
+          </button>
+        </div>
+
+        <select
+          value={selectedEventChoice}
+          onChange={(e) => handleEventSelect(e.target.value)}
+          className="w-full text-xs font-medium bg-slate-950 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 mb-2 cursor-pointer"
+        >
+          <optgroup label="Standard Events">
+            {STANDARD_TRACKING_EVENTS.map((ev) => (
+              <option key={ev} value={ev}>
+                {ev}
+              </option>
+            ))}
+          </optgroup>
+          <option value="custom">-- Custom Event Name --</option>
+        </select>
+
+        {selectedEventChoice === 'custom' && (
+          <div className="space-y-1">
+            <input
+              type="text"
+              value={customEventInput}
+              onChange={(e) => handleCustomEventInputChange(e.target.value)}
+              placeholder="e.g. ClickWhatsApp or Tombol_X_Beli"
+              className="w-full text-xs font-medium bg-slate-950 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+            />
+            <span className="text-[10px] text-slate-400 block">
+              Custom events are sent as <code className="text-emerald-400 font-mono">fbq(&apos;trackCustom&apos;, &apos;{customEventInput || 'YourEvent'}&apos;)</code> on Meta, and forwarded directly to TikTok &amp; Server CAPI.
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Target Provider & Delivery */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div>
+          <label className="block font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+            Target Platform
+          </label>
+          <select
+            value={provider}
+            onChange={(e) => onChange({ ...payload, provider: e.target.value })}
+            className="w-full bg-slate-950 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:ring-1 focus:ring-blue-500 cursor-pointer"
+          >
+            <option value="all">All Providers</option>
+            <option value="meta">Meta (Pixel & CAPI)</option>
+            <option value="google">Google Analytics 4</option>
+            <option value="gtm">Google Tag Manager (dataLayer, client only)</option>
+            <option value="tiktok">TikTok</option>
+            <option value="custom">Custom Webhook</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+            Delivery Channel
+          </label>
+          <select
+            value={delivery}
+            onChange={(e) => onChange({ ...payload, delivery: e.target.value })}
+            className="w-full bg-slate-950 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 focus:ring-1 focus:ring-blue-500 cursor-pointer"
+          >
+            <option value="both">Both (Browser Pixel + Server CAPI)</option>
+            <option value="client_only">Browser Pixel Only</option>
+            <option value="server_only">Server CAPI Only</option>
+          </select>
+          {delivery !== 'client_only' && (
+            <span className="text-[10px] text-slate-500 mt-1 block">
+              Server delivery goes through the host&apos;s tracking relay; secrets are never stored in the page.
+              Without a host relay, the server part is skipped.
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Event ID (Deduplication) */}
+      <div>
+        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          Event ID / Deduplication Key (Optional)
+        </label>
+        <VariableAutocompleteInput
+          value={eventId}
+          onChange={(val) => onChange({ ...payload, eventId: val })}
+          document={document}
+          placeholder="Leave blank to auto-generate unique ID, or e.g. {{form.order_id}}"
+        />
+        <span className="text-[10px] text-slate-500 mt-1 block">
+          When sending to both Browser Pixel and Server CAPI, matching Event IDs prevent double-counting.
+        </span>
+      </div>
+
+      {/* Event Parameters (custom_data) */}
+      <KeyValueEditor
+        title="Event Parameters (Value, Currency, Content Name, etc.)"
+        entries={params}
+        document={document}
+        onChange={(upd) => onChange({ ...payload, params: upd })}
+        keyPlaceholder="Parameter (e.g. value, currency)"
+        valuePlaceholder="Value (e.g. 150000 or {{form.price}})"
+        emptyLabel="No custom event parameters configured"
+      />
+
+      {/* User Data (for CAPI advanced matching) */}
+      <KeyValueEditor
+        title="User Data for CAPI Matching (email, phone, etc.)"
+        entries={userData}
+        document={document}
+        onChange={(upd) => onChange({ ...payload, userData: upd })}
+        keyPlaceholder="User Field (e.g. email, phone)"
+        valuePlaceholder="Value (e.g. {{form.email}})"
+        emptyLabel="No user data properties configured"
+      />
+    </div>
+  );
+};
+
+// ------------------------------------------------------------------------------------------------
 // Master Step Form Container
 // ------------------------------------------------------------------------------------------------
 
@@ -1154,6 +1435,7 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
   onUpdateBranches,
   className = '',
   hideBranches = false,
+  trigger,
 }) => {
   const [label, setLabel] = useState<string>(step.label || '');
   const [continueOnError, setContinueOnError] = useState<boolean>(Boolean(step.continueOnError));
@@ -1177,7 +1459,14 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
     const payload = step.payload || {};
     switch (step.type) {
       case 'api_request':
-        return <ApiRequestStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
+        return (
+          <ApiRequestStepForm
+            payload={payload}
+            document={document}
+            onChange={onUpdatePayload}
+            pipelineTrigger={trigger}
+          />
+        );
       case 'show_toast':
         return <ShowToastStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'navigate':
@@ -1208,6 +1497,8 @@ export const ActionStepForm: React.FC<ActionStepFormProps> = ({
         return <CopyClipboardStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       case 'custom_event':
         return <CustomEventStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
+      case 'track_event':
+        return <TrackEventStepForm payload={payload} document={document} onChange={onUpdatePayload} />;
       default:
         return (
           <div className="text-xs text-slate-400 italic p-3 bg-slate-950 rounded">

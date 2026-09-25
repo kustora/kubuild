@@ -5,3 +5,4 @@ export * from './load-project';
 export * from './round-trip-comparator';
 export * from './template-utils';
 
+export * from './tracking-sanitizer';

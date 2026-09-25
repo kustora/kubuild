@@ -6,11 +6,13 @@ import {
   TRAIT_GROUP_LABELS,
   TraitGroup,
 } from '@kubuild/components';
-import { findNodeById } from '@kubuild/core';
+import { findNodeById, AssetProvider } from '@kubuild/core';
 import { PageDocument, FormConfig } from '@kubuild/schema';
-import { X } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Link2 } from 'lucide-react';
 import { FormValidationRulesPanel, isFormFieldNode } from './form-validation-rules-panel';
 import { useEditorStore } from '../../store';
+import { useTranslation } from '../../i18n';
+import type { MediaTranslations } from '../../i18n';
 
 export interface TraitsPanelProps {
   registry: ComponentRegistry;
@@ -21,6 +23,8 @@ export interface TraitsPanelProps {
   /** Commit form configuration updates (including validation rules) to the node. */
   onUpdateFormConfig?: (formConfig: Partial<FormConfig> | null) => void;
   className?: string;
+  /** Host asset provider for direct uploads and asset management */
+  assetProvider?: AssetProvider;
 }
 
 function ErrorText({ message }: { message: string | null | undefined }) {
@@ -73,11 +77,40 @@ const TraitStringControl: React.FC<TraitStringControlProps> = ({ trait, value, o
   );
 };
 
-const TraitMediaSrcControl: React.FC<TraitStringControlProps> = ({ trait, value, onCommit }) => {
+function getAssetDisplayName(urlOrData: string, media: MediaTranslations): string {
+  if (!urlOrData) return '';
+  if (urlOrData.startsWith('data:image/')) return media.embeddedImage;
+  if (urlOrData.startsWith('blob:')) return media.blobFile;
+  try {
+    const parsed = new URL(urlOrData);
+    const pathname = parsed.pathname;
+    const segments = pathname.split('/').filter(Boolean);
+    const last = segments[segments.length - 1];
+    if (last) {
+      const decoded = decodeURIComponent(last);
+      const cleanName = decoded.replace(/^(\d{10,14}|[a-f0-9-]{36})[-_]/, '');
+      return cleanName || decoded;
+    }
+  } catch {
+    const segments = urlOrData.split('/').filter(Boolean);
+    return segments[segments.length - 1] || urlOrData;
+  }
+  return media.imageAsset;
+}
+
+interface TraitMediaSrcControlProps extends TraitStringControlProps {
+  assetProvider?: AssetProvider;
+}
+
+const TraitMediaSrcControl: React.FC<TraitMediaSrcControlProps> = ({ trait, value, onCommit, assetProvider }) => {
   const valueStr = typeof value === 'string' ? value : '';
   const [text, setText] = useState(valueStr);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFocusedRef = useRef(false);
+  const { media } = useTranslation().t;
 
   useEffect(() => {
     if (!isFocusedRef.current) {
@@ -85,22 +118,47 @@ const TraitMediaSrcControl: React.FC<TraitStringControlProps> = ({ trait, value,
     }
   }, [value]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setText(dataUrl);
-      onCommit(dataUrl);
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+
+    if (assetProvider?.upload) {
+      setIsUploading(true);
+      setUploadError(null);
+      try {
+        const info = await assetProvider.upload(file);
+        setText(info.url);
+        onCommit(info.url);
+        setShowUrlInput(false);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : media.uploadFailed;
+        setUploadError(msg);
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setText(dataUrl);
+        onCommit(dataUrl);
+        setShowUrlInput(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleClear = () => {
+    setText('');
+    onCommit('');
+    setShowUrlInput(false);
   };
 
   const isDataUrl = text.startsWith('data:image/');
   const hasPreview = text.trim().length > 0 && (isDataUrl || text.startsWith('http://') || text.startsWith('https://') || text.startsWith('blob:'));
   const isLocalFilePath = text.trim().startsWith('file:') || /^[a-zA-Z]:\\/.test(text.trim());
+  const displayName = getAssetDisplayName(text, media);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -110,74 +168,153 @@ const TraitMediaSrcControl: React.FC<TraitStringControlProps> = ({ trait, value,
         onChange={handleFileUpload}
         accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml, image/gif, image/avif"
         className="hidden"
+        disabled={isUploading}
       />
-      <div className="flex items-center gap-1.5">
-        <input
-          type="text"
-          value={text}
-          onFocus={() => {
-            isFocusedRef.current = true;
-          }}
-          onChange={(e) => {
-            setText(e.target.value);
-            onCommit(e.target.value);
-          }}
-          onBlur={() => {
-            isFocusedRef.current = false;
-            onCommit(text);
-          }}
-          placeholder={trait.defaultValue !== undefined ? String(trait.defaultValue) : 'https://... or upload local image'}
-          className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
-        />
-        <button
-          type="button"
-          title="Upload local image from device"
-          aria-label="Upload local image from device"
-          onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          <span className="text-[11px]">Upload</span>
-        </button>
-      </div>
 
-      {hasPreview && (
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded p-1.5">
-          <img
-            src={text}
-            alt="Preview"
-            className="w-8 h-8 object-cover rounded border border-slate-300 bg-white"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
-          />
-          <div className="flex-1 min-w-0 flex flex-col">
-            <span className="text-[11px] font-medium text-slate-700 truncate">
-              {isDataUrl ? 'Local Image (Embedded)' : text}
-            </span>
-            <span className="text-[10px] text-slate-400">
-              {isDataUrl ? 'Base64 image data' : 'URL / Asset'}
-            </span>
+      {hasPreview ? (
+        <div className="flex flex-col gap-1.5">
+          {/* Preview Card without showing ugly raw URL */}
+          <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 shadow-2xs">
+            {/* Top row: Thumbnail + Details + Remove button */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded border border-slate-300 bg-white overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                <img
+                  src={text}
+                  alt={media.previewAlt}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <span className="text-xs font-semibold text-slate-800 truncate" title={displayName}>
+                  {displayName}
+                </span>
+                <span className="text-[10px] text-slate-400 truncate">
+                  {isDataUrl ? media.localImage : media.imageAsset}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleClear}
+                title={media.removeImage}
+                aria-label={media.removeImage}
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded border border-slate-200 bg-white transition cursor-pointer shadow-2xs shrink-0"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            </div>
+
+            {/* Bottom action row: Replace */}
+            <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200/60">
+              <button
+                type="button"
+                title={isUploading ? media.uploadingImage : media.replaceImageTitle}
+                aria-label={media.replaceImageAria}
+                disabled={isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 py-1.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-700 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center justify-center gap-1.5 font-medium cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                {isUploading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                <span className="text-[11px]">{isUploading ? media.uploading : media.replace}</span>
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setText('');
-              onCommit('');
-            }}
-            title="Clear image"
-            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer text-xs"
-          >
-            <X className="w-3.5 h-3.5" aria-hidden="true" />
-          </button>
+
+          {/* Optional toggle for manual URL if needed */}
+          {showUrlInput ? (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <input
+                type="text"
+                value={text}
+                disabled={isUploading}
+                onFocus={() => {
+                  isFocusedRef.current = true;
+                }}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  onCommit(e.target.value);
+                }}
+                onBlur={() => {
+                  isFocusedRef.current = false;
+                  onCommit(text);
+                }}
+                placeholder="https://..."
+                className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowUrlInput(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 text-xs"
+                title={media.hideUrl}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(true)}
+              className="text-[10px] text-slate-400 hover:text-slate-600 self-start flex items-center gap-1 hover:underline cursor-pointer"
+            >
+              <Link2 className="w-3 h-3" />
+              <span>{media.useManualUrl}</span>
+            </button>
+          )}
         </div>
+      ) : (
+        /* When NO image is selected yet */
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={text}
+              disabled={isUploading}
+              onFocus={() => {
+                isFocusedRef.current = true;
+              }}
+              onChange={(e) => {
+                setText(e.target.value);
+                onCommit(e.target.value);
+              }}
+              onBlur={() => {
+                isFocusedRef.current = false;
+                onCommit(text);
+              }}
+              placeholder={trait.defaultValue !== undefined ? String(trait.defaultValue) : media.urlOrUploadPlaceholder}
+              className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+            />
+            <button
+              type="button"
+              title={isUploading ? media.uploading : media.uploadFromDevice}
+              aria-label={media.uploadFromDevice}
+              disabled={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+            >
+              {isUploading ? (
+                <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              <span className="text-[11px]">{isUploading ? media.uploading : media.upload}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {uploadError && (
+        <span className="text-[10px] text-red-500 font-medium">{uploadError}</span>
       )}
 
       {isLocalFilePath && (
         <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 leading-tight">
-          Browsers cannot open direct local paths (<code className="font-mono">file://</code>). Click <strong>Upload</strong> above to select and load the local image directly.
+          {media.localPathWarning(media.upload)}
         </div>
       )}
     </div>
@@ -287,6 +424,7 @@ function renderTraitControl(
   trait: ComponentTraitDefinition,
   value: unknown,
   onCommit: (value: unknown) => void,
+  assetProvider?: AssetProvider,
 ): React.ReactNode {
   switch (trait.type) {
     case 'number':
@@ -298,7 +436,7 @@ function renderTraitControl(
     case 'string':
     default:
       if (trait.name === 'src') {
-        return <TraitMediaSrcControl trait={trait} value={value} onCommit={onCommit} />;
+        return <TraitMediaSrcControl trait={trait} value={value} onCommit={onCommit} assetProvider={assetProvider} />;
       }
       return <TraitStringControl trait={trait} value={value} onCommit={onCommit} />;
   }
@@ -407,6 +545,7 @@ export const TraitsPanel: React.FC<TraitsPanelProps> = ({
   onCommitTrait,
   onUpdateFormConfig,
   className,
+  assetProvider,
 }) => {
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const definition = node ? registry.get(node.type) : undefined;
@@ -498,7 +637,7 @@ export const TraitsPanel: React.FC<TraitsPanelProps> = ({
                         </span>
                       )}
                     </label>
-                    {renderTraitControl(trait, value, (v) => onCommitTrait(trait.name, v))}
+                    {renderTraitControl(trait, value, (v) => onCommitTrait(trait.name, v), assetProvider)}
                     {trait.description && (
                       <div className="text-[10px] text-slate-400 mt-0.5">{trait.description}</div>
                     )}

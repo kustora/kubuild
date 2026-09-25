@@ -21,12 +21,14 @@ import {
   Check,
   AlertCircle,
   Sparkles,
+  Activity,
 } from 'lucide-react';
 import {
   collectDocumentModals,
   collectDocumentForms,
 } from '../../utils/document-scanner';
 import { VariableAutocompleteInput } from '../ui/variable-autocomplete-input';
+import { KeyValueEditor } from '../action-builder/action-step-form';
 
 export interface ActionPropControlProps {
   nodeId: string;
@@ -131,6 +133,22 @@ export const ACTION_TYPES: ActionTypeMeta[] = [
     icon: Zap,
     defaultPayload: { eventName: 'custom:action', bubbles: true },
   },
+  {
+    type: 'track_event',
+    label: 'Track Event / Pixel',
+    shortLabel: 'Track Pixel',
+    description: 'Trigger Meta Pixel, GA4, TikTok, or server CAPI tracking',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    icon: Activity,
+    defaultPayload: {
+      eventName: 'Lead',
+      eventType: 'standard',
+      provider: 'all',
+      delivery: 'both',
+      params: {},
+      userData: {},
+    },
+  },
 ];
 
 export function getActionTypeMeta(type: string): ActionTypeMeta {
@@ -189,6 +207,12 @@ export function formatActionSummary(action: ActionBinding): string {
     case 'custom_event': {
       const name = (payload.eventName as string) || '';
       return name ? `Emit "${name}"` : 'Custom Event';
+    }
+    case 'track_event': {
+      const name = (payload.eventName as string) || '';
+      const eventType = payload.eventType === 'custom' ? ' (Custom)' : '';
+      const provider = (payload.provider as string) || 'all';
+      return name ? `Track ${name}${eventType} [${provider}]` : 'Track Event';
     }
     default:
       return JSON.stringify(payload);
@@ -668,16 +692,225 @@ export const ActionPropControl: React.FC<ActionPropControlProps> = ({
             </div>
           )}
 
-          {/* CUSTOM EVENT */}
+          {/* CUSTOM DOM EVENT */}
           {action.type === 'custom_event' && (
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-700">Event Name</label>
-              <input
-                type="text"
-                value={(payload.eventName as string) || ''}
-                onChange={(e) => updatePayload({ eventName: e.target.value })}
-                placeholder="e.g. app:user-signup"
-                className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+            <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-slate-700">Custom Event Name</label>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => updatePayload({ eventName: 'button:click' })}
+                    className="px-2 py-0.5 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded transition cursor-pointer"
+                  >
+                    button:click
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updatePayload({ eventName: 'custom:action' })}
+                    className="px-2 py-0.5 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded transition cursor-pointer"
+                  >
+                    custom:action
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updatePayload({ eventName: 'modal:opened' })}
+                    className="px-2 py-0.5 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded transition cursor-pointer"
+                  >
+                    modal:opened
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={(payload.eventName as string) || ''}
+                  onChange={(e) => updatePayload({ eventName: e.target.value })}
+                  placeholder="e.g. app:user-signup or button:clicked"
+                  className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-[11px]"
+                />
+                <span className="text-[10px] text-slate-500">
+                  Dispatches <code className="font-mono text-slate-600">new CustomEvent(name, detail)</code> on the window.
+                </span>
+              </div>
+
+              <KeyValueEditor
+                title="Event Detail Payload"
+                entries={(payload.detail as Record<string, unknown>) || {}}
+                document={document}
+                onChange={(detail) => updatePayload({ detail })}
+                keyPlaceholder="Detail Key"
+                valuePlaceholder="Detail Value (e.g. {{form.email}})"
+                emptyLabel="No custom detail properties configured"
+              />
+            </div>
+          )}
+
+          {/* TRACK EVENT / PIXEL */}
+          {action.type === 'track_event' && (
+            <div className="flex flex-col gap-2.5">
+              {/* Presets */}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-medium text-slate-700">Quick Event Presets</span>
+                  <span className="text-[10px] text-blue-600 font-medium">
+                    {payload.eventType === 'custom' ||
+                    !['Lead', 'Purchase', 'AddToCart', 'InitiateCheckout', 'Contact', 'PageView'].includes(
+                      (payload.eventName as string) || '',
+                    )
+                      ? 'Custom Event'
+                      : 'Standard Event'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updatePayload({
+                        eventName: 'ClickWhatsApp',
+                        eventType: 'custom',
+                        params: { channel: 'whatsapp', ...(payload.params as Record<string, unknown> || {}) },
+                      })
+                    }
+                    className="px-2 py-0.5 text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded transition cursor-pointer"
+                  >
+                    WhatsApp Click
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updatePayload({
+                        eventName: 'ButtonClick',
+                        eventType: 'custom',
+                        params: { button_id: nodeId, ...(payload.params as Record<string, unknown> || {}) },
+                      })
+                    }
+                    className="px-2 py-0.5 text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded transition cursor-pointer"
+                  >
+                    Button Click
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updatePayload({ eventName: 'Lead', eventType: 'standard' })}
+                    className="px-2 py-0.5 text-[11px] bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded transition cursor-pointer"
+                  >
+                    Lead
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updatePayload({
+                        eventName: 'Purchase',
+                        eventType: 'standard',
+                        params: { value: 0, currency: 'IDR', ...(payload.params as Record<string, unknown> || {}) },
+                      })
+                    }
+                    className="px-2 py-0.5 text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded transition cursor-pointer"
+                  >
+                    Purchase
+                  </button>
+                </div>
+              </div>
+
+              {/* Event Name Input */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-slate-700">
+                  Event Name (Standard or Custom)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={
+                      ['Lead', 'Purchase', 'AddToCart', 'InitiateCheckout', 'Contact', 'CompleteRegistration', 'ViewContent'].includes(
+                        (payload.eventName as string) || '',
+                      )
+                        ? (payload.eventName as string)
+                        : 'custom'
+                    }
+                    onChange={(e) => {
+                      if (e.target.value === 'custom') {
+                        updatePayload({ eventType: 'custom' });
+                      } else {
+                        updatePayload({ eventName: e.target.value, eventType: 'standard' });
+                      }
+                    }}
+                    className="w-1/2 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <optgroup label="Standard Events">
+                      <option value="Lead">Lead</option>
+                      <option value="Purchase">Purchase</option>
+                      <option value="AddToCart">AddToCart</option>
+                      <option value="InitiateCheckout">InitiateCheckout</option>
+                      <option value="Contact">Contact</option>
+                      <option value="CompleteRegistration">CompleteRegistration</option>
+                      <option value="ViewContent">ViewContent</option>
+                    </optgroup>
+                    <option value="custom">-- Custom Event Name --</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={(payload.eventName as string) || ''}
+                    onChange={(e) =>
+                      updatePayload({
+                        eventName: e.target.value,
+                        eventType: [
+                          'Lead',
+                          'Purchase',
+                          'AddToCart',
+                          'InitiateCheckout',
+                          'Contact',
+                          'CompleteRegistration',
+                          'ViewContent',
+                        ].includes(e.target.value)
+                          ? 'standard'
+                          : 'custom',
+                      })
+                    }
+                    placeholder="e.g. ClickWhatsApp or Tombol_X_Beli"
+                    className="flex-1 min-w-0 text-xs bg-white text-slate-900 border border-slate-300 rounded px-2.5 py-1.5 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <span className="text-[10px] text-slate-500">
+                  Custom events are delivered as <code className="font-mono text-emerald-600">fbq(&apos;trackCustom&apos;, &apos;{(payload.eventName as string) || 'Event'}&apos;)</code> to Meta, and forwarded to TikTok, GA4, and CAPI.
+                </span>
+              </div>
+
+              {/* Provider & Delivery */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-slate-700">Platform</label>
+                  <select
+                    value={(payload.provider as string) || 'all'}
+                    onChange={(e) => updatePayload({ provider: e.target.value })}
+                    className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="all">All Providers</option>
+                    <option value="meta">Meta (Pixel/CAPI)</option>
+                    <option value="google">Google Analytics 4</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="custom">Custom Webhook</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-slate-700">Delivery</label>
+                  <select
+                    value={(payload.delivery as string) || 'both'}
+                    onChange={(e) => updatePayload({ delivery: e.target.value })}
+                    className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="both">Both (Pixel + CAPI)</option>
+                    <option value="client_only">Browser Pixel Only</option>
+                    <option value="server_only">Server CAPI Only</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Event Parameters */}
+              <KeyValueEditor
+                title="Event Parameters"
+                entries={(payload.params as Record<string, unknown>) || {}}
+                document={document}
+                onChange={(params) => updatePayload({ params })}
+                keyPlaceholder="Parameter (e.g. button_name, value)"
+                valuePlaceholder="Value (e.g. {{form.price}})"
+                emptyLabel="No custom event parameters"
               />
             </div>
           )}

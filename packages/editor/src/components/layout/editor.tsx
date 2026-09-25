@@ -1,16 +1,44 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { PageDocument } from '@kubuild/schema';
-import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { PageDocument, getBreakpointForWidth } from '@kubuild/schema';
+import type { TemplateRecord } from '@kubuild/schema';
+import type { PixelCredentialOption } from '@kubuild/schema';
+import type { SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
+import {
+  BlockDefinition,
+  ComponentRegistry,
+  createDefaultComponentRegistry,
+} from '@kubuild/components';
 import {
   RuntimeContext,
   VariableCatalog,
   Diagnostic,
   buildSampleVariablesFromCatalog,
+  AssetProvider,
 } from '@kubuild/core';
-import { useEditorStore, Viewport } from '../../store';
+import {
+  useEditorStore,
+  Viewport,
+  EditorLocale,
+  BlocksMode,
+  resolveBlockRegistry,
+} from '../../store';
+import { TranslationOverridesContext, TranslationOverrides } from '../../i18n';
+import { createControlledStoreSync, ControlledStoreSync } from './controlled-store-sync';
+import { buildEditorPreviewContext } from './preview-context';
+import {
+  createEditorSaveController,
+  EditorAutosaveOptions,
+  EditorSaveController,
+  EditorSaveHandler,
+  EditorSaveState,
+} from './save-controller';
+import { createEditorHandle, EditorHandle } from './editor-handle';
+import { SaveStatusButton } from './save-status';
+import { TemplateToolbarAction } from '../templates/template-toolbar-action';
 import { EditorCanvas, EditorPageItem } from '../canvas';
 import { MultiDevicePreview } from '../canvas/multi-device-preview';
 import { EditorToolbar } from './toolbar';
+import { PanelResizeHandle } from './panel-resize-handle';
 import { InspectorPanel } from '../panels/inspector-panel';
 import { LayersPanel } from '../panels/layers-panel';
 import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/table-spreadsheet-editor';
@@ -47,7 +75,26 @@ export interface KubuildEditorProps {
   initialDocument?: PageDocument;
   pages?: EditorPageItem[];
   activePageId?: string;
+  /**
+   * Controlled selection. Whenever this prop changes it is synced into the editor store,
+   * so canvas, Inspector, Layers and shell chrome all follow it. Selection changes made
+   * inside the editor are reported through `onSelectionChange`.
+   */
   selectedNodeId?: string | null;
+  /** Fires when the primary selected node changes inside the editor (not for prop echoes). */
+  onSelectionChange?: (nodeId: string | null) => void;
+  /**
+   * UI locale. Applied on mount and whenever the prop changes; the `LanguageSwitcher` can
+   * still change it afterwards (reported via `onLocaleChange`).
+   */
+  locale?: EditorLocale;
+  /** Fires when the active UI locale changes inside the editor (not for prop echoes). */
+  onLocaleChange?: (locale: EditorLocale) => void;
+  /**
+   * Translation overrides per locale, deep-merged over the built-in dictionaries. Missing
+   * keys fall back to the built-in locale; custom locale codes fall back to English.
+   */
+  translations?: TranslationOverrides;
   onActivePageChange?: (pageId: string) => void;
   onPagesChange?: (pages: EditorPageItem[]) => void;
   registry?: ComponentRegistry;
@@ -63,14 +110,70 @@ export interface KubuildEditorProps {
    * The host (consumer) always supplies its own provider adapter/endpoint/API key.
    */
   ai?: AiEditorConfig;
+  /** Saved pixel credentials from account/workspace for the tracking settings modal */
+  trackingCredentials?: PixelCredentialOption[];
+  /** Called when user clicks "Kelola Kredensial" inside the tracking settings modal */
+  onManageCredentials?: () => void;
+  /**
+   * Stores a tracking secret (CAPI token, Events API token, GA4 API secret, webhook URL/headers)
+   * on the host and returns the `credentialId` the document references. Without it, secret
+   * inputs are disabled; the document never stores secrets. The relay URL shown in the
+   * tracking modal comes from `context.tracking.relayUrl`.
+   */
+  onSaveTrackingSecret?: SaveTrackingSecretHandler;
+  /**
+   * Host asset provider for direct uploads, gallery listing, and asset management. It is
+   * also forwarded into the canvas render context (unless `context.assetProvider` is set),
+   * so uploaded and `asset://` images resolve on the canvas.
+   */
+  assetProvider?: AssetProvider;
+  /**
+   * Host block library (STORA-535), shown in the Blocks tab and usable from canvas drops and
+   * `ref.insertBlock(id)`. Combined with `STARTER_BLOCKS` according to `blocksMode`.
+   */
+  blocks?: BlockDefinition[];
+  /** `append` (default): starters + host blocks (same id overrides). `replace`: host blocks only. */
+  blocksMode?: BlocksMode;
+  /**
+   * Page templates (STORA-536). When non-empty, the toolbar gets a "Templates" action that
+   * replaces the page with a template after an in-editor confirmation (undoable).
+   */
+  templates?: TemplateRecord[];
+  /** Fires after a template replaced the page, with the new (cloned) document. */
+  onApplyTemplate?: (template: TemplateRecord, doc: PageDocument) => void;
+  /**
+   * Persists the document (STORA-537). Enables the Save button + status, Cmd/Ctrl+S, and
+   * resets `isDirty` once it resolves. A rejection shows the `error` status.
+   */
+  onSave?: EditorSaveHandler;
+  /** Fires whenever the editor's dirty state flips. */
+  onDirtyChange?: (isDirty: boolean) => void;
+  /** Save automatically `debounceMs` after the last edit (requires `onSave`). */
+  autosave?: EditorAutosaveOptions;
+  /**
+   * Show the browser's "leave site?" prompt while there are unsaved changes. Defaults to
+   * `true` when `onSave` is set (without it the editor can't know when changes are saved).
+   */
+  warnOnUnsavedChanges?: boolean;
   className?: string;
 }
 
-export const KubuildEditor: React.FC<KubuildEditorProps> = ({
+export type { EditorHandle };
+
+/**
+ * The visual editor. Pass a `ref` to get an `EditorHandle` (STORA-538) for imperative
+ * `getDocument` / `replaceDocument` / `insertBlock` / `undo` / `redo` / `save`.
+ */
+export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(function KubuildEditor(
+  {
   initialDocument,
   pages,
   activePageId,
   selectedNodeId: propSelectedNodeId,
+  onSelectionChange,
+  locale: propLocale,
+  onLocaleChange,
+  translations,
   onActivePageChange,
   onPagesChange,
   registry = createDefaultComponentRegistry(),
@@ -80,16 +183,38 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   onDiagnostic,
   config,
   ai,
+  trackingCredentials,
+  onManageCredentials,
+  onSaveTrackingSecret,
+  assetProvider,
+  blocks,
+  blocksMode = 'append',
+  templates,
+  onApplyTemplate,
+  onSave,
+  onDirtyChange,
+  autosave,
+  warnOnUnsavedChanges,
   className,
-}) => {
+  },
+  ref,
+) {
+  const trackingRelayUrl = context?.tracking?.relayUrl;
   const document = useEditorStore((state) => state.document);
   const setDocument = useEditorStore((state) => state.setDocument);
   const setOnChangeHandler = useEditorStore((state) => state.setOnChangeHandler);
   const setVariableCatalog = useEditorStore((state) => state.setVariableCatalog);
   const viewport = useEditorStore((state) => state.viewport);
   const setViewport = useEditorStore((state) => state.setViewport);
+  // The store is the single selection source for canvas/Inspector/chrome; a controlled
+  // `selectedNodeId` prop is synced into it below. Until a new prop value has been applied
+  // (first render / SSR), the shell chrome shows the prop value instead.
   const storeSelectedNodeId = useEditorStore((state) => state.selectedNodeId);
-  const selectedNodeId = propSelectedNodeId !== undefined ? propSelectedNodeId : storeSelectedNodeId;
+  const appliedSelectedPropRef = React.useRef<string | null | undefined>(undefined);
+  const selectedNodeId =
+    propSelectedNodeId !== undefined && propSelectedNodeId !== appliedSelectedPropRef.current
+      ? propSelectedNodeId
+      : storeSelectedNodeId;
   const tableSpreadsheetMode = useEditorStore((state) => state.tableSpreadsheetMode);
   const setTableSpreadsheetMode = useEditorStore((state) => state.setTableSpreadsheetMode);
   const aiChatMode = useEditorStore((state) => state.aiChatMode);
@@ -110,6 +235,72 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   // Mobile drawer states
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isMobileInspectorOpen, setIsMobileInspectorOpen] = useState<boolean>(false);
+
+  const DEFAULT_LEFT_SIDEBAR_WIDTH = 320;
+  const MIN_LEFT_SIDEBAR_WIDTH = 220;
+
+  const DEFAULT_INSPECTOR_WIDTH = 288;
+  const MIN_INSPECTOR_WIDTH = 260;
+
+  const DEFAULT_AI_CHAT_WIDTH = 320;
+  const MIN_AI_CHAT_WIDTH = 260;
+
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kubuild_left_sidebar_width');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed >= MIN_LEFT_SIDEBAR_WIDTH && parsed <= 700) return parsed;
+        }
+      } catch {}
+    }
+    return DEFAULT_LEFT_SIDEBAR_WIDTH;
+  });
+
+  const [inspectorWidth, setInspectorWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kubuild_inspector_width');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed >= MIN_INSPECTOR_WIDTH && parsed <= 700) return parsed;
+        }
+      } catch {}
+    }
+    return DEFAULT_INSPECTOR_WIDTH;
+  });
+
+  const [aiChatWidth, setAiChatWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kubuild_ai_chat_width');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed >= MIN_AI_CHAT_WIDTH && parsed <= 700) return parsed;
+        }
+      } catch {}
+    }
+    return DEFAULT_AI_CHAT_WIDTH;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kubuild_left_sidebar_width', String(leftSidebarWidth));
+    } catch {}
+  }, [leftSidebarWidth]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kubuild_inspector_width', String(inspectorWidth));
+    } catch {}
+  }, [inspectorWidth]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kubuild_ai_chat_width', String(aiChatWidth));
+    } catch {}
+  }, [aiChatWidth]);
 
   const defaultWidthForViewport = (vp: Viewport) => {
     if (vp === 'mobile') return 375;
@@ -142,13 +333,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         setDocument(targetPage.document);
         const vp =
           targetPage.viewport ||
-          (targetPage.width
-            ? targetPage.width < 768
-              ? 'mobile'
-              : targetPage.width < 1024
-                ? 'tablet'
-                : 'desktop'
-            : 'desktop');
+          (targetPage.width ? getBreakpointForWidth(targetPage.width) : 'desktop');
         const w = targetPage.width ?? defaultWidthForViewport(vp);
         setViewport(vp);
         setFluidWidth(w);
@@ -191,13 +376,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
         }
         const vp =
           target.viewport ||
-          (target.width
-            ? target.width < 768
-              ? 'mobile'
-              : target.width < 1024
-                ? 'tablet'
-                : 'desktop'
-            : 'desktop');
+          (target.width ? getBreakpointForWidth(target.width) : 'desktop');
         const w = target.width ?? defaultWidthForViewport(vp);
         if (vp !== useEditorStore.getState().viewport) {
           setViewport(vp);
@@ -217,6 +396,49 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
       setDocument(initialDocument);
     }
   }, [initialDocument, setDocument]);
+
+  // Controlled selection + locale. Declared after the document-loading effects so a prop
+  // value is applied after `setDocument` has reset the selection on mount.
+  const onSelectionChangeRef = React.useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
+  const onLocaleChangeRef = React.useRef(onLocaleChange);
+  onLocaleChangeRef.current = onLocaleChange;
+  const selectionSyncRef = React.useRef<ControlledStoreSync<string | null> | null>(null);
+  const localeSyncRef = React.useRef<ControlledStoreSync<EditorLocale> | null>(null);
+
+  useEffect(() => {
+    const selectionSync = createControlledStoreSync(useEditorStore, {
+      select: (state) => state.selectedNodeId,
+      write: (state, nodeId) => state.selectNode(nodeId),
+      onChange: () => onSelectionChangeRef.current,
+    });
+    const localeSync = createControlledStoreSync(useEditorStore, {
+      select: (state) => state.locale,
+      write: (state, nextLocale) => state.setLocale(nextLocale),
+      onChange: () => onLocaleChangeRef.current,
+    });
+    selectionSyncRef.current = selectionSync;
+    localeSyncRef.current = localeSync;
+    return () => {
+      selectionSync.dispose();
+      localeSync.dispose();
+      selectionSyncRef.current = null;
+      localeSyncRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (propSelectedNodeId !== undefined) {
+      appliedSelectedPropRef.current = propSelectedNodeId;
+      selectionSyncRef.current?.apply(propSelectedNodeId);
+    }
+  }, [propSelectedNodeId]);
+
+  useEffect(() => {
+    if (propLocale !== undefined) {
+      localeSyncRef.current?.apply(propLocale);
+    }
+  }, [propLocale]);
 
   useEffect(() => {
     const wrappedOnChange = (updatedDoc: PageDocument) => {
@@ -240,14 +462,12 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     [variableCatalog],
   );
 
-  // Host-supplied context.variables wins on key conflicts — the catalog only fills gaps
-  // so the canvas can preview bindings without the host needing to wire live data itself.
-  const previewContext = useMemo<RuntimeContext | undefined>(() => {
-    if (Object.keys(sampleVariables).length === 0) {
-      return context;
-    }
-    return { ...context, variables: { ...sampleVariables, ...(context?.variables ?? {}) } };
-  }, [context, sampleVariables]);
+  // Host-supplied context.variables wins on key conflicts — the catalog only fills gaps.
+  // The `assetProvider` prop is forwarded too (an explicit `context.assetProvider` wins).
+  const previewContext = useMemo<RuntimeContext | undefined>(
+    () => buildEditorPreviewContext(context, sampleVariables, assetProvider),
+    [context, sampleVariables, assetProvider],
+  );
 
   const viewportWidthMap: Record<Viewport, string> = {
     desktop: 'w-full max-w-6xl',
@@ -269,6 +489,94 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
   const resolvedAiConfig = useMemo(() => resolveAiEditorConfig(ai), [ai]);
   const aiFeatureEnabled = isAnyAiFeatureEnabled(resolvedAiConfig);
 
+  // STORA-535: one block registry in the store feeds the Blocks tab, canvas drops and
+  // `insertBlock(id)`.
+  const setBlockRegistry = useEditorStore((state) => state.setBlockRegistry);
+  useEffect(() => {
+    setBlockRegistry(resolveBlockRegistry(blocks, blocksMode));
+  }, [blocks, blocksMode, setBlockRegistry]);
+
+  // STORA-537: save / dirty orchestration. Callbacks go through refs so the controller
+  // (and its store subscription) lives for the editor's whole lifetime.
+  const isDirty = useEditorStore((state) => state.isDirty);
+  const onSaveRef = React.useRef(onSave);
+  onSaveRef.current = onSave;
+  const onDirtyChangeRef = React.useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
+  const autosaveRef = React.useRef(autosave);
+  autosaveRef.current = autosave;
+  const onApplyTemplateRef = React.useRef(onApplyTemplate);
+  onApplyTemplateRef.current = onApplyTemplate;
+  const registryRef = React.useRef(registry);
+  registryRef.current = registry;
+  const onDiagnosticRef = React.useRef(onDiagnostic);
+  onDiagnosticRef.current = onDiagnostic;
+  const saveControllerRef = React.useRef<EditorSaveController | null>(null);
+  const [saveState, setSaveState] = useState<EditorSaveState>({
+    status: 'idle',
+    error: null,
+    lastSavedAt: null,
+  });
+
+  useEffect(() => {
+    const controller = createEditorSaveController(useEditorStore, {
+      onSave: () => onSaveRef.current,
+      onDirtyChange: () => onDirtyChangeRef.current,
+      autosave: () => autosaveRef.current,
+    });
+    saveControllerRef.current = controller;
+    const unsubscribe = controller.subscribe(setSaveState);
+    return () => {
+      unsubscribe();
+      controller.dispose();
+      saveControllerRef.current = null;
+    };
+  }, []);
+
+  const triggerSave = useCallback(
+    () => saveControllerRef.current?.save() ?? Promise.resolve(false),
+    [],
+  );
+
+  const hasOnSave = !!onSave;
+  useEffect(() => {
+    if (!hasOnSave || typeof window === 'undefined') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 's') {
+        // Works from inputs too, and always suppresses the browser's "Save page" dialog.
+        e.preventDefault();
+        void triggerSave();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [hasOnSave, triggerSave]);
+
+  const shouldWarnOnUnload = (warnOnUnsavedChanges ?? hasOnSave) && isDirty;
+  useEffect(() => {
+    if (!shouldWarnOnUnload || typeof window === 'undefined') return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Legacy browsers only show the prompt when returnValue is set.
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [shouldWarnOnUnload]);
+
+  // STORA-538: imperative handle.
+  useImperativeHandle(
+    ref,
+    () =>
+      createEditorHandle(useEditorStore, {
+        registry: () => registryRef.current,
+        save: triggerSave,
+        onTemplateApplied: (template, doc) => onApplyTemplateRef.current?.(template, doc),
+        onDiagnostic: (diagnostic) => onDiagnosticRef.current?.(diagnostic),
+      }),
+    [triggerSave],
+  );
+
   // Seed the panel mode from config once at mount (STORA-503) — after that, the store's
   // own toggle/setAiChatMode actions are the single source of truth.
   const didSeedAiChatMode = React.useRef(false);
@@ -280,7 +588,7 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
     setAiChatMode(resolvedAiConfig.defaultPanelMode);
   }, []);
 
-  return (
+  const shell = (
     <div
       data-ai-enabled={resolvedAiConfig.enabled}
       className={`flex flex-col h-full bg-slate-100 text-slate-900 relative overflow-hidden ${className || ''}`}
@@ -368,6 +676,11 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
                 registry={registry}
                 config={resolvedConfig.inspector}
                 aiConfig={resolvedAiConfig}
+                trackingCredentials={trackingCredentials}
+                onManageCredentials={onManageCredentials}
+                onSaveTrackingSecret={onSaveTrackingSecret}
+                trackingRelayUrl={trackingRelayUrl}
+                assetProvider={assetProvider}
               />
             </div>
           </div>
@@ -419,10 +732,24 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
           )}
 
           <div className="flex items-center gap-2 shrink-0">
+            {templates && templates.length > 0 && (
+              <TemplateToolbarAction
+                templates={templates}
+                registry={registry}
+                context={previewContext}
+                onApplyTemplate={onApplyTemplate}
+                onDiagnostic={onDiagnostic}
+              />
+            )}
+
             <EditorToolbar
               registry={registry}
               config={resolvedConfig.toolbar}
               aiEnabled={aiFeatureEnabled}
+              trackingCredentials={trackingCredentials}
+              onManageCredentials={onManageCredentials}
+              onSaveTrackingSecret={onSaveTrackingSecret}
+              trackingRelayUrl={trackingRelayUrl}
             />
 
             {/* Viewport switcher */}
@@ -471,6 +798,14 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
               {selectedNodeId ? `Selected: #${selectedNodeId}` : 'No element selected'}
             </div>
           )}
+
+          {onSave && (
+            <SaveStatusButton
+              saveState={saveState}
+              isDirty={isDirty}
+              onSave={() => void triggerSave()}
+            />
+          )}
         </div>
       )}
 
@@ -478,9 +813,29 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
       <div className="flex flex-1 overflow-hidden min-h-0 relative">
         {/* Desktop Left Sidebar */}
         {resolvedConfig.sidebar.enabled && (
-          <div className="hidden lg:flex w-80 shrink-0 bg-white border-r border-slate-200 overflow-hidden flex-col min-h-0 h-full">
-            <LeftSidebar registry={registry} config={resolvedConfig.sidebar} />
-          </div>
+          <>
+            <div
+              style={{ width: `${leftSidebarWidth}px` }}
+              className="hidden lg:flex shrink-0 bg-white border-r border-slate-200 overflow-hidden flex-col min-h-0 h-full"
+            >
+              <LeftSidebar registry={registry} config={resolvedConfig.sidebar} />
+            </div>
+            <PanelResizeHandle
+              side="right"
+              onResize={(dx) =>
+                setLeftSidebarWidth((w) =>
+                  Math.min(
+                    Math.max(MIN_LEFT_SIDEBAR_WIDTH, w + dx),
+                    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.45) : 600,
+                  ),
+                )
+              }
+              onDoubleClick={() => setLeftSidebarWidth(DEFAULT_LEFT_SIDEBAR_WIDTH)}
+              ariaLabel="Resize Left Sidebar"
+              title="Drag to resize sidebar width (Double click to reset)"
+              className="hidden lg:flex"
+            />
+          </>
         )}
 
         {/* Central Canvas Area */}
@@ -566,24 +921,73 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
 
         {/* Desktop Right Inspector */}
         {resolvedConfig.inspector.enabled && (
-          <div className="hidden lg:flex w-72 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full">
-            <InspectorPanel registry={registry} config={resolvedConfig.inspector} />
-          </div>
+          <>
+            <PanelResizeHandle
+              side="left"
+              onResize={(dx) =>
+                setInspectorWidth((w) =>
+                  Math.min(
+                    Math.max(MIN_INSPECTOR_WIDTH, w - dx),
+                    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.45) : 600,
+                  ),
+                )
+              }
+              onDoubleClick={() => setInspectorWidth(DEFAULT_INSPECTOR_WIDTH)}
+              ariaLabel="Resize Inspector Panel"
+              title="Drag to resize inspector width (Double click to reset)"
+              className="hidden lg:flex"
+            />
+            <div
+              style={{ width: `${inspectorWidth}px` }}
+              className="hidden lg:flex shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full"
+            >
+              <InspectorPanel
+                registry={registry}
+                config={resolvedConfig.inspector}
+                aiConfig={resolvedAiConfig}
+                trackingCredentials={trackingCredentials}
+                onManageCredentials={onManageCredentials}
+                onSaveTrackingSecret={onSaveTrackingSecret}
+                trackingRelayUrl={trackingRelayUrl}
+                assetProvider={assetProvider}
+              />
+            </div>
+          </>
         )}
 
         {/* Docked AI Chat Panel (STORA-503) — an additional sibling column, sized like the
             other docked panels, so it never shrinks/shifts Sidebar/Navigator/Inspector. */}
         {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'docked') && (
-          <div className="hidden lg:flex w-80 shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full">
-            <AiChatPanel
-              aiConfig={resolvedAiConfig}
-              registry={registry}
-              mode="docked"
-              onDiagnostic={onDiagnostic}
-              onToggleMode={() => setAiChatMode('floating')}
-              onClose={() => setAiChatMode('hidden')}
+          <>
+            <PanelResizeHandle
+              side="left"
+              onResize={(dx) =>
+                setAiChatWidth((w) =>
+                  Math.min(
+                    Math.max(MIN_AI_CHAT_WIDTH, w - dx),
+                    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.45) : 600,
+                  ),
+                )
+              }
+              onDoubleClick={() => setAiChatWidth(DEFAULT_AI_CHAT_WIDTH)}
+              ariaLabel="Resize AI Chat Panel"
+              title="Drag to resize AI chat panel width (Double click to reset)"
+              className="hidden lg:flex"
             />
-          </div>
+            <div
+              style={{ width: `${aiChatWidth}px` }}
+              className="hidden lg:flex shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full"
+            >
+              <AiChatPanel
+                aiConfig={resolvedAiConfig}
+                registry={registry}
+                mode="docked"
+                onDiagnostic={onDiagnostic}
+                onToggleMode={() => setAiChatMode('floating')}
+                onClose={() => setAiChatMode('hidden')}
+              />
+            </div>
+          </>
         )}
       </div>
 
@@ -654,4 +1058,8 @@ export const KubuildEditor: React.FC<KubuildEditorProps> = ({
       </div>
     </div>
   );
-};
+
+  return (
+    <TranslationOverridesContext.Provider value={translations}>{shell}</TranslationOverridesContext.Provider>
+  );
+});

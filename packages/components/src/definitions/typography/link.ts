@@ -1,5 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
 import { ComponentDefinition } from '../../registry';
+import { canonicalTextPropFields } from '../../canonical-props';
 import { ariaLabelTrait, hrefTrait, idTrait, relTrait, targetTrait, titleTrait } from '../../traits';
 
 export const linkDefinition: ComponentDefinition = {
@@ -8,6 +9,7 @@ export const linkDefinition: ComponentDefinition = {
   category: 'typography',
   icon: 'link',
   acceptsChildren: false,
+  ...canonicalTextPropFields('link'),
   defaultProps: {
     text: 'Click here',
     href: '#',

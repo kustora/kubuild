@@ -1,11 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Image as ImageIcon, Upload, X, Trash2 } from 'lucide-react';
+import type { AssetProvider } from '@kubuild/core';
+import { AssetManagerModal } from '../modals/asset-manager-modal';
 
 export interface BackgroundImageControlsProps {
   styles?: Record<string, unknown>;
   onChange: (property: string, value: string) => void;
   disabled?: boolean;
   className?: string;
+  assetProvider?: AssetProvider;
 }
 
 /**
@@ -65,6 +68,7 @@ export const BackgroundImageControls: React.FC<BackgroundImageControlsProps> = (
   onChange,
   disabled = false,
   className = '',
+  assetProvider,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFocusedRef = useRef(false);
@@ -72,6 +76,9 @@ export const BackgroundImageControls: React.FC<BackgroundImageControlsProps> = (
   const rawBgImage = styles.backgroundImage;
   const currentImageUrl = extractImageUrl(rawBgImage);
   const [inputText, setInputText] = useState(currentImageUrl);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!isFocusedRef.current) {
@@ -107,18 +114,33 @@ export const BackgroundImageControls: React.FC<BackgroundImageControlsProps> = (
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setInputText(dataUrl);
-      handleCommitUrl(dataUrl);
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+
+    if (assetProvider?.upload) {
+      setIsUploading(true);
+      setUploadError(null);
+      try {
+        const info = await assetProvider.upload(file);
+        setInputText(info.url);
+        handleCommitUrl(info.url);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Upload failed';
+        setUploadError(msg);
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setInputText(dataUrl);
+        handleCommitUrl(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const currentSize = String(styles.backgroundSize ?? 'cover').trim() || 'cover';
@@ -160,7 +182,7 @@ export const BackgroundImageControls: React.FC<BackgroundImageControlsProps> = (
         onChange={handleFileUpload}
         accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml, image/gif, image/avif"
         className="hidden"
-        disabled={disabled}
+        disabled={disabled || isUploading}
       />
 
       {/* Input + Upload Row */}
@@ -188,12 +210,28 @@ export const BackgroundImageControls: React.FC<BackgroundImageControlsProps> = (
         <button
           type="button"
           data-testid="bg-image-upload-btn"
-          title="Upload local image from device"
-          disabled={disabled}
+          title={isUploading ? 'Uploading image...' : 'Upload local image from device'}
+          disabled={disabled || isUploading}
           onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer shadow-2xs"
+          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center gap-1 text-xs font-medium cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Upload className="w-3.5 h-3.5" />
+          {isUploading ? (
+            <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Upload className="w-3.5 h-3.5" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          data-testid="bg-image-gallery-btn"
+          title="Browse Asset Gallery"
+          aria-label="Browse Asset Gallery"
+          disabled={disabled || isUploading}
+          onClick={() => setIsAssetPickerOpen(true)}
+          className="shrink-0 p-1.5 rounded border border-slate-300 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ImageIcon className="w-3.5 h-3.5" />
         </button>
 
         {hasImage && (
@@ -208,6 +246,23 @@ export const BackgroundImageControls: React.FC<BackgroundImageControlsProps> = (
           </button>
         )}
       </div>
+
+      {uploadError && (
+        <span className="text-[10px] text-red-500 font-medium">{uploadError}</span>
+      )}
+
+      {/* Asset Manager Modal */}
+      {isAssetPickerOpen && (
+        <AssetManagerModal
+          isOpen
+          onClose={() => setIsAssetPickerOpen(false)}
+          onSelect={(url) => {
+            setInputText(url);
+            handleCommitUrl(url);
+          }}
+          assetProvider={assetProvider}
+        />
+      )}
 
       {/* Preview and Controls (Shown when an image is selected) */}
       {hasImage && (
