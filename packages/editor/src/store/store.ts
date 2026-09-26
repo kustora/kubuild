@@ -1605,11 +1605,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return { success: true, nodeId: clonedNode.id };
   },
 
-  selectNode: (nodeId) =>
+  selectNode: (nodeId) => {
+    const currentId = get().selectedNodeId;
+    const currentIds = get().selectedNodeIds;
+    if (currentId === nodeId && currentIds.length === 1 && currentIds[0] === nodeId) {
+      return;
+    }
     set({
       selectedNodeId: nodeId,
       selectedNodeIds: nodeId ? [nodeId] : [],
-    }),
+    });
+  },
 
   selectMultipleNodes: (ids) => {
     const validIds = Array.from(

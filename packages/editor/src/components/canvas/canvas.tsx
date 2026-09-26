@@ -90,8 +90,16 @@ export interface EditorCanvasProps {
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+  if (!target) return false;
+  const el = target instanceof HTMLElement ? target : (target as Node).parentElement;
+  if (!el || !(el instanceof HTMLElement)) return false;
+  return (
+    el.tagName === 'INPUT' ||
+    el.tagName === 'TEXTAREA' ||
+    el.isContentEditable ||
+    el.getAttribute('contenteditable') === 'true' ||
+    el.closest('[contenteditable="true"]') !== null
+  );
 }
 
 const ARROW_DIRECTIONS: Record<string, NavigationDirection> = {
@@ -182,6 +190,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const removeComponentArtboard = useEditorStore((s) => s.removeComponentArtboard);
   const setComponentArtboardPosition = useEditorStore((s) => s.setComponentArtboardPosition);
   const setComponentArtboardWidth = useEditorStore((s) => s.setComponentArtboardWidth);
+  const beginHistoryTransaction = useEditorStore((s) => s.beginHistoryTransaction);
+  const endHistoryTransaction = useEditorStore((s) => s.endHistoryTransaction);
+
+  const inlineEditTxActiveRef = useRef(false);
 
   const document = propDoc ?? storeDoc;
   const selectedNodeId =
@@ -191,6 +203,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const activeArtboardId =
     propActiveArtboardId !== undefined ? propActiveArtboardId : storeActiveArtboardId;
   const showFloatingBadges = config?.showFloatingBadges !== false && !previewMode;
+
+  useEffect(() => {
+    return () => {
+      if (inlineEditTxActiveRef.current) {
+        inlineEditTxActiveRef.current = false;
+        endHistoryTransaction();
+      }
+    };
+  }, [selectedNodeId, endHistoryTransaction]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
@@ -666,10 +687,13 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     if (!layer) return;
     layer.querySelectorAll<HTMLElement>('[data-kubuild-node]').forEach((el) => {
       const id = el.getAttribute('data-kubuild-node');
-      const isEditable = el.isContentEditable || el.getAttribute('contenteditable') === 'true';
+      const isEditable =
+        el.isContentEditable ||
+        el.getAttribute('contenteditable') === 'true' ||
+        id === selectedNodeId;
       el.draggable = !!id && id !== document.document.id && !isEditable;
     });
-  }, [document, viewport]);
+  }, [document, viewport, selectedNodeId]);
 
   // Global Keyboard listener
   useEffect(() => {
@@ -822,10 +846,12 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
     if (previewMode || e.button !== 0) return;
 
-    const target = e.target as HTMLElement;
+    const target = (e.target instanceof HTMLElement ? e.target : (e.target as Node).parentElement) as HTMLElement;
 
-    // Ignore clicks on floating action badges, interactive overlays, or buttons so they don't trigger canvas marquee/pan
+    // Ignore clicks on floating action badges, interactive overlays, editable targets, or buttons so they don't trigger canvas marquee/pan
     if (
+      !target ||
+      isEditableTarget(target) ||
       target.closest('[data-testid="floating-action-badges"]') ||
       target.closest('[data-testid="resize-handles"]') ||
       target.closest('[data-testid="spacing-sliders"]') ||
@@ -938,8 +964,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   // Drag & drop handlers
   const handleDragStart = (e: React.DragEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.isContentEditable || target.closest('[contenteditable="true"]')) {
+    const target = (e.target instanceof HTMLElement ? e.target : (e.target as Node).parentElement) as HTMLElement;
+    if (!target || isEditableTarget(target) || target.isContentEditable || target.closest('[contenteditable="true"]')) {
       e.preventDefault();
       return;
     }
@@ -1391,7 +1417,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                         if (e?.shiftKey) {
                           // STORA-132: Multi-selection via Shift + Click
                           toggleNodeSelection(id, true);
-                        } else {
+                        } else if (selectedNodeId !== id) {
                           selectNode(id);
                         }
                       }
@@ -1399,6 +1425,19 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     onNodePropChange={(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => {
                       if (previewMode) return;
                       if (!isBlur && typeof value === 'string' && value.trim() === '') return;
+
+                      if (!isBlur) {
+                        if (!inlineEditTxActiveRef.current) {
+                          inlineEditTxActiveRef.current = true;
+                          beginHistoryTransaction();
+                        }
+                      } else {
+                        if (inlineEditTxActiveRef.current) {
+                          inlineEditTxActiveRef.current = false;
+                          endHistoryTransaction();
+                        }
+                      }
+
                       // STORA-550: inline edits write the canonical prop; drop deprecated aliases
                       // so a legacy node doesn't end up with two competing text props.
                       const editedNode = findNodeById(activeDoc.document, nodeId);
@@ -1576,7 +1615,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     !(isTouchDevice && isSmallScreen) &&
                     selectedRect &&
                     selectedNodeId &&
-                    selectedNodeId !== activeDoc.document.id && (
+                    selectedNodeId !== activeDoc.document.id &&
+                    selectedNode?.type !== 'text' &&
+                    selectedNode?.type !== 'heading' &&
+                    selectedNode?.type !== 'paragraph' && (
                       <SpacingSliders
                         selectedNodeId={selectedNodeId}
                         selectedRect={selectedRect}

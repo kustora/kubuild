@@ -23,7 +23,7 @@ describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
     expect(html).toContain('data-kubuild-node');
   });
 
-  it('renders contenteditable text elements in EditorCanvas for direct on-canvas editing', () => {
+  it('renders contenteditable text elements in EditorCanvas for direct on-canvas editing without spacing sliders interference', () => {
     const doc = JSON.parse(JSON.stringify(starterPageFixture));
     useEditorStore.getState().setDocument(doc);
     useEditorStore.getState().selectNode('hero-heading');
@@ -33,7 +33,19 @@ describe('STORA-084: Editor Canvas Overlay Accessibility Isolation', () => {
     );
 
     expect(html.toLowerCase()).toContain('contenteditable="true"');
+    expect(html).toContain('draggable="false"');
     expect(html).toContain('Build Once, Render Anywhere');
+    // Spacing sliders should not be rendered on heading text node to avoid overlapping drag handles
+    expect(html).not.toContain('data-testid="spacing-sliders-container"');
+  });
+
+  it('maintains selectNode idempotency to avoid redundant re-renders on repeated clicks', () => {
+    const state = useEditorStore.getState();
+    state.selectNode('hero-heading');
+    const initialIds = useEditorStore.getState().selectedNodeIds;
+    state.selectNode('hero-heading');
+    const subsequentIds = useEditorStore.getState().selectedNodeIds;
+    expect(initialIds).toBe(subsequentIds);
   });
 
   it('renders multi-page artboards side-by-side on the infinite canvas surface', () => {
