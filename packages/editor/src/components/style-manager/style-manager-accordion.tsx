@@ -440,53 +440,59 @@ export const StyleManagerAccordion: React.FC<StyleManagerAccordionProps> = ({
               data-testid={`sector-${sector.id}`}
               className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs transition-colors"
             >
-              {/* Sector Header / Toggle Button */}
-              <button
-                type="button"
-                onClick={() => toggleSector(sector.id)}
-                aria-expanded={isOpen}
-                aria-controls={`sector-content-${sector.id}`}
-                data-testid={`sector-header-${sector.id}`}
-                className="w-full flex items-center justify-between px-3 py-2 text-left bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer select-none"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-500 shrink-0">
-                    <ComponentIcon iconOrType={sector.icon} size={14} />
-                  </span>
-                  <span className="text-xs font-semibold text-slate-700 truncate">
-                    {getSectorLabel(sector.id, sector.label)}
-                  </span>
-                  {activeCount > 0 && (
-                    <span
-                      title={`${activeCount} custom properties set`}
-                      className="px-1.5 py-0.2 text-[9px] font-bold bg-blue-100 text-blue-700 rounded-full border border-blue-200 leading-none"
-                    >
-                      {activeCount}
+              {/* Sector Header Container */}
+              <div className="relative w-full flex items-center bg-slate-50/70 hover:bg-slate-100/70 transition select-none">
+                <button
+                  type="button"
+                  onClick={() => toggleSector(sector.id)}
+                  aria-expanded={isOpen}
+                  aria-controls={`sector-content-${sector.id}`}
+                  data-testid={`sector-header-${sector.id}`}
+                  className="w-full flex items-center justify-between px-3 py-2 text-left cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-slate-500 shrink-0">
+                      <ComponentIcon iconOrType={sector.icon} size={14} />
                     </span>
-                  )}
-                </div>
+                    <span className="text-xs font-semibold text-slate-700 truncate">
+                      {getSectorLabel(sector.id, sector.label)}
+                    </span>
+                    {activeCount > 0 && (
+                      <span
+                        title={`${activeCount} custom properties set`}
+                        className="px-1.5 py-0.2 text-[9px] font-bold bg-blue-100 text-blue-700 rounded-full border border-blue-200 leading-none"
+                      >
+                        {activeCount}
+                      </span>
+                    )}
+                  </div>
 
-                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                  {activeCount > 0 && (
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    {activeCount > 0 && <span className="w-[19px] h-[19px]" aria-hidden="true" />}
+                    <span
+                      className={`text-slate-400 transform transition-transform duration-200 ${
+                        isOpen ? 'rotate-180' : 'rotate-0'
+                      }`}
+                    >
+                      <ComponentIcon iconOrType="chevron-down" size={13} />
+                    </span>
+                  </div>
+                </button>
+
+                {activeCount > 0 && (
+                  <div className="absolute right-[29px] top-1/2 -translate-y-1/2 flex items-center">
                     <button
                       type="button"
                       data-testid={`sector-reset-${sector.id}`}
                       title={`Reset ${sector.label} styles`}
                       onClick={(e) => handleResetSector(e, sector)}
-                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer"
                     >
                       <ComponentIcon iconOrType="reset" size={11} />
                     </button>
-                  )}
-                  <span
-                    className={`text-slate-400 transform transition-transform duration-200 ${
-                      isOpen ? 'rotate-180' : 'rotate-0'
-                    }`}
-                  >
-                    <ComponentIcon iconOrType="chevron-down" size={13} />
-                  </span>
-                </div>
-              </button>
+                  </div>
+                )}
+              </div>
 
               {/* Sector Body / Animated Container */}
               {isOpen && (
