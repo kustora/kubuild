@@ -1,4 +1,4 @@
-import type { VariableCatalog } from '../types/interfaces.js';
+import type { VariableCatalog, VariableDefinition } from '../types/interfaces.js';
 
 /**
  * Segments never traversed/assigned while expanding a catalog key — mirrors the guard
@@ -37,4 +37,39 @@ export function buildSampleVariablesFromCatalog(catalog?: VariableCatalog): Reco
   }
 
   return result;
+}
+
+export interface VariableCatalogGroup {
+  group: string;
+  entries: VariableDefinition[];
+}
+
+/**
+ * The group an entry is listed under in the editor: its explicit `group`, else the
+ * first segment of its dotted `key` (so `store.name` lands in "store").
+ */
+export function getVariableGroup(entry: VariableDefinition): string {
+  const explicit = entry.group?.trim();
+  if (explicit) {
+    return explicit;
+  }
+  return entry.key.split('.').find(Boolean) ?? entry.key;
+}
+
+/**
+ * Buckets a flat catalog by `getVariableGroup`, keeping groups in the order they first
+ * appear and entries in catalog order — the host controls ordering by how it builds the list.
+ */
+export function groupVariableCatalog(catalog?: VariableCatalog): VariableCatalogGroup[] {
+  const groups = new Map<string, VariableDefinition[]>();
+  for (const entry of catalog ?? []) {
+    const group = getVariableGroup(entry);
+    const bucket = groups.get(group);
+    if (bucket) {
+      bucket.push(entry);
+    } else {
+      groups.set(group, [entry]);
+    }
+  }
+  return Array.from(groups, ([group, entries]) => ({ group, entries }));
 }

@@ -198,6 +198,11 @@ export interface VariableDefinition {
   type: VariableValueType;
   sampleValue: unknown;
   description?: string;
+  /**
+   * Editor-only grouping label (e.g. "Store", "Product"), already localized by the host.
+   * When omitted, the entry is grouped under the first segment of its `key`.
+   */
+  group?: string;
 }
 
 export type VariableCatalog = VariableDefinition[];
