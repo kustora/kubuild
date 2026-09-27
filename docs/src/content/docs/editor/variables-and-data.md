@@ -18,6 +18,7 @@ export const appVariableCatalog: VariableCatalog = [
   {
     key: 'user.firstName',
     label: 'User First Name',
+    group: 'User',
     type: 'string',
     description: 'The authenticated user first name',
     sampleValue: 'Sarah',
@@ -25,6 +26,7 @@ export const appVariableCatalog: VariableCatalog = [
   {
     key: 'user.email',
     label: 'User Email',
+    group: 'User',
     type: 'string',
     description: 'Primary contact email address',
     sampleValue: 'sarah@example.com',
@@ -59,8 +61,14 @@ Pass `variableCatalog` to `KubuildEditor`:
 ## Variable Picker UI
 
 In any text input, heading, image URL, or button link property inside the Inspector:
-1. Click the `{ }` icon next to the property field.
-2. Search through available variables categorized by namespace (`user`, `order`, `company`, etc.).
-3. Click to insert or bind.
+1. Click **Bind variable…** under the property field (only variables whose `type` matches the field are offered).
+2. Type to search by label, key, description, or group. Results are grouped under their `group` label.
+3. Click an entry (or press Enter for the first match) to bind it.
+
+### Grouping
+
+`group` is an optional, editor-only label the host supplies already localized (e.g. `'Store'`, `'Product'`). Entries without one are grouped by the first segment of their `key`, so `order.invoiceId` above lands in `order`. Groups appear in the order they first occur in the catalog, so the host controls ordering by how it builds the list. `group` is never written into the document.
+
+The same catalog feeds the `{{ }}` autocomplete in the Action Builder. Inside action pipelines host variables live under the `variables` scope, so the entries are inserted as `{{variables.user.firstName}}`.
 
 The canvas immediately renders using the `sampleValue` from the catalog so designers see realistic layouts with varying text lengths and data values. When exported or rendered via `@kubuild/renderer`, the document AST retains the raw binding expression `{{user.firstName}}` ready for production runtime interpolation.
