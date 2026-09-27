@@ -1,6 +1,6 @@
 {
   "name": "@kubuild/renderer",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Pure recursive React renderer for KUBUILD page documents",
   "type": "module",
   "main": "./dist/index.cjs",
