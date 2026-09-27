@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { isVariableBinding, VariableBinding } from '@kubuild/schema';
 import { ComponentFieldDefinition, primitiveTypeForField } from '@kubuild/components';
-import { VariableCatalog, VariableDefinition } from '@kubuild/core';
+import {
+  getVariableGroup,
+  groupVariableCatalog,
+  VariableCatalog,
+  VariableCatalogGroup,
+  VariableDefinition,
+} from '@kubuild/core';
 
 /**
  * Filters a host catalog down to entries whose type is compatible with a given
@@ -18,6 +24,22 @@ export function getCompatibleCatalogEntries(
     return [];
   }
   return catalog.filter((entry) => entry.type === expectedType);
+}
+
+/**
+ * Narrows catalog entries to those matching `query` (case-insensitive, against label, key,
+ * description and group), then buckets them by group. Groups with no match are dropped.
+ */
+export function searchCatalogGroups(entries: VariableDefinition[], query: string): VariableCatalogGroup[] {
+  const needle = query.trim().toLowerCase();
+  const matches = needle
+    ? entries.filter((entry) =>
+        [entry.label, entry.key, entry.description ?? '', getVariableGroup(entry)].some((text) =>
+          text.toLowerCase().includes(needle),
+        ),
+      )
+    : entries;
+  return groupVariableCatalog(matches);
 }
 
 export function toBindingValue(key: string, fallback?: unknown): VariableBinding {
@@ -93,23 +115,109 @@ export const VariableBindingControl: React.FC<VariableBindingControlProps> = ({
     return null;
   }
 
+  return <VariableSearchPicker fieldName={field.name} entries={compatibleEntries} onBind={onBind} />;
+};
+
+interface VariableSearchPickerProps {
+  fieldName: string;
+  entries: VariableDefinition[];
+  onBind: (key: string) => void;
+}
+
+const VariableSearchPicker: React.FC<VariableSearchPickerProps> = ({ fieldName, entries, onBind }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const groups = useMemo(() => searchCatalogGroups(entries, query), [entries, query]);
+
+  const close = () => {
+    setIsOpen(false);
+    setQuery('');
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [isOpen]);
+
+  const pick = (key: string) => {
+    onBind(key);
+    close();
+  };
+
   return (
-    <div className="mt-1">
-      <select
-        data-testid={`bind-variable-${field.name}`}
-        value=""
-        onChange={(e) => {
-          if (e.target.value) onBind(e.target.value);
-        }}
-        className="w-full text-xs bg-white text-slate-700 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+    <div ref={containerRef} className="mt-1">
+      <button
+        type="button"
+        data-testid={`bind-variable-${fieldName}`}
+        onClick={() => (isOpen ? close() : setIsOpen(true))}
+        className="w-full text-left text-xs bg-white text-slate-500 border border-slate-300 rounded px-2 py-1.5 hover:border-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
       >
-        <option value="">Bind variable…</option>
-        {compatibleEntries.map((entry) => (
-          <option key={entry.key} value={entry.key}>
-            {entry.label} ({JSON.stringify(entry.sampleValue)})
-          </option>
-        ))}
-      </select>
+        <span className="font-mono font-bold text-blue-500 mr-1.5">{"{x}"}</span>
+        Bind variable…
+      </button>
+
+      {isOpen && (
+        <div
+          data-testid={`variable-search-${fieldName}`}
+          className="mt-1 border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden"
+        >
+          <input
+            type="text"
+            autoFocus
+            data-testid={`variable-search-input-${fieldName}`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                close();
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const first = groups[0]?.entries[0];
+                if (first) pick(first.key);
+              }
+            }}
+            placeholder="Search variables…"
+            className="w-full text-xs px-2.5 py-1.5 border-b border-slate-200 text-slate-700 placeholder:text-slate-400 focus:outline-none"
+          />
+          <div className="max-h-64 overflow-y-auto py-1">
+            {groups.length === 0 ? (
+              <div className="px-2.5 py-2 text-[11px] text-slate-400 italic text-center">No matching variables</div>
+            ) : (
+              groups.map(({ group, entries: groupEntries }) => (
+                <div key={group} data-testid={`variable-group-${group}`}>
+                  <div className="px-2.5 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    {group}
+                  </div>
+                  {groupEntries.map((entry) => (
+                    <button
+                      key={entry.key}
+                      type="button"
+                      data-testid={`variable-option-${entry.key}`}
+                      onClick={() => pick(entry.key)}
+                      title={entry.description ?? entry.key}
+                      className="w-full flex items-center justify-between gap-2 px-2.5 py-1 text-left text-xs text-slate-700 hover:bg-blue-50 cursor-pointer"
+                    >
+                      <span className="truncate">{entry.label}</span>
+                      <span className="truncate text-[10px] text-slate-400 max-w-[50%]">
+                        {JSON.stringify(entry.sampleValue)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCompatibleCatalogEntries, toBindingValue } from '../src/components/ui/variable-picker';
+import { getCompatibleCatalogEntries, searchCatalogGroups, toBindingValue } from '../src/components/ui/variable-picker';
 import type { ComponentFieldDefinition } from '@kubuild/components';
 import type { VariableCatalog } from '@kubuild/core';
 
@@ -54,5 +54,46 @@ describe('toBindingValue', () => {
       key: 'product.imageUrl',
       fallback: 'https://example.com/default.jpg',
     });
+  });
+});
+
+describe('searchCatalogGroups', () => {
+  const entries: VariableCatalog = [
+    { key: 'store.name', label: 'Store Name', type: 'string', sampleValue: 'Kedai Ali', group: 'Store' },
+    { key: 'store.tagline', label: 'Tagline', type: 'string', sampleValue: 'Fresh daily', group: 'Store' },
+    {
+      key: 'product.name',
+      label: 'Product Name',
+      type: 'string',
+      sampleValue: 'Honey 1kg',
+      group: 'Product',
+      description: 'Title of the featured product',
+    },
+    { key: 'funnel.nextStepUrl', label: 'Next Step Link', type: 'string', sampleValue: '/f/demo/checkout' },
+  ];
+
+  it('returns every entry grouped when the query is empty', () => {
+    expect(searchCatalogGroups(entries, '  ')).toEqual([
+      { group: 'Store', entries: [entries[0], entries[1]] },
+      { group: 'Product', entries: [entries[2]] },
+      { group: 'funnel', entries: [entries[3]] },
+    ]);
+  });
+
+  it('matches label case-insensitively and drops groups with no match', () => {
+    expect(searchCatalogGroups(entries, 'NAME')).toEqual([
+      { group: 'Store', entries: [entries[0]] },
+      { group: 'Product', entries: [entries[2]] },
+    ]);
+  });
+
+  it('matches key, description and group label', () => {
+    expect(searchCatalogGroups(entries, 'nextStepUrl')).toEqual([{ group: 'funnel', entries: [entries[3]] }]);
+    expect(searchCatalogGroups(entries, 'featured')).toEqual([{ group: 'Product', entries: [entries[2]] }]);
+    expect(searchCatalogGroups(entries, 'store')).toEqual([{ group: 'Store', entries: [entries[0], entries[1]] }]);
+  });
+
+  it('returns no groups when nothing matches', () => {
+    expect(searchCatalogGroups(entries, 'zzz')).toEqual([]);
   });
 });
