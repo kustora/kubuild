@@ -11,10 +11,12 @@ import {
   Check,
   X,
 } from 'lucide-react';
+import { getVariableGroup, VariableCatalog } from '@kubuild/core';
 import {
   collectDocumentNodes,
   collectDocumentFormFields,
 } from '../../utils/document-scanner.js';
+import { useEditorStore } from '../../store/index.js';
 
 export type VariableCategory = 'form' | 'variables' | 'response' | 'state';
 
@@ -24,6 +26,8 @@ export interface VariableSuggestionItem {
   category: VariableCategory;
   description: string;
   sample?: string;
+  /** Host catalog group, shown as the badge in place of the generic category label. */
+  group?: string;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -31,7 +35,10 @@ export interface VariableSuggestionItem {
 // ------------------------------------------------------------------------------------------------
 
 
-export function getAllVariableSuggestions(doc?: PageDocument): VariableSuggestionItem[] {
+export function getAllVariableSuggestions(
+  doc?: PageDocument,
+  catalog?: VariableCatalog,
+): VariableSuggestionItem[] {
   const dynamicFormFields = collectDocumentFormFields(doc);
   const baseFormFields = ['email', 'name', 'phone', 'message', 'address', 'searchQuery', 'quantity'];
   const allFormFields = Array.from(new Set([...dynamicFormFields, ...baseFormFields]));
@@ -49,8 +56,21 @@ export function getAllVariableSuggestions(doc?: PageDocument): VariableSuggestio
     });
   }
 
-  // 2. Variables: variables.<key>
-  const variableKeys = [
+  // 2. Variables: variables.<key> — the host catalog when it declares one (pipelines read host
+  // variables under the `variables` scope), otherwise generic placeholders.
+  if (catalog && catalog.length > 0) {
+    for (const entry of catalog) {
+      suggestions.push({
+        key: `variables.${entry.key}`,
+        label: entry.label,
+        category: 'variables',
+        description: entry.description ? `${entry.label} — ${entry.description}` : entry.label,
+        sample: typeof entry.sampleValue === 'string' ? entry.sampleValue : JSON.stringify(entry.sampleValue),
+        group: getVariableGroup(entry),
+      });
+    }
+  }
+  const variableKeys = catalog && catalog.length > 0 ? [] : [
     { key: 'variables.token', desc: 'Auth token or session bearer', sample: 'eyJhbGciOi...' },
     { key: 'variables.userId', desc: 'Current authenticated user ID', sample: 'usr_94821' },
     { key: 'variables.apiKey', desc: 'Public or workspace API key', sample: 'pk_live_...' },
@@ -107,8 +127,9 @@ export function getAllVariableSuggestions(doc?: PageDocument): VariableSuggestio
 export function filterVariableSuggestions(
   query: string,
   doc?: PageDocument,
+  catalog?: VariableCatalog,
 ): VariableSuggestionItem[] {
-  const all = getAllVariableSuggestions(doc);
+  const all = getAllVariableSuggestions(doc, catalog);
   const cleanQuery = query.toLowerCase().trim().replace(/^\{\{/, '').replace(/\}\}$/, '');
 
   if (!cleanQuery) return all;
@@ -116,7 +137,9 @@ export function filterVariableSuggestions(
   return all.filter(
     (item) =>
       item.key.toLowerCase().includes(cleanQuery) ||
+      item.label.toLowerCase().includes(cleanQuery) ||
       item.description.toLowerCase().includes(cleanQuery) ||
+      (item.group ?? '').toLowerCase().includes(cleanQuery) ||
       item.category.toLowerCase().includes(cleanQuery),
   );
 }
@@ -258,7 +281,7 @@ export const VariableSuggestionMenu: React.FC<VariableSuggestionMenuProps> = ({
                         : meta.colorClass
                     }`}
                   >
-                    {meta.label}
+                    {item.group ?? meta.label}
                   </span>
                 </div>
                 <p
@@ -303,10 +326,11 @@ export const VariableAutocompleteInput: React.FC<VariableAutocompleteInputProps>
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const variableCatalog = useEditorStore((state) => state.variableCatalog);
 
   const suggestions = useMemo(() => {
-    return filterVariableSuggestions(searchQuery, document);
-  }, [searchQuery, document]);
+    return filterVariableSuggestions(searchQuery, document, variableCatalog);
+  }, [searchQuery, document, variableCatalog]);
 
   // Check if cursor is right after `{{`
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -449,10 +473,11 @@ export const VariableAutocompleteTextarea: React.FC<VariableAutocompleteTextarea
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const variableCatalog = useEditorStore((state) => state.variableCatalog);
 
   const suggestions = useMemo(() => {
-    return filterVariableSuggestions(searchQuery, document);
-  }, [searchQuery, document]);
+    return filterVariableSuggestions(searchQuery, document, variableCatalog);
+  }, [searchQuery, document, variableCatalog]);
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;

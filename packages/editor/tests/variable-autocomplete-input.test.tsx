@@ -149,4 +149,45 @@ describe('STORA-343: Variable Chip / Autocomplete Picker', () => {
       expect(html).toContain('data-testid="toggle-textarea-variable-picker-btn"');
     });
   });
+
+  describe('host variable catalog', () => {
+    const catalog = [
+      { key: 'store.name', label: 'Store Name', type: 'string' as const, sampleValue: 'Kedai Ali', group: 'Store' },
+      { key: 'funnel.nextStepUrl', label: 'Next Step Link', type: 'string' as const, sampleValue: '/f/demo/checkout' },
+    ];
+
+    it('offers catalog entries under the variables scope instead of the generic placeholders', () => {
+      const keys = getAllVariableSuggestions(sampleDoc, catalog).map((s) => s.key);
+      expect(keys).toContain('variables.store.name');
+      expect(keys).toContain('variables.funnel.nextStepUrl');
+      expect(keys).not.toContain('variables.token');
+    });
+
+    it('carries the catalog group, falling back to the first key segment', () => {
+      const byKey = Object.fromEntries(getAllVariableSuggestions(sampleDoc, catalog).map((s) => [s.key, s]));
+      expect(byKey['variables.store.name'].group).toBe('Store');
+      expect(byKey['variables.funnel.nextStepUrl'].group).toBe('funnel');
+      expect(byKey['variables.store.name'].sample).toBe('Kedai Ali');
+    });
+
+    it('matches catalog entries by label and group', () => {
+      expect(filterVariableSuggestions('next step', sampleDoc, catalog).map((s) => s.key)).toEqual([
+        'variables.funnel.nextStepUrl',
+      ]);
+      expect(filterVariableSuggestions('store', sampleDoc, catalog).map((s) => s.key)).toContain('variables.store.name');
+    });
+
+    it('shows the group as the badge label in the menu', () => {
+      const html = renderToString(
+        <VariableSuggestionMenu
+          suggestions={filterVariableSuggestions('store', sampleDoc, catalog)}
+          selectedIndex={0}
+          onSelect={() => {}}
+          onClose={() => {}}
+        />,
+      );
+      expect(html).toContain('data-testid="variable-option-variables.store.name"');
+      expect(html).toContain('>Store<');
+    });
+  });
 });
