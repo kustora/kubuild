@@ -1702,6 +1702,29 @@ Epic key: `EPIC-62` — package target: `docs/`.
 
 ---
 
+## Epic: Variable Catalog Usability
+
+Epic key: `EPIC-63` — package target: `@kubuild/core`, `@kubuild/editor`, `docs/`.
+
+### STORA-557
+
+- **Epic:** Variable Catalog Usability
+- **Task Key:** STORA-557
+- **Type:** Feature
+- **Summary:** Kelompokkan dan cari variable catalog di picker editor
+- **Description:** Picker binding di Inspector (`packages/editor/src/components/ui/variable-picker.tsx`) berupa `<select>` datar, sehingga host dengan banyak variable (toko, produk, funnel) sulit menemukan satu entry. Autocomplete `{{ }}` di Action Builder (`variable-autocomplete-input.tsx`) memakai daftar hardcoded dan tidak membaca `variableCatalog` host.
+- **Priority:** High
+- **Status:** Done
+- **Package:** `@kubuild/core`, `@kubuild/editor`, `docs/`
+- **Dependencies:** None
+- **Acceptance Criteria:**
+  - `VariableDefinition.group` opsional; tanpa `group`, entry dikelompokkan berdasarkan segmen pertama `key` (`getVariableGroup`, `groupVariableCatalog`). Non-breaking untuk catalog lama.
+  - Picker Inspector menampilkan panel search dengan hasil per grup; cari berdasarkan label, key, deskripsi, grup; filter tipe tetap berlaku.
+  - Autocomplete Action Builder menyarankan entry catalog sebagai `variables.<key>` dengan badge grup; tanpa catalog, placeholder lama tetap.
+  - Guide `editor/variables-and-data.md` EN + `id/` diperbarui.
+
+---
+
 ## Definition of Done per Task
 
 - Implementasi berada pada package yang benar dan tidak melanggar dependency rules.
