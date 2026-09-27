@@ -1,5 +1,29 @@
 # @kubuild/schema
 
+## 0.8.1
+
+### Patch Changes
+
+- Inline text editing stability, valid accordion markup, and React 19.3 toolchain:
+
+  - **@kubuild/renderer**:
+    - Inline text editing: fixed caret jumping to start and typed text appearing reversed. React 19 compares `dangerouslySetInnerHTML` by object identity, so a new `{ __html }` object on each render rewrote `innerHTML` while typing. The object is now memoized, and the DOM is overwritten during focus only when `value` changes from outside (e.g. undo/redo).
+
+  - **@kubuild/editor**:
+    - History: one inline text edit session (typing until blur) is now grouped into a single undo/redo transaction.
+    - Canvas: text nodes inside `contenteditable` are now treated as editable targets, so they no longer trigger marquee, pan, drag, or keyboard shortcuts while typing.
+    - Selection: `selectNode` does nothing when the node is already the only selected node, which avoids extra re-renders.
+    - Spacing sliders: hidden for `text`, `heading`, and `paragraph` nodes.
+    - Markup: moved the reset button in `StyleManagerAccordion` and `NodePixelEventSection` out of the header toggle button. Nested `<button>` elements are invalid HTML and caused hydration errors.
+
+  - **@kubuild/react** & **@kubuild/ai**:
+    - Dev dependencies upgraded to React 19.3 (`react`, `react-dom`, `@types/react`, `@types/react-dom`, `react-test-renderer`). Peer range stays `>=18.0.0`, so hosts on React 18 are still supported.
+
+  Notes:
+
+  - The editor, renderer and playground also got the React 19.3 devDeps bump. Only the React and AI entries mention it, to keep the text short.
+  - @kubuild/react and @kubuild/ai only had devDeps changes. If you don't want a release for them, remove those two packages from the frontmatter.
+
 ## 0.8.0
 
 ### Minor Changes
