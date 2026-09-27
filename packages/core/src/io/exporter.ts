@@ -12,14 +12,14 @@ import {
   DocumentValidationError,
   ValidationOptions,
   ComponentRegistryLike,
-} from '../validation/validator';
+} from '../validation/validator.js';
 import {
   collectAssetReferences,
   extractRequirementsFromTree,
   CollectedAssetReference,
-} from '../document/document-utils';
-import type { AssetProvider } from '../types/interfaces';
-import { stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer';
+} from '../document/document-utils.js';
+import type { AssetProvider } from '../types/interfaces.js';
+import { stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer.js';
 
 export interface ExportAssetData {
   data: Uint8Array | ArrayBuffer | Blob | string;

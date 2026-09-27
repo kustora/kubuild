@@ -10,8 +10,8 @@ import {
   CURRENT_SCHEMA_VERSION,
   ARTBOARD_REFERENCE_NODE_TYPE,
 } from '@kubuild/schema';
-import { deepClone, findNodeLocation, collectNodeIdSet } from './command-tree-utils';
-import { createBlankDocument } from './document-utils';
+import { deepClone, findNodeLocation, collectNodeIdSet } from './command-tree-utils.js';
+import { createBlankDocument } from './document-utils.js';
 
 export type ArtboardChangeType =
   | 'ARTBOARD_ADDED'

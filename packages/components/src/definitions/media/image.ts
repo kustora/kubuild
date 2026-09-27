@@ -1,6 +1,6 @@
 import { isAssetReference, isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { altTrait, ariaLabelTrait, idTrait, loadingTrait, srcTrait, titleTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { altTrait, ariaLabelTrait, idTrait, loadingTrait, srcTrait, titleTrait } from '../../traits/index.js';
 
 export const imageDefinition: ComponentDefinition = {
   type: 'image',

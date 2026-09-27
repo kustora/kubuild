@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { RenderNodeContentOptions } from '../render-node-content';
-import { childIndexContaining, readAriaLabel, readNumber } from './shared';
+import type { RenderNodeContentOptions } from '../render-node-content.js';
+import { childIndexContaining, readAriaLabel, readNumber } from './shared.js';
 
 interface TabsContextValue {
   activeIndex: number;

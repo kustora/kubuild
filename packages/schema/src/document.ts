@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { ActionPipeline, ActionPipelineSchema } from './actions';
-import { FormConfig, FormConfigSchema } from './form';
-import { TrackingConfig, TrackingConfigSchema } from './tracking';
-import { ThemeSchema } from './theme';
+import { ActionPipeline, ActionPipelineSchema } from './actions.js';
+import { FormConfig, FormConfigSchema } from './form.js';
+import { TrackingConfig, TrackingConfigSchema } from './tracking.js';
+import { ThemeSchema } from './theme.js';
 
 export const SCHEMA_NAME = 'stora.page' as const;
 export const CURRENT_SCHEMA_VERSION = '1.2.0' as const;

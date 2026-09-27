@@ -21,7 +21,7 @@ import {
   isDescendantOf,
   collectNodeIdSet,
   cloneTreeWithNewIds,
-} from './command-tree-utils';
+} from './command-tree-utils.js';
 
 export type DocumentChangeType =
   | 'NODE_INSERTED'

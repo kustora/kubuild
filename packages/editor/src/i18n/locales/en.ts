@@ -1,4 +1,4 @@
-import { TranslationSchema } from '../types';
+import { TranslationSchema } from '../types.js';
 
 export const en: TranslationSchema = {
   // Top Level & Tabs

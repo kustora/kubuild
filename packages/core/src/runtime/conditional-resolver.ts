@@ -1,5 +1,5 @@
 import type { ActionStepCondition, ConditionOperator } from '@kubuild/schema';
-import { resolvePropertyPath } from './interpolator';
+import { resolvePropertyPath } from './interpolator.js';
 
 /**
  * Extended condition operators supported by the evaluator.

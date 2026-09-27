@@ -12,7 +12,7 @@ import {
   resolveActionPayload,
   dispatchAction,
   Diagnostic,
-} from './render-context';
+} from './render-context.js';
 import { AlertTriangle } from 'lucide-react';
 import {
   resolveNodeStyles,
@@ -20,21 +20,21 @@ import {
   collectStateStylesCss,
   collectResponsiveStylesCss,
   type ResponsiveMode,
-} from './styles';
-import { collectAnimationStylesCss } from './animation';
-import { resolveRuntimeTheme, themeToCssProperties } from './theme';
-import { ComponentErrorBoundary } from './error-boundary';
-import { resolvePropsForNode } from './prop-resolution';
-import { renderNodeContent } from './renderers';
-import { ToastContainer } from './action-runners/toast-container';
-import { useModal, modalManager, type ModalManager } from './action-runners';
-import { executeNodeActions, useNodeLoadActions } from './action-dispatcher';
-import { injectTrackingScripts } from './tracking/tracking-manager';
-import { isLegacyActionResolvable } from './legacy-actions';
+} from './styles.js';
+import { collectAnimationStylesCss } from './animation.js';
+import { resolveRuntimeTheme, themeToCssProperties } from './theme.js';
+import { ComponentErrorBoundary } from './error-boundary.js';
+import { resolvePropsForNode } from './prop-resolution.js';
+import { renderNodeContent } from './renderers/index.js';
+import { ToastContainer } from './action-runners/toast-container.js';
+import { useModal, modalManager, type ModalManager } from './action-runners/index.js';
+import { executeNodeActions, useNodeLoadActions } from './action-dispatcher.js';
+import { injectTrackingScripts } from './tracking/tracking-manager.js';
+import { isLegacyActionResolvable } from './legacy-actions.js';
 
 // Re-export all nodes and media utilities for backward compatibility
-export * from './nodes';
-export * from './renderers';
+export * from './nodes/index.js';
+export * from './renderers/index.js';
 
 export interface KubuildRendererProps {
   document: PageDocument;

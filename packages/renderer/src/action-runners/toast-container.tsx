@@ -6,7 +6,7 @@ import {
   type ToastPosition,
   type ToastType,
   type ToastManager as ToastManagerClass,
-} from './toast-manager';
+} from './toast-manager.js';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export interface ToastContainerProps {

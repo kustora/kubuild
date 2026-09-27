@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { BlockDefinition, ComponentRegistry } from '@kubuild/components';
 import { Boxes, Blocks, Layers } from 'lucide-react';
-import { ComponentPanel } from './component-panel';
-import { BlocksPanel } from './blocks-panel';
-import { LayersPanel } from './layers-panel';
-import { EditorSidebarConfig, LeftSidebarTab } from '../../config';
+import { ComponentPanel } from './component-panel.js';
+import { BlocksPanel } from './blocks-panel.js';
+import { LayersPanel } from './layers-panel.js';
+import { EditorSidebarConfig, LeftSidebarTab } from '../../config/index.js';
 
 export type { LeftSidebarTab };
 

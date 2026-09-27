@@ -1,5 +1,5 @@
 import { Node, ResponsiveStyles } from '@kubuild/schema';
-import { BlockDefinition, defaultGenId } from './types';
+import { BlockDefinition, defaultGenId } from './types.js';
 
 type Gen = (prefix?: string) => string;
 

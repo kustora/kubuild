@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTranslation } from '../../i18n';
+import { useTranslation } from '../../i18n/index.js';
 
 export interface BoxModelValues {
   marginTop?: string | number;

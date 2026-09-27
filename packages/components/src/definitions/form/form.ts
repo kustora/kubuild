@@ -1,5 +1,5 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
+import { ComponentDefinition } from '../../registry.js';
 import {
   actionTrait,
   ariaLabelTrait,
@@ -11,8 +11,8 @@ import {
   resetOnSubmitTrait,
   scrollToFirstErrorTrait,
   targetTrait,
-} from '../../traits';
-import { CONTENT_CHILD_TYPES } from '../constants';
+} from '../../traits/index.js';
+import { CONTENT_CHILD_TYPES } from '../constants.js';
 
 export const formDefinition: ComponentDefinition = {
   type: 'form',

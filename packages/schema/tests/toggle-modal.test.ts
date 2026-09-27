@@ -6,8 +6,8 @@ import {
   ToggleModalStepPayloadSchema,
   isActionStepType,
   validateActionStepPayload,
-} from '../src/actions';
-import { getActionPipelineJsonSchema, getPageDocumentJsonSchema } from '../src/json-schema';
+} from '../src/actions.js';
+import { getActionPipelineJsonSchema, getPageDocumentJsonSchema } from '../src/json-schema.js';
 
 describe('toggle_modal action step', () => {
   it('is a valid action step type', () => {

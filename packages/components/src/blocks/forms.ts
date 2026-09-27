@@ -1,5 +1,5 @@
 import { ResponsiveStyles } from '@kubuild/schema';
-import { BlockDefinition, defaultGenId } from './types';
+import { BlockDefinition, defaultGenId } from './types.js';
 
 /**
  * Starter Form Templates (STORA-350).

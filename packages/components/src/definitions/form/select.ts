@@ -1,5 +1,5 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
+import { ComponentDefinition } from '../../registry.js';
 import {
   ariaLabelTrait,
   defaultValueTrait,
@@ -10,7 +10,7 @@ import {
   optionsListTrait,
   placeholderTrait,
   requiredTrait,
-} from '../../traits';
+} from '../../traits/index.js';
 
 export const selectDefinition: ComponentDefinition = {
   type: 'select',

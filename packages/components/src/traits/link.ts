@@ -1,4 +1,4 @@
-import { ComponentTraitDefinition, withOverrides } from './types';
+import { ComponentTraitDefinition, withOverrides } from './types.js';
 
 /** `href` — the destination URL for links, buttons, and form actions. */
 export function hrefTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {

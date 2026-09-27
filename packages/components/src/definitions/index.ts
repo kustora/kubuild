@@ -1,4 +1,4 @@
-import { ComponentDefinition, ComponentRegistry } from '../registry';
+import { ComponentDefinition, ComponentRegistry } from '../registry.js';
 import {
   columnsDefinition,
   containerDefinition,
@@ -6,7 +6,7 @@ import {
   gridDefinition,
   pageDefinition,
   sectionDefinition,
-} from './layout';
+} from './layout/index.js';
 import {
   badgeDefinition,
   blockquoteDefinition,
@@ -15,13 +15,13 @@ import {
   linkDefinition,
   paragraphDefinition,
   textDefinition,
-} from './typography';
+} from './typography/index.js';
 import {
   htmlEmbedDefinition,
   iconDefinition,
   imageDefinition,
   videoDefinition,
-} from './media';
+} from './media/index.js';
 import {
   collectionDefinition,
   listDefinition,
@@ -29,7 +29,7 @@ import {
   tableCellDefinition,
   tableDefinition,
   tableRowDefinition,
-} from './data';
+} from './data/index.js';
 import {
   buttonDefinition,
   buttonSubmitDefinition,
@@ -43,23 +43,23 @@ import {
   selectDefinition,
   switchDefinition,
   textareaDefinition,
-} from './form';
+} from './form/index.js';
 
-export * from './constants';
-export * from './types';
-export * from './layout';
-export * from './typography';
-export * from './media';
-export * from './data';
-export * from './form';
-export * from './interactive';
-export * from './conversion';
+export * from './constants.js';
+export * from './types.js';
+export * from './layout/index.js';
+export * from './typography/index.js';
+export * from './media/index.js';
+export * from './data/index.js';
+export * from './form/index.js';
+export * from './interactive/index.js';
+export * from './conversion/index.js';
 
 import {
   modalDefinition,
   drawerDefinition,
   collapsibleDefinition,
-} from './interactive';
+} from './interactive/index.js';
 import {
   accordionDefinition,
   accordionItemDefinition,
@@ -70,7 +70,7 @@ import {
   spacerDefinition,
   tabPanelDefinition,
   tabsDefinition,
-} from './conversion';
+} from './conversion/index.js';
 
 export const coreComponentDefinitions: ComponentDefinition[] = [
   pageDefinition,

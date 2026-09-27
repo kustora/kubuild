@@ -7,8 +7,8 @@ import {
   ActionTriggerType,
 } from '@kubuild/schema';
 import { findNodeById } from '@kubuild/core';
-import { useEditorStore } from '../../store';
-import { ActionStepForm } from './action-step-form';
+import { useEditorStore } from '../../store/index.js';
+import { ActionStepForm } from './action-step-form.js';
 import {
   Zap,
   Plus,

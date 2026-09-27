@@ -8,7 +8,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   looksLikeProjectDocument,
 } from '@kubuild/schema';
-import { canMigrate, migrateDocument, MigrationError } from './migration';
+import { canMigrate, migrateDocument, MigrationError } from './migration.js';
 
 /**
  * Brings every artboard's embedded page document up to the current page schema version

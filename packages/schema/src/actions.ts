@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TrackEventStepPayload, TrackEventStepPayloadSchema } from './tracking';
+import { TrackEventStepPayload, TrackEventStepPayloadSchema } from './tracking.js';
 
 /**
  * Action Trigger Types

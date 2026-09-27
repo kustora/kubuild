@@ -10,7 +10,7 @@ import {
   DocumentValidationError,
   ValidationOptions,
   validateDocument,
-} from './validator';
+} from './validator.js';
 
 export type ProjectValidationErrorCode =
   | 'PROJECT_SCHEMA_INVALID'

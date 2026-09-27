@@ -12,11 +12,11 @@ import {
   isFormConfig,
   type FormFieldBinding,
   type FormConfig,
-} from '../src/form';
+} from '../src/form.js';
 import {
   getFormConfigJsonSchema,
   getFormFieldBindingJsonSchema,
-} from '../src/json-schema';
+} from '../src/json-schema.js';
 
 describe('ValidationRuleTypeSchema & Type Guards', () => {
   const supportedTypes = [

@@ -2,16 +2,16 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import type { Artboard, Node } from '@kubuild/schema';
 import { type ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
-import { RenderContext, DEFAULT_RENDER_CONTEXT, Diagnostic } from './render-context';
-import { useModals, modalManager, type ModalManager } from './action-runners';
+import { RenderContext, DEFAULT_RENDER_CONTEXT, Diagnostic } from './render-context.js';
+import { useModals, modalManager, type ModalManager } from './action-runners/index.js';
 import {
   NodeRenderer,
   KubuildRenderer,
   resolveResponsiveMode,
   type KubuildRendererProps,
-} from './renderer';
-import { collectResponsiveStylesCss, type ResponsiveMode } from './styles';
-import { resolveRuntimeTheme, themeToCssProperties } from './theme';
+} from './renderer.js';
+import { collectResponsiveStylesCss, type ResponsiveMode } from './styles.js';
+import { resolveRuntimeTheme, themeToCssProperties } from './theme.js';
 
 export interface ArtboardPortalHostProps {
   /**

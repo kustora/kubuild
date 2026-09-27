@@ -1,6 +1,6 @@
 import { PageDocument } from '@kubuild/schema';
-import { DocumentChangeEvent, CommandResult } from './commands';
-import { deepClone } from './command-tree-utils';
+import { DocumentChangeEvent, CommandResult } from './commands.js';
+import { deepClone } from './command-tree-utils.js';
 
 export interface HistoryOptions {
   /**

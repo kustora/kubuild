@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { DimensionUnitInput } from './dimension-sector-controls';
-import { InheritanceIndicator, Breakpoint } from './inheritance-indicator';
+import { DimensionUnitInput } from './dimension-sector-controls.js';
+import { InheritanceIndicator, Breakpoint } from './inheritance-indicator.js';
 import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
-import { useTranslation } from '../../i18n';
+import { useTranslation } from '../../i18n/index.js';
 
 export interface FontOption {
   label: string;

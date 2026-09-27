@@ -6,8 +6,8 @@ import {
   FormRadioGroupNode,
   FormRadioNode,
   FormSwitchNode,
-} from '../nodes';
-import type { RenderNodeContentOptions } from './render-node-content';
+} from '../nodes/index.js';
+import type { RenderNodeContentOptions } from './render-node-content.js';
 
 const str = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
 

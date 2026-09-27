@@ -56,8 +56,8 @@ import {
   STARTER_BLOCKS,
   BlockDefinition,
 } from '@kubuild/components';
-import type { AiGenerationPlaceholderStatus } from '../ai/generate-page';
-import { getMissingTemplateComponents } from '../utils/template-requirements';
+import type { AiGenerationPlaceholderStatus } from '../ai/generate-page.js';
+import { getMissingTemplateComponents } from '../utils/template-requirements.js';
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 /** Locales that ship with built-in dictionaries. */

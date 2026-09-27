@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AssetReferenceSchema, PageDocumentSchema, type AssetReference, type PageDocument } from './document';
+import { AssetReferenceSchema, PageDocumentSchema, type AssetReference, type PageDocument } from './document.js';
 
 /**
  * Regex for screening dangerous URI schemes and payloads in thumbnail URLs.

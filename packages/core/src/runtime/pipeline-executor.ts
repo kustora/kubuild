@@ -4,8 +4,8 @@ import type {
   ActionStepCondition,
   ActionStepType,
 } from '@kubuild/schema';
-import { interpolateValue, resolvePropertyPath } from './interpolator';
-import { evaluateCondition } from './conditional-resolver';
+import { interpolateValue, resolvePropertyPath } from './interpolator.js';
+import { evaluateCondition } from './conditional-resolver.js';
 
 /**
  * Execution context shared across action steps in a pipeline.

@@ -1,4 +1,4 @@
-import { ComponentTraitDefinition, withOverrides } from './types';
+import { ComponentTraitDefinition, withOverrides } from './types.js';
 
 /** `src` — the source URL for media (image, video). */
 export function srcTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {

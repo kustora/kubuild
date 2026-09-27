@@ -2,8 +2,8 @@ import type {
   AiProviderAdapter,
   AiProviderGenerateParams,
   AiProviderGenerateResult,
-} from '../../types';
-import { getMessageText } from '../../core/messages';
+} from '../../types.js';
+import { getMessageText } from '../../core/messages.js';
 
 export interface CustomHttpAdapterOptions {
   url: string;

@@ -1,5 +1,5 @@
-import { ComponentDefinition } from '../../registry';
-import { idTrait, ariaLabelTrait, titleTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { idTrait, ariaLabelTrait, titleTrait } from '../../traits/index.js';
 
 export const modalDefinition: ComponentDefinition = {
   type: 'modal',

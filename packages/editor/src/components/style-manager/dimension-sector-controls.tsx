@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { InheritanceIndicator, Breakpoint } from './inheritance-indicator';
-import { useTranslation } from '../../i18n';
+import { InheritanceIndicator, Breakpoint } from './inheritance-indicator.js';
+import { useTranslation } from '../../i18n/index.js';
 
 export const DIMENSION_UNITS = ['px', '%', 'rem', 'em', 'vw', 'vh', 'auto', 'none', 'fit-content'] as const;
 export type DimensionUnit = (typeof DIMENSION_UNITS)[number];

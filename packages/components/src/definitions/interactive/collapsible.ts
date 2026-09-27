@@ -1,5 +1,5 @@
-import { ComponentDefinition } from '../../registry';
-import { idTrait, ariaLabelTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { idTrait, ariaLabelTrait } from '../../traits/index.js';
 
 export const collapsibleDefinition: ComponentDefinition = {
   type: 'collapsible',

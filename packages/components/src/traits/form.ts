@@ -1,4 +1,4 @@
-import { ComponentTraitDefinition, withOverrides } from './types';
+import { ComponentTraitDefinition, withOverrides } from './types.js';
 
 /** `placeholder` — hint text shown inside an empty form control. */
 export function placeholderTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {

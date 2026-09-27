@@ -1,1 +1,1 @@
-export * from './ai-chat-panel';
+export * from './ai-chat-panel.js';

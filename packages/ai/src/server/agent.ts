@@ -9,15 +9,15 @@ import type {
   AiStreamEvent,
   AiToolUseBlock,
   KubuildAiEngineOptions,
-} from '../types';
+} from '../types.js';
 import {
   buildAgentSystemPrompt,
   compileComponentCatalog,
   joinInstructions,
-} from '../core/prompt-compiler';
-import { getMessageText } from '../core/messages';
-import type { KubuildAiEngine } from './engine';
-import { createDocumentTools, toToolDefinitions, type AgentTool } from './tools';
+} from '../core/prompt-compiler.js';
+import { getMessageText } from '../core/messages.js';
+import type { KubuildAiEngine } from './engine.js';
+import { createDocumentTools, toToolDefinitions, type AgentTool } from './tools/index.js';
 
 export interface KubuildAiAgentOptions extends KubuildAiEngineOptions {
   /**

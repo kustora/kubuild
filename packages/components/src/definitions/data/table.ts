@@ -1,6 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { ariaLabelTrait, colSpanTrait, idTrait, rowSpanTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { ariaLabelTrait, colSpanTrait, idTrait, rowSpanTrait } from '../../traits/index.js';
 
 export const tableDefinition: ComponentDefinition = {
   type: 'table',

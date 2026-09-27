@@ -3,9 +3,9 @@ import type { PageDocument, TemplateRecord } from '@kubuild/schema';
 import type { Diagnostic, RuntimeContext } from '@kubuild/core';
 import type { ComponentRegistry } from '@kubuild/components';
 import { LayoutTemplate } from 'lucide-react';
-import { useEditorStore } from '../../store';
-import { ConfirmDialog } from '../ui/confirm-dialog';
-import { TemplatePickerDialog } from './template-picker';
+import { useEditorStore } from '../../store/index.js';
+import { ConfirmDialog } from '../ui/confirm-dialog.js';
+import { TemplatePickerDialog } from './template-picker.js';
 
 export interface TemplateToolbarActionProps {
   templates: TemplateRecord[];

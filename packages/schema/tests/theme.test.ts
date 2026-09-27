@@ -10,7 +10,7 @@ import {
   getPageDocumentJsonSchema,
   CANONICAL_TEXT_PROPS,
   findDeprecatedPropAliases,
-} from '../src';
+} from '../src/index.js';
 
 describe('STORA-551: ThemeSchema', () => {
   it('accepts safe tokens and rejects CSS/markup injection', () => {

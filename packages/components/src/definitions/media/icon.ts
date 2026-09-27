@@ -1,6 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { ariaLabelTrait, idTrait, titleTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { ariaLabelTrait, idTrait, titleTrait } from '../../traits/index.js';
 
 export const iconDefinition: ComponentDefinition = {
   type: 'icon',

@@ -14,7 +14,7 @@ import {
 import {
   collectDocumentNodes,
   collectDocumentFormFields,
-} from '../../utils/document-scanner';
+} from '../../utils/document-scanner.js';
 
 export type VariableCategory = 'form' | 'variables' | 'response' | 'state';
 

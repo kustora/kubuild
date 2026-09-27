@@ -1,5 +1,5 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
+import { ComponentDefinition } from '../../registry.js';
 import {
   ariaLabelTrait,
   defaultValueTrait,
@@ -16,7 +16,7 @@ import {
   requiredTrait,
   prefixIconTrait,
   suffixIconTrait,
-} from '../../traits';
+} from '../../traits/index.js';
 
 export const inputDefinition: ComponentDefinition = {
   type: 'input',

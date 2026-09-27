@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from '../../i18n';
+import { useTranslation } from '../../i18n/index.js';
 
 export type AlignmentPointId =
   | 'top-left'

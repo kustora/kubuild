@@ -6,9 +6,9 @@ import {
   ResponsiveStyles,
   getCanonicalTextPropRule,
 } from '@kubuild/schema';
-import { deepClone } from '../document/command-tree-utils';
-import { validateDocument } from '../validation/validator';
-import { stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer';
+import { deepClone } from '../document/command-tree-utils.js';
+import { validateDocument } from '../validation/validator.js';
+import { stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer.js';
 
 export type MigrationErrorCode =
   | 'NO_MIGRATION_PATH'

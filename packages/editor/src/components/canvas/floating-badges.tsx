@@ -3,7 +3,7 @@ import { PageDocument, ARTBOARD_REFERENCE_NODE_TYPE } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getParentNodeId } from '@kubuild/core';
 import { ArrowUp, ChevronUp, ChevronDown, Move, Copy, Trash2, ExternalLink } from 'lucide-react';
-import { useEditorStore } from '../../store';
+import { useEditorStore } from '../../store/index.js';
 
 export interface FloatingActionBadgesProps {
   selectedNodeId: string;

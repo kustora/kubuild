@@ -1,5 +1,5 @@
-import { ComponentDefinition } from '../../registry';
-import { ariaLabelTrait, idTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { ariaLabelTrait, idTrait } from '../../traits/index.js';
 
 /**
  * Flex Frame Component Definition (STORA-102)

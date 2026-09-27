@@ -1,4 +1,4 @@
-import { ComponentTraitDefinition, withOverrides } from './types';
+import { ComponentTraitDefinition, withOverrides } from './types.js';
 
 /** `cite` — the source URL for a blockquote. */
 export function citeTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {

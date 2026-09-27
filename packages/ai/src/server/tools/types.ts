@@ -1,6 +1,6 @@
 import type { Node, PageDocument } from '@kubuild/schema';
 import type { DocumentSecurityLimits } from '@kubuild/core';
-import type { AgentOp, AiCompiledComponentSpec, AiToolDefinition } from '../../types';
+import type { AgentOp, AiCompiledComponentSpec, AiToolDefinition } from '../../types.js';
 
 /**
  * Everything a tool needs to answer or mutate (STORA-530).

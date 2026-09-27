@@ -21,8 +21,8 @@ import {
   StyleValueSchema,
   StyleDefinitionSchema,
   ResponsiveStylesSchema,
-} from '../src/document';
-import { ManifestSchema, isManifest } from '../src/manifest';
+} from '../src/document.js';
+import { ManifestSchema, isManifest } from '../src/manifest.js';
 import {
   TemplateRecordSchema,
   SafeThumbnailSchema,
@@ -32,12 +32,12 @@ import {
   isTemplateRecord,
   isSafeThumbnail,
   isSafeThumbnailUrl,
-} from '../src/template';
+} from '../src/template.js';
 import {
   getPageDocumentJsonSchema,
   getManifestJsonSchema,
   getTemplateRecordJsonSchema,
-} from '../src/json-schema';
+} from '../src/json-schema.js';
 import starterPage from '../src/fixtures/starter-page.json';
 
 

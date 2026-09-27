@@ -12,7 +12,7 @@ import {
   dispatchServerTracking,
   type ServerTrackingEvent,
   type TrackingSecretResolver,
-} from './server-tracking';
+} from './server-tracking.js';
 
 /** Context handed to `getConfig` — use it to look up the trusted config for this page. */
 export interface TrackingRelayConfigContext {

@@ -1,5 +1,5 @@
 import { getCanonicalTextPropRule } from '@kubuild/schema';
-import type { ComponentDefinition } from './registry';
+import type { ComponentDefinition } from './registry.js';
 
 /**
  * Definition fields documenting a component's canonical text prop and its deprecated

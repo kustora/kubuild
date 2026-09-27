@@ -17,22 +17,22 @@ import {
   findNodeLocation,
   isDescendantOf,
 } from '@kubuild/core';
-import { useEditorStore, Viewport } from '../../store';
-import { FloatingActionBadges } from './floating-badges';
-import { ResizeHandles } from './resize-handles';
-import { SpacingSliders } from './spacing-sliders';
-import { SmartGuides, GuideLine, CanvasRect } from './smart-guides';
-import { DistanceMeter } from './distance-meter';
-import { CanvasZoomToolbar, useCanvasPanZoom, clampZoom } from './canvas-pan-zoom';
-import { MarqueeSelectionBox, MarqueeRect, calculateMarqueeIntersections } from './marquee-selection';
-import { MultiDevicePreview } from './multi-device-preview';
-import { GridGuidelinesOverlay } from './grid-guidelines-overlay';
-import { ViewportResizer } from './viewport-resizer';
-import { EditorCanvasConfig } from '../../config';
+import { useEditorStore, Viewport } from '../../store/index.js';
+import { FloatingActionBadges } from './floating-badges.js';
+import { ResizeHandles } from './resize-handles.js';
+import { SpacingSliders } from './spacing-sliders.js';
+import { SmartGuides, GuideLine, CanvasRect } from './smart-guides.js';
+import { DistanceMeter } from './distance-meter.js';
+import { CanvasZoomToolbar, useCanvasPanZoom, clampZoom } from './canvas-pan-zoom.js';
+import { MarqueeSelectionBox, MarqueeRect, calculateMarqueeIntersections } from './marquee-selection.js';
+import { MultiDevicePreview } from './multi-device-preview.js';
+import { GridGuidelinesOverlay } from './grid-guidelines-overlay.js';
+import { ViewportResizer } from './viewport-resizer.js';
+import { EditorCanvasConfig } from '../../config/index.js';
 import {
   type AiGenerationPlaceholderStatus,
   shouldShowAiGenerationPlaceholder,
-} from '../../ai/generate-page';
+} from '../../ai/generate-page.js';
 
 export interface EditorPageItem {
   id: string;

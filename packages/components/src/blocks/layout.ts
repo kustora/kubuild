@@ -1,4 +1,4 @@
-import { BlockDefinition, defaultGenId } from './types';
+import { BlockDefinition, defaultGenId } from './types.js';
 
 /**
  * Predefined Starter Layout Blocks (STORA-241).

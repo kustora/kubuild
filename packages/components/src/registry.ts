@@ -44,7 +44,7 @@ export interface ComponentDefinition<TRenderer = unknown> {
    * Distinct from `propFields` which may include visual styling knobs;
    * traits are purely functional.
    */
-  traits?: import('./traits').ComponentTraits;
+  traits?: import('./traits/index.js').ComponentTraits;
   /**
    * Prop schema slot: validates a node's props for this component type.
    * Returns `true`/`[]` (valid), `false` (generic failure), or an array of

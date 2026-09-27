@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation, EditorLocale } from '../../i18n';
+import { useTranslation, EditorLocale } from '../../i18n/index.js';
 import { Globe } from 'lucide-react';
 
 export interface LanguageSwitcherOption {

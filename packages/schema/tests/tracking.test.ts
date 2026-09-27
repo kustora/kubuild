@@ -17,7 +17,7 @@ import {
   getTrackingRelayResponseJsonSchema,
   getTrackingProviderSecretsJsonSchema,
   getPageDocumentJsonSchema,
-} from '../src';
+} from '../src/index.js';
 
 describe('Tracking Schemas', () => {
   it('validates default TrackingConfigSchema', () => {

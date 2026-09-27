@@ -11,18 +11,18 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import { ActionBranchEditor } from './action-branch-editor';
+import { ActionBranchEditor } from './action-branch-editor.js';
 import {
   VariableAutocompleteInput,
   VariableAutocompleteTextarea,
-} from '../ui/variable-autocomplete-input';
+} from '../ui/variable-autocomplete-input.js';
 import {
   collectDocumentNodes,
   collectDocumentModals,
   collectDocumentForms,
   collectDocumentAnchors,
   collectDocumentFormFields,
-} from '../../utils/document-scanner';
+} from '../../utils/document-scanner.js';
 
 
 export interface ActionStepFormProps {

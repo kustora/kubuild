@@ -8,24 +8,44 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./definitions": {
-      "types": "./dist/definitions/index.d.ts",
-      "import": "./dist/definitions/index.js",
-      "require": "./dist/definitions/index.cjs"
+      "import": {
+        "types": "./dist/definitions/index.d.ts",
+        "default": "./dist/definitions/index.js"
+      },
+      "require": {
+        "types": "./dist/definitions/index.d.cts",
+        "default": "./dist/definitions/index.cjs"
+      }
     },
     "./traits": {
-      "types": "./dist/traits/index.d.ts",
-      "import": "./dist/traits/index.js",
-      "require": "./dist/traits/index.cjs"
+      "import": {
+        "types": "./dist/traits/index.d.ts",
+        "default": "./dist/traits/index.js"
+      },
+      "require": {
+        "types": "./dist/traits/index.d.cts",
+        "default": "./dist/traits/index.cjs"
+      }
     },
     "./blocks": {
-      "types": "./dist/blocks/index.d.ts",
-      "import": "./dist/blocks/index.js",
-      "require": "./dist/blocks/index.cjs"
+      "import": {
+        "types": "./dist/blocks/index.d.ts",
+        "default": "./dist/blocks/index.js"
+      },
+      "require": {
+        "types": "./dist/blocks/index.d.cts",
+        "default": "./dist/blocks/index.cjs"
+      }
     }
   },
   "files": [
@@ -36,7 +56,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup && tsc --emitDeclarationOnly",
+    "build": "tsup && tsc --emitDeclarationOnly && node ../../scripts/emit-cjs-dts.mjs",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",

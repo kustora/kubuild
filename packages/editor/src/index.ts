@@ -1,7 +1,7 @@
-export * from './components';
-export * from './store';
-export * from './config';
-export * from './utils';
-export * from './ai';
-export * from './i18n';
+export * from './components/index.js';
+export * from './store/index.js';
+export * from './config/index.js';
+export * from './utils/index.js';
+export * from './ai/index.js';
+export * from './i18n/index.js';
 export type { AssetProvider, AssetInfo } from '@kubuild/core';

@@ -5,13 +5,13 @@ import type {
   RenderContext,
 } from '@kubuild/core';
 import type { ActionStep, PageDocument } from '@kubuild/schema';
-import { navigateRunner } from './action-runners/navigation-utils';
+import { navigateRunner } from './action-runners/navigation-utils.js';
 import {
   closeModalRunner,
   openModalRunner,
   showToastRunner,
   toggleModalRunner,
-} from './action-runners/ui-feedback';
+} from './action-runners/ui-feedback.js';
 
 /**
  * Built-in handlers for legacy single-action bindings (`props.action = { type, payload }`)

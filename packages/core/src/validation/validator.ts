@@ -6,7 +6,7 @@ import {
 import {
   DocumentSecurityLimits,
   validateDocumentSecurity,
-} from './security';
+} from './security.js';
 
 export type DocumentValidationErrorCode =
   | 'GLOBAL_SCHEMA_INVALID'

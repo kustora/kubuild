@@ -2,9 +2,9 @@ import type {
   AiProviderAdapter,
   AiProviderGenerateParams,
   AiProviderGenerateResult,
-} from '../../types';
-import { readSseDataLines } from './stream-utils';
-import { getMessageText } from '../../core/messages';
+} from '../../types.js';
+import { readSseDataLines } from './stream-utils.js';
+import { getMessageText } from '../../core/messages.js';
 
 export interface AnthropicAdapterOptions {
   apiKey: string;

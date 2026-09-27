@@ -6,18 +6,18 @@ import { useAiChat, useAiGenerator, useAiAgent } from '@kubuild/ai/react';
 import type { AiChatHistoryStorageAdapter } from '@kubuild/ai/react';
 import { getMessageText, type AiChatMessage, type AgentOpRecord, type PagePlan } from '@kubuild/ai';
 import type { AiClientOptions } from '@kubuild/ai/client';
-import { useEditorStore } from '../../store';
-import { useTranslation } from '../../i18n';
-import { ResolvedAiEditorConfig } from '../../config';
-import { buildAiChatContext, resolveChatSendContext } from '../../utils/ai-context';
+import { useEditorStore } from '../../store/index.js';
+import { useTranslation } from '../../i18n/index.js';
+import { ResolvedAiEditorConfig } from '../../config/index.js';
+import { buildAiChatContext, resolveChatSendContext } from '../../utils/ai-context.js';
 import {
   runEnhanceNode,
   diffEnhanceNode,
   applyEnhanceCandidate,
   type EnhanceCandidate,
-} from '../../ai/enhance-node';
-import { runStreamPageGeneration, type StreamPageGenerationSummary } from '../../ai/generate-page';
-import { applyAgentOps, partitionAutoApplicableOps } from '../../ai/apply-agent-ops';
+} from '../../ai/enhance-node.js';
+import { runStreamPageGeneration, type StreamPageGenerationSummary } from '../../ai/generate-page.js';
+import { applyAgentOps, partitionAutoApplicableOps } from '../../ai/apply-agent-ops.js';
 import {
   Bot,
   User,

@@ -1,6 +1,6 @@
-import { ComponentDefinition } from '../../registry';
-import { idTrait, titleTrait } from '../../traits';
-import { CONTENT_CHILD_TYPES, LAYOUT_PARENTS } from '../constants';
+import { ComponentDefinition } from '../../registry.js';
+import { idTrait, titleTrait } from '../../traits/index.js';
+import { CONTENT_CHILD_TYPES, LAYOUT_PARENTS } from '../constants.js';
 
 export const pageDefinition: ComponentDefinition = {
   type: 'page',

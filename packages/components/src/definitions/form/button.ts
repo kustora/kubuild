@@ -1,6 +1,6 @@
 import { isActionBinding, isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { canonicalTextPropFields } from '../../canonical-props';
+import { ComponentDefinition } from '../../registry.js';
+import { canonicalTextPropFields } from '../../canonical-props.js';
 import {
   ariaLabelTrait,
   autoDisableOnSubmitTrait,
@@ -16,7 +16,7 @@ import {
   suffixIconTrait,
   targetTrait,
   titleTrait,
-} from '../../traits';
+} from '../../traits/index.js';
 
 export const buttonDefinition: ComponentDefinition = {
   type: 'button',

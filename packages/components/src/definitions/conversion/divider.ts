@@ -1,6 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { idTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { idTrait } from '../../traits/index.js';
 
 /** Horizontal divider line with optional centered label (STORA-548). */
 export const dividerDefinition: ComponentDefinition = {

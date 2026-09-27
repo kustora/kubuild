@@ -3,7 +3,7 @@ import { PageDocument } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { KubuildRenderer } from '@kubuild/renderer';
 import { RuntimeContext } from '@kubuild/core';
-import { useEditorStore, Viewport } from '../../store';
+import { useEditorStore, Viewport } from '../../store/index.js';
 import {
   Monitor,
   Tablet,

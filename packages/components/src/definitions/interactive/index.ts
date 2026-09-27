@@ -1,3 +1,3 @@
-export * from './modal';
-export * from './drawer';
-export * from './collapsible';
+export * from './modal.js';
+export * from './drawer.js';
+export * from './collapsible.js';

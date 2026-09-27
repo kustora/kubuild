@@ -1,11 +1,11 @@
 import type React from 'react';
-import type { RenderNodeContentOptions } from '../render-node-content';
-import { renderCountdown } from './countdown';
-import { renderAccordion, renderAccordionItem } from './accordion';
-import { renderTabs, renderTabPanel } from './tabs';
-import { renderCarousel } from './carousel';
-import { renderRating } from './rating';
-import { renderDivider, renderSpacer } from './divider';
+import type { RenderNodeContentOptions } from '../render-node-content.js';
+import { renderCountdown } from './countdown.js';
+import { renderAccordion, renderAccordionItem } from './accordion.js';
+import { renderTabs, renderTabPanel } from './tabs.js';
+import { renderCarousel } from './carousel.js';
+import { renderRating } from './rating.js';
+import { renderDivider, renderSpacer } from './divider.js';
 
 export {
   splitCountdown,
@@ -19,11 +19,11 @@ export {
   type CountdownFormat,
   type CountdownParts,
   type CountdownStorageLike,
-} from './countdown';
-export { toggleAccordionIndex, buildFaqJsonLd, serializeJsonForScript } from './accordion';
-export { clampTabIndex } from './tabs';
-export { stepCarouselIndex, swipeDirection, CAROUSEL_SWIPE_THRESHOLD } from './carousel';
-export { normalizeRating, ratingStarFills, formatRatingLabel, RATING_MAX_STARS } from './rating';
+} from './countdown.js';
+export { toggleAccordionIndex, buildFaqJsonLd, serializeJsonForScript } from './accordion.js';
+export { clampTabIndex } from './tabs.js';
+export { stepCarouselIndex, swipeDirection, CAROUSEL_SWIPE_THRESHOLD } from './carousel.js';
+export { normalizeRating, ratingStarFills, formatRatingLabel, RATING_MAX_STARS } from './rating.js';
 
 /**
  * Conversion components (Epic 60): countdown, accordion/accordion-item, tabs/tab-panel,

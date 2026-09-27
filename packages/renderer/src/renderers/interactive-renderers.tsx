@@ -1,7 +1,7 @@
 import React from 'react';
 import { ARTBOARD_REFERENCE_NODE_TYPE } from '@kubuild/schema';
-import type { RenderNodeContentOptions } from './render-node-content';
-import { modalManager, type ModalManager } from '../action-runners';
+import type { RenderNodeContentOptions } from './render-node-content.js';
+import { modalManager, type ModalManager } from '../action-runners/index.js';
 
 /**
  * Interactive nodes: modal, drawer, collapsible

@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { PageDocument, BREAKPOINTS, type Artboard } from '@kubuild/schema';
 import type { ComponentRegistry } from '@kubuild/components';
-import { RenderContext, Diagnostic } from './render-context';
-import { KubuildRenderer } from './renderer';
-import { ArtboardPortalHost } from './artboard-portal-host';
+import { RenderContext, Diagnostic } from './render-context.js';
+import { KubuildRenderer } from './renderer.js';
+import { ArtboardPortalHost } from './artboard-portal-host.js';
 
 /**
  * Standard supported viewport devices

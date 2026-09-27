@@ -1,6 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { idTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { idTrait } from '../../traits/index.js';
 
 /**
  * Star rating (STORA-547). Supports half stars; the accessible label defaults to

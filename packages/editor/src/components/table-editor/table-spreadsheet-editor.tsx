@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { Node } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getAncestorChain, deepClone } from '@kubuild/core';
-import { useEditorStore } from '../../store';
-import { ComponentIcon } from '../ui/icons';
+import { useEditorStore } from '../../store/index.js';
+import { ComponentIcon } from '../ui/icons.js';
 import { X, Trash2 } from 'lucide-react';
 
 export interface TableSpreadsheetEditorProps {

@@ -5,9 +5,9 @@ import type {
   AiProviderGenerateResult,
   AiStopReason,
   AiToolUseBlock,
-} from '../../types';
-import { getMessageText, getToolResultBlocks, getToolUseBlocks } from '../../core/messages';
-import { readSseDataLines } from './stream-utils';
+} from '../../types.js';
+import { getMessageText, getToolResultBlocks, getToolUseBlocks } from '../../core/messages.js';
+import { readSseDataLines } from './stream-utils.js';
 
 export interface OpenAiAdapterOptions {
   apiKey: string;

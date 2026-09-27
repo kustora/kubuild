@@ -22,8 +22,8 @@ import {
   ActionPipelineExecutor,
   type Diagnostic,
 } from '@kubuild/core';
-import { registerDefaultActionRunners } from './action-runners';
-import { useRenderContext } from './render-context';
+import { registerDefaultActionRunners } from './action-runners/index.js';
+import { useRenderContext } from './render-context.js';
 
 /**
  * Form Runtime State representation.

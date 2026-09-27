@@ -1,5 +1,5 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
+import { ComponentDefinition } from '../../registry.js';
 import {
   ariaLabelTrait,
   autoplayTrait,
@@ -10,7 +10,7 @@ import {
   posterTrait,
   srcTrait,
   titleTrait,
-} from '../../traits';
+} from '../../traits/index.js';
 
 export const videoDefinition: ComponentDefinition = {
   type: 'video',

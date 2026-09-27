@@ -1,4 +1,4 @@
-import { resolvePropertyPath } from './interpolator';
+import { resolvePropertyPath } from './interpolator.js';
 
 /**
  * Forbidden object keys to protect against prototype pollution.

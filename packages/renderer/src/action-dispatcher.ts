@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import type { PageDocument, Node, ActionTriggerType, ActionPipeline } from '@kubuild/schema';
 import { ActionPipelineExecutor, type Diagnostic } from '@kubuild/core';
-import type { RenderContext } from './render-context';
-import type { FormRuntimeContextValue } from './form-context';
-import { registerDefaultActionRunners } from './action-runners';
+import type { RenderContext } from './render-context.js';
+import type { FormRuntimeContextValue } from './form-context.js';
+import { registerDefaultActionRunners } from './action-runners/index.js';
 
 /**
  * Options for executing node action pipelines.

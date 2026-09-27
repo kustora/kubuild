@@ -1,5 +1,5 @@
-import type { KubuildAiEngine } from './engine';
-import type { KubuildAiAgent } from './agent';
+import type { KubuildAiEngine } from './engine.js';
+import type { KubuildAiAgent } from './agent.js';
 import type { PageDocument } from '@kubuild/schema';
 import type {
   AiGeneratePageRequest,
@@ -10,8 +10,8 @@ import type {
   AiGenerationMode,
   AiStreamEvent,
   PagePlan,
-} from '../types';
-import { joinInstructions } from '../core/prompt-compiler';
+} from '../types.js';
+import { joinInstructions } from '../core/prompt-compiler.js';
 
 /** Default cap for client-supplied `instructions` (characters). */
 export const DEFAULT_MAX_CLIENT_INSTRUCTIONS_LENGTH = 4000;

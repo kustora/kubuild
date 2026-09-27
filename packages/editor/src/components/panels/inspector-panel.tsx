@@ -3,25 +3,25 @@ import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@k
 import { findNodeById, findNodeLocation } from '@kubuild/core';
 import { isVariableBinding, PageDocument, AnimationConfig, ActionPipeline } from '@kubuild/schema';
 import type { PixelCredentialOption } from '@kubuild/schema';
-import { useEditorStore, Viewport } from '../../store';
-import { VariableBindingControl, toBindingValue } from '../ui/variable-picker';
-import { AssetManagerModal } from '../modals/asset-manager-modal';
-import { ActionBuilderModal } from '../action-builder/action-builder-modal';
-import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
-import { TableSpreadsheetEditor } from '../table-editor/table-spreadsheet-editor';
-import { BoxModelEditor } from '../style-manager/box-model-editor';
-import { StyleManagerAccordion } from '../style-manager/style-manager-accordion';
-import { TraitsPanel } from './traits-panel';
-import { ActionPropControl } from './action-prop-control';
-import { ComponentIcon } from '../ui/icons';
+import { useEditorStore, Viewport } from '../../store/index.js';
+import { VariableBindingControl, toBindingValue } from '../ui/variable-picker.js';
+import { AssetManagerModal } from '../modals/asset-manager-modal.js';
+import { ActionBuilderModal } from '../action-builder/action-builder-modal.js';
+import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal.js';
+import { TableSpreadsheetEditor } from '../table-editor/table-spreadsheet-editor.js';
+import { BoxModelEditor } from '../style-manager/box-model-editor.js';
+import { StyleManagerAccordion } from '../style-manager/style-manager-accordion.js';
+import { TraitsPanel } from './traits-panel.js';
+import { ActionPropControl } from './action-prop-control.js';
+import { ComponentIcon } from '../ui/icons.js';
 import { replayNodeAnimation } from '@kubuild/renderer';
 import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles, Radio, Upload, Image as ImageIcon, Link2 } from 'lucide-react';
 
-import { StyleSectorId } from '../style-manager/style-manager-accordion';
-import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config';
-import { useTranslation } from '../../i18n';
-import type { MediaTranslations } from '../../i18n';
-import { LanguageSwitcher } from '../ui/language-switcher';
+import { StyleSectorId } from '../style-manager/style-manager-accordion.js';
+import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config/index.js';
+import { useTranslation } from '../../i18n/index.js';
+import type { MediaTranslations } from '../../i18n/index.js';
+import { LanguageSwitcher } from '../ui/language-switcher.js';
 import type { AssetProvider } from '@kubuild/core';
 
 

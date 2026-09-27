@@ -1,18 +1,18 @@
-import type { AiToolDefinition } from '../../types';
-import type { AgentTool } from './types';
-import { READ_TOOLS } from './read-tools';
-import { WRITE_TOOLS } from './write-tools';
+import type { AiToolDefinition } from '../../types.js';
+import type { AgentTool } from './types.js';
+import { READ_TOOLS } from './read-tools.js';
+import { WRITE_TOOLS } from './write-tools.js';
 
-export * from './types';
-export { READ_TOOLS } from './read-tools';
-export { WRITE_TOOLS } from './write-tools';
+export * from './types.js';
+export { READ_TOOLS } from './read-tools.js';
+export { WRITE_TOOLS } from './write-tools.js';
 export {
   checkNesting,
   checkComponentType,
   checkDocumentSecurity,
   normalizeIncomingNode,
   suggestNodeIds,
-} from './helpers';
+} from './helpers.js';
 
 export interface DocumentToolsOptions {
   /**

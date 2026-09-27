@@ -1,5 +1,5 @@
 import { ResponsiveStyles } from '@kubuild/schema';
-import { BlockDefinition, defaultGenId } from './types';
+import { BlockDefinition, defaultGenId } from './types.js';
 
 /**
  * Pre-composed UI Blocks (STORA-242).

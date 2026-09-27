@@ -1,6 +1,6 @@
-import { ComponentDefinition } from '../../registry';
-import { idTrait } from '../../traits';
-import { CONTENT_CHILD_TYPES } from '../constants';
+import { ComponentDefinition } from '../../registry.js';
+import { idTrait } from '../../traits/index.js';
+import { CONTENT_CHILD_TYPES } from '../constants.js';
 
 export const containerDefinition: ComponentDefinition = {
   type: 'container',

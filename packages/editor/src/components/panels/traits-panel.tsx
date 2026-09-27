@@ -9,10 +9,10 @@ import {
 import { findNodeById, AssetProvider } from '@kubuild/core';
 import { PageDocument, FormConfig } from '@kubuild/schema';
 import { X, Upload, Image as ImageIcon, Link2 } from 'lucide-react';
-import { FormValidationRulesPanel, isFormFieldNode } from './form-validation-rules-panel';
-import { useEditorStore } from '../../store';
-import { useTranslation } from '../../i18n';
-import type { MediaTranslations } from '../../i18n';
+import { FormValidationRulesPanel, isFormFieldNode } from './form-validation-rules-panel.js';
+import { useEditorStore } from '../../store/index.js';
+import { useTranslation } from '../../i18n/index.js';
+import type { MediaTranslations } from '../../i18n/index.js';
 
 export interface TraitsPanelProps {
   registry: ComponentRegistry;

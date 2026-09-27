@@ -1,6 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { ariaLabelTrait, idTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { ariaLabelTrait, idTrait } from '../../traits/index.js';
 
 /**
  * Carousel (STORA-546). Every child node is one slide. Autoplay is disabled in the

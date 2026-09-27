@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Image as ImageIcon, Upload, X, Trash2 } from 'lucide-react';
 import type { AssetProvider } from '@kubuild/core';
-import { AssetManagerModal } from '../modals/asset-manager-modal';
+import { AssetManagerModal } from '../modals/asset-manager-modal.js';
 
 export interface BackgroundImageControlsProps {
   styles?: Record<string, unknown>;

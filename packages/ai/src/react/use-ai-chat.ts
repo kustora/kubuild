@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { PageDocument } from '@kubuild/schema';
-import type { AiChatMessage, AiChatResponse } from '../types';
-import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client';
+import type { AiChatMessage, AiChatResponse } from '../types.js';
+import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client.js';
 
 /**
  * Optional, host-implemented chat history persistence (STORA-520). `@kubuild/ai` stays

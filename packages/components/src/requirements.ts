@@ -1,5 +1,5 @@
 import { Node } from '@kubuild/schema';
-import { ComponentRegistry } from './registry';
+import { ComponentRegistry } from './registry.js';
 
 export interface ComponentRequirements {
   requiredComponents: string[];

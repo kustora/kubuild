@@ -1,4 +1,4 @@
-import { ComponentFieldDefinition } from './registry';
+import { ComponentFieldDefinition } from './registry.js';
 
 export type PropPrimitiveType = 'string' | 'number' | 'boolean';
 

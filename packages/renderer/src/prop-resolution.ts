@@ -1,7 +1,7 @@
 import { Node, isVariableBinding, findDeprecatedPropAliases } from '@kubuild/schema';
 import { ComponentDefinition, ComponentFieldDefinition, primitiveTypeForField } from '@kubuild/components';
 import { resolveBinding, Diagnostic, RenderContext } from '@kubuild/core';
-import { resolveVariable } from './render-context';
+import { resolveVariable } from './render-context.js';
 
 export interface ResolvedNodeProps {
   props: Record<string, unknown>;

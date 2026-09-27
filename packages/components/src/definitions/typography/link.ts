@@ -1,7 +1,7 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { canonicalTextPropFields } from '../../canonical-props';
-import { ariaLabelTrait, hrefTrait, idTrait, relTrait, targetTrait, titleTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { canonicalTextPropFields } from '../../canonical-props.js';
+import { ariaLabelTrait, hrefTrait, idTrait, relTrait, targetTrait, titleTrait } from '../../traits/index.js';
 
 export const linkDefinition: ComponentDefinition = {
   type: 'link',

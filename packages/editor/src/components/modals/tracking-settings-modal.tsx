@@ -7,7 +7,7 @@ import type {
   ServerTrackingProviderType,
   TrackingProviderSecrets,
 } from '@kubuild/schema';
-import { useEditorStore } from '../../store';
+import { useEditorStore } from '../../store/index.js';
 import { Activity, X, Check, AlertTriangle, Server, Plus, Trash2, KeyRound, Lock } from 'lucide-react';
 
 /**

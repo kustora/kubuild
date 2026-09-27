@@ -1,6 +1,6 @@
 import type { StoreApi } from 'zustand';
 import type { PageDocument } from '@kubuild/schema';
-import type { EditorState } from '../../store';
+import type { EditorState } from '../../store/index.js';
 
 /** Host save callback (STORA-537). A rejected promise / thrown error marks the save failed. */
 export type EditorSaveHandler = (doc: PageDocument) => Promise<void> | void;

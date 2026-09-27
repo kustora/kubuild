@@ -1,6 +1,6 @@
 import React from 'react';
 import { CircleAlert, CircleCheck, LoaderCircle, Save } from 'lucide-react';
-import type { EditorSaveState } from './save-controller';
+import type { EditorSaveState } from './save-controller.js';
 
 export interface SaveStatusButtonProps {
   saveState: EditorSaveState;

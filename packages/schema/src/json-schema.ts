@@ -6,7 +6,7 @@ import {
   GoogleTrackingSecretsSchema,
   TikTokTrackingSecretsSchema,
   CustomTrackingSecretsSchema,
-} from './tracking';
+} from './tracking.js';
 
 /**
  * Standard JSON Schema Draft-07 representation of stora.page Document v1

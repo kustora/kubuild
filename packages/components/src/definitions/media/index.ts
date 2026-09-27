@@ -1,5 +1,5 @@
-export * from './image';
-export * from './video';
-export * from './icon';
-export * from './html-embed';
+export * from './image.js';
+export * from './video.js';
+export * from './icon.js';
+export * from './html-embed.js';
 

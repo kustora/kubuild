@@ -7,7 +7,7 @@ import type {
   EditorState,
   InsertComponentResult,
   ReplaceDocumentResult,
-} from '../../store';
+} from '../../store/index.js';
 
 /**
  * Imperative API exposed by `KubuildEditor` through `ref` (STORA-538). Lets a host swap the

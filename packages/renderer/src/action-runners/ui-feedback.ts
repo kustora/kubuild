@@ -1,7 +1,7 @@
 import type { ActionStep, ShowToastStepPayload, OpenModalStepPayload, CloseModalStepPayload } from '@kubuild/schema';
 import { type PipelineExecutionContext, type PipelineStepHandler } from '@kubuild/core';
-import { toastManager, type ToastManager, type ToastType, type ToastPosition } from './toast-manager';
-import { modalManager, type ModalManager } from './modal-manager';
+import { toastManager, type ToastManager, type ToastType, type ToastPosition } from './toast-manager.js';
+import { modalManager, type ModalManager } from './modal-manager.js';
 
 /**
  * Result returned by show_toast runner.

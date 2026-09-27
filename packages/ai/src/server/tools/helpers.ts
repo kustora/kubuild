@@ -6,10 +6,10 @@ import {
   validateDocumentSecurity,
   type DocumentSecurityLimits,
 } from '@kubuild/core';
-import type { AiCompiledComponentSpec } from '../../types';
-import { normalizeNodeTree } from '../../core/normalizer';
-import { getNodeLabel } from '../../core/document-outline';
-import type { ToolExecutionResult } from './types';
+import type { AiCompiledComponentSpec } from '../../types.js';
+import { normalizeNodeTree } from '../../core/normalizer.js';
+import { getNodeLabel } from '../../core/document-outline.js';
+import type { ToolExecutionResult } from './types.js';
 
 /**
  * A failed tool call (STORA-530).

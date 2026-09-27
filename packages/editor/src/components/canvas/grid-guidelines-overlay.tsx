@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Node } from '@kubuild/schema';
-import { CanvasRect } from './smart-guides';
-import { parseGridColumns } from '../style-manager/grid-controls';
+import { CanvasRect } from './smart-guides.js';
+import { parseGridColumns } from '../style-manager/grid-controls.js';
 
 export interface GridGuidelinesOverlayProps {
   node: Node;

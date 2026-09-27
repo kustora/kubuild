@@ -1,3 +1,3 @@
-export * from './generate-page';
-export * from './enhance-node';
-export * from './apply-agent-ops';
+export * from './generate-page.js';
+export * from './enhance-node.js';
+export * from './apply-agent-ops.js';

@@ -1,12 +1,12 @@
 import { createContext, useContext } from 'react';
-import { useEditorStore, EditorLocale } from '../store';
-import { DeepPartial, TranslationOverrides, TranslationSchema } from './types';
-import { en } from './locales/en';
-import { id } from './locales/id';
+import { useEditorStore, EditorLocale } from '../store/index.js';
+import { DeepPartial, TranslationOverrides, TranslationSchema } from './types.js';
+import { en } from './locales/en.js';
+import { id } from './locales/id.js';
 
-export * from './types';
-export { en } from './locales/en';
-export { id } from './locales/id';
+export * from './types.js';
+export { en } from './locales/en.js';
+export { id } from './locales/id.js';
 
 const BUILT_IN_TRANSLATIONS: Readonly<Record<string, TranslationSchema>> = {
   en,

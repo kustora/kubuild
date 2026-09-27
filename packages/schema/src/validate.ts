@@ -9,10 +9,10 @@
  *
  * Keep all zod-typed values local to this module; never export them.
  */
-import { NodeSchema, PageDocumentSchema, ProjectDocumentSchema } from './document';
-import { ManifestSchema } from './manifest';
-import { TemplateRecordSchema } from './template';
-import { ThemeSchema } from './theme';
+import { NodeSchema, PageDocumentSchema, ProjectDocumentSchema } from './document.js';
+import { ManifestSchema } from './manifest.js';
+import { TemplateRecordSchema } from './template.js';
+import { ThemeSchema } from './theme.js';
 import type {
   Manifest,
   Node,
@@ -22,9 +22,9 @@ import type {
   SchemaValidationResult,
   TemplateRecord,
   Theme,
-} from './types';
+} from './types.js';
 
-export type { SchemaValidationIssue, SchemaValidationResult } from './types';
+export type { SchemaValidationIssue, SchemaValidationResult } from './types.js';
 
 interface SafeParser {
   safeParse(input: unknown):

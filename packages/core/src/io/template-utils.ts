@@ -8,8 +8,8 @@ import {
   type PageDocument,
   type Node,
 } from '@kubuild/schema';
-import { deepClone, cloneNodeTreeWithFreshIds } from '../document/command-tree-utils';
-import { validateDocument } from '../validation/validator';
+import { deepClone, cloneNodeTreeWithFreshIds } from '../document/command-tree-utils.js';
+import { validateDocument } from '../validation/validator.js';
 
 /**
  * Built-in component types (everything `createDefaultComponentRegistry()` registers).

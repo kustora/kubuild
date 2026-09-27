@@ -1,5 +1,5 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
+import { ComponentDefinition } from '../../registry.js';
 import {
   ariaLabelTrait,
   autoGrowTrait,
@@ -14,7 +14,7 @@ import {
   requiredTrait,
   resizeTrait,
   rowsTrait,
-} from '../../traits';
+} from '../../traits/index.js';
 
 export const textareaDefinition: ComponentDefinition = {
   type: 'textarea',

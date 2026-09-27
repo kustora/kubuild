@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { RenderNodeContentOptions } from '../render-node-content';
-import { childIndexContaining, readAriaLabel, readBoolean, readNumber } from './shared';
+import type { RenderNodeContentOptions } from '../render-node-content.js';
+import { childIndexContaining, readAriaLabel, readBoolean, readNumber } from './shared.js';
 
 /** Minimum horizontal travel (px) for a touch gesture to count as a swipe. */
 export const CAROUSEL_SWIPE_THRESHOLD = 40;

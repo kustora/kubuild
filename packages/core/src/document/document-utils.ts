@@ -1,5 +1,5 @@
 import { PageDocument, Node, SCHEMA_NAME, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
-import type { ComponentRegistryLike } from '../validation/validator';
+import type { ComponentRegistryLike } from '../validation/validator.js';
 
 
 export function createBlankDocument(title = 'Untitled Page'): PageDocument {

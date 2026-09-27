@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useEditorStore } from '../../store';
+import { useEditorStore } from '../../store/index.js';
 import { findNodeById } from '@kubuild/core';
 import { PageDocument } from '@kubuild/schema';
-import { CanvasRect } from './smart-guides';
+import { CanvasRect } from './smart-guides.js';
 
 export interface SpacingSlidersProps {
   selectedNodeId: string;

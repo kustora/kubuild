@@ -1,7 +1,7 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { ariaLabelTrait, idTrait } from '../../traits';
-import { CONTENT_CHILD_TYPES } from '../constants';
+import { ComponentDefinition } from '../../registry.js';
+import { ariaLabelTrait, idTrait } from '../../traits/index.js';
+import { CONTENT_CHILD_TYPES } from '../constants.js';
 
 /**
  * Accordion / FAQ group (STORA-544). Children are `accordion-item` nodes; the

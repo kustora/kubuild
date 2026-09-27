@@ -1,2 +1,2 @@
-export * from './config';
-export * from './ai-config';
+export * from './config.js';
+export * from './ai-config.js';

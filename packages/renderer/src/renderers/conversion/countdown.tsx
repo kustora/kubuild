@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { RenderNodeContentOptions } from '../render-node-content';
-import { executeNodeActions } from '../../action-dispatcher';
-import { readAriaLabel, readNumber, readString } from './shared';
+import type { RenderNodeContentOptions } from '../render-node-content.js';
+import { executeNodeActions } from '../../action-dispatcher.js';
+import { readAriaLabel, readNumber, readString } from './shared.js';
 
 export type CountdownFormat = 'mm:ss' | 'hh:mm:ss' | 'd h m s';
 

@@ -1,6 +1,6 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { ariaLabelTrait, idTrait } from '../../traits';
+import { ComponentDefinition } from '../../registry.js';
+import { ariaLabelTrait, idTrait } from '../../traits/index.js';
 
 export const COUNTDOWN_MODES = ['evergreen', 'fixed'] as const;
 export const COUNTDOWN_FORMATS = ['mm:ss', 'hh:mm:ss', 'd h m s'] as const;

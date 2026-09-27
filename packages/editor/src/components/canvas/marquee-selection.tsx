@@ -1,5 +1,5 @@
 import React from 'react';
-import { CanvasRect } from './smart-guides';
+import { CanvasRect } from './smart-guides.js';
 
 export interface MarqueeRect {
   top: number;

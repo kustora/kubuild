@@ -7,13 +7,13 @@ import type {
   Node,
 } from '@kubuild/schema';
 import { icons as lucideIcons, Loader2 } from 'lucide-react';
-import { useFormRuntime, type FormFieldBindingInput } from '../form-context';
-import { executeNodeActions } from '../action-dispatcher';
-import type { RenderContext, Diagnostic } from '../render-context';
-import { EditableText } from './editable-text';
-import { RadioGroupContext, type RadioGroupContextValue } from './radio-group-context';
-import { handleFormButtonClick } from './form-nodes';
-import { toPascalCase } from './media-utils';
+import { useFormRuntime, type FormFieldBindingInput } from '../form-context.js';
+import { executeNodeActions } from '../action-dispatcher.js';
+import type { RenderContext, Diagnostic } from '../render-context.js';
+import { EditableText } from './editable-text.js';
+import { RadioGroupContext, type RadioGroupContextValue } from './radio-group-context.js';
+import { handleFormButtonClick } from './form-nodes.js';
+import { toPascalCase } from './media-utils.js';
 
 /**
  * Form field renderers for `switch`, `file-upload`, `radio-group` and `button-submit`

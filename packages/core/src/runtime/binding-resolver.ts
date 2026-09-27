@@ -1,5 +1,5 @@
 import type { VariableBinding } from '@kubuild/schema';
-import type { RuntimeContext } from '../types/interfaces';
+import type { RuntimeContext } from '../types/interfaces.js';
 
 /**
  * Segments a VariableBinding key must never traverse into, checked before any

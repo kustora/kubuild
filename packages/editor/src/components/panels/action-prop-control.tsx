@@ -26,9 +26,9 @@ import {
 import {
   collectDocumentModals,
   collectDocumentForms,
-} from '../../utils/document-scanner';
-import { VariableAutocompleteInput } from '../ui/variable-autocomplete-input';
-import { KeyValueEditor } from '../action-builder/action-step-form';
+} from '../../utils/document-scanner.js';
+import { VariableAutocompleteInput } from '../ui/variable-autocomplete-input.js';
+import { KeyValueEditor } from '../action-builder/action-step-form.js';
 
 export interface ActionPropControlProps {
   nodeId: string;

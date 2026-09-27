@@ -5,12 +5,12 @@ import type {
   ComponentRegistryLike,
   ComponentDefinitionLike,
   AiGenerationMode,
-} from '../types';
+} from '../types.js';
 import {
   buildSelectionContext,
   formatSelectionContext,
   summarizeDocument,
-} from './document-outline';
+} from './document-outline.js';
 
 export function compileComponentCatalog(
   registry?: ComponentRegistryLike,

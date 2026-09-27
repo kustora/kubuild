@@ -30,7 +30,7 @@ import {
   sanitizeActionPipeline,
   type ActionPipeline,
   type ActionStep,
-} from '../src/actions';
+} from '../src/actions.js';
 
 describe('ActionTriggerTypeSchema & Type Guards', () => {
   const validTriggers = ['click', 'submit', 'change', 'blur', 'focus', 'load', 'expire'];

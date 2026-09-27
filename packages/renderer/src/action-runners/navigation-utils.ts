@@ -7,7 +7,7 @@ import type {
 } from '@kubuild/schema';
 import { isSafeActionUrl } from '@kubuild/schema';
 import { type PipelineExecutionContext, type PipelineStepHandler, interpolateValue } from '@kubuild/core';
-import { toastManager, type ToastManager } from './toast-manager';
+import { toastManager, type ToastManager } from './toast-manager.js';
 
 /**
  * Result returned by navigate runner.

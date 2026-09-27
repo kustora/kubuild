@@ -11,23 +11,23 @@ import {
 import {
   validateDocument,
   ComponentRegistryLike,
-} from '../validation/validator';
+} from '../validation/validator.js';
 import {
   canMigrate,
   getMigrationPath,
   migrateDocument,
   MigrationRegistry,
   defaultMigrationRegistry,
-} from './migration';
-import { calculateChecksum } from './exporter';
-import { sanitizeDocumentTracking, stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer';
-import { remapDocumentAssetReferences } from '../document/document-utils';
+} from './migration.js';
+import { calculateChecksum } from './exporter.js';
+import { sanitizeDocumentTracking, stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer.js';
+import { remapDocumentAssetReferences } from '../document/document-utils.js';
 import {
   isDangerousAssetFilename,
   checkZipBomb,
   containsProhibitedKeys,
-} from '../validation/security';
-import type { AssetProvider, AssetInfo } from '../types/interfaces';
+} from '../validation/security.js';
+import type { AssetProvider, AssetInfo } from '../types/interfaces.js';
 
 export interface SecurityLimits {
   /**

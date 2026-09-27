@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { PageDocument } from '@kubuild/schema';
-import type { AgentOpRecord, AiAgentRunResult, AiChatMessage } from '../types';
-import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client';
+import type { AgentOpRecord, AiAgentRunResult, AiChatMessage } from '../types.js';
+import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client.js';
 
 /** One entry in the live run timeline the panel renders while the agent works. */
 export interface AgentTimelineEntry {

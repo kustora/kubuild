@@ -1,4 +1,4 @@
-import type { VariableCatalog } from '../types/interfaces';
+import type { VariableCatalog } from '../types/interfaces.js';
 
 /**
  * Segments never traversed/assigned while expanding a catalog key — mirrors the guard

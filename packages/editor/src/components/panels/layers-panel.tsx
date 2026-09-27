@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Node } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, findNodeLocation, isDescendantOf, getAncestorChain } from '@kubuild/core';
-import { useEditorStore } from '../../store';
-import { ComponentIcon } from '../ui/icons';
+import { useEditorStore } from '../../store/index.js';
+import { ComponentIcon } from '../ui/icons.js';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 /**

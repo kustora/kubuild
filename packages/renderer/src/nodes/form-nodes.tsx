@@ -1,10 +1,10 @@
 import React, { useContext, useEffect } from 'react';
 import type { ValidationRule, ValidateOnEvent, ActionPipeline, PageDocument, Node } from '@kubuild/schema';
-import { useFormRuntime } from '../form-context';
-import { EditableText } from './editable-text';
-import { RadioGroupContext } from './radio-group-context';
-import { executeNodeActions } from '../action-dispatcher';
-import type { RenderContext, Diagnostic } from '../render-context';
+import { useFormRuntime } from '../form-context.js';
+import { EditableText } from './editable-text.js';
+import { RadioGroupContext } from './radio-group-context.js';
+import { executeNodeActions } from '../action-dispatcher.js';
+import type { RenderContext, Diagnostic } from '../render-context.js';
 
 export interface FormContainerNodeProps {
   id?: string;

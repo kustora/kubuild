@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SCHEMA_NAME } from './document';
+import { SCHEMA_NAME } from './document.js';
 
 export const ManifestAssetItemSchema = z.object({
   id: z.string().min(1, 'Asset ID cannot be empty'),

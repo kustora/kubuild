@@ -9,9 +9,9 @@ import {
   updateProps,
   updateStyle,
 } from '@kubuild/core';
-import type { AgentOp } from '../../types';
-import { getNodeLabel } from '../../core/document-outline';
-import type { AgentTool, ToolExecutionContext, ToolExecutionResult } from './types';
+import type { AgentOp } from '../../types.js';
+import { getNodeLabel } from '../../core/document-outline.js';
+import type { AgentTool, ToolExecutionContext, ToolExecutionResult } from './types.js';
 import {
   checkComponentType,
   checkDocumentSecurity,
@@ -24,7 +24,7 @@ import {
   readString,
   resolveNode,
   succeed,
-} from './helpers';
+} from './helpers.js';
 
 /**
  * Write tools (STORA-530).

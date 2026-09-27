@@ -2,7 +2,7 @@ import { describe, it, expect, expectTypeOf } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { z } from 'zod';
-import type * as Pure from '../src/types';
+import type * as Pure from '../src/types.js';
 import {
   AssetReferenceSchema,
   VariableBindingSchema,
@@ -18,7 +18,7 @@ import {
   PageDocumentSchema,
   ArtboardSchema,
   ProjectDocumentSchema,
-} from '../src/document';
+} from '../src/document.js';
 import {
   ActionTriggerTypeSchema,
   ActionStepTypeSchema,
@@ -26,14 +26,14 @@ import {
   ActionStepConditionSchema,
   ActionStepSchema,
   ActionPipelineSchema,
-} from '../src/actions';
+} from '../src/actions.js';
 import {
   ValidationRuleTypeSchema,
   ValidateOnEventSchema,
   ValidationRuleSchema,
   FormFieldBindingSchema,
   FormConfigSchema,
-} from '../src/form';
+} from '../src/form.js';
 import {
   TrackingProviderTypeSchema,
   TrackingDeliverySchema,
@@ -43,22 +43,22 @@ import {
   TikTokTrackingProviderConfigSchema,
   CustomTrackingProviderConfigSchema,
   TrackingConfigSchema,
-} from '../src/tracking';
-import { ManifestAssetItemSchema, ManifestSchema } from '../src/manifest';
+} from '../src/tracking.js';
+import { ManifestAssetItemSchema, ManifestSchema } from '../src/manifest.js';
 import {
   SafeThumbnailObjectSchema,
   SafeThumbnailSchema,
   TemplatePackageRefSchema,
   TemplateRequirementsSchema,
   TemplateRecordSchema,
-} from '../src/template';
-import { ThemeSchema, ThemeTokenValueSchema } from '../src/theme';
+} from '../src/template.js';
+import { ThemeSchema, ThemeTokenValueSchema } from '../src/theme.js';
 import {
   validateDocument,
   validateNode,
   validateTheme,
   isValidPageDocument,
-} from '../src/validate';
+} from '../src/validate.js';
 
 const ZOD_REFERENCE =
   /from\s+['"]zod['"]|import\(\s*['"]zod['"]\s*\)|require\(\s*['"]zod['"]\s*\)|\bz\.core\b|ZodType/;
@@ -205,6 +205,8 @@ describe('STORA-552: built declarations are zod-free', () => {
   const builtFiles = [
     'types.d.ts',
     'validate.d.ts',
+    'types.d.cts',
+    'validate.d.cts',
     'types.js',
     'types.cjs',
     'validate.js',
@@ -218,14 +220,22 @@ describe('STORA-552: built declarations are zod-free', () => {
     }
   });
 
-  it.skipIf(!isBuilt)('types.d.ts and validate.d.ts never reference zod', () => {
-    for (const file of ['types.d.ts', 'validate.d.ts']) {
+  it.skipIf(!isBuilt)('types/validate declarations never reference zod', () => {
+    // `.d.ts` is the ESM flavour, `.d.cts` the CJS twin; each must point at its own flavour so
+    // NodeNext consumers resolve it (extensionless specifiers are unresolvable there).
+    const files = [
+      ['types.d.ts', './types.js'],
+      ['validate.d.ts', './types.js'],
+      ['types.d.cts', './types.cjs'],
+      ['validate.d.cts', './types.cjs'],
+    ] as const;
+    for (const [file, expected] of files) {
       const source = readFileSync(resolve(dist, file), 'utf8');
       expect(source).not.toMatch(ZOD_REFERENCE);
       // Only relative imports allowed, and only to the pure types module.
       const imports = [...source.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
       for (const specifier of imports) {
-        expect(specifier).toBe('./types');
+        expect(specifier).toBe(expected);
       }
     }
   });

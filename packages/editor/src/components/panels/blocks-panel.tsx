@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { BlockDefinition, ComponentRegistry } from '@kubuild/components';
-import { useEditorStore } from '../../store';
-import { ComponentIcon } from '../ui/icons';
+import { useEditorStore } from '../../store/index.js';
+import { ComponentIcon } from '../ui/icons.js';
 import { Image as ImageIcon } from 'lucide-react';
 
 export interface BlocksPanelProps {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useEditorStore } from '../../store';
-import { CanvasRect, GuideLine, calculateSnapping } from './smart-guides';
+import { useEditorStore } from '../../store/index.js';
+import { CanvasRect, GuideLine, calculateSnapping } from './smart-guides.js';
 
 export type ResizeHandleDirection =
   | 'n'

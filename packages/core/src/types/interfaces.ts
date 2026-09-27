@@ -1,5 +1,5 @@
 import { Artboard, ArtboardType, PageDocument, Theme } from '@kubuild/schema';
-import type { DocumentValidationError, DocumentValidationWarning } from '../validation/validator';
+import type { DocumentValidationError, DocumentValidationWarning } from '../validation/validator.js';
 
 export interface AssetInfo {
   id: string;

@@ -1,7 +1,7 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
-import { ariaLabelTrait, idTrait } from '../../traits';
-import { CONTENT_CHILD_TYPES } from '../constants';
+import { ComponentDefinition } from '../../registry.js';
+import { ariaLabelTrait, idTrait } from '../../traits/index.js';
+import { CONTENT_CHILD_TYPES } from '../constants.js';
 
 /**
  * Tabs (STORA-545). Children are `tab-panel` nodes; each panel's `label` becomes a

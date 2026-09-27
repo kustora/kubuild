@@ -4,9 +4,9 @@ import {
   getNodeLabel,
   pruneNodeForPrompt,
   summarizeNodeTree,
-} from '../../core/document-outline';
-import type { AgentTool } from './types';
-import { fail, readString, resolveNode, succeed } from './helpers';
+} from '../../core/document-outline.js';
+import type { AgentTool } from './types.js';
+import { fail, readString, resolveNode, succeed } from './helpers.js';
 
 /**
  * Read-only tools (STORA-530).

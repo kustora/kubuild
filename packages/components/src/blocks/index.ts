@@ -1,14 +1,14 @@
-import { BlockDefinition } from './types';
-import { LAYOUT_STARTER_BLOCKS } from './layout';
-import { UI_STARTER_BLOCKS } from './sections';
-import { FORM_STARTER_BLOCKS } from './forms';
-import { SALES_STARTER_BLOCKS } from './sales';
+import { BlockDefinition } from './types.js';
+import { LAYOUT_STARTER_BLOCKS } from './layout.js';
+import { UI_STARTER_BLOCKS } from './sections.js';
+import { FORM_STARTER_BLOCKS } from './forms.js';
+import { SALES_STARTER_BLOCKS } from './sales.js';
 
-export * from './types';
-export * from './layout';
-export * from './sections';
-export * from './forms';
-export * from './sales';
+export * from './types.js';
+export * from './layout.js';
+export * from './sections.js';
+export * from './forms.js';
+export * from './sales.js';
 
 /**
  * Predefined Starter Layout Blocks (STORA-241), Pre-composed UI Blocks (STORA-242),

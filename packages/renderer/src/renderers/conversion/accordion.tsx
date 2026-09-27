@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { Node } from '@kubuild/schema';
-import type { RenderNodeContentOptions } from '../render-node-content';
-import { readAriaLabel, readBoolean, readNumber, readString, subtreeContains } from './shared';
+import type { RenderNodeContentOptions } from '../render-node-content.js';
+import { readAriaLabel, readBoolean, readNumber, readString, subtreeContains } from './shared.js';
 
 interface AccordionContextValue {
   rootDomId: string;

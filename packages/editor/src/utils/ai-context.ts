@@ -1,5 +1,5 @@
 import type { AiChatRequest } from '@kubuild/ai';
-import type { EditorState } from '../store/store';
+import type { EditorState } from '../store/store.js';
 
 export type AiChatContext = Pick<AiChatRequest, 'selectedNodeId' | 'currentDocument'>;
 

@@ -14,7 +14,7 @@ import {
   interpolateValue,
   generateTrackingEventId,
 } from '@kubuild/core';
-import { fireBrowserPixel } from '../tracking/tracking-manager';
+import { fireBrowserPixel } from '../tracking/tracking-manager.js';
 
 /**
  * Result returned by track_event action runner

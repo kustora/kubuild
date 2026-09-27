@@ -2,15 +2,15 @@ import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ComponentRegistry } from '@kubuild/components';
 import type { PixelCredentialOption } from '@kubuild/schema';
-import { useEditorStore } from '../../store';
-import { ImportModal } from '../modals/import-modal';
-import { CodeViewerModal } from '../modals/code-viewer-modal';
-import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
-import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils';
+import { useEditorStore } from '../../store/index.js';
+import { ImportModal } from '../modals/import-modal.js';
+import { CodeViewerModal } from '../modals/code-viewer-modal.js';
+import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal.js';
+import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils/index.js';
 import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles, Activity, Loader2 } from 'lucide-react';
-import { useTranslation } from '../../i18n';
+import { useTranslation } from '../../i18n/index.js';
 
-import { EditorToolbarConfig, isAiChatPanelActive } from '../../config';
+import { EditorToolbarConfig, isAiChatPanelActive } from '../../config/index.js';
 
 export interface EditorToolbarProps {
   registry: ComponentRegistry;

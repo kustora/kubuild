@@ -1,4 +1,4 @@
-import { ComponentTraitDefinition, withOverrides } from './types';
+import { ComponentTraitDefinition, withOverrides } from './types.js';
 
 /** `id` — a custom, document-unique identifier for the element. */
 export function idTrait(overrides?: Partial<ComponentTraitDefinition>): ComponentTraitDefinition {

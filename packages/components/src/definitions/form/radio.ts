@@ -1,5 +1,5 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
+import { ComponentDefinition } from '../../registry.js';
 import {
   ariaLabelTrait,
   defaultCheckedTrait,
@@ -12,7 +12,7 @@ import {
   orientationTrait,
   requiredTrait,
   valueTrait,
-} from '../../traits';
+} from '../../traits/index.js';
 
 export const radioGroupDefinition: ComponentDefinition = {
   type: 'radio-group',

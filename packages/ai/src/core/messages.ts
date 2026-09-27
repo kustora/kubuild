@@ -1,4 +1,4 @@
-import type { AiChatMessage, AiContentBlock, AiToolUseBlock, AiToolResultBlock } from '../types';
+import type { AiChatMessage, AiContentBlock, AiToolUseBlock, AiToolResultBlock } from '../types.js';
 
 /**
  * Flattens a message's content to plain text (STORA-530).

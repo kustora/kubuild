@@ -5,7 +5,7 @@ import type { RuntimeContext } from '@kubuild/core';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import { KubuildRenderer } from '@kubuild/renderer';
 import { AlertTriangle, LayoutTemplate, X } from 'lucide-react';
-import { getMissingTemplateComponents } from '../../utils/template-requirements';
+import { getMissingTemplateComponents } from '../../utils/template-requirements.js';
 
 /**
  * Resolves a template thumbnail to a displayable URL, or `null`. Unsafe URLs are dropped

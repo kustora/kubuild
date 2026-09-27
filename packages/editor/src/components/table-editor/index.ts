@@ -1,1 +1,1 @@
-export * from './table-spreadsheet-editor';
+export * from './table-spreadsheet-editor.js';

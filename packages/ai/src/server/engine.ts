@@ -14,21 +14,21 @@ import type {
   PlannedSection,
   AiPlanPageRequest,
   AiProviderGenerateResult,
-} from '../types';
+} from '../types.js';
 import {
   compileComponentCatalog,
   buildSystemPrompt,
   buildJsonSchemaForMode,
   appendClientInstructions,
   joinInstructions,
-} from '../core/prompt-compiler';
-import { getMessageText } from '../core/messages';
+} from '../core/prompt-compiler.js';
+import { getMessageText } from '../core/messages.js';
 import {
   extractJsonFromResponse,
   normalizeAndValidatePageDocument,
   normalizeAndValidateSectionNode,
   normalizeAndValidateRefactoredNode,
-} from '../core/normalizer';
+} from '../core/normalizer.js';
 
 type SectionCount = AiPlanPageRequest['sectionCount'];
 

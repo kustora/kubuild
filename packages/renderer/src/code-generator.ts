@@ -11,9 +11,9 @@ import {
   styleDefinitionToCssDeclarations,
   resolveBaseNodeStyles,
   collectResponsiveCssRules,
-} from './styles';
-import { collectAnimationStylesCss } from './animation';
-import { themeToCssDeclarations } from './theme';
+} from './styles.js';
+import { collectAnimationStylesCss } from './animation.js';
+import { themeToCssDeclarations } from './theme.js';
 
 export interface GenerateHtmlOptions {
   /**

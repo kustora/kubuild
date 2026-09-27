@@ -1,4 +1,4 @@
-import type { EditorLocale, BuiltInEditorLocale } from '../store';
+import type { EditorLocale, BuiltInEditorLocale } from '../store/index.js';
 
 export type { EditorLocale, BuiltInEditorLocale };
 

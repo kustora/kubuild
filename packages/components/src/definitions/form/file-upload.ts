@@ -1,5 +1,5 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
+import { ComponentDefinition } from '../../registry.js';
 import {
   acceptTrait,
   ariaLabelTrait,
@@ -12,7 +12,7 @@ import {
   multipleTrait,
   requiredTrait,
   showPreviewTrait,
-} from '../../traits';
+} from '../../traits/index.js';
 
 export const fileUploadDefinition: ComponentDefinition = {
   type: 'file-upload',

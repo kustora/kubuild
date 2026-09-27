@@ -1,5 +1,5 @@
 import type { Node } from '@kubuild/schema';
-import type { RenderNodeContentOptions } from '../render-node-content';
+import type { RenderNodeContentOptions } from '../render-node-content.js';
 
 /** Reads a prop, preferring the binding-resolved value over the raw document value. */
 export function readProp(options: RenderNodeContentOptions, name: string): unknown {

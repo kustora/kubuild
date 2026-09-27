@@ -1,6 +1,6 @@
 import React from 'react';
 import { ComponentCategory, CoreComponentType } from '@kubuild/components';
-import { StyleSectorId } from '../components/style-manager/style-manager-accordion';
+import { StyleSectorId } from '../components/style-manager/style-manager-accordion.js';
 
 export type LeftSidebarTab = 'components' | 'blocks' | 'layers';
 

@@ -1,8 +1,8 @@
-export * from './registry';
-export * from './definitions';
-export * from './requirements';
-export * from './prop-types';
-export * from './traits';
-export * from './blocks';
+export * from './registry.js';
+export * from './definitions/index.js';
+export * from './requirements.js';
+export * from './prop-types.js';
+export * from './traits/index.js';
+export * from './blocks/index.js';
 
-export * from './canonical-props';
+export * from './canonical-props.js';

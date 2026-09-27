@@ -7,8 +7,8 @@ import type {
   AiStreamCallbacks,
   PagePlan,
   AiPlanPageRequest,
-} from '../types';
-import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client';
+} from '../types.js';
+import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client.js';
 
 export interface UseAiGeneratorOptions extends AiClientOptions {
   onSuccess?: (data: PageDocument | Node) => void;

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState }
 import { PageDocument, getBreakpointForWidth } from '@kubuild/schema';
 import type { TemplateRecord } from '@kubuild/schema';
 import type { PixelCredentialOption } from '@kubuild/schema';
-import type { SaveTrackingSecretHandler } from '../modals/tracking-settings-modal';
+import type { SaveTrackingSecretHandler } from '../modals/tracking-settings-modal.js';
 import {
   BlockDefinition,
   ComponentRegistry,
@@ -21,31 +21,31 @@ import {
   EditorLocale,
   BlocksMode,
   resolveBlockRegistry,
-} from '../../store';
-import { TranslationOverridesContext, TranslationOverrides } from '../../i18n';
-import { createControlledStoreSync, ControlledStoreSync } from './controlled-store-sync';
-import { buildEditorPreviewContext } from './preview-context';
+} from '../../store/index.js';
+import { TranslationOverridesContext, TranslationOverrides } from '../../i18n/index.js';
+import { createControlledStoreSync, ControlledStoreSync } from './controlled-store-sync.js';
+import { buildEditorPreviewContext } from './preview-context.js';
 import {
   createEditorSaveController,
   EditorAutosaveOptions,
   EditorSaveController,
   EditorSaveHandler,
   EditorSaveState,
-} from './save-controller';
-import { createEditorHandle, EditorHandle } from './editor-handle';
-import { SaveStatusButton } from './save-status';
-import { TemplateToolbarAction } from '../templates/template-toolbar-action';
-import { EditorCanvas, EditorPageItem } from '../canvas';
-import { MultiDevicePreview } from '../canvas/multi-device-preview';
-import { EditorToolbar } from './toolbar';
-import { PanelResizeHandle } from './panel-resize-handle';
-import { InspectorPanel } from '../panels/inspector-panel';
-import { LayersPanel } from '../panels/layers-panel';
-import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/table-spreadsheet-editor';
-import { HierarchyBreadcrumbs } from '../canvas/breadcrumbs';
-import { LeftSidebar } from '../panels/left-sidebar';
-import { ActionDebuggerPanel } from '../panels/action-debugger-panel';
-import { AiChatPanel } from '../ai-chat/ai-chat-panel';
+} from './save-controller.js';
+import { createEditorHandle, EditorHandle } from './editor-handle.js';
+import { SaveStatusButton } from './save-status.js';
+import { TemplateToolbarAction } from '../templates/template-toolbar-action.js';
+import { EditorCanvas, EditorPageItem } from '../canvas/index.js';
+import { MultiDevicePreview } from '../canvas/multi-device-preview.js';
+import { EditorToolbar } from './toolbar.js';
+import { PanelResizeHandle } from './panel-resize-handle.js';
+import { InspectorPanel } from '../panels/inspector-panel.js';
+import { LayersPanel } from '../panels/layers-panel.js';
+import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/table-spreadsheet-editor.js';
+import { HierarchyBreadcrumbs } from '../canvas/breadcrumbs.js';
+import { LeftSidebar } from '../panels/left-sidebar.js';
+import { ActionDebuggerPanel } from '../panels/action-debugger-panel.js';
+import { AiChatPanel } from '../ai-chat/ai-chat-panel.js';
 import {
   EditorConfig,
   resolveEditorConfig,
@@ -53,7 +53,7 @@ import {
   resolveAiEditorConfig,
   isAnyAiFeatureEnabled,
   shouldRenderAiChatPanel,
-} from '../../config';
+} from '../../config/index.js';
 import {
   Monitor,
   Tablet,

@@ -13,7 +13,7 @@ import type {
   AiStreamEvent,
   PagePlan,
   AiPlanPageRequest,
-} from '../types';
+} from '../types.js';
 
 export interface AiClientOptions {
   endpoint: string;

@@ -1,7 +1,7 @@
-export * from './page';
-export * from './section';
-export * from './container';
-export * from './columns';
-export * from './flex';
-export * from './grid';
+export * from './page.js';
+export * from './section.js';
+export * from './container.js';
+export * from './columns.js';
+export * from './flex.js';
+export * from './grid.js';
 

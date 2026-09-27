@@ -1,8 +1,8 @@
-export * from './heading';
-export * from './text';
-export * from './paragraph';
-export * from './link';
-export * from './blockquote';
-export * from './badge';
-export * from './code-block';
+export * from './heading.js';
+export * from './text.js';
+export * from './paragraph.js';
+export * from './link.js';
+export * from './blockquote.js';
+export * from './badge.js';
+export * from './code-block.js';
 

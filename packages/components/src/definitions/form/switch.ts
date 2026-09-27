@@ -1,5 +1,5 @@
 import { isVariableBinding } from '@kubuild/schema';
-import { ComponentDefinition } from '../../registry';
+import { ComponentDefinition } from '../../registry.js';
 import {
   ariaLabelTrait,
   defaultCheckedTrait,
@@ -11,7 +11,7 @@ import {
   requiredTrait,
   switchSizeTrait,
   valueTrait,
-} from '../../traits';
+} from '../../traits/index.js';
 
 export const switchDefinition: ComponentDefinition = {
   type: 'switch',

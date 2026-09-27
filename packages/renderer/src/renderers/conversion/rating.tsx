@@ -1,6 +1,6 @@
 import React from 'react';
-import type { RenderNodeContentOptions } from '../render-node-content';
-import { readNumber, readString } from './shared';
+import type { RenderNodeContentOptions } from '../render-node-content.js';
+import { readNumber, readString } from './shared.js';
 
 export const RATING_MAX_STARS = 10;
 

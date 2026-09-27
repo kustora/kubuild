@@ -20,7 +20,7 @@ import {
   PageDocument,
 } from '@kubuild/schema';
 
-import { hasBuiltinLegacyAction, runBuiltinLegacyAction } from './legacy-actions';
+import { hasBuiltinLegacyAction, runBuiltinLegacyAction } from './legacy-actions.js';
 
 export type { RenderContext, RuntimeContext, ActionDiagnostic, Diagnostic, RuntimeTrackingOptions };
 

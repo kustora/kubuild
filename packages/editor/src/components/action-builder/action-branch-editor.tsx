@@ -19,8 +19,8 @@ import {
   STEP_TYPE_OPTIONS,
   getStepTypeMeta,
   formatStepSummary,
-} from './action-builder-modal';
-import { ActionStepForm } from './action-step-form';
+} from './action-builder-modal.js';
+import { ActionStepForm } from './action-step-form.js';
 
 export interface ActionBranchEditorProps {
   parentStep: ActionStep;

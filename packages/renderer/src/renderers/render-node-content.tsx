@@ -15,8 +15,8 @@ import {
   RenderContext,
   resolveAssetSync,
   Diagnostic,
-} from '../render-context';
-import { FormRuntimeProvider } from '../form-context';
+} from '../render-context.js';
+import { FormRuntimeProvider } from '../form-context.js';
 import {
   EditableText,
   HtmlEmbedView,
@@ -31,11 +31,11 @@ import {
   getYouTubeId,
   getVimeoId,
   aspectRatioToCss,
-} from '../nodes';
-import { renderInteractiveNode } from './interactive-renderers';
-import { renderExtendedFormNode } from './extended-form-renderers';
-import { hasBuiltinLegacyAction, isLegacyActionResolvable } from '../legacy-actions';
-import { renderConversionNode } from './conversion';
+} from '../nodes/index.js';
+import { renderInteractiveNode } from './interactive-renderers.js';
+import { renderExtendedFormNode } from './extended-form-renderers.js';
+import { hasBuiltinLegacyAction, isLegacyActionResolvable } from '../legacy-actions.js';
+import { renderConversionNode } from './conversion/index.js';
 
 export interface RenderNodeContentOptions {
   node: Node;

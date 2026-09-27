@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from '../../i18n';
+import { useTranslation } from '../../i18n/index.js';
 
 export const GRID_COLUMN_PRESETS = [2, 3, 4, 6, 12] as const;
 
