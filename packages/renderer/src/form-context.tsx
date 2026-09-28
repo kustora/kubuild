@@ -446,6 +446,14 @@ export const FormRuntimeProvider: React.FC<FormRuntimeProviderProps> = ({
           });
         }
 
+        // 4b. Host-level hook (RenderContext.onFormSubmit)
+        if (renderContext?.onFormSubmit) {
+          await renderContext.onFormSubmit(
+            { formId, nodeId, values: currentValues },
+            { setErrors: setErrorsState, resetForm },
+          );
+        }
+
         onSuccess?.(currentValues);
 
         // 5. Reset form on submit if configured
