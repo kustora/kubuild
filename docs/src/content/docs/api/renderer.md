@@ -73,6 +73,26 @@ import { RenderContextProvider } from '@kubuild/renderer';
 </RenderContextProvider>
 ```
 
+### Handling form submits in the host
+
+Set `onFormSubmit` on the render context to handle a form submit in your own code, for example a checkout form that posts to your API. It runs after the form passes validation and after its own submit pipelines. The form stays in its submitting state until the promise settles.
+
+```tsx
+<KubuildRenderer
+  document={doc}
+  mode="runtime"
+  context={{
+    onFormSubmit: async ({ formId, values }, { setErrors }) => {
+      if (formId !== 'checkout_form') return; // called for every form
+      const result = await submitOrder(values);
+      if (result.fieldErrors) setErrors(result.fieldErrors); // shown inline per field
+    },
+  }}
+/>
+```
+
+Throwing fails the submit the same way a failing pipeline does (an `ACTION_EXECUTION_ERROR` diagnostic). The hook is never called in the editor.
+
 ---
 
 ## Styling & Animation Compilers
