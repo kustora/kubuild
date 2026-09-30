@@ -1,5 +1,40 @@
 # @kubuild/react
 
+## 0.9.0
+
+### Minor Changes
+
+- • Host Form Submit Hook (RenderContext.onFormSubmit):
+  • Added an optional asynchronous onFormSubmit(submission, helpers) hook to RenderContext (STORA-558).
+  • Enables host applications to intercept form submissions and handle them programmatically (e.g., custom backend workflows, CRM webhooks, multi-step funnel
+  checkouts) once client-side validation passes.
+  • Exposes setErrors(errors) and reset() helpers directly within the host submission handler.
+  • Added supporting TypeScript interfaces (FormSubmission, FormSubmitHelpers) in @kubuild/core.
+
+  ──────
+
+  ### 🐛 Bug Fixes
+
+  #### @kubuild/renderer
+
+  • Form Field Validation Error Rendering (aria-errormessage):
+  • Fixed a bug where input, textarea, and select components attached aria-errormessage="<id>-error", but never rendered the corresponding error container element
+  into the DOM.
+  • Schema validation errors and messages set via setErrors() are now visibly rendered directly beneath the target field with proper semantic accessibility
+  attributes (role="alert").
+
+  ──────
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/ai@0.9.0
+  - @kubuild/components@0.9.0
+  - @kubuild/core@0.9.0
+  - @kubuild/editor@0.9.0
+  - @kubuild/renderer@0.9.0
+  - @kubuild/schema@0.9.0
+
 ## 0.8.2
 
 ### Patch Changes
