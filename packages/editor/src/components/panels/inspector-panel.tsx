@@ -108,6 +108,31 @@ interface StringPropControlProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
+/**
+ * `<input type="datetime-local">` for `datetime` fields. Stores the wall-clock value as
+ * "YYYY-MM-DDTHH:mm[:ss]" (no offset); the timezone is a separate prop where it matters.
+ */
+const DATETIME_LOCAL_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?)/;
+
+const DateTimePropControl: React.FC<{
+  field: ComponentFieldDefinition;
+  value: unknown;
+  onCommit: (field: ComponentFieldDefinition, value: unknown, isBlur: boolean) => void;
+}> = ({ field, value, onCommit }) => {
+  // Anything the native input can't display (an offset/`Z` suffix, a bad string) is shown
+  // as the wall-clock prefix when there is one, otherwise empty.
+  const match = typeof value === 'string' ? DATETIME_LOCAL_RE.exec(value.trim()) : null;
+  return (
+    <input
+      type="datetime-local"
+      step={1}
+      value={match ? match[1] : ''}
+      onChange={(e) => onCommit(field, e.target.value, true)}
+      className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+    />
+  );
+};
+
 const StringPropControl: React.FC<StringPropControlProps> = ({
   nodeId,
   field,
@@ -1083,6 +1108,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             className="w-full h-8 cursor-pointer rounded border border-slate-300 bg-white p-1"
           />
         );
+      case 'datetime':
+        return <DateTimePropControl field={field} value={currentValue} onCommit={commitProp} />;
       case 'number':
         return (
           <NumberPropControl

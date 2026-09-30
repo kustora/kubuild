@@ -12,6 +12,7 @@ export function primitiveTypeForField(field: ComponentFieldDefinition): PropPrim
     case 'string':
     case 'textarea':
     case 'color':
+    case 'datetime':
       return 'string';
     case 'number':
       return 'number';
