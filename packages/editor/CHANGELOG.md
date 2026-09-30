@@ -1,5 +1,17 @@
 # @kubuild/editor
 
+## 0.10.1
+
+### Patch Changes
+
+- fix version
+- Updated dependencies []:
+  - @kubuild/ai@0.10.1
+  - @kubuild/components@0.10.1
+  - @kubuild/core@0.10.1
+  - @kubuild/renderer@0.10.1
+  - @kubuild/schema@0.10.1
+
 ## 0.10.0
 
 ### Minor Changes
