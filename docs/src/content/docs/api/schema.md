@@ -15,7 +15,7 @@ Package `@kubuild/schema` defines the single source of truth for the portable `.
 import { SCHEMA_NAME, CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
 
 console.log(SCHEMA_NAME);            // "stora.page"
-console.log(CURRENT_SCHEMA_VERSION); // "1.0.0"
+console.log(CURRENT_SCHEMA_VERSION); // "1.2.0"
 ```
 
 ---
