@@ -164,13 +164,44 @@ export type AiStreamEvent =
   | { type: 'chat-complete'; message: AiChatMessage }
   /** Agent mode (STORA-530): a new reasoning step has begun. */
   | { type: 'agent-step'; step: number; maxSteps: number }
+  /**
+   * Agent mode: periodic liveness/progress signal while a step is waiting on the model
+   * (`phase: 'model'`) or on a long-running tool such as `insert_section`
+   * (`phase: 'tool'`). Emitted every `agentProgressIntervalMs` so the SSE connection never
+   * goes idle long enough for a reverse proxy (nginx `proxy_read_timeout`, Cloudflare's
+   * 100s idle limit) to drop it, and so the UI can show that work is still happening.
+   */
+  | {
+      type: 'agent-progress';
+      step: number;
+      phase: 'model' | 'tool';
+      /** Tool being executed (`phase: 'tool'`) or being written by the model (`phase: 'model'`). */
+      toolName?: string;
+      /** Milliseconds since this phase started. */
+      elapsedMs: number;
+      /** Characters the model has streamed so far this step (text + tool arguments). */
+      outputChars?: number;
+    }
   /** Agent mode: the model asked to run a tool. */
   | { type: 'tool-call'; id: string; name: string; input: Record<string, unknown> }
-  /** Agent mode: the tool finished (or failed — the model then self-corrects). */
-  | { type: 'tool-result'; id: string; name: string; ok: boolean; summary: string }
+  /**
+   * Agent mode: the tool finished (or failed — the model then self-corrects). `op` is the
+   * edit this call produced, if any — the same record `agent-complete` later lists — so a
+   * client can keep the work done so far when the stream drops before completing.
+   */
+  | {
+      type: 'tool-result';
+      id: string;
+      name: string;
+      ok: boolean;
+      summary: string;
+      op?: AgentOpRecord;
+    }
   /** Agent mode terminal event: the patch the client replays through the store. */
   | { type: 'agent-complete'; result: AiAgentRunResult }
   | { type: 'error'; error: { code: string; message: string } };
+
+export type AiAgentProgress = Omit<Extract<AiStreamEvent, { type: 'agent-progress' }>, 'type'>;
 
 export interface AiStreamCallbacks {
   onStatus?: (message: string) => void;
@@ -183,8 +214,15 @@ export interface AiStreamCallbacks {
   onChatComplete?: (message: AiChatMessage) => void;
   /** Agent mode (STORA-530). */
   onAgentStep?: (step: number, maxSteps: number) => void;
+  onAgentProgress?: (progress: AiAgentProgress) => void;
   onToolCall?: (call: { id: string; name: string; input: Record<string, unknown> }) => void;
-  onToolResult?: (result: { id: string; name: string; ok: boolean; summary: string }) => void;
+  onToolResult?: (result: {
+    id: string;
+    name: string;
+    ok: boolean;
+    summary: string;
+    op?: AgentOpRecord;
+  }) => void;
   onAgentComplete?: (result: AiAgentRunResult) => void;
   onError?: (error: Error) => void;
 }
@@ -261,6 +299,12 @@ export interface AiProviderGenerateParams {
   toolChoice?: AiToolChoice;
   /** Overrides the adapter's configured sampling temperature for this call. */
   temperature?: number;
+  /**
+   * Streaming only: fired as tool-call arguments arrive, so callers can report progress
+   * while the model is still writing a large tool call. `argumentsLength` is the running
+   * length of that call's arguments string.
+   */
+  onToolCallDelta?: (delta: { index: number; name?: string; argumentsLength: number }) => void;
 }
 
 /** Why the model stopped generating — drives the agent loop's continue/stop decision. */
@@ -289,6 +333,12 @@ export interface AiProviderAdapter {
    * loop that can never edit anything.
    */
   readonly supportsTools?: boolean;
+  /**
+   * Whether `generateStream` also assembles tool calls into its returned result. When
+   * true, `KubuildAiAgent` streams each step instead of waiting on one long `generate()`
+   * call — keeping the provider connection active and allowing live progress.
+   */
+  readonly supportsToolStreaming?: boolean;
   generate(params: AiProviderGenerateParams): Promise<AiProviderGenerateResult>;
   /**
    * Optional token-level streaming variant (STORA-515). Adapters whose provider API
@@ -339,6 +389,11 @@ export interface KubuildAiEngineOptions {
   systemPromptPrefix?: string;
   /** Agent loop step ceiling (STORA-530). Default: 8. */
   maxAgentSteps?: number;
+  /**
+   * Interval for `agent-progress` events while a step waits on the model or a tool
+   * (default 10000). Keep it below the idle timeout of every proxy in front of the stream.
+   */
+  agentProgressIntervalMs?: number;
   debug?: boolean;
   logger?: (level: 'info' | 'warn' | 'error' | 'debug', message: string, meta?: unknown) => void;
 }

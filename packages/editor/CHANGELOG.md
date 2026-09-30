@@ -1,5 +1,22 @@
 # @kubuild/editor
 
+## 0.10.0
+
+### Minor Changes
+
+- Agent mode no longer goes silent during long steps. `KubuildAiAgent` now emits `agent-progress` events every `agentProgressIntervalMs` (default 10s) while a step waits on the model or on a long tool such as `insert_section`, keeping SSE connections alive behind proxies with idle timeouts. Model turns are streamed when the adapter sets `supportsToolStreaming` (`OpenAiAdapter` does), and streamed calls now request `stream_options.include_usage` so token usage is still reported. The client exposes `onAgentProgress`, `useAiAgent` returns `progress`, and the editor AI panel shows it as a live status line.
+
+  Interrupted agent runs are now resumable. `tool-result` events carry the `op` they produced, and `useAiAgent` returns those streamed ops as a partial result (`stoppedBy: 'error'`) when the stream drops before `agent-complete`, instead of discarding them. The editor AI panel applies (or queues for review) that partial work like a normal result, and its Retry button becomes "Continue": it re-runs against the current document with the already-applied changes listed in history, so the agent finishes only the remaining work.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/ai@0.10.0
+  - @kubuild/components@0.10.0
+  - @kubuild/core@0.10.0
+  - @kubuild/renderer@0.10.0
+  - @kubuild/schema@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes

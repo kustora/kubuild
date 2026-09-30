@@ -167,6 +167,22 @@ export function AiChatBubble({ message }: { message: AiChatMessage }) {
   );
 }
 
+/** An agent instruction that failed partway, plus the summaries of what already landed. */
+interface AgentResumeState {
+  instruction: string;
+  done: string[];
+}
+
+/** Model-facing, so kept in English regardless of UI locale — the model replies in the user's language anyway. */
+const AGENT_RESUME_INSTRUCTION =
+  'The previous run was interrupted before it finished. The page you see now already contains the changes listed in your last message. Continue the original instruction from where it stopped: do only the remaining work and do not redo or duplicate any of those changes.';
+
+function formatAgentProgress(done: string[]): string {
+  return `Progress before the connection dropped — these changes are already applied to the page:\n${done
+    .map((summary) => `- ${summary}`)
+    .join('\n')}`;
+}
+
 /**
  * Exported for isolated unit testing (STORA-505) — network/provider error bubble with a
  * Retry action, never a silent fail (PRD §4 NFR-5 graceful degradation).
@@ -174,9 +190,12 @@ export function AiChatBubble({ message }: { message: AiChatMessage }) {
 export function AiChatErrorBubble({
   message,
   onRetry,
+  retryLabel,
 }: {
   message: string;
   onRetry: () => void;
+  /** Overrides the default "Retry" label, e.g. "Continue" for a resumable agent run. */
+  retryLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -195,7 +214,7 @@ export function AiChatErrorBubble({
           className="self-start flex items-center gap-1 text-[11px] font-semibold text-red-700 hover:text-red-900 underline"
         >
           <RotateCw className="w-3 h-3" />
-          {t.aiChat.retry}
+          {retryLabel ?? t.aiChat.retry}
         </button>
       </div>
     </div>
@@ -288,6 +307,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     isRunning: isAgentRunning,
     step: agentStep,
     maxSteps: agentMaxSteps,
+    progress: agentProgress,
     timeline: agentTimeline,
     ops: agentOps,
     summary: agentSummary,
@@ -329,6 +349,12 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const [agentError, setAgentError] = useState<string | null>(null);
   const [agentApplied, setAgentApplied] = useState<string | null>(null);
   const [lastAgentInstruction, setLastAgentInstruction] = useState('');
+  /**
+   * Set when an agent run ends in an error. `done` lists the summaries of ops from the
+   * failed run(s) that actually landed on the canvas, so Retry continues from the current
+   * document instead of redoing — and duplicating — work that is already applied.
+   */
+  const [agentResume, setAgentResume] = useState<AgentResumeState | null>(null);
   /**
    * Auto-apply is opt-in and never covers destructive ops — see
    * `partitionAutoApplicableOps`. Losing content to an agent that misread an instruction
@@ -771,8 +797,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    * STORA-530 — the explicit "Agent" action. Like Enhance and Generate, it is never
    * inferred from message text: the user opts into letting AI edit the page.
    */
-  const handleRunAgent = async (overrideInstruction?: string) => {
-    const instruction = (overrideInstruction ?? inputValue).trim();
+  const handleRunAgent = async (overrideInstruction?: string, resume?: AgentResumeState) => {
+    const instruction = (resume?.instruction ?? overrideInstruction ?? inputValue).trim();
     if (!instruction || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
@@ -784,32 +810,66 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     setAgentError(null);
     setAgentApplied(null);
     setPendingOps(null);
-    if (!overrideInstruction) setInputValue('');
+    setAgentResume(null);
+    if (!overrideInstruction && !resume) setInputValue('');
+
+    const doneSoFar = resume?.done ?? [];
+    const continuing = doneSoFar.length > 0;
 
     const result = await runAgent({
-      instruction,
+      // `document` already contains the applied ops, so a continuation only needs to tell
+      // the model what it finished — the page itself is the source of truth.
+      instruction: continuing ? AGENT_RESUME_INSTRUCTION : instruction,
       document,
       selectedNodeId: contextDismissed ? undefined : (selectedNodeId ?? undefined),
-      history: messages,
+      history: continuing
+        ? [
+            ...messages,
+            { role: 'user', content: instruction, timestamp: Date.now() },
+            { role: 'assistant', content: formatAgentProgress(doneSoFar), timestamp: Date.now() },
+          ]
+        : messages,
       instructions: aiConfig.systemPromptPrefix,
     });
 
-    if (!result || result.ops.length === 0) return;
+    // `null` means the run threw before completing (or was aborted — then no error is shown
+    // and this state is simply never offered).
+    const failed = !result || result.stoppedBy === 'error';
+
+    if (!result || result.ops.length === 0) {
+      if (failed) setAgentResume({ instruction, done: doneSoFar });
+      return;
+    }
 
     if (!autoApply) {
       setPendingOps(result.ops);
+      // Pending ops join `done` only if the user applies them (handleApplyAgentOps).
+      if (failed) setAgentResume({ instruction, done: doneSoFar });
       return;
     }
 
     const { autoApplicable, needsConfirmation } = partitionAutoApplicableOps(result.ops);
-    if (autoApplicable.length > 0) applyOps(autoApplicable);
+    const applied = autoApplicable.length > 0 && applyOps(autoApplicable) ? autoApplicable : [];
     // Destructive ops always stop for confirmation, even with auto-apply on.
     setPendingOps(needsConfirmation.length > 0 ? needsConfirmation : null);
+    if (failed) {
+      setAgentResume({ instruction, done: [...doneSoFar, ...applied.map((op) => op.summary)] });
+    }
   };
 
   const handleApplyAgentOps = () => {
     if (!pendingOps) return;
-    if (applyOps(pendingOps)) setPendingOps(null);
+    if (!applyOps(pendingOps)) return;
+    const applied = pendingOps;
+    setPendingOps(null);
+    setAgentResume((prev) =>
+      prev ? { ...prev, done: [...prev.done, ...applied.map((op) => op.summary)] } : prev,
+    );
+  };
+
+  const handleRetryAgent = () => {
+    if (agentResume) void handleRunAgent(undefined, agentResume);
+    else void handleRunAgent(lastAgentInstruction);
   };
 
   const handleDiscardAgentOps = () => {
@@ -1046,8 +1106,18 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 className="flex items-center gap-1.5 text-[11px] text-violet-700 bg-violet-50/80 rounded px-2 py-1.5 border border-violet-100 mt-0.5"
               >
                 <Loader2 className="w-3 h-3 animate-spin shrink-0 text-violet-600" />
-                <span>
-                  {autoApply ? tr.agentRunningAutoApply : tr.agentRunningReview}
+                <span className="flex flex-col">
+                  <span>{autoApply ? tr.agentRunningAutoApply : tr.agentRunningReview}</span>
+                  {agentProgress && (
+                    <span data-testid="ai-agent-progress" className="text-violet-500">
+                      {tr.agentProgress({
+                        phase: agentProgress.phase,
+                        toolName: agentProgress.toolName,
+                        seconds: Math.round(agentProgress.elapsedMs / 1000),
+                        outputChars: agentProgress.outputChars,
+                      })}
+                    </span>
+                  )}
                 </span>
               </div>
             )}
@@ -1060,8 +1130,16 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
         {(agentError || agentHookError) && (
           <AiChatErrorBubble
-            message={agentError || agentHookError?.message || tr.agentFailed}
-            onRetry={() => void handleRunAgent(lastAgentInstruction)}
+            message={
+              agentResume && (agentResume.done.length > 0 || pendingOps)
+                ? `${agentError || agentHookError?.message || tr.agentFailed} ${tr.agentResumeHint(
+                    agentResume.done.length,
+                    pendingOps?.length ?? 0,
+                  )}`
+                : agentError || agentHookError?.message || tr.agentFailed
+            }
+            onRetry={handleRetryAgent}
+            retryLabel={agentResume && agentResume.done.length > 0 ? tr.agentResume : undefined}
           />
         )}
 

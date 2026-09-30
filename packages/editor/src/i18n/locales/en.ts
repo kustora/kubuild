@@ -169,10 +169,21 @@ export const en: TranslationSchema = {
     agentApplied: (count: number) => `${count} change(s) applied to the canvas.`,
     agentLabel: 'Agent',
     agentStep: (step: number, maxSteps: number) => `step ${step}/${maxSteps}`,
+    agentProgress: ({ phase, toolName, seconds, outputChars }) => {
+      const chars = outputChars ? ` · ${outputChars.toLocaleString('en')} chars` : '';
+      if (phase === 'tool') return `Running ${toolName ?? 'tool'}… ${seconds}s`;
+      if (toolName) return `Writing ${toolName}… ${seconds}s${chars}`;
+      return `Thinking… ${seconds}s${chars}`;
+    },
     agentRunningAutoApply:
       'Working through the steps… Changes are applied to the canvas automatically when done.',
     agentRunningReview: 'Working through the steps… Changes will be ready to review & apply when done.',
     agentFailed: 'Agent failed.',
+    agentResume: 'Continue',
+    agentResumeHint: (applied: number, pending: number) =>
+      pending > 0
+        ? `${pending} completed change(s) are ready to review — apply them before continuing.`
+        : `${applied} completed change(s) were kept. Continue to finish the rest.`,
     agentChangesReady: (count: number) => `${count} change(s) ready to apply`,
     discard: 'Discard',
     apply: 'Apply',

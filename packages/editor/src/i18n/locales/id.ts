@@ -169,11 +169,22 @@ export const id: TranslationSchema = {
     agentApplied: (count: number) => `${count} perubahan diterapkan ke canvas.`,
     agentLabel: 'Agent',
     agentStep: (step: number, maxSteps: number) => `langkah ${step}/${maxSteps}`,
+    agentProgress: ({ phase, toolName, seconds, outputChars }) => {
+      const chars = outputChars ? ` · ${outputChars.toLocaleString('id')} karakter` : '';
+      if (phase === 'tool') return `Menjalankan ${toolName ?? 'tool'}… ${seconds} dtk`;
+      if (toolName) return `Menulis ${toolName}… ${seconds} dtk${chars}`;
+      return `Berpikir… ${seconds} dtk${chars}`;
+    },
     agentRunningAutoApply:
       'Sedang memproses langkah... Perubahan otomatis diterapkan ke kanvas setelah selesai.',
     agentRunningReview:
       'Sedang memproses langkah... Perubahan akan siap di-review & di-apply setelah selesai.',
     agentFailed: 'Agent gagal.',
+    agentResume: 'Lanjutkan',
+    agentResumeHint: (applied: number, pending: number) =>
+      pending > 0
+        ? `${pending} perubahan yang sudah selesai siap ditinjau — terapkan dulu sebelum melanjutkan.`
+        : `${applied} perubahan yang sudah selesai tetap disimpan. Lanjutkan untuk mengerjakan sisanya.`,
     agentChangesReady: (count: number) => `${count} perubahan siap diterapkan`,
     discard: 'Buang',
     apply: 'Terapkan',

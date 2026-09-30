@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { PageDocument } from '@kubuild/schema';
-import type { AgentOpRecord, AiAgentRunResult, AiChatMessage } from '../types.js';
+import type { AgentOpRecord, AiAgentProgress, AiAgentRunResult, AiChatMessage } from '../types.js';
 import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client.js';
 
 /** One entry in the live run timeline the panel renders while the agent works. */
@@ -45,6 +45,8 @@ export function useAiAgent(options: UseAiAgentOptions) {
   const [isRunning, setIsRunning] = useState(false);
   const [step, setStep] = useState(0);
   const [maxSteps, setMaxSteps] = useState(0);
+  /** Latest heartbeat while a step waits on the model or a tool; null between phases. */
+  const [progress, setProgress] = useState<AiAgentProgress | null>(null);
   const [timeline, setTimeline] = useState<AgentTimelineEntry[]>([]);
   const [ops, setOps] = useState<AgentOpRecord[]>([]);
   const [summary, setSummary] = useState<string>('');
@@ -64,6 +66,7 @@ export function useAiAgent(options: UseAiAgentOptions) {
     setError(null);
     setStep(0);
     setMaxSteps(0);
+    setProgress(null);
   }, []);
 
   const abort = useCallback(() => {
@@ -82,6 +85,12 @@ export function useAiAgent(options: UseAiAgentOptions) {
 
       reset();
       setIsRunning(true);
+      // Ops reported by `tool-result` as they happen. If the stream drops before
+      // `agent-complete` (proxy timeout, network blip), these are still valid edits
+      // against the snapshot the run started from — returned as a partial result so the
+      // caller can keep them and continue instead of starting over.
+      const streamedOps: AgentOpRecord[] = [];
+      let stepsSeen = 0;
 
       const messages: AiChatMessage[] = [
         ...(params.history ?? []),
@@ -100,16 +109,22 @@ export function useAiAgent(options: UseAiAgentOptions) {
           },
           {
             onAgentStep: (currentStep, limit) => {
+              stepsSeen = currentStep;
               setStep(currentStep);
               setMaxSteps(limit);
+              setProgress(null);
             },
+            onAgentProgress: setProgress,
             onToolCall: (call) => {
+              setProgress(null);
               setTimeline((prev) => [
                 ...prev,
                 { id: call.id, name: call.name, input: call.input, status: 'running' },
               ]);
             },
             onToolResult: (toolResult) => {
+              setProgress(null);
+              if (toolResult.op) streamedOps.push(toolResult.op);
               setTimeline((prev) =>
                 prev.map((entry) =>
                   entry.id === toolResult.id
@@ -136,13 +151,24 @@ export function useAiAgent(options: UseAiAgentOptions) {
       } catch (err) {
         const normalized = err instanceof Error ? err : new Error(String(err));
         // An abort is a user action, not a failure to report.
-        if (normalized.name !== 'AbortError') {
-          setError(normalized);
-          optionsRef.current.onError?.(normalized);
-        }
-        return null;
+        if (normalized.name === 'AbortError') return null;
+
+        setError(normalized);
+        optionsRef.current.onError?.(normalized);
+
+        if (streamedOps.length === 0) return null;
+        const partial: AiAgentRunResult = {
+          ops: [...streamedOps],
+          summary: '',
+          stepsUsed: stepsSeen,
+          stoppedBy: 'error',
+        };
+        setOps(partial.ops);
+        setResult(partial);
+        return partial;
       } finally {
         setIsRunning(false);
+        setProgress(null);
         abortControllerRef.current = null;
       }
     },
@@ -156,6 +182,7 @@ export function useAiAgent(options: UseAiAgentOptions) {
     isRunning,
     step,
     maxSteps,
+    progress,
     timeline,
     ops,
     summary,

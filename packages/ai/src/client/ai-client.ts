@@ -329,7 +329,12 @@ export class KubuildAiClient {
     params: AiAgentRequest,
     callbacks?: Pick<
       AiStreamCallbacks,
-      'onAgentStep' | 'onToolCall' | 'onToolResult' | 'onAgentComplete' | 'onError'
+      | 'onAgentStep'
+      | 'onAgentProgress'
+      | 'onToolCall'
+      | 'onToolResult'
+      | 'onAgentComplete'
+      | 'onError'
     >,
     options?: { signal?: AbortSignal },
   ): Promise<AiAgentRunResult> {
@@ -363,6 +368,9 @@ export class KubuildAiClient {
     await this.consumeSse(res, (event) => {
       if (event.type === 'agent-step') {
         callbacks?.onAgentStep?.(event.step, event.maxSteps);
+      } else if (event.type === 'agent-progress') {
+        const { type: _type, ...progress } = event;
+        callbacks?.onAgentProgress?.(progress);
       } else if (event.type === 'tool-call') {
         callbacks?.onToolCall?.({ id: event.id, name: event.name, input: event.input });
       } else if (event.type === 'tool-result') {
@@ -371,6 +379,7 @@ export class KubuildAiClient {
           name: event.name,
           ok: event.ok,
           summary: event.summary,
+          op: event.op,
         });
       } else if (event.type === 'agent-complete') {
         finalResult = event.result;

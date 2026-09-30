@@ -186,9 +186,20 @@ export interface AiChatTranslations {
   agentApplied: (count: number) => string;
   agentLabel: string;
   agentStep: (step: number, maxSteps: number) => string;
+  /** Live heartbeat line while the agent waits on the model or a long tool call. */
+  agentProgress: (progress: {
+    phase: 'model' | 'tool';
+    toolName?: string;
+    seconds: number;
+    outputChars?: number;
+  }) => string;
   agentRunningAutoApply: string;
   agentRunningReview: string;
   agentFailed: string;
+  /** Retry label when an interrupted agent run can continue from its applied changes. */
+  agentResume: string;
+  /** Appended to the agent error when some work from the failed run was kept. */
+  agentResumeHint: (applied: number, pending: number) => string;
   agentChangesReady: (count: number) => string;
   discard: string;
   apply: string;

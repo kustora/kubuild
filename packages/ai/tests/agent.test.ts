@@ -194,6 +194,9 @@ describe('KubuildAiAgent (STORA-530)', () => {
     // Only the successful call produced an op.
     const complete = events.at(-1) as Extract<AiStreamEvent, { type: 'agent-complete' }>;
     expect(complete.result.ops).toHaveLength(1);
+    // …and its tool-result carries that same op, so a dropped stream can still keep it.
+    expect(toolResults[0].op).toBeUndefined();
+    expect(toolResults[1].op).toEqual(complete.result.ops[0]);
   });
 
   it('answers an unknown tool name without killing the run', async () => {
@@ -336,5 +339,115 @@ describe('KubuildAiAgent (STORA-530)', () => {
 
     expect(document.document.children).toHaveLength(1);
     expect(document.document.children![0].id).toBe('hero');
+  });
+});
+
+describe('KubuildAiAgent progress & streaming', () => {
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  it('emits agent-progress heartbeats while the model is slow', async () => {
+    let call = 0;
+    const adapter: AiProviderAdapter = {
+      name: 'slow',
+      supportsTools: true,
+      async generate() {
+        call++;
+        await delay(60);
+        return { text: call === 1 ? 'Selesai' : '', stopReason: 'stop' };
+      },
+    };
+    const agent = new KubuildAiAgent({ adapter, registry: REGISTRY, agentProgressIntervalMs: 15 });
+
+    const events = await drain(
+      agent.run({ messages: [{ role: 'user', content: 'halo' }], document: makeDocument() }),
+    );
+
+    const progress = events.filter((e) => e.type === 'agent-progress');
+    expect(progress.length).toBeGreaterThanOrEqual(2);
+    expect(progress[0]).toMatchObject({ step: 1, phase: 'model' });
+    expect(events.at(-1)).toMatchObject({ type: 'agent-complete' });
+  });
+
+  it('emits tool-phase heartbeats while a tool is running', async () => {
+    let call = 0;
+    const adapter: AiProviderAdapter = {
+      name: 'tool',
+      supportsTools: true,
+      async generate() {
+        call++;
+        if (call === 1) {
+          return {
+            text: '',
+            stopReason: 'tool_calls',
+            toolCalls: [{ type: 'tool_use', id: 'c1', name: 'slow_tool', input: {} }],
+          };
+        }
+        return { text: 'Selesai', stopReason: 'stop' };
+      },
+    };
+    const agent = new KubuildAiAgent({
+      adapter,
+      registry: REGISTRY,
+      agentProgressIntervalMs: 15,
+      tools: [
+        {
+          definition: { name: 'slow_tool', description: 'slow', inputSchema: { type: 'object' } },
+          async execute() {
+            await delay(60);
+            return { ok: true, summary: 'done', content: { ok: true } };
+          },
+        },
+      ],
+    });
+
+    const events = await drain(
+      agent.run({ messages: [{ role: 'user', content: 'halo' }], document: makeDocument() }),
+    );
+
+    const toolProgress = events.filter(
+      (e) => e.type === 'agent-progress' && e.phase === 'tool',
+    );
+    expect(toolProgress.length).toBeGreaterThanOrEqual(1);
+    expect(toolProgress[0]).toMatchObject({ toolName: 'slow_tool' });
+    // Heartbeats land between the call and its result.
+    const callIndex = events.findIndex((e) => e.type === 'tool-call');
+    const resultIndex = events.findIndex((e) => e.type === 'tool-result');
+    const progressIndex = events.indexOf(toolProgress[0]);
+    expect(progressIndex).toBeGreaterThan(callIndex);
+    expect(progressIndex).toBeLessThan(resultIndex);
+  });
+
+  it('streams model turns when the adapter supports tool streaming', async () => {
+    const generate = vi.fn();
+    const adapter: AiProviderAdapter = {
+      name: 'streaming',
+      supportsTools: true,
+      supportsToolStreaming: true,
+      generate,
+      async *generateStream(params) {
+        params.onToolCallDelta?.({ index: 0, name: 'get_page_outline', argumentsLength: 40 });
+        await delay(40);
+        yield 'Halo';
+        await delay(40);
+        return { text: 'Halo', stopReason: 'stop', usage: { promptTokens: 5, completionTokens: 2 } };
+      },
+    };
+    const agent = new KubuildAiAgent({ adapter, registry: REGISTRY, agentProgressIntervalMs: 15 });
+
+    const events = await drain(
+      agent.run({ messages: [{ role: 'user', content: 'halo' }], document: makeDocument() }),
+    );
+
+    expect(generate).not.toHaveBeenCalled();
+    const progress = events.filter((e) => e.type === 'agent-progress');
+    expect(progress.at(-1)).toMatchObject({
+      phase: 'model',
+      toolName: 'get_page_outline',
+      outputChars: 44,
+    });
+    const complete = events.find((e) => e.type === 'agent-complete');
+    expect(complete).toMatchObject({
+      result: { summary: 'Halo', usage: { promptTokens: 5, completionTokens: 2 } },
+    });
   });
 });

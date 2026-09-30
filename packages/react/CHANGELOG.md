@@ -1,5 +1,17 @@
 # @kubuild/react
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/ai@0.10.0
+  - @kubuild/editor@0.10.0
+  - @kubuild/components@0.10.0
+  - @kubuild/core@0.10.0
+  - @kubuild/renderer@0.10.0
+  - @kubuild/schema@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes

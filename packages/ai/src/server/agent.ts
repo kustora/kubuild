@@ -6,6 +6,8 @@ import type {
   AiChatMessage,
   AiCompiledComponentSpec,
   AiContentBlock,
+  AiProviderGenerateParams,
+  AiProviderGenerateResult,
   AiStreamEvent,
   AiToolUseBlock,
   KubuildAiEngineOptions,
@@ -35,6 +37,42 @@ const DEFAULT_MAX_STEPS = 8;
 
 /** Ceiling on tool calls the model may request within a single step. */
 const MAX_TOOL_CALLS_PER_STEP = 8;
+
+/** Default interval for `agent-progress` heartbeats — well under common proxy idle limits. */
+const DEFAULT_PROGRESS_INTERVAL_MS = 10_000;
+
+/**
+ * Awaits `task`, yielding `makeEvent(elapsedMs)` every `intervalMs` until it settles, then
+ * returns its value (or rethrows its error).
+ *
+ * Generators can't yield while suspended on an `await`, so a long model call or tool run
+ * would otherwise leave the event stream silent for its whole duration.
+ */
+async function* awaitWithProgress<T>(
+  task: Promise<T>,
+  intervalMs: number,
+  makeEvent: (elapsedMs: number) => AiStreamEvent,
+): AsyncGenerator<AiStreamEvent, T, void> {
+  const startedAt = Date.now();
+  const settled = task.then((value) => ({ value }));
+  // If the consumer stops iterating early, nobody awaits `settled` — keep a late rejection
+  // from surfacing as an unhandled rejection.
+  settled.catch(() => {});
+
+  while (true) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = new Promise<'tick'>((resolve) => {
+      timer = setTimeout(() => resolve('tick'), intervalMs);
+    });
+    try {
+      const winner = await Promise.race([settled, tick]);
+      if (winner !== 'tick') return winner.value;
+    } finally {
+      clearTimeout(timer);
+    }
+    yield makeEvent(Date.now() - startedAt);
+  }
+}
 
 function toolResultMessage(blocks: AiContentBlock[]): AiChatMessage {
   return { role: 'user', content: blocks, timestamp: Date.now() };
@@ -90,6 +128,42 @@ export class KubuildAiAgent {
 
   private findTool(name: string): AgentTool | undefined {
     return this.tools.find((tool) => tool.definition.name === name);
+  }
+
+  /**
+   * One model turn. Streams when the adapter can assemble tool calls from a stream, so a
+   * long turn (e.g. writing a whole section as tool arguments) keeps the provider
+   * connection active instead of sitting on a single response for minutes; `progress` is
+   * updated as output arrives. Falls back to `generate()` otherwise.
+   */
+  private async callModel(
+    params: AiProviderGenerateParams,
+    progress: { outputChars: number; toolName?: string },
+  ): Promise<AiProviderGenerateResult> {
+    const { adapter } = this.options;
+    if (!adapter.supportsToolStreaming || !adapter.generateStream) {
+      return adapter.generate(params);
+    }
+
+    const toolArgLengths = new Map<number, number>();
+    let textChars = 0;
+    const stream = adapter.generateStream({
+      ...params,
+      onToolCallDelta: ({ index, name, argumentsLength }) => {
+        toolArgLengths.set(index, argumentsLength);
+        if (name) progress.toolName = name;
+        let toolChars = 0;
+        for (const length of toolArgLengths.values()) toolChars += length;
+        progress.outputChars = textChars + toolChars;
+      },
+    });
+
+    while (true) {
+      const next = await stream.next();
+      if (next.done) return next.value;
+      textChars += next.value.length;
+      progress.outputChars += next.value.length;
+    }
   }
 
   /**
@@ -205,6 +279,8 @@ export class KubuildAiAgent {
   ): AsyncIterable<AiStreamEvent> {
     const maxSteps = request.maxSteps ?? this.options.maxAgentSteps ?? DEFAULT_MAX_STEPS;
     const signal = context?.signal;
+    const progressIntervalMs =
+      this.options.agentProgressIntervalMs ?? DEFAULT_PROGRESS_INTERVAL_MS;
 
     if (!request.messages || request.messages.length === 0) {
       yield {
@@ -258,14 +334,30 @@ export class KubuildAiAgent {
         step++;
         yield { type: 'agent-step', step, maxSteps };
 
-        const result = await this.options.adapter.generate({
-          systemPrompt,
-          userPrompt: getMessageText(request.messages[request.messages.length - 1]),
-          messages,
-          tools: toolDefinitions,
-          toolChoice: 'auto',
-          signal,
-        });
+        const progress = { outputChars: 0, toolName: undefined as string | undefined };
+        const currentStep = step;
+        const result = yield* awaitWithProgress(
+          this.callModel(
+            {
+              systemPrompt,
+              userPrompt: getMessageText(request.messages[request.messages.length - 1]),
+              messages,
+              tools: toolDefinitions,
+              toolChoice: 'auto',
+              signal,
+            },
+            progress,
+          ),
+          progressIntervalMs,
+          (elapsedMs) => ({
+            type: 'agent-progress',
+            step: currentStep,
+            phase: 'model',
+            toolName: progress.toolName,
+            elapsedMs,
+            outputChars: progress.outputChars,
+          }),
+        );
 
         promptTokens += result.usage?.promptTokens ?? 0;
         completionTokens += result.usage?.completionTokens ?? 0;
@@ -299,7 +391,17 @@ export class KubuildAiAgent {
 
           yield { type: 'tool-call', id: call.id, name: call.name, input: call.input ?? {} };
 
-          const executed = await this.executeToolCall(call, snapshot, signal);
+          const executed = yield* awaitWithProgress(
+            this.executeToolCall(call, snapshot, signal),
+            progressIntervalMs,
+            (elapsedMs) => ({
+              type: 'agent-progress',
+              step,
+              phase: 'tool',
+              toolName: call.name,
+              elapsedMs,
+            }),
+          );
           snapshot = executed.snapshot;
           resultBlocks.push(executed.block);
           if (executed.op) ops.push(executed.op);
@@ -310,6 +412,7 @@ export class KubuildAiAgent {
             name: call.name,
             ok: executed.ok,
             summary: executed.summary,
+            ...(executed.op ? { op: executed.op } : {}),
           };
         }
 

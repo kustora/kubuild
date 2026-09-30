@@ -90,6 +90,7 @@ function parseToolCalls(raw: OpenAiToolCallPayload[] | undefined): AiToolUseBloc
 export class OpenAiAdapter implements AiProviderAdapter {
   readonly name = 'openai';
   readonly supportsTools = true;
+  readonly supportsToolStreaming = true;
   private apiKey: string;
   private model: string;
   private temperature: number;
@@ -288,7 +289,12 @@ export class OpenAiAdapter implements AiProviderAdapter {
     params: AiProviderGenerateParams,
   ): AsyncGenerator<string, AiProviderGenerateResult, void> {
     const { signal } = params;
-    const res = await this.post({ ...this.buildBody(params), stream: true }, signal);
+    // Without `include_usage` the stream never reports token counts, which would silently
+    // zero out usage accounting for every streamed call.
+    const res = await this.post(
+      { ...this.buildBody(params), stream: true, stream_options: { include_usage: true } },
+      signal,
+    );
 
     if (!res.body) {
       throw new Error('OpenAI streaming response has no readable body');
@@ -333,6 +339,11 @@ export class OpenAiAdapter implements AiProviderAdapter {
         if (call.function?.name) entry.name = call.function.name;
         if (call.function?.arguments) entry.arguments += call.function.arguments;
         toolCallAccumulator.set(index, entry);
+        params.onToolCallDelta?.({
+          index,
+          name: entry.name || undefined,
+          argumentsLength: entry.arguments.length,
+        });
       }
 
       if (choice?.finish_reason) {
