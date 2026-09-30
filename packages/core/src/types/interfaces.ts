@@ -153,6 +153,20 @@ export interface RuntimeTrackingOptions {
   onLog?: (message: string, data?: unknown) => void;
 }
 
+/** A form that passed validation, as handed to `RenderContext.onFormSubmit`. */
+export interface FormSubmission {
+  /** The form's configured id — its `formConfig.formId`, else its `name`, else its node id. */
+  formId: string;
+  nodeId?: string;
+  values: Record<string, unknown>;
+}
+
+export interface FormSubmitHelpers {
+  /** Shows field-level errors (e.g. server-side validation) keyed by field name. */
+  setErrors: (errors: Record<string, string>) => void;
+  resetForm: () => void;
+}
+
 export type RenderContext = Readonly<{
   variables?: Readonly<Record<string, unknown>>;
   assetProvider?: AssetProvider;
@@ -181,6 +195,14 @@ export type RenderContext = Readonly<{
    * keys/values are dropped by the renderer.
    */
   theme?: Readonly<Partial<Theme>>;
+  /**
+   * Host hook awaited when a form is submitted at runtime, after validation passes and the
+   * form's own submit pipelines ran — e.g. a checkout form posting to the host's API. It is
+   * called for every form, so filter on `formId`. The form stays in its submitting state
+   * until it settles; throwing fails the submit like a pipeline error. Never called in the
+   * editor.
+   */
+  onFormSubmit?: (submission: FormSubmission, helpers: FormSubmitHelpers) => Promise<void> | void;
 }>;
 
 export type RuntimeContext = RenderContext;

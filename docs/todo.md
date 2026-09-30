@@ -1725,6 +1725,29 @@ Epic key: `EPIC-63` — package target: `@kubuild/core`, `@kubuild/editor`, `doc
 
 ---
 
+## Epic: Host Form Integration
+
+Epic key: `EPIC-64` — package target: `@kubuild/core`, `@kubuild/renderer`, `docs/`.
+
+### STORA-558
+
+- **Epic:** Host Form Integration
+- **Task Key:** STORA-558
+- **Type:** Feature
+- **Summary:** Hook host `RenderContext.onFormSubmit` untuk submit form di runtime
+- **Description:** `FormRuntimeProvider` sudah punya prop `onSubmit`, tetapi renderer tidak pernah mengisinya (`renderers/render-node-content.tsx`). Host (misalnya checkout funnel) hanya bisa menangani submit lewat pipeline di dokumen, yang tidak ditunggu, tidak bisa memberi error per field, dan butuh migrasi dokumen yang sudah di-publish.
+- **Priority:** High
+- **Status:** Done
+- **Package:** `@kubuild/core`, `@kubuild/renderer`, `docs/`
+- **Dependencies:** None
+- **Acceptance Criteria:**
+  - `RenderContext.onFormSubmit(submission, helpers)` dipanggil dan ditunggu setelah validasi lolos dan pipeline submit selesai; `submission` berisi `formId`, `nodeId`, `values`.
+  - `helpers.setErrors` menampilkan error per field; hook yang melempar error menggagalkan submit dengan diagnostic `ACTION_EXECUTION_ERROR`.
+  - `createRenderContext` meneruskan `onFormSubmit`; hook tidak dipanggil di editor.
+  - `api/renderer.md` EN + `id/` diperbarui.
+
+---
+
 ## Definition of Done per Task
 
 - Implementasi berada pada package yang benar dan tidak melanggar dependency rules.

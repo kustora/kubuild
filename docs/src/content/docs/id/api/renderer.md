@@ -73,6 +73,26 @@ import { RenderContextProvider } from '@kubuild/renderer';
 </RenderContextProvider>
 ```
 
+### Menangani submit form di host
+
+Isi `onFormSubmit` pada render context untuk menangani submit form di kode sendiri, misalnya form checkout yang mengirim ke API kamu. Hook dipanggil setelah form lolos validasi dan setelah pipeline submit milik form itu sendiri. Form tetap dalam status submitting sampai promise selesai.
+
+```tsx
+<KubuildRenderer
+  document={doc}
+  mode="runtime"
+  context={{
+    onFormSubmit: async ({ formId, values }, { setErrors }) => {
+      if (formId !== 'checkout_form') return; // dipanggil untuk setiap form
+      const result = await submitOrder(values);
+      if (result.fieldErrors) setErrors(result.fieldErrors); // tampil inline per field
+    },
+  }}
+/>
+```
+
+Kalau hook melempar error, submit gagal sama seperti pipeline yang gagal (diagnostic `ACTION_EXECUTION_ERROR`). Hook tidak pernah dipanggil di editor.
+
 ---
 
 ## Kompiler Styling & Animasi

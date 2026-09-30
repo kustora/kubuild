@@ -6,6 +6,20 @@ import { RadioGroupContext } from './radio-group-context.js';
 import { executeNodeActions } from '../action-dispatcher.js';
 import type { RenderContext, Diagnostic } from '../render-context.js';
 
+const fieldErrorStyle: React.CSSProperties = { fontSize: '12px', color: '#dc2626' };
+
+/**
+ * The visible message a field's `aria-errormessage` points at — without it, a validation
+ * or host `setErrors` message only reached assistive tech via aria-invalid, never the user.
+ */
+export function FieldError({ id, message }: { id?: string; message: string }): React.ReactElement {
+  return (
+    <span id={id ? `${id}-error` : undefined} role="alert" style={fieldErrorStyle} data-kubuild-field-error>
+      {message}
+    </span>
+  );
+}
+
 export interface FormContainerNodeProps {
   id?: string;
   name?: string;
@@ -231,26 +245,29 @@ export const FormInputNode: React.FC<FormInputNodeProps> = ({
   };
 
   return (
-    <input
-      id={id}
-      type={type}
-      name={name}
-      placeholder={placeholder}
-      value={stringVal}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      onFocus={handleFocus}
-      required={required}
-      disabled={disabled}
-      readOnly={readOnly}
-      style={style}
-      onClick={onClick}
-      data-kubuild-node={dataKubuildNode}
-      data-field={name}
-      data-invalid={isInvalid ? 'true' : undefined}
-      aria-invalid={isInvalid ? true : undefined}
-      aria-errormessage={error ? `${id}-error` : undefined}
-    />
+    <>
+      <input
+        id={id}
+        type={type}
+        name={name}
+        placeholder={placeholder}
+        value={stringVal}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onFocus={handleFocus}
+        required={required}
+        disabled={disabled}
+        readOnly={readOnly}
+        style={style}
+        onClick={onClick}
+        data-kubuild-node={dataKubuildNode}
+        data-field={name}
+        data-invalid={isInvalid ? 'true' : undefined}
+        aria-invalid={isInvalid ? true : undefined}
+        aria-errormessage={isInvalid && id ? `${id}-error` : undefined}
+      />
+      {isInvalid && <FieldError id={id} message={error} />}
+    </>
   );
 };
 
@@ -408,26 +425,29 @@ export const FormTextareaNode: React.FC<FormTextareaNodeProps> = ({
   };
 
   return (
-    <textarea
-      id={id}
-      name={name}
-      placeholder={placeholder}
-      rows={rows}
-      value={stringVal}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      onFocus={handleFocus}
-      required={required}
-      disabled={disabled}
-      readOnly={readOnly}
-      style={style}
-      onClick={onClick}
-      data-kubuild-node={dataKubuildNode}
-      data-field={name}
-      data-invalid={isInvalid ? 'true' : undefined}
-      aria-invalid={isInvalid ? true : undefined}
-      aria-errormessage={error ? `${id}-error` : undefined}
-    />
+    <>
+      <textarea
+        id={id}
+        name={name}
+        placeholder={placeholder}
+        rows={rows}
+        value={stringVal}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onFocus={handleFocus}
+        required={required}
+        disabled={disabled}
+        readOnly={readOnly}
+        style={style}
+        onClick={onClick}
+        data-kubuild-node={dataKubuildNode}
+        data-field={name}
+        data-invalid={isInvalid ? 'true' : undefined}
+        aria-invalid={isInvalid ? true : undefined}
+        aria-errormessage={isInvalid && id ? `${id}-error` : undefined}
+      />
+      {isInvalid && <FieldError id={id} message={error} />}
+    </>
   );
 };
 
@@ -587,34 +607,37 @@ export const FormSelectNode: React.FC<FormSelectNodeProps> = ({
   };
 
   return (
-    <select
-      id={id}
-      name={name}
-      value={stringVal}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      onFocus={handleFocus}
-      required={required}
-      disabled={disabled}
-      style={style}
-      onClick={onClick}
-      data-kubuild-node={dataKubuildNode}
-      data-field={name}
-      data-invalid={isInvalid ? 'true' : undefined}
-      aria-invalid={isInvalid ? true : undefined}
-      aria-errormessage={error ? `${id}-error` : undefined}
-    >
-      {placeholder && (
-        <option value="" disabled>
-          {placeholder}
-        </option>
-      )}
-      {optionsList.map((opt, i) => (
-        <option key={i} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+    <>
+      <select
+        id={id}
+        name={name}
+        value={stringVal}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onFocus={handleFocus}
+        required={required}
+        disabled={disabled}
+        style={style}
+        onClick={onClick}
+        data-kubuild-node={dataKubuildNode}
+        data-field={name}
+        data-invalid={isInvalid ? 'true' : undefined}
+        aria-invalid={isInvalid ? true : undefined}
+        aria-errormessage={isInvalid && id ? `${id}-error` : undefined}
+      >
+        {placeholder && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
+        {optionsList.map((opt, i) => (
+          <option key={i} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      {isInvalid && <FieldError id={id} message={error} />}
+    </>
   );
 };
 

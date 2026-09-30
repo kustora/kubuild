@@ -56,6 +56,8 @@ export function createRenderContext(options?: {
   tracking?: RuntimeTrackingOptions;
   /** Host theme override merged over `PageDocument.theme` at render time (STORA-551). */
   theme?: RenderContext['theme'];
+  /** Host hook awaited on every runtime form submit (see `RenderContext.onFormSubmit`). */
+  onFormSubmit?: RenderContext['onFormSubmit'];
 }): RenderContext {
   if (!options) {
     return DEFAULT_RENDER_CONTEXT;
@@ -84,6 +86,7 @@ export function createRenderContext(options?: {
     ...(options.artboardSurface ? { artboardSurface: options.artboardSurface } : {}),
     ...(options.tracking ? { tracking: Object.freeze({ ...options.tracking }) } : {}),
     ...(options.theme ? { theme: Object.freeze({ ...options.theme }) } : {}),
+    ...(options.onFormSubmit ? { onFormSubmit: options.onFormSubmit } : {}),
   });
 }
 
