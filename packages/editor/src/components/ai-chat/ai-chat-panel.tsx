@@ -1553,7 +1553,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               }
             : undefined
         }
-        className={`fixed bottom-4 right-4 z-40 w-[360px] max-w-[92vw] h-[520px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden ${
+        className={`fixed bottom-16 lg:bottom-4 right-4 z-40 w-[360px] max-w-[92vw] h-[520px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden ${
           isDragging ? 'select-none pointer-events-auto' : ''
         } ${className || ''}`}
       >

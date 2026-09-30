@@ -69,6 +69,7 @@ import {
   ArrowUp,
   ArrowDown,
   Trash2,
+  Sparkles,
 } from 'lucide-react';
 
 export interface KubuildEditorProps {
@@ -1044,6 +1045,24 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               )}
             </div>
             <span className="text-[10px]">{selectedNodeId ? 'Inspect *' : 'Inspect'}</span>
+          </button>
+        )}
+
+        {aiFeatureEnabled && resolvedConfig.toolbar.showAiChatToggle !== false && (
+          <button
+            type="button"
+            data-testid="mobile-ai-chat-toggle"
+            aria-pressed={aiChatMode !== 'hidden'}
+            // The docked column is desktop-only, so on mobile the panel always opens floating.
+            onClick={() => setAiChatMode(aiChatMode === 'floating' ? 'hidden' : 'floating')}
+            className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-md transition ${
+              aiChatMode !== 'hidden'
+                ? 'text-violet-600 font-semibold'
+                : 'text-slate-600 hover:text-violet-600 hover:bg-slate-50'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-violet-600" />
+            <span className="text-[10px] font-medium">AI</span>
           </button>
         )}
 
