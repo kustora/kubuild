@@ -176,7 +176,7 @@ export const id: TranslationSchema = {
       return `Berpikir… ${seconds} dtk${chars}`;
     },
     agentRunningAutoApply:
-      'Sedang memproses langkah... Perubahan otomatis diterapkan ke kanvas setelah selesai.',
+      'Sedang memproses langkah... Setiap perubahan langsung tampil di kanvas begitu langkahnya selesai.',
     agentRunningReview:
       'Sedang memproses langkah... Perubahan akan siap di-review & di-apply setelah selesai.',
     agentFailed: 'Agent gagal.',

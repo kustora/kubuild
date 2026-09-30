@@ -176,7 +176,7 @@ export const en: TranslationSchema = {
       return `Thinking… ${seconds}s${chars}`;
     },
     agentRunningAutoApply:
-      'Working through the steps… Changes are applied to the canvas automatically when done.',
+      'Working through the steps… Each change appears on the canvas as soon as its step finishes.',
     agentRunningReview: 'Working through the steps… Changes will be ready to review & apply when done.',
     agentFailed: 'Agent failed.',
     agentResume: 'Continue',

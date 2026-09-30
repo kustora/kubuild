@@ -219,6 +219,16 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   const setTableSpreadsheetMode = useEditorStore((state) => state.setTableSpreadsheetMode);
   const aiChatMode = useEditorStore((state) => state.aiChatMode);
   const setAiChatMode = useEditorStore((state) => state.setAiChatMode);
+  // Closing the AI panel only hides it: once opened it stays mounted in its last mode, so
+  // the chat session, agent timeline and any in-flight run survive a close/reopen.
+  const [lastOpenAiChatMode, setLastOpenAiChatMode] = useState<'docked' | 'floating' | null>(
+    null,
+  );
+  useEffect(() => {
+    if (aiChatMode !== 'hidden') setLastOpenAiChatMode(aiChatMode);
+  }, [aiChatMode]);
+  const mountedAiChatMode = aiChatMode !== 'hidden' ? aiChatMode : lastOpenAiChatMode;
+  const isAiChatHidden = aiChatMode === 'hidden';
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
   const canUndo = useEditorStore((state) => state.canUndo);
@@ -594,16 +604,19 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
       className={`flex flex-col h-full bg-slate-100 text-slate-900 relative overflow-hidden ${className || ''}`}
     >
       {/* Floating AI Chat Panel (STORA-503) — never mounted when AI is fully disabled */}
-      {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'floating') && (
-        <AiChatPanel
-          aiConfig={resolvedAiConfig}
-          registry={registry}
-          mode="floating"
-          onDiagnostic={onDiagnostic}
-          onToggleMode={() => setAiChatMode('docked')}
-          onClose={() => setAiChatMode('hidden')}
-        />
-      )}
+      {mountedAiChatMode &&
+        shouldRenderAiChatPanel(aiFeatureEnabled, mountedAiChatMode, 'floating') && (
+          <div className={isAiChatHidden ? 'hidden' : 'contents'}>
+            <AiChatPanel
+              aiConfig={resolvedAiConfig}
+              registry={registry}
+              mode="floating"
+              onDiagnostic={onDiagnostic}
+              onToggleMode={() => setAiChatMode('docked')}
+              onClose={() => setAiChatMode('hidden')}
+            />
+          </div>
+        )}
 
       {/* Floating Table Spreadsheet Editor */}
       {activeTable && tableSpreadsheetMode === 'floating' && (
@@ -957,8 +970,9 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
 
         {/* Docked AI Chat Panel (STORA-503) — an additional sibling column, sized like the
             other docked panels, so it never shrinks/shifts Sidebar/Navigator/Inspector. */}
-        {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'docked') && (
-          <>
+        {mountedAiChatMode &&
+          shouldRenderAiChatPanel(aiFeatureEnabled, mountedAiChatMode, 'docked') && (
+          <div className={isAiChatHidden ? 'hidden' : 'contents'}>
             <PanelResizeHandle
               side="left"
               onResize={(dx) =>
@@ -987,7 +1001,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
                 onClose={() => setAiChatMode('hidden')}
               />
             </div>
-          </>
+          </div>
         )}
       </div>
 

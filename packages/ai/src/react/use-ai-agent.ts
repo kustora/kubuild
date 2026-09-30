@@ -31,6 +31,11 @@ export interface RunAgentParams {
    * its tool/safety rules). Subject to the handler's `allowClientInstructions` cap.
    */
   instructions?: string;
+  /**
+   * Called for each op as soon as its tool result streams in, before the run completes.
+   * Lets the caller apply edits live; the final result still carries every op.
+   */
+  onOp?: (op: AgentOpRecord) => void;
 }
 
 /**
@@ -124,7 +129,10 @@ export function useAiAgent(options: UseAiAgentOptions) {
             },
             onToolResult: (toolResult) => {
               setProgress(null);
-              if (toolResult.op) streamedOps.push(toolResult.op);
+              if (toolResult.op) {
+                streamedOps.push(toolResult.op);
+                params.onOp?.(toolResult.op);
+              }
               setTimeline((prev) =>
                 prev.map((entry) =>
                   entry.id === toolResult.id

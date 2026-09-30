@@ -764,7 +764,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    * STORA-530 — applies an agent run through the same store actions manual editing uses,
    * batched into one history transaction so the whole turn is a single Ctrl+Z.
    */
-  const applyOps = (ops: AgentOpRecord[]): boolean => {
+  const applyOps = (ops: AgentOpRecord[], appliedCount = 0): boolean => {
     const result = applyAgentOps(ops, {
       updateNodeProps: (nodeId, props, merge) => updateNodeProps(nodeId, props, registry, merge),
       updateNodeStyle: (nodeId, styles, breakpoint, merge) =>
@@ -780,7 +780,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       replaceNodeSubtree: (nodeId, node) => replaceNodeSubtree(nodeId, node, registry),
       beginHistoryTransaction,
       endHistoryTransaction,
-      getNode: (nodeId) => findNodeById(document.document, nodeId),
+      // Read the live document: ops applied mid-run must see nodes inserted by earlier ops.
+      getNode: (nodeId) =>
+        findNodeById((propDocument ?? useEditorStore.getState().document).document, nodeId),
     });
 
     if (!result.success) {
@@ -788,7 +790,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       return false;
     }
 
-    setAgentApplied(tr.agentApplied(result.appliedOpIds.length));
+    setAgentApplied(tr.agentApplied(appliedCount + result.appliedOpIds.length));
     setAgentError(null);
     return true;
   };
@@ -816,6 +818,20 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     const doneSoFar = resume?.done ?? [];
     const continuing = doneSoFar.length > 0;
 
+    // With auto-apply on, each op lands on the canvas as soon as it streams in instead of
+    // waiting for the whole run. Live application stops at the first destructive op or
+    // failure — later ops may depend on it, so the rest goes through the end-of-run path.
+    const liveApplied: AgentOpRecord[] = [];
+    let liveHalted = !autoApply;
+    const handleLiveOp = (op: AgentOpRecord) => {
+      if (liveHalted) return;
+      if (op.destructive || !applyOps([op], liveApplied.length)) {
+        liveHalted = true;
+        return;
+      }
+      liveApplied.push(op);
+    };
+
     const result = await runAgent({
       // `document` already contains the applied ops, so a continuation only needs to tell
       // the model what it finished — the page itself is the source of truth.
@@ -830,14 +846,19 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           ]
         : messages,
       instructions: aiConfig.systemPromptPrefix,
+      onOp: handleLiveOp,
     });
 
     // `null` means the run threw before completing (or was aborted — then no error is shown
     // and this state is simply never offered).
     const failed = !result || result.stoppedBy === 'error';
 
-    if (!result || result.ops.length === 0) {
-      if (failed) setAgentResume({ instruction, done: doneSoFar });
+    const liveIds = new Set(liveApplied.map((op) => op.id));
+    const liveDone = [...doneSoFar, ...liveApplied.map((op) => op.summary)];
+    const remainingOps = result ? result.ops.filter((op) => !liveIds.has(op.id)) : [];
+
+    if (!result || remainingOps.length === 0) {
+      if (failed) setAgentResume({ instruction, done: liveDone });
       return;
     }
 
@@ -848,12 +869,15 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       return;
     }
 
-    const { autoApplicable, needsConfirmation } = partitionAutoApplicableOps(result.ops);
-    const applied = autoApplicable.length > 0 && applyOps(autoApplicable) ? autoApplicable : [];
+    const { autoApplicable, needsConfirmation } = partitionAutoApplicableOps(remainingOps);
+    const applied =
+      autoApplicable.length > 0 && applyOps(autoApplicable, liveApplied.length)
+        ? autoApplicable
+        : [];
     // Destructive ops always stop for confirmation, even with auto-apply on.
     setPendingOps(needsConfirmation.length > 0 ? needsConfirmation : null);
     if (failed) {
-      setAgentResume({ instruction, done: [...doneSoFar, ...applied.map((op) => op.summary)] });
+      setAgentResume({ instruction, done: [...liveDone, ...applied.map((op) => op.summary)] });
     }
   };
 
