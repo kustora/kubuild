@@ -1,5 +1,31 @@
 # @kubuild/editor
 
+## 0.10.2
+
+### Patch Changes
+
+- @kubuild/editor
+
+  • Add an AI chat toggle button to the editor toolbar on mobile.
+  • Adjust the AI chat panel behavior while a live agent operation is running.
+  • Support datetime fields in the inspector panel, used by the countdown component.
+  • Update i18n strings (en, id).
+
+  @kubuild/components
+
+  • Support datetime props in the countdown component, including its conversion and the component registry.
+
+  @kubuild/ai
+
+  • Improve live agent operation handling in the useAIAgent hook.
+
+- Updated dependencies []:
+  - @kubuild/ai@0.10.2
+  - @kubuild/components@0.10.2
+  - @kubuild/renderer@0.10.2
+  - @kubuild/core@0.10.2
+  - @kubuild/schema@0.10.2
+
 ## 0.10.1
 
 ### Patch Changes
