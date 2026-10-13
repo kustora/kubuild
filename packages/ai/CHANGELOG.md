@@ -1,5 +1,49 @@
 # @kubuild/ai
 
+## 0.11.0
+
+### Minor Changes
+
+- **BREAKING (tracking): multiple pixels per provider, and pixels inherited from the host.** A document can now hold any number of pixels per provider (two Meta pixels, several GA4 properties, …). A host can also apply its own pixels to a document, for example pixels configured on a parent funnel, and authors can switch them off per page.
+
+  - **schema**:
+    - New `TrackingPixelSchema` (`id, provider, label?, enabled, credentialId?, pixelId, serverEnabled, testEventCode, disabledEvents`). `pixelId` holds the provider's public id: Meta/TikTok pixel id, GA4 measurement id or GTM container id.
+    - `TrackingConfig` gains `pixels: TrackingPixel[]` and `inherit: { enabled, excludedPixelIds }`. `providers` is deprecated: still parsed, but no longer written by the editor.
+    - `track_event` steps and relay requests accept `pixelIds` to target specific pixels.
+    - Relay results gain `pixelId` and are keyed `"<provider>:<pixel entry id>"`.
+    - New relay error code `EVENT_NOT_ALLOWED`.
+    - `CURRENT_SCHEMA_VERSION` is now `1.3.0`, and the page JSON Schema describes `pixels` and `inherit`.
+  - **core**:
+    - `resolveTrackingConfig(tracking, inheritedPixels?)` is the single merge rule: legacy `providers` are converted, host pixels apply minus the page's exclusions, then the page's own pixels are added. Disabled pixels and duplicates are dropped.
+    - Also new: `selectTrackingPixels`, `legacyProvidersToPixels` and `normalizeTrackingPixel`.
+    - `dispatchServerTracking` delivers per pixel, so each pixel uses its own `credentialId` secret. It honours `disabledEvents` and the new `pixelIds` / `inheritedPixels` options, and keys results per pixel.
+    - `createTrackingRelayHandler` forwards `pixelIds` and accepts `isEventAllowed(event, ctx)` so a host can refuse browser-sent events (e.g. `Purchase`) with a 403.
+    - Migration `1.2.0 -> 1.3.0` converts `providers` into `pixels` (ids `legacy-<provider>`) in `tracking`, `metadata.tracking` and project artboards, with a `TRACKING_PROVIDERS_CONVERTED` warning.
+    - The secret sanitizer also cleans `pixels` entries.
+    - `RuntimeTrackingOptions` gains `inheritedPixels`.
+  - **renderer**:
+    - `injectTrackingScripts` initialises every pixel: one `fbq('init')`, `ttq.load` and GA4 `config` per id. `autoPageView` fires one PageView per pixel, skipping pixels that list `PageView` in `disabledEvents`.
+    - `fireBrowserPixel` targets each pixel on its own: Meta `trackSingle`/`trackSingleCustom`, TikTok `ttq.instance(id)` and GA4 `send_to`. It filters by `provider`, `pixelIds` and `disabledEvents`.
+    - Without a config, `fireBrowserPixel` keeps the old broadcast behaviour.
+    - `KubuildRenderer` merges `context.tracking.inheritedPixels` and falls back to `metadata.tracking`.
+  - **editor**: the Tracking Settings modal now edits a list of pixels per provider tab:
+    - add saved pixels from `trackingCredentials`, which hides ones already on the page or applied by the host
+    - add any number manually
+    - per pixel: server-side toggle, test code and skipped events
+    - a new "Pixels from …" section lists `context.tracking.inheritedPixels` with a per-page switch
+    - new `inheritedTrackingPixelsLabel` prop on `KubuildEditor`
+    - the inspector counts resolved pixels
+    - remaining Indonesian strings in these places are now English
+
+  **Migration**: run documents through `migrateDocument` (or import them) to convert `providers` into `pixels`; renderers also convert on the fly via `resolveTrackingConfig`. Results from `dispatchServerTracking` and the relay are now keyed per pixel (`meta:<id>` instead of `meta`). Upgrade editor and renderer together; a 0.10 renderer ignores `pixels`.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/schema@0.11.0
+  - @kubuild/core@0.11.0
+  - @kubuild/components@0.11.0
+
 ## 0.10.2
 
 ### Patch Changes
