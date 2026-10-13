@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ComponentRegistry, ComponentFieldDefinition, isBindableField } from '@kubuild/components';
-import { findNodeById, findNodeLocation } from '@kubuild/core';
+import { findNodeById, findNodeLocation, resolveTrackingConfig } from '@kubuild/core';
 import { isVariableBinding, PageDocument, AnimationConfig, ActionPipeline } from '@kubuild/schema';
-import type { PixelCredentialOption } from '@kubuild/schema';
+import type { PixelCredentialOption, TrackingPixelInput } from '@kubuild/schema';
 import { useEditorStore, Viewport } from '../../store/index.js';
 import { VariableBindingControl, toBindingValue } from '../ui/variable-picker.js';
 import { AssetManagerModal } from '../modals/asset-manager-modal.js';
@@ -45,6 +45,10 @@ export interface InspectorPanelProps {
   onSaveTrackingSecret?: SaveTrackingSecretHandler;
   /** Host tracking relay URL, shown read-only in the tracking modal. */
   trackingRelayUrl?: string;
+  /** Pixels the host applies to this document (`context.tracking.inheritedPixels`). */
+  inheritedTrackingPixels?: readonly TrackingPixelInput[];
+  /** Label for those pixels in the tracking modal, e.g. "this funnel". */
+  inheritedTrackingPixelsLabel?: string;
   /** Host asset provider for direct uploads and asset management */
   assetProvider?: AssetProvider;
 }
@@ -964,10 +968,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onManageCredentials,
   onSaveTrackingSecret,
   trackingRelayUrl,
+  inheritedTrackingPixels,
+  inheritedTrackingPixelsLabel,
   assetProvider,
 }) => {
   const storeState = useEditorStore((s) => s);
   const document = propDocument ?? storeState.document;
+  // Pixels that load on this page: the document's own plus the ones the host applies.
+  const activePixelCount = resolveTrackingConfig(document?.tracking, inheritedTrackingPixels).pixels.length;
   const selectedNodeId =
     propSelectedNodeId !== undefined ? propSelectedNodeId : storeState.selectedNodeId;
   const {
@@ -1283,6 +1291,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           onManageCredentials={onManageCredentials}
           onSaveTrackingSecret={onSaveTrackingSecret}
           trackingRelayUrl={trackingRelayUrl}
+        inheritedPixels={inheritedTrackingPixels}
+        inheritedPixelsSource={inheritedTrackingPixelsLabel}
         />
       )}
       {/* Tab bar: Style / Traits — STORA-211 */}
@@ -1369,18 +1379,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <span className="text-xs font-semibold text-slate-700 leading-tight">Pixel Tracking</span>
               <span className="text-[10px] text-slate-500 truncate">
                 {document?.tracking?.enabled === false
-                  ? 'Tracking dinonaktifkan'
-                  : (() => {
-                      const p = document?.tracking?.providers;
-                      if (!p) return 'Belum ada pixel dikonfigurasi';
-                      const active = [
-                        p.meta?.enabled !== false && p.meta?.pixelId,
-                        p.google?.enabled !== false && p.google?.measurementId,
-                        p.gtm?.enabled !== false && p.gtm?.containerId,
-                        p.tiktok?.enabled !== false && p.tiktok?.pixelId,
-                      ].filter(Boolean).length;
-                      return active > 0 ? `${active} provider aktif` : 'Belum ada pixel dikonfigurasi';
-                    })()}
+                  ? 'Tracking disabled'
+                  : activePixelCount > 0
+                    ? `${activePixelCount} pixel${activePixelCount === 1 ? '' : 's'} active`
+                    : 'No pixel configured yet'}
               </span>
             </div>
           </div>
@@ -1392,21 +1394,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           >
             <Radio className="w-3 h-3" />
             <span>Pixel</span>
-            {document?.tracking?.enabled !== false &&
-              (() => {
-                const p = document?.tracking?.providers;
-                const active = p ? [
-                  p.meta?.enabled !== false && p.meta?.pixelId,
-                  p.google?.enabled !== false && p.google?.measurementId,
-                  p.gtm?.enabled !== false && p.gtm?.containerId,
-                  p.tiktok?.enabled !== false && p.tiktok?.pixelId,
-                ].filter(Boolean).length : 0;
-                return active > 0 ? (
-                  <span className="ml-0.5 px-1 py-0.2 text-[9px] font-bold bg-purple-600 text-white rounded-full">
-                    {active}
-                  </span>
-                ) : null;
-              })()}
+            {document?.tracking?.enabled !== false && activePixelCount > 0 && (
+              <span className="ml-0.5 px-1 py-0.2 text-[9px] font-bold bg-purple-600 text-white rounded-full">
+                {activePixelCount}
+              </span>
+            )}
           </button>
         </div>
       </div>

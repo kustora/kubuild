@@ -1,4 +1,4 @@
-import { Artboard, ArtboardType, PageDocument, Theme } from '@kubuild/schema';
+import { Artboard, ArtboardType, PageDocument, Theme, type TrackingPixelInput } from '@kubuild/schema';
 import type { DocumentValidationError, DocumentValidationWarning } from '../validation/validator.js';
 
 export interface AssetInfo {
@@ -151,6 +151,12 @@ export interface RuntimeTrackingOptions {
   fetchFn?: typeof fetch;
   /** Receives tracking log lines (skips, relay failures, ...). */
   onLog?: (message: string, data?: unknown) => void;
+  /**
+   * Pixels the host applies to this document (e.g. pixels configured on a parent entity).
+   * Merged with the document's own pixels by `resolveTrackingConfig`, subject to the
+   * document's `tracking.inherit` settings. Public data only — never secrets.
+   */
+  inheritedPixels?: readonly TrackingPixelInput[];
 }
 
 /** A form that passed validation, as handed to `RenderContext.onFormSubmit`. */

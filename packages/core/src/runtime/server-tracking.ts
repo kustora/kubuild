@@ -11,11 +11,14 @@ import type {
   TrackingProviderSecrets,
   ServerTrackingProviderType,
   TrackEventProvider,
+  TrackingPixel,
+  TrackingPixelInput,
 } from '@kubuild/schema';
+import { resolveTrackingConfig, selectTrackingPixels } from './tracking-pixels.js';
 
 /**
  * Reference passed to a host `TrackingSecretResolver`. `credentialId` comes from the trusted
- * tracking config (`providers.<provider>.credentialId`), never from an untrusted request.
+ * tracking config (`pixels[].credentialId`), never from an untrusted request.
  */
 export interface TrackingSecretRef {
   provider: ServerTrackingProviderType;
@@ -69,6 +72,8 @@ export interface ServerTrackingEvent {
  */
 export interface TrackingDeliveryResult {
   provider: string;
+  /** Pixel entry id (`TrackingPixel.id`) the result belongs to, when dispatched per pixel. */
+  pixelId?: string;
   success: boolean;
   status?: number;
   data?: unknown;
@@ -86,6 +91,7 @@ export interface ServerTrackingDispatchResult {
   eventId: string;
   skipped?: boolean;
   reason?: string;
+  /** Keyed `"<provider>:<pixel entry id>"`. */
   results: Record<string, TrackingDeliveryResult>;
 }
 
@@ -102,6 +108,13 @@ export interface ServerTrackingOptions {
   documentId?: string;
   /** Restrict dispatch to one provider ('all' by default). 'gtm' is client-only. */
   provider?: TrackEventProvider;
+  /** Restrict dispatch to these pixel entry ids (narrows the config, never adds to it). */
+  pixelIds?: readonly string[];
+  /**
+   * Host pixels merged in through `resolveTrackingConfig` (subject to the config's
+   * `inherit` settings). Omit when `config` is already resolved.
+   */
+  inheritedPixels?: readonly TrackingPixelInput[];
   fetchFn?: typeof fetch;
   clientIp?: string;
   clientUserAgent?: string;
@@ -519,25 +532,74 @@ function skippedResult(provider: string, reason: string): TrackingDeliveryResult
 }
 
 type ProviderTask = {
-  key: ServerTrackingProviderType;
+  /** Result key: `"<provider>:<pixel entry id>"`. */
+  key: string;
+  provider: ServerTrackingProviderType;
+  pixelId: string;
   credentialId?: string;
   run: (secrets: TrackingProviderSecrets | null) => Promise<TrackingDeliveryResult>;
 };
 
+/** Builds the per-provider config the `send*` helpers take from one pixel entry. */
+function toServerTask(
+  pixel: TrackingPixel,
+  event: ServerTrackingEvent,
+  options: ServerTrackingOptions,
+): ProviderTask | null {
+  const base = { key: `${pixel.provider}:${pixel.id}`, pixelId: pixel.id, credentialId: pixel.credentialId };
+  const credentialId = pixel.credentialId;
+  switch (pixel.provider) {
+    case 'meta': {
+      const cfg: MetaTrackingProviderConfig = {
+        enabled: true,
+        credentialId,
+        pixelId: pixel.pixelId,
+        capiEnabled: true,
+        testEventCode: pixel.testEventCode,
+      };
+      return { ...base, provider: 'meta', run: (s) => sendMetaCapiEvent(event, cfg, s as MetaTrackingSecrets | null, options) };
+    }
+    case 'tiktok': {
+      const cfg: TikTokTrackingProviderConfig = {
+        enabled: true,
+        credentialId,
+        pixelId: pixel.pixelId,
+        eventsApiEnabled: true,
+        testEventCode: pixel.testEventCode,
+      };
+      return { ...base, provider: 'tiktok', run: (s) => sendTikTokEventsApi(event, cfg, s as TikTokTrackingSecrets | null, options) };
+    }
+    case 'google': {
+      if (!pixel.pixelId) return null;
+      const cfg: GoogleTrackingProviderConfig = { enabled: true, credentialId, measurementId: pixel.pixelId };
+      return { ...base, provider: 'google', run: (s) => sendGa4MeasurementEvent(event, cfg, s as GoogleTrackingSecrets | null, options) };
+    }
+    case 'custom': {
+      const cfg: CustomTrackingProviderConfig = { enabled: true, credentialId };
+      return { ...base, provider: 'custom', run: (s) => sendCustomWebhookEvent(event, cfg, s as CustomTrackingSecrets | null, options) };
+    }
+    default:
+      // GTM is client-side only.
+      return null;
+  }
+}
+
 /**
  * High-Level Server Tracking Dispatcher (server-side only).
  *
- * Evaluates the master toggle, selects enabled server providers, resolves each provider's
- * secrets through `options.resolveSecrets` (keyed by the `credentialId` in the trusted
- * config) and dispatches in parallel. A provider without a resolved secret is skipped with a
- * `reason` — this function never throws for missing secrets.
+ * Evaluates the master toggle, resolves the config's pixels (`resolveTrackingConfig`, with
+ * `options.inheritedPixels`), keeps the server-enabled ones that match `provider`, `pixelIds`
+ * and the pixel's `disabledEvents`, resolves each pixel's secret through
+ * `options.resolveSecrets` (keyed by its `credentialId`) and dispatches in parallel. A pixel
+ * without a resolved secret is skipped with a `reason` — this function never throws for
+ * missing secrets. Several pixels of one provider each get their own delivery.
  *
  * Never call this from the browser: the renderer posts to a host relay instead
  * (see `createTrackingRelayHandler`).
  */
 export async function dispatchServerTracking(
   event: ServerTrackingEvent,
-  config?: TrackingConfig,
+  config?: Partial<TrackingConfig>,
   options?: ServerTrackingOptions,
 ): Promise<ServerTrackingDispatchResult> {
   const eventId = event.eventId || generateTrackingEventId();
@@ -570,45 +632,15 @@ export async function dispatchServerTracking(
   };
 
   const target = options?.provider || 'all';
-  const wants = (key: ServerTrackingProviderType) => target === 'all' || target === key;
-  const providers = config.providers || {};
-  const tasks: ProviderTask[] = [];
-
-  const meta = providers.meta;
-  if (wants('meta') && meta && meta.enabled !== false && meta.capiEnabled) {
-    tasks.push({
-      key: 'meta',
-      credentialId: meta.credentialId,
-      run: (s) => sendMetaCapiEvent(eventWithId, meta, s as MetaTrackingSecrets | null, mergedOptions),
-    });
-  }
-
-  const tiktok = providers.tiktok;
-  if (wants('tiktok') && tiktok && tiktok.enabled !== false && tiktok.eventsApiEnabled) {
-    tasks.push({
-      key: 'tiktok',
-      credentialId: tiktok.credentialId,
-      run: (s) => sendTikTokEventsApi(eventWithId, tiktok, s as TikTokTrackingSecrets | null, mergedOptions),
-    });
-  }
-
-  const google = providers.google;
-  if (wants('google') && google && google.enabled !== false && google.measurementId) {
-    tasks.push({
-      key: 'google',
-      credentialId: google.credentialId,
-      run: (s) => sendGa4MeasurementEvent(eventWithId, google, s as GoogleTrackingSecrets | null, mergedOptions),
-    });
-  }
-
-  const custom = providers.custom;
-  if (wants('custom') && custom && custom.enabled !== false) {
-    tasks.push({
-      key: 'custom',
-      credentialId: custom.credentialId,
-      run: (s) => sendCustomWebhookEvent(eventWithId, custom, s as CustomTrackingSecrets | null, mergedOptions),
-    });
-  }
+  const resolved = resolveTrackingConfig(config, options?.inheritedPixels);
+  const tasks: ProviderTask[] = selectTrackingPixels(resolved, {
+    provider: target,
+    pixelIds: options?.pixelIds,
+    eventName: eventWithId.eventName,
+  })
+    .filter((pixel) => pixel.serverEnabled)
+    .map((pixel) => toServerTask(pixel, eventWithId, mergedOptions))
+    .filter((task): task is ProviderTask => task !== null);
 
   if (tasks.length === 0) {
     return {
@@ -630,11 +662,12 @@ export async function dispatchServerTracking(
     if (resolve) {
       try {
         secrets =
-          (await resolve({ provider: task.key, credentialId: task.credentialId, documentId: options?.documentId })) ??
+          (await resolve({ provider: task.provider, credentialId: task.credentialId, documentId: options?.documentId })) ??
           null;
       } catch (err: unknown) {
         return {
-          provider: task.key,
+          provider: task.provider,
+          pixelId: task.pixelId,
           success: false,
           error: `Secret resolution failed: ${err instanceof Error ? err.message : String(err)}`,
         };
@@ -644,13 +677,13 @@ export async function dispatchServerTracking(
     // In debug simulation we still build the payload (no network), even without secrets.
     if (!secrets && !simulate) {
       const reason = resolve
-        ? `No secret resolved for provider "${task.key}"${task.credentialId ? ` (credentialId "${task.credentialId}")` : ' (no credentialId linked)'}`
+        ? `No secret resolved for provider "${task.provider}"${task.credentialId ? ` (credentialId "${task.credentialId}")` : ' (no credentialId linked)'}`
         : 'No secret resolver configured (options.resolveSecrets)';
       mergedOptions.onLog?.(`[${task.key}] skipped: ${reason}`);
-      return skippedResult(task.key, reason);
+      return { ...skippedResult(task.provider, reason), pixelId: task.pixelId };
     }
 
-    return task.run(secrets);
+    return { ...(await task.run(secrets)), pixelId: task.pixelId };
   };
 
   const settled = await Promise.allSettled(tasks.map((task) => runTask(task)));
@@ -659,7 +692,7 @@ export async function dispatchServerTracking(
   let delivered = 0;
 
   settled.forEach((item, index) => {
-    const key = tasks[index].key;
+    const { key, provider, pixelId } = tasks[index];
     if (item.status === 'fulfilled') {
       results[key] = item.value;
       if (!item.value.success) overallSuccess = false;
@@ -667,7 +700,8 @@ export async function dispatchServerTracking(
     } else {
       overallSuccess = false;
       results[key] = {
-        provider: key,
+        provider,
+        pixelId,
         success: false,
         error: item.reason instanceof Error ? item.reason.message : String(item.reason),
       };

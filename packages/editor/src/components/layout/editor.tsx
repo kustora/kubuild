@@ -113,8 +113,13 @@ export interface KubuildEditorProps {
   ai?: AiEditorConfig;
   /** Saved pixel credentials from account/workspace for the tracking settings modal */
   trackingCredentials?: PixelCredentialOption[];
-  /** Called when user clicks "Kelola Kredensial" inside the tracking settings modal */
+  /** Opens the host's pixel library from the tracking settings modal. */
   onManageCredentials?: () => void;
+  /**
+   * Label for the pixels the host applies to this document (`context.tracking.inheritedPixels`),
+   * shown as "Pixels from <label>" in the tracking modal — e.g. "this funnel".
+   */
+  inheritedTrackingPixelsLabel?: string;
   /**
    * Stores a tracking secret (CAPI token, Events API token, GA4 API secret, webhook URL/headers)
    * on the host and returns the `credentialId` the document references. Without it, secret
@@ -186,6 +191,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   ai,
   trackingCredentials,
   onManageCredentials,
+  inheritedTrackingPixelsLabel,
   onSaveTrackingSecret,
   assetProvider,
   blocks,
@@ -201,6 +207,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   ref,
 ) {
   const trackingRelayUrl = context?.tracking?.relayUrl;
+  const inheritedTrackingPixels = context?.tracking?.inheritedPixels;
   const document = useEditorStore((state) => state.document);
   const setDocument = useEditorStore((state) => state.setDocument);
   const setOnChangeHandler = useEditorStore((state) => state.setOnChangeHandler);
@@ -694,6 +701,8 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
                 onManageCredentials={onManageCredentials}
                 onSaveTrackingSecret={onSaveTrackingSecret}
                 trackingRelayUrl={trackingRelayUrl}
+                inheritedTrackingPixels={inheritedTrackingPixels}
+                inheritedTrackingPixelsLabel={inheritedTrackingPixelsLabel}
                 assetProvider={assetProvider}
               />
             </div>
@@ -764,6 +773,8 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               onManageCredentials={onManageCredentials}
               onSaveTrackingSecret={onSaveTrackingSecret}
               trackingRelayUrl={trackingRelayUrl}
+              inheritedTrackingPixels={inheritedTrackingPixels}
+              inheritedTrackingPixelsLabel={inheritedTrackingPixelsLabel}
             />
 
             {/* Viewport switcher */}
@@ -963,6 +974,8 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
                 onManageCredentials={onManageCredentials}
                 onSaveTrackingSecret={onSaveTrackingSecret}
                 trackingRelayUrl={trackingRelayUrl}
+                inheritedTrackingPixels={inheritedTrackingPixels}
+                inheritedTrackingPixelsLabel={inheritedTrackingPixelsLabel}
                 assetProvider={assetProvider}
               />
             </div>

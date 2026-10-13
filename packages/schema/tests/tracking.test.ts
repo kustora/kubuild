@@ -274,3 +274,65 @@ describe('Tracking relay protocol v1', () => {
     expect(parsedProject.tracking?.enabled).toBe(false);
   });
 });
+
+describe('Multi-pixel tracking (1.3.0)', () => {
+  it('defaults to no pixels and inheriting host pixels', () => {
+    const parsed = TrackingConfigSchema.parse({});
+    expect(parsed.pixels).toEqual([]);
+    expect(parsed.inherit).toEqual({ enabled: true, excludedPixelIds: [] });
+    expect(parsed.providers).toBeUndefined();
+  });
+
+  it('holds several pixels of the same provider with per-pixel event filters', () => {
+    const parsed = TrackingConfigSchema.parse({
+      pixels: [
+        { id: 'own', provider: 'meta', pixelId: '111', serverEnabled: true, credentialId: 'cred-1' },
+        { id: 'agency', provider: 'meta', pixelId: '222', disabledEvents: ['Purchase'] },
+      ],
+      inherit: { excludedPixelIds: ['host-ga4'] },
+    });
+    expect(parsed.pixels).toHaveLength(2);
+    expect(parsed.pixels[1]).toEqual({
+      id: 'agency',
+      provider: 'meta',
+      enabled: true,
+      pixelId: '222',
+      serverEnabled: false,
+      testEventCode: '',
+      disabledEvents: ['Purchase'],
+    });
+    expect(parsed.inherit).toEqual({ enabled: true, excludedPixelIds: ['host-ga4'] });
+  });
+
+  it('rejects a pixel without an id or with an unknown provider', () => {
+    expect(TrackingConfigSchema.safeParse({ pixels: [{ provider: 'meta' }] }).success).toBe(false);
+    expect(TrackingConfigSchema.safeParse({ pixels: [{ id: 'x', provider: 'snap' }] }).success).toBe(false);
+  });
+
+  it('strips secret keys from pixel entries', () => {
+    const parsed = TrackingConfigSchema.parse({
+      pixels: [{ id: 'own', provider: 'meta', pixelId: '111', capiAccessToken: 'EAAB-secret' }],
+    });
+    expect(JSON.stringify(parsed)).not.toContain('EAAB-secret');
+  });
+
+  it('still parses the legacy providers map', () => {
+    const parsed = TrackingConfigSchema.parse({ providers: { meta: { pixelId: '111', capiEnabled: true } } });
+    expect(parsed.providers?.meta?.pixelId).toBe('111');
+  });
+
+  it('accepts pixel targeting on track_event steps and relay requests', () => {
+    expect(TrackEventStepPayloadSchema.parse({ eventName: 'Lead', pixelIds: ['own'] }).pixelIds).toEqual(['own']);
+    expect(
+      TrackingRelayRequestSchema.parse({ version: 1, event: { eventName: 'Lead' }, pixelIds: ['own'] }).pixelIds,
+    ).toEqual(['own']);
+  });
+
+  it('describes pixels in the page JSON Schema', () => {
+    const schema = getPageDocumentJsonSchema() as {
+      definitions: { trackingConfig: { properties: Record<string, unknown> } };
+    };
+    expect(schema.definitions.trackingConfig.properties).toHaveProperty('pixels');
+    expect(schema.definitions.trackingConfig.properties).toHaveProperty('inherit');
+  });
+});

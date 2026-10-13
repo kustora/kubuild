@@ -32,7 +32,7 @@ export type TrackingProviderType = z.infer<typeof TrackingProviderTypeSchema>;
  * are resolved server-side from `id` (see `TrackingSecretResolver` in `@kubuild/core`).
  */
 export interface PixelCredentialOption {
-  /** Opaque host id, stored in the document as `providers.<provider>.credentialId`. */
+  /** Opaque host id, stored in the document as `pixels[].credentialId`. */
   id: string;
   /** Human-readable label shown in the picker. */
   name: string;
@@ -131,6 +131,47 @@ export const CustomTrackingProviderConfigSchema = z.object({
 export type CustomTrackingProviderConfig = z.infer<typeof CustomTrackingProviderConfigSchema>;
 
 /**
+ * One tracking pixel (1.3.0+). A config holds any number of them, several per provider allowed.
+ * `pixelId` is the provider's public id: Meta/TikTok pixel id, GA4 measurement id or GTM
+ * container id (unused for `custom`). Secrets stay with the host, resolved from `credentialId`.
+ */
+export const TrackingPixelSchema = z.object({
+  /** Stable entry id, unique within a config. Hosts may reuse their own credential id. */
+  id: z.string().min(1).max(256),
+  provider: TrackingProviderTypeSchema,
+  /** Human-readable label shown in the editor. */
+  label: z.string().max(200).optional(),
+  enabled: z.boolean().default(true),
+  /** Host credential id; the server resolves this pixel's secret from it. */
+  credentialId: z.string().max(256).optional(),
+  /** Public id — Meta/TikTok pixel id, GA4 measurement id, GTM container id. */
+  pixelId: z.string().max(256).optional().default(''),
+  /** Server-side delivery (Meta CAPI, TikTok Events API, GA4 Measurement Protocol, custom webhook) via the host relay. */
+  serverEnabled: z.boolean().optional().default(false),
+  /** Meta / TikTok test event code — not a secret. */
+  testEventCode: z.string().max(100).optional().default(''),
+  /** Event names this pixel never receives (exact, case-sensitive match), e.g. `["Purchase"]`. */
+  disabledEvents: z.array(z.string().max(256)).optional().default([]),
+});
+
+export type TrackingPixel = z.infer<typeof TrackingPixelSchema>;
+/** Input shape (defaults optional) — what hosts typically construct. */
+export type TrackingPixelInput = z.input<typeof TrackingPixelSchema>;
+
+/**
+ * How a document treats the pixels its host passes at runtime
+ * (`RenderContext.tracking.inheritedPixels`, editor `inheritedTrackingPixels`).
+ */
+export const TrackingInheritConfigSchema = z.object({
+  /** Use the host's inherited pixels on this document. */
+  enabled: z.boolean().default(true),
+  /** Inherited pixel ids switched off for this document. */
+  excludedPixelIds: z.array(z.string().max(256)).default([]),
+});
+
+export type TrackingInheritConfig = z.infer<typeof TrackingInheritConfigSchema>;
+
+/**
  * Provider keys that `<= 1.0.0` documents stored but that are now host-owned
  * (secrets and server destinations). Used by migration and by import/export
  * sanitization to strip them defensively.
@@ -143,6 +184,17 @@ export const LEGACY_TRACKING_SECRET_KEYS: Readonly<Record<TrackingProviderType, 
     tiktok: ['accessToken', 'serverRelayUrl'],
     custom: ['endpointUrl', 'headers'],
   });
+
+/** `<= 1.2.0` provider map — one config object per provider. */
+export const LegacyTrackingProvidersSchema = z.object({
+  meta: MetaTrackingProviderConfigSchema.optional(),
+  google: GoogleTrackingProviderConfigSchema.optional(),
+  gtm: GtmTrackingProviderConfigSchema.optional(),
+  tiktok: TikTokTrackingProviderConfigSchema.optional(),
+  custom: CustomTrackingProviderConfigSchema.optional(),
+});
+
+export type LegacyTrackingProviders = z.infer<typeof LegacyTrackingProvidersSchema>;
 
 /**
  * Global Tracking Configuration Schema
@@ -157,17 +209,15 @@ export const TrackingConfigSchema = z.object({
   autoPageView: z.boolean().optional().default(true),
   /** Default delivery method when not explicitly overridden in an action step */
   defaultDelivery: TrackingDeliverySchema.optional().default('both'),
-  /** Provider-specific settings */
-  providers: z
-    .object({
-      meta: MetaTrackingProviderConfigSchema.optional(),
-      google: GoogleTrackingProviderConfigSchema.optional(),
-      gtm: GtmTrackingProviderConfigSchema.optional(),
-      tiktok: TikTokTrackingProviderConfigSchema.optional(),
-      custom: CustomTrackingProviderConfigSchema.optional(),
-    })
-    .optional()
-    .default({}),
+  /** The document's own pixels (1.3.0+), any number per provider. */
+  pixels: z.array(TrackingPixelSchema).optional().default([]),
+  /** Use / exclude pixels inherited from the host at runtime. */
+  inherit: TrackingInheritConfigSchema.optional().default({ enabled: true, excludedPixelIds: [] }),
+  /**
+   * @deprecated `<= 1.2.0` one-config-per-provider shape. Still parsed so old documents load;
+   * the `1.2.0 -> 1.3.0` migration and `resolveTrackingConfig` convert it into `pixels`.
+   */
+  providers: LegacyTrackingProvidersSchema.optional(),
 });
 
 export type TrackingConfig = z.infer<typeof TrackingConfigSchema>;
@@ -261,6 +311,11 @@ export const TrackEventStepPayloadSchema = z.object({
   /** Delivery channel: 'both', 'client_only', or 'server_only' */
   delivery: TrackingDeliverySchema.optional().default('both'),
   /**
+   * Only these pixel entry ids (`TrackingPixel.id`). Empty / omitted = every enabled pixel
+   * matching `provider`.
+   */
+  pixelIds: z.array(z.string().max(256)).optional(),
+  /**
    * Deduplication Event ID.
    * If omitted, a unique ID is automatically generated so Meta/TikTok CAPI
    * deduplicates cleanly with the browser pixel.
@@ -315,6 +370,8 @@ export const TrackingRelayRequestSchema = z.object({
   provider: TrackEventProviderSchema.optional().default('all'),
   /** Optional hint only; the relay uses the credentialId from its trusted config. */
   credentialId: z.string().max(256).optional(),
+  /** Optional narrowing hint: only these pixel entry ids from the trusted config. Never adds pixels. */
+  pixelIds: z.array(z.string().max(256)).max(100).optional(),
   /** Host document/page id so the relay can look up the trusted tracking config. */
   documentId: z.string().max(256).optional(),
 });
@@ -323,6 +380,8 @@ export type TrackingRelayRequest = z.infer<typeof TrackingRelayRequestSchema>;
 /** Per-provider outcome returned by the relay (provider response bodies are not echoed). */
 export const TrackingRelayProviderResultSchema = z.object({
   provider: z.string(),
+  /** Pixel entry id (`TrackingPixel.id`) this result belongs to. */
+  pixelId: z.string().optional(),
   success: z.boolean(),
   status: z.number().int().optional(),
   skipped: z.boolean().optional(),
@@ -337,6 +396,7 @@ export const TrackingRelayErrorCodeSchema = z.enum([
   'FORBIDDEN_ORIGIN',
   'METHOD_NOT_ALLOWED',
   'CONFIG_NOT_FOUND',
+  'EVENT_NOT_ALLOWED',
   'INTERNAL_ERROR',
 ]);
 export type TrackingRelayErrorCode = z.infer<typeof TrackingRelayErrorCodeSchema>;
@@ -347,6 +407,7 @@ export const TrackingRelayResponseSchema = z.object({
   eventId: z.string().optional(),
   skipped: z.boolean().optional(),
   reason: z.string().optional(),
+  /** Keyed `"<provider>:<pixel entry id>"`. */
   results: z.record(z.string(), TrackingRelayProviderResultSchema).optional(),
   error: z
     .object({

@@ -13,6 +13,7 @@ import {
   type RuntimeTrackingOptions,
   interpolateValue,
   generateTrackingEventId,
+  resolveTrackingConfig,
 } from '@kubuild/core';
 import { fireBrowserPixel } from '../tracking/tracking-manager.js';
 
@@ -59,11 +60,16 @@ export const trackEventRunner: PipelineStepHandler = async (
     };
   }
 
-  // 2. Resolve tracking configuration from execution context or document
+  // 2. Resolve tracking configuration from execution context or document, merged with the
+  //    pixels the host applies at runtime.
   const doc = context.document as { tracking?: TrackingConfig; metadata?: { tracking?: TrackingConfig } } | undefined;
-  const trackingConfig = (context.trackingConfig as TrackingConfig | undefined) ||
+  const documentTracking = (context.trackingConfig as TrackingConfig | undefined) ||
     doc?.tracking ||
     doc?.metadata?.tracking;
+  const inheritedPixels = (context.trackingRuntime as RuntimeTrackingOptions | undefined)?.inheritedPixels;
+  // Without any config the event is broadcast to whatever pixels the page already loaded.
+  const trackingConfig =
+    documentTracking || inheritedPixels?.length ? resolveTrackingConfig(documentTracking, inheritedPixels) : undefined;
 
   // Master toggle check: if tracking is disabled globally, skip dispatch
   if (trackingConfig && trackingConfig.enabled === false) {
@@ -118,6 +124,7 @@ export const trackEventRunner: PipelineStepHandler = async (
       eventId,
       config: trackingConfig,
       provider,
+      pixelIds: payload.pixelIds,
       eventType: payload.eventType,
     });
     clientDispatched = true;
@@ -152,6 +159,7 @@ export const trackEventRunner: PipelineStepHandler = async (
         version: TRACKING_RELAY_PROTOCOL_VERSION,
         provider,
         ...(runtime.documentId ? { documentId: runtime.documentId } : {}),
+        ...(payload.pixelIds?.length ? { pixelIds: payload.pixelIds } : {}),
         event: {
           eventName,
           eventId,

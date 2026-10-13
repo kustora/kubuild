@@ -115,24 +115,35 @@ describe('TrackingSettingsModal & Editor Integration', () => {
     expect(html).not.toContain('/api/tracking/meta');
   });
 
-  it('enables secret entry and shows the linked credential when onSaveTrackingSecret is provided', () => {
+  it('enables secret entry for a pixel whose credential has no secret yet', () => {
     const onSave = vi.fn().mockResolvedValue({ credentialId: 'cred_new' });
     const html = renderToString(
       <TrackingSettingsModal
         isOpen={true}
         onClose={() => {}}
         document={capiDoc()}
-        credentials={[
-          { id: 'cred_meta', name: 'Main Meta Pixel', provider: 'meta', pixelId: '999', hasSecret: true },
-        ]}
+        credentials={[{ id: 'cred_meta', name: 'Main Meta Pixel', provider: 'meta', pixelId: '999', hasSecret: false }]}
         onSaveTrackingSecret={onSave}
       />,
     );
     expect(html).toContain('tracking-secret-save-meta');
     expect(html).not.toContain('tracking-secret-disabled-meta');
     expect(html).toContain('Main Meta Pixel');
-    expect(html).toContain('secret stored on host');
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('needs no secret entry when the linked credential already holds its secret', () => {
+    const html = renderToString(
+      <TrackingSettingsModal
+        isOpen={true}
+        onClose={() => {}}
+        document={capiDoc()}
+        credentials={[{ id: 'cred_meta', name: 'Main Meta Pixel', provider: 'meta', pixelId: '999', hasSecret: true }]}
+        onSaveTrackingSecret={vi.fn()}
+      />,
+    );
+    expect(html).toContain('Secret stored on host');
+    expect(html).not.toContain('tracking-secret-meta');
   });
 
   it('shows host relay info read-only (or explains server events are skipped without it)', () => {
@@ -159,5 +170,72 @@ describe('TrackingSettingsModal & Editor Integration', () => {
 
     const foundInList = ACTION_TYPES.some((a) => a.type === 'track_event');
     expect(foundInList).toBe(true);
+  });
+});
+
+describe('TrackingSettingsModal — multiple pixels and host pixels', () => {
+  const multiDoc = () => {
+    const doc = createBlankDocument('Multi Pixel Page');
+    doc.tracking = {
+      enabled: true,
+      debugMode: false,
+      autoPageView: true,
+      defaultDelivery: 'both',
+      pixels: [
+        { id: 'own', provider: 'meta', enabled: true, pixelId: '111', serverEnabled: false, testEventCode: '', disabledEvents: [] },
+        { id: 'agency', provider: 'meta', enabled: true, pixelId: '222', serverEnabled: false, testEventCode: '', disabledEvents: ['Purchase'] },
+      ],
+      inherit: { enabled: true, excludedPixelIds: ['host-tt'] },
+    };
+    return doc;
+  };
+
+  it('lists every pixel of a provider and the skipped events', () => {
+    const html = renderToString(<TrackingSettingsModal isOpen onClose={() => {}} document={multiDoc()} />);
+    expect(html).toContain('tracking-pixel-own');
+    expect(html).toContain('tracking-pixel-agency');
+    expect(html).toContain('value="Purchase"');
+    expect(html).toContain('tracking-add-manual');
+  });
+
+  it('shows host pixels with a per-page switch, unchecked when excluded', () => {
+    const html = renderToString(
+      <TrackingSettingsModal
+        isOpen
+        onClose={() => {}}
+        document={multiDoc()}
+        inheritedPixels={[
+          { id: 'host-meta', provider: 'meta', pixelId: '999', label: 'Funnel pixel' },
+          { id: 'host-tt', provider: 'tiktok', pixelId: 'TT1' },
+        ]}
+        inheritedPixelsSource="this funnel"
+      />,
+    );
+    expect(html).toContain('Pixels from this funnel');
+    expect(html).toContain('Funnel pixel');
+    const row = (id: string) => html.slice(html.indexOf(`tracking-inherited-${id}`)).split('</li>')[0];
+    expect(row('host-meta')).toContain('checked=""');
+    expect(row('host-tt')).not.toContain('checked=""');
+    expect(html).toContain('Extra pixels for this page');
+  });
+
+  it('offers saved pixels that are not on the page or applied by the host', () => {
+    const html = renderToString(
+      <TrackingSettingsModal
+        isOpen
+        onClose={() => {}}
+        document={multiDoc()}
+        inheritedPixels={[{ id: 'host-meta', provider: 'meta', pixelId: '999', credentialId: 'cred_host' }]}
+        credentials={[
+          { id: 'cred_host', name: 'Host pixel', provider: 'meta', pixelId: '999' },
+          { id: 'cred_dup', name: 'Same id as page pixel', provider: 'meta', pixelId: '111' },
+          { id: 'cred_free', name: 'Free pixel', provider: 'meta', pixelId: '555', hasSecret: true },
+        ]}
+      />,
+    );
+    expect(html).toContain('tracking-add-saved-select');
+    expect(html).toContain('Free pixel');
+    expect(html).not.toContain('Host pixel');
+    expect(html).not.toContain('Same id as page pixel');
   });
 });

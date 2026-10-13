@@ -237,7 +237,8 @@ describe('Server Tracking & CAPI Runtime', () => {
         json: async () => ({ success: true }),
       });
 
-    const fullConfig: TrackingConfig = {
+    // Legacy `providers` shape on purpose: resolveTrackingConfig converts it (ids "legacy-<provider>").
+    const fullConfig: Partial<TrackingConfig> = {
       enabled: true,
       providers: {
         meta: { enabled: true, credentialId: 'cred_meta', pixelId: 'META_123', capiEnabled: true, testEventCode: '' },
@@ -293,10 +294,10 @@ describe('Server Tracking & CAPI Runtime', () => {
 
       expect(outcome.success).toBe(true);
       expect(outcome.eventId).toBeDefined();
-      expect(outcome.results.meta?.success).toBe(true);
-      expect(outcome.results.tiktok?.success).toBe(true);
-      expect(outcome.results.google?.success).toBe(true);
-      expect(outcome.results.custom?.success).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.success).toBe(true);
+      expect(outcome.results['tiktok:legacy-tiktok']?.success).toBe(true);
+      expect(outcome.results['google:legacy-google']?.success).toBe(true);
+      expect(outcome.results['custom:legacy-custom']?.success).toBe(true);
       expect(mockFetch).toHaveBeenCalledTimes(4);
       expect(resolveSpy).toHaveBeenCalledWith({ provider: 'meta', credentialId: 'cred_meta', documentId: 'page_1' });
 
@@ -316,8 +317,8 @@ describe('Server Tracking & CAPI Runtime', () => {
       expect(mockFetch).not.toHaveBeenCalled();
       expect(outcome.success).toBe(true);
       expect(outcome.skipped).toBe(true);
-      expect(outcome.results.meta?.skipped).toBe(true);
-      expect(outcome.results.meta?.reason).toContain('resolveSecrets');
+      expect(outcome.results['meta:legacy-meta']?.skipped).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.reason).toContain('resolveSecrets');
     });
 
     it('skips only providers whose secret is missing', async () => {
@@ -329,11 +330,11 @@ describe('Server Tracking & CAPI Runtime', () => {
 
       expect(outcome.success).toBe(true);
       expect(outcome.skipped).toBeUndefined();
-      expect(outcome.results.meta?.success).toBe(true);
-      expect(outcome.results.meta?.skipped).toBeUndefined();
-      expect(outcome.results.tiktok?.skipped).toBe(true);
-      expect(outcome.results.tiktok?.reason).toContain('cred_tt');
-      expect(outcome.results.custom?.skipped).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.success).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.skipped).toBeUndefined();
+      expect(outcome.results['tiktok:legacy-tiktok']?.skipped).toBe(true);
+      expect(outcome.results['tiktok:legacy-tiktok']?.reason).toContain('cred_tt');
+      expect(outcome.results['custom:legacy-custom']?.skipped).toBe(true);
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -345,7 +346,7 @@ describe('Server Tracking & CAPI Runtime', () => {
         },
       });
       expect(outcome.success).toBe(false);
-      expect(outcome.results.meta?.error).toContain('vault down');
+      expect(outcome.results['meta:legacy-meta']?.error).toContain('vault down');
     });
 
     it('filters by target provider and treats gtm as client-only', async () => {
@@ -355,7 +356,7 @@ describe('Server Tracking & CAPI Runtime', () => {
         resolveSecrets: resolver,
         provider: 'meta',
       });
-      expect(Object.keys(onlyMeta.results)).toEqual(['meta']);
+      expect(Object.keys(onlyMeta.results)).toEqual(['meta:legacy-meta']);
 
       const gtm = await dispatchServerTracking({ eventName: 'Lead' }, fullConfig, {
         fetchFn: mockFetch as unknown as typeof fetch,
@@ -374,8 +375,8 @@ describe('Server Tracking & CAPI Runtime', () => {
         { fetchFn: mockFetch as unknown as typeof fetch, onLog: () => {} },
       );
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(outcome.results.meta?.success).toBe(true);
-      expect((outcome.results.meta?.data as { simulated?: boolean }).simulated).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.success).toBe(true);
+      expect((outcome.results['meta:legacy-meta']?.data as { simulated?: boolean }).simulated).toBe(true);
     });
   });
 });
@@ -432,8 +433,8 @@ describe('createTrackingRelayHandler', () => {
     expect(TrackingRelayResponseSchema.safeParse(json).success).toBe(true);
     expect(json.success).toBe(true);
     expect(json.eventId).toBe('evt_1');
-    expect(json.results.meta.success).toBe(true);
-    expect(json.results.meta.data).toBeUndefined();
+    expect(json.results['meta:legacy-meta'].success).toBe(true);
+    expect(json.results['meta:legacy-meta'].data).toBeUndefined();
 
     expect(getConfig).toHaveBeenCalledWith(expect.objectContaining({ documentId: 'page_1', provider: 'all' }));
     expect(resolveSecrets).toHaveBeenCalledWith({ provider: 'meta', credentialId: 'cred_meta', documentId: 'page_1' });

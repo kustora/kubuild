@@ -21,6 +21,8 @@ export interface TrackingRelayConfigContext {
   documentId?: string;
   /** Untrusted hint from the request body. */
   credentialId?: string;
+  /** Untrusted narrowing hint from the request body (pixel entry ids). */
+  pixelIds?: string[];
   provider: TrackEventProvider;
 }
 
@@ -28,12 +30,19 @@ export interface CreateTrackingRelayHandlerOptions {
   /**
    * Loads the tracking config from the HOST (database, published page, env, ...).
    * The relay never trusts a config sent in the request body. Return `null` if unknown.
+   * A host that applies its own pixels returns `resolveTrackingConfig(pageTracking, hostPixels)`
+   * so server delivery matches what the renderer loaded.
    */
   getConfig: (
     ctx: TrackingRelayConfigContext,
-  ) => Promise<TrackingConfig | null | undefined> | TrackingConfig | null | undefined;
+  ) => Promise<Partial<TrackingConfig> | null | undefined> | Partial<TrackingConfig> | null | undefined;
   /** Resolves provider secrets by `credentialId` (from the trusted config). */
   resolveSecrets: TrackingSecretResolver;
+  /**
+   * Rejects events the browser must not be able to send (e.g. a host that sends `Purchase`
+   * only from its own payment backend). Returning false answers 403 `EVENT_NOT_ALLOWED`.
+   */
+  isEventAllowed?: (event: ServerTrackingEvent, ctx: TrackingRelayConfigContext) => boolean | Promise<boolean>;
   /**
    * Allowed browser origins. When set, requests whose `Origin` header is missing or not in
    * the list are rejected with 403, and CORS headers are returned for allowed origins.
@@ -159,13 +168,19 @@ export function createTrackingRelayHandler(options: CreateTrackingRelayHandlerOp
       }
       const body: TrackingRelayRequest = parsed.data;
 
-      // Trusted config comes from the host, never from the body.
-      const config = await options.getConfig({
+      const configContext: TrackingRelayConfigContext = {
         request,
         documentId: body.documentId,
         credentialId: body.credentialId,
+        ...(body.pixelIds ? { pixelIds: body.pixelIds } : {}),
         provider: body.provider,
-      });
+      };
+      if (options.isEventAllowed && !(await options.isEventAllowed(body.event, configContext))) {
+        return fail('EVENT_NOT_ALLOWED', 'This event cannot be sent through the relay', 403);
+      }
+
+      // Trusted config comes from the host, never from the body.
+      const config = await options.getConfig(configContext);
       if (!config) {
         return fail('CONFIG_NOT_FOUND', 'No tracking configuration found for this page', 404);
       }
@@ -184,6 +199,7 @@ export function createTrackingRelayHandler(options: CreateTrackingRelayHandlerOp
         resolveSecrets: options.resolveSecrets,
         documentId: body.documentId,
         provider: body.provider,
+        pixelIds: body.pixelIds,
         fetchFn: options.fetchFn,
         clientIp,
         clientUserAgent,
@@ -194,6 +210,7 @@ export function createTrackingRelayHandler(options: CreateTrackingRelayHandlerOp
       for (const [key, r] of Object.entries(outcome.results)) {
         results[key] = {
           provider: r.provider,
+          ...(r.pixelId ? { pixelId: r.pixelId } : {}),
           success: r.success,
           ...(r.status !== undefined ? { status: r.status } : {}),
           ...(r.skipped ? { skipped: true } : {}),

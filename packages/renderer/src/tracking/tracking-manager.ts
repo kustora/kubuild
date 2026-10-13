@@ -1,4 +1,11 @@
-import type { TrackingConfig } from '@kubuild/schema';
+import type { TrackingConfig, TrackingPixel, TrackingPixelInput } from '@kubuild/schema';
+import { resolveTrackingConfig, selectTrackingPixels, type ResolvedTrackingConfig } from '@kubuild/core';
+
+interface TikTokApi {
+  track: (event: string, params?: Record<string, unknown>, options?: Record<string, unknown>) => void;
+  page: () => void;
+  [key: string]: unknown;
+}
 
 declare global {
   interface Window {
@@ -6,175 +13,182 @@ declare global {
     _fbq?: unknown;
     gtag?: (...args: unknown[]) => void;
     dataLayer?: unknown[];
-    ttq?: {
-      track: (
-        event: string,
-        params?: Record<string, unknown>,
-        options?: Record<string, unknown>,
-      ) => void;
-      page: () => void;
+    ttq?: TikTokApi & {
       load: (pixelId: string) => void;
-      [key: string]: unknown;
+      /** Per-pixel handle — targets one TikTok pixel when several are loaded. */
+      instance?: (pixelId: string) => TikTokApi;
     };
   }
 }
 
 const INJECTED_SCRIPT_ATTR = 'data-kubuild-tracking';
 
+/** Anything `resolveTrackingConfig` accepts: a 1.3.0 config, a legacy one, or an already resolved one. */
+export type TrackingConfigInput = Partial<TrackingConfig> | ResolvedTrackingConfig;
+
+export interface InjectTrackingOptions {
+  /** Host pixels merged in (subject to the config's `inherit` settings). */
+  inheritedPixels?: readonly TrackingPixelInput[];
+}
+
+// Pixels initialised by this module, so a re-run (new config, remount) only inits new ones.
+const initialisedPixels = new Set<string>();
+
+function pixelKey(pixel: TrackingPixel): string {
+  return `${pixel.provider}:${pixel.pixelId}`;
+}
+
+function appendScript(id: string, provider: string, src: string): void {
+  const script = document.createElement('script');
+  script.id = id;
+  script.async = true;
+  script.setAttribute(INJECTED_SCRIPT_ATTR, provider);
+  script.src = src;
+  const first = document.getElementsByTagName('script')[0];
+  if (first?.parentNode) first.parentNode.insertBefore(script, first);
+  else document.head.appendChild(script);
+}
+
+/** Meta's fbq queue stub + fbevents.js, once per page. */
+function ensureMetaLoader(): void {
+  if (!window.fbq) {
+    /* eslint-disable */
+    const n: any = (window.fbq = function (...args: unknown[]) {
+      n.callMethod ? n.callMethod.apply(n, args) : n.queue.push(args);
+    } as any);
+    if (!window._fbq) window._fbq = n;
+    n.push = n;
+    n.loaded = true;
+    n.version = '2.0';
+    n.queue = [];
+    /* eslint-enable */
+  }
+  if (!document.getElementById('kubuild-tracking-meta')) {
+    appendScript('kubuild-tracking-meta', 'meta', 'https://connect.facebook.net/en_US/fbevents.js');
+  }
+}
+
+/** gtag stub + the gtag.js library, once per page. */
+function ensureGtag(firstMeasurementId: string): void {
+  window.dataLayer = window.dataLayer || [];
+  if (!window.gtag) {
+    window.gtag = function () {
+      window.dataLayer?.push(arguments);
+    };
+    window.gtag('js', new Date());
+  }
+  if (!document.getElementById('kubuild-tracking-ga4')) {
+    appendScript(
+      'kubuild-tracking-ga4',
+      'google',
+      `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(firstMeasurementId)}`,
+    );
+  }
+}
+
+/** TikTok's ttq queue stub (official snippet, without the initial load), once per page. */
+function ensureTikTokStub(): NonNullable<Window['ttq']> {
+  /* eslint-disable */
+  const w = window as any;
+  if (w.ttq && typeof w.ttq.load === 'function') return w.ttq;
+  w.TiktokAnalyticsObject = 'ttq';
+  const ttq = (w.ttq = w.ttq || []);
+  ttq.methods = ['page', 'track', 'identify', 'instances', 'debug', 'on', 'off', 'once', 'ready', 'alias', 'group', 'enableCookie', 'disableCookie'];
+  ttq.setAndDefer = function (t: any, e: any) {
+    t[e] = function () {
+      t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
+    };
+  };
+  for (let i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+  ttq.instance = function (t: any) {
+    const e = ttq._i[t] || [];
+    for (let n = 0; n < ttq.methods.length; n++) ttq.setAndDefer(e, ttq.methods[n]);
+    return e;
+  };
+  ttq.load = function (e: any, n: any) {
+    const src = 'https://analytics.tiktok.com/i18n/pixel/events.js';
+    ttq._i = ttq._i || {};
+    ttq._i[e] = [];
+    ttq._i[e]._u = src;
+    ttq._t = ttq._t || {};
+    ttq._t[e] = +new Date();
+    ttq._o = ttq._o || {};
+    ttq._o[e] = n || {};
+    appendScript(`kubuild-tracking-tiktok-${e}`, 'tiktok', `${src}?sdkid=${e}&lib=ttq`);
+  };
+  return ttq;
+  /* eslint-enable */
+}
+
+function initPixel(pixel: TrackingPixel): void {
+  const id = pixel.pixelId;
+  switch (pixel.provider) {
+    case 'meta':
+      ensureMetaLoader();
+      window.fbq?.('init', id);
+      break;
+    case 'google':
+      ensureGtag(id);
+      window.gtag?.('config', id, { send_page_view: false });
+      break;
+    case 'gtm':
+      window.dataLayer = window.dataLayer || [];
+      if (!document.getElementById(`kubuild-tracking-gtm-${id}`)) {
+        window.dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+        appendScript(`kubuild-tracking-gtm-${id}`, 'gtm', `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(id)}`);
+      }
+      break;
+    case 'tiktok':
+      ensureTikTokStub().load(id);
+      break;
+    default:
+      // custom: server-side webhook only, nothing to load in the browser.
+      break;
+  }
+}
+
+/** PageView for one pixel. GTM records page views through its own container. */
+function firePageView(pixel: TrackingPixel): void {
+  switch (pixel.provider) {
+    case 'meta':
+      window.fbq?.('trackSingle', pixel.pixelId, 'PageView');
+      break;
+    case 'google':
+      window.gtag?.('event', 'page_view', { send_to: pixel.pixelId });
+      break;
+    case 'tiktok':
+      (window.ttq?.instance ? window.ttq.instance(pixel.pixelId) : window.ttq)?.page();
+      break;
+    default:
+      break;
+  }
+}
+
 /**
- * Injects official client-side tracking scripts (Meta Pixel, Google Analytics 4, TikTok Pixel).
- * Returns a cleanup function that removes injected scripts when component unmounts or tracking is disabled.
+ * Injects the client-side scripts of every resolved pixel (Meta Pixel, GA4, GTM, TikTok) —
+ * several pixels per provider supported — and, with `autoPageView`, fires one PageView per
+ * newly initialised pixel (skipping pixels that list `PageView` in `disabledEvents`).
+ * Returns a cleanup that removes the injected scripts.
  */
-export function injectTrackingScripts(config?: TrackingConfig): () => void {
+export function injectTrackingScripts(config?: TrackingConfigInput, options: InjectTrackingOptions = {}): () => void {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return () => {};
   }
 
-  // If tracking is disabled globally, do not inject scripts and clean up any existing ones
-  if (!config || config.enabled === false) {
+  const resolved = config || options.inheritedPixels?.length ? resolveTrackingConfig(config, options.inheritedPixels) : null;
+  if (!resolved || resolved.enabled === false) {
     removeTrackingScripts();
     return () => {};
   }
 
-  const providers = config.providers || {};
-
-  // 1. Meta (Facebook) Pixel
-  if (providers.meta && providers.meta.enabled !== false && providers.meta.pixelId) {
-    const metaPixelId = providers.meta.pixelId.trim();
-    const scriptId = `kubuild-tracking-meta-${metaPixelId}`;
-
-    if (!document.getElementById(scriptId)) {
-      /* eslint-disable */
-      (function (f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
-        if (f.fbq) return;
-        n = f.fbq = function () {
-          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
-        };
-        if (!f._fbq) f._fbq = n;
-        n.push = n;
-        n.loaded = !0;
-        n.version = '2.0';
-        n.queue = [];
-        t = b.createElement(e);
-        t.async = !0;
-        t.id = scriptId;
-        t.setAttribute(INJECTED_SCRIPT_ATTR, 'meta');
-        t.src = v;
-        s = b.getElementsByTagName(e)[0];
-        s && s.parentNode ? s.parentNode.insertBefore(t, s) : b.head.appendChild(t);
-      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-      /* eslint-enable */
-
-      if (window.fbq) {
-        window.fbq('init', metaPixelId);
-        if (config.autoPageView !== false) {
-          window.fbq('track', 'PageView');
-        }
-      }
-    }
-  }
-
-  // 2. Google Analytics 4 (gtag.js)
-  if (providers.google && providers.google.enabled !== false && providers.google.measurementId) {
-    const measurementId = providers.google.measurementId.trim();
-    const scriptId = `kubuild-tracking-ga4-${measurementId}`;
-
-    if (!document.getElementById(scriptId)) {
-      window.dataLayer = window.dataLayer || [];
-      window.gtag =
-        window.gtag ||
-        function () {
-          // eslint-disable-next-line prefer-rest-params
-          window.dataLayer?.push(arguments);
-        };
-      window.gtag('js', new Date());
-      window.gtag('config', measurementId, { send_page_view: Boolean(config.autoPageView !== false) });
-
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.async = true;
-      script.setAttribute(INJECTED_SCRIPT_ATTR, 'google');
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
-      document.head.appendChild(script);
-    }
-  }
-
-  // 2b. Google Tag Manager (GTM)
-  if (providers.gtm && providers.gtm.enabled !== false && providers.gtm.containerId) {
-    const containerId = providers.gtm.containerId.trim();
-    const scriptId = `kubuild-tracking-gtm-${containerId}`;
-
-    if (!document.getElementById(scriptId)) {
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
-
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.async = true;
-      script.setAttribute(INJECTED_SCRIPT_ATTR, 'gtm');
-      script.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(containerId)}`;
-      document.head.appendChild(script);
-    }
-  }
-
-  // 3. TikTok Pixel
-  if (providers.tiktok && providers.tiktok.enabled !== false && providers.tiktok.pixelId) {
-    const tiktokPixelId = providers.tiktok.pixelId.trim();
-    const scriptId = `kubuild-tracking-tiktok-${tiktokPixelId}`;
-
-    if (!document.getElementById(scriptId)) {
-      /* eslint-disable */
-      (function (w: any, d: any, t: any) {
-        w.TiktokAnalyticsObject = t;
-        var ttq = (w[t] = w[t] || []);
-        ttq.methods = [
-          'page',
-          'track',
-          'identify',
-          'instances',
-          'debug',
-          'on',
-          'off',
-          'once',
-          'ready',
-          'alias',
-          'group',
-          'enableCookie',
-          'disableCookie',
-        ];
-        ttq.setAndDefer = function (t: any, e: any) {
-          t[e] = function () {
-            t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
-          };
-        };
-        for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
-        ttq.instance = function (t: any) {
-          for (var e = ttq._i[t] || [], n = 0; n < ttq.methods.length; n++)
-            ttq.setAndDefer(e, ttq.methods[n]);
-          return e;
-        };
-        ttq.load = function (e: any, n: any) {
-          var i = 'https://analytics.tiktok.com/i18n/pixel/events.js';
-          (ttq._i = ttq._i || {}),
-            (ttq._i[e] = []),
-            (ttq._i[e]._u = i),
-            (ttq._t = ttq._t || {}),
-            (ttq._t[e] = +new Date()),
-            (ttq._o = ttq._o || {}),
-            (ttq._o[e] = n || {});
-          var o = document.createElement('script');
-          (o.type = 'text/javascript'), (o.async = !0), (o.src = i + '?sdkid=' + e + '&lib=' + t);
-          o.id = scriptId;
-          o.setAttribute(INJECTED_SCRIPT_ATTR, 'tiktok');
-          var a = document.getElementsByTagName('script')[0];
-          a && a.parentNode ? a.parentNode.insertBefore(o, a) : document.head.appendChild(o);
-        };
-        ttq.load(tiktokPixelId);
-        if (config.autoPageView !== false) {
-          ttq.page();
-        }
-      })(window, document, 'ttq');
-      /* eslint-enable */
+  for (const pixel of resolved.pixels) {
+    if (!pixel.pixelId || pixel.provider === 'custom') continue;
+    const key = pixelKey(pixel);
+    if (initialisedPixels.has(key)) continue;
+    initPixel(pixel);
+    initialisedPixels.add(key);
+    if (resolved.autoPageView !== false && !pixel.disabledEvents.includes('PageView')) {
+      firePageView(pixel);
     }
   }
 
@@ -184,9 +198,11 @@ export function injectTrackingScripts(config?: TrackingConfig): () => void {
 }
 
 /**
- * Removes all injected tracking scripts from the document head.
+ * Removes all injected tracking scripts from the document head. Pixels are initialised again
+ * (with a fresh PageView) on the next injection.
  */
 export function removeTrackingScripts(): void {
+  initialisedPixels.clear();
   if (typeof document === 'undefined') return;
   const scripts = document.querySelectorAll(`script[${INJECTED_SCRIPT_ATTR}]`);
   scripts.forEach((el) => {
@@ -221,90 +237,117 @@ export const META_STANDARD_EVENTS = new Set([
 
 export interface FireBrowserPixelOptions {
   eventId?: string;
-  config?: TrackingConfig;
+  /** Tracking config to target. Without it the event is broadcast to whatever pixels are loaded. */
+  config?: TrackingConfigInput;
+  /** Host pixels merged into `config` (subject to its `inherit` settings). */
+  inheritedPixels?: readonly TrackingPixelInput[];
   provider?: 'all' | 'meta' | 'google' | 'gtm' | 'tiktok' | 'custom' | string;
+  /** Only these pixel entry ids (`TrackingPixel.id`). */
+  pixelIds?: readonly string[];
   eventType?: 'standard' | 'custom';
 }
 
+function isCustomMetaEvent(eventName: string, eventType?: 'standard' | 'custom'): boolean {
+  return eventType === 'custom' || (!eventType && !META_STANDARD_EVENTS.has(eventName));
+}
+
+/** Pre-1.3.0 behaviour for callers without a config: broadcast to every loaded library. */
+function broadcastBrowserPixel(
+  eventName: string,
+  params: Record<string, unknown>,
+  options: FireBrowserPixelOptions,
+): void {
+  const target = options.provider || 'all';
+  const eventId = options.eventId;
+  if ((target === 'all' || target === 'meta') && typeof window.fbq === 'function') {
+    const method = isCustomMetaEvent(eventName, options.eventType) ? 'trackCustom' : 'track';
+    if (eventId) window.fbq(method, eventName, params, { eventID: eventId });
+    else window.fbq(method, eventName, params);
+  }
+  if ((target === 'all' || target === 'google') && typeof window.gtag === 'function') {
+    window.gtag('event', eventName, { ...params, ...(eventId ? { event_id: eventId } : {}) });
+  }
+  if ((target === 'all' || target === 'tiktok') && typeof window.ttq?.track === 'function') {
+    window.ttq.track(eventName, params, eventId ? { event_id: eventId } : undefined);
+  }
+  if (target === 'gtm') {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ ...params, event: eventName, ...(eventId ? { event_id: eventId } : {}) });
+  }
+}
+
 /**
- * Dispatches an event to the browser pixel scripts if installed and active.
+ * Sends an event to the browser pixels of a tracking config — each targeted pixel on its own
+ * (Meta `trackSingle`, TikTok `ttq.instance(id)`, GA4 `send_to`), so several pixels of one
+ * provider each receive it exactly once. Pixels are filtered by `provider`, `pixelIds` and
+ * their `disabledEvents`. GTM gets one `dataLayer` push when any GTM pixel is targeted.
  */
 export function fireBrowserPixel(
   eventName: string,
   params?: Record<string, unknown>,
-  options?: FireBrowserPixelOptions,
+  options: FireBrowserPixelOptions = {},
 ): void {
   if (typeof window === 'undefined') return;
-
-  const config = options?.config;
-  // If master switch disabled, do not fire
-  if (config && config.enabled === false) return;
-
-  const targetProvider = options?.provider || 'all';
-  const eventId = options?.eventId;
   const eventParams = params || {};
-  const eventType = options?.eventType;
+  const eventId = options.eventId;
 
-  const isMetaAllowed =
-    (targetProvider === 'all' || targetProvider === 'meta') &&
-    (!config?.providers?.meta || config.providers.meta.enabled !== false);
+  if (!options.config && !options.inheritedPixels?.length) {
+    broadcastBrowserPixel(eventName, eventParams, options);
+    return;
+  }
 
-  const isGoogleAllowed =
-    (targetProvider === 'all' || targetProvider === 'google') &&
-    (!config?.providers?.google || config.providers.google.enabled !== false);
+  const resolved = resolveTrackingConfig(options.config, options.inheritedPixels);
+  if (resolved.enabled === false) return;
 
-  const isTikTokAllowed =
-    (targetProvider === 'all' || targetProvider === 'tiktok') &&
-    (!config?.providers?.tiktok || config.providers.tiktok.enabled !== false);
+  const pixels = selectTrackingPixels(resolved, {
+    provider: options.provider || 'all',
+    pixelIds: options.pixelIds,
+    eventName,
+  }).filter((pixel) => pixel.pixelId && pixel.provider !== 'custom');
 
-  // GTM: explicit 'gtm' target always pushes; 'all' pushes only when a GTM container is configured.
-  const gtmConfig = config?.providers?.gtm;
-  const isGtmAllowed =
-    (targetProvider === 'gtm' && (!gtmConfig || gtmConfig.enabled !== false)) ||
-    (targetProvider === 'all' && !!gtmConfig && gtmConfig.enabled !== false && !!gtmConfig.containerId);
-
-  if (config?.debugMode) {
-    // eslint-disable-next-line no-console
+  if (resolved.debugMode) {
     console.log(`[Browser Pixel Track: ${eventName}]`, {
       eventId,
-      targetProvider,
-      eventType,
+      pixels: pixels.map((p) => p.id),
+      eventType: options.eventType,
       params: eventParams,
     });
   }
 
-  // 1. Fire Meta Pixel (uses trackCustom for custom events, track for standard events)
-  if (isMetaAllowed && typeof window.fbq === 'function') {
-    const isCustom = eventType === 'custom' || (!eventType && !META_STANDARD_EVENTS.has(eventName));
-    const metaMethod = isCustom ? 'trackCustom' : 'track';
-
-    if (eventId) {
-      window.fbq(metaMethod, eventName, eventParams, { eventID: eventId });
-    } else {
-      window.fbq(metaMethod, eventName, eventParams);
+  let gtmPushed = false;
+  for (const pixel of pixels) {
+    switch (pixel.provider) {
+      case 'meta':
+        if (typeof window.fbq === 'function') {
+          const method = isCustomMetaEvent(eventName, options.eventType) ? 'trackSingleCustom' : 'trackSingle';
+          window.fbq(method, pixel.pixelId, eventName, eventParams, ...(eventId ? [{ eventID: eventId }] : []));
+        }
+        break;
+      case 'google':
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', eventName, {
+            ...eventParams,
+            send_to: pixel.pixelId,
+            ...(eventId ? { event_id: eventId } : {}),
+          });
+        }
+        break;
+      case 'tiktok': {
+        const ttq = window.ttq?.instance ? window.ttq.instance(pixel.pixelId) : window.ttq;
+        if (ttq && typeof ttq.track === 'function') {
+          ttq.track(eventName, eventParams, eventId ? { event_id: eventId } : undefined);
+        }
+        break;
+      }
+      case 'gtm':
+        if (!gtmPushed) {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({ ...eventParams, event: eventName, ...(eventId ? { event_id: eventId } : {}) });
+          gtmPushed = true;
+        }
+        break;
+      default:
+        break;
     }
-  }
-
-  // 2. Fire Google Analytics (gtag)
-  if (isGoogleAllowed && typeof window.gtag === 'function') {
-    window.gtag('event', eventName, {
-      ...eventParams,
-      ...(eventId ? { event_id: eventId } : {}),
-    });
-  }
-
-  // 3. Fire TikTok Pixel
-  if (isTikTokAllowed && window.ttq && typeof window.ttq.track === 'function') {
-    window.ttq.track(eventName, eventParams, eventId ? { event_id: eventId } : undefined);
-  }
-
-  // 4. Push to Google Tag Manager dataLayer
-  if (isGtmAllowed) {
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({
-      ...eventParams,
-      event: eventName,
-      ...(eventId ? { event_id: eventId } : {}),
-    });
   }
 }

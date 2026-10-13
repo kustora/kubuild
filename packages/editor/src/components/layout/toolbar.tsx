@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ComponentRegistry } from '@kubuild/components';
-import type { PixelCredentialOption } from '@kubuild/schema';
+import type { PixelCredentialOption, TrackingPixelInput } from '@kubuild/schema';
 import { useEditorStore } from '../../store/index.js';
 import { ImportModal } from '../modals/import-modal.js';
 import { CodeViewerModal } from '../modals/code-viewer-modal.js';
@@ -25,12 +25,16 @@ export interface EditorToolbarProps {
   aiEnabled?: boolean;
   /** Saved pixel credentials to populate selector in tracking modal */
   trackingCredentials?: PixelCredentialOption[];
-  /** Called when user clicks "Kelola Kredensial" inside tracking modal */
+  /** Opens the host's pixel library from the tracking modal. */
   onManageCredentials?: () => void;
   /** Stores a tracking secret on the host; returns the credentialId kept in the document. */
   onSaveTrackingSecret?: SaveTrackingSecretHandler;
   /** Host tracking relay URL, shown read-only in the tracking modal. */
   trackingRelayUrl?: string;
+  /** Pixels the host applies to this document (`context.tracking.inheritedPixels`). */
+  inheritedTrackingPixels?: readonly TrackingPixelInput[];
+  /** Label for those pixels in the tracking modal, e.g. "this funnel". */
+  inheritedTrackingPixelsLabel?: string;
 }
 
 interface ToolbarIconButtonProps {
@@ -119,6 +123,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onManageCredentials,
   onSaveTrackingSecret,
   trackingRelayUrl,
+  inheritedTrackingPixels,
+  inheritedTrackingPixelsLabel,
 }) => {
   const {
     document,
@@ -461,6 +467,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         onManageCredentials={onManageCredentials}
         onSaveTrackingSecret={onSaveTrackingSecret}
         trackingRelayUrl={trackingRelayUrl}
+        inheritedPixels={inheritedTrackingPixels}
+        inheritedPixelsSource={inheritedTrackingPixelsLabel}
       />
     </>
   );

@@ -5,7 +5,7 @@ import { TrackingConfig, TrackingConfigSchema } from './tracking.js';
 import { ThemeSchema } from './theme.js';
 
 export const SCHEMA_NAME = 'stora.page' as const;
-export const CURRENT_SCHEMA_VERSION = '1.2.0' as const;
+export const CURRENT_SCHEMA_VERSION = '1.3.0' as const;
 
 /**
  * Asset Reference Schema
