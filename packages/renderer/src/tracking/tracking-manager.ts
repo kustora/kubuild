@@ -351,3 +351,65 @@ export function fireBrowserPixel(
     }
   }
 }
+
+/** Browser identifiers ad platforms use to match server-side events to a visitor. */
+export interface BrowserTrackingIds {
+  fbp?: string;
+  fbc?: string;
+  ttp?: string;
+  ttclid?: string;
+  /** GA4 client id, taken from the `_ga` cookie. */
+  clientId?: string;
+}
+
+function readCookie(name: string): string | undefined {
+  const cookies = typeof document.cookie === 'string' ? document.cookie.split('; ') : [];
+  for (const cookie of cookies) {
+    const separator = cookie.indexOf('=');
+    if (separator > 0 && cookie.slice(0, separator) === name) {
+      const value = cookie.slice(separator + 1);
+      try {
+        return decodeURIComponent(value) || undefined;
+      } catch {
+        return value || undefined;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Reads the `_fbp`, `_fbc` and `_ttp` cookies, `ttclid` from the URL and the GA4 client id
+ * from `_ga`. Without an `_fbc` cookie, `fbc` is built from an `fbclid` query param.
+ * Returns only the ids present, and `{}` outside a browser.
+ */
+export function collectBrowserTrackingIds(): BrowserTrackingIds {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return {};
+
+  let query: URLSearchParams | undefined;
+  try {
+    query = new URL(window.location.href).searchParams;
+  } catch {
+    query = undefined;
+  }
+
+  const ids: BrowserTrackingIds = {};
+  const fbp = readCookie('_fbp');
+  if (fbp) ids.fbp = fbp;
+
+  const fbclid = query?.get('fbclid');
+  const fbc = readCookie('_fbc') || (fbclid ? `fb.1.${Date.now()}.${fbclid}` : undefined);
+  if (fbc) ids.fbc = fbc;
+
+  const ttp = readCookie('_ttp');
+  if (ttp) ids.ttp = ttp;
+
+  const ttclid = query?.get('ttclid');
+  if (ttclid) ids.ttclid = ttclid;
+
+  // `_ga` is `GA1.<n>.<random>.<timestamp>`; the client id is the last two parts.
+  const gaParts = readCookie('_ga')?.split('.') ?? [];
+  if (gaParts.length >= 4) ids.clientId = gaParts.slice(-2).join('.');
+
+  return ids;
+}

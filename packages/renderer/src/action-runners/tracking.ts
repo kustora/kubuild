@@ -15,7 +15,7 @@ import {
   generateTrackingEventId,
   resolveTrackingConfig,
 } from '@kubuild/core';
-import { fireBrowserPixel } from '../tracking/tracking-manager.js';
+import { collectBrowserTrackingIds, fireBrowserPixel } from '../tracking/tracking-manager.js';
 
 /**
  * Result returned by track_event action runner
@@ -170,7 +170,9 @@ export const trackEventRunner: PipelineStepHandler = async (
             : {}),
           actionSource: 'website',
           params: interpolatedParams,
-          userData: interpolatedUserData,
+          // Browser ids (cookies, click ids) improve match quality; the relay can't read them
+          // when it runs on another origin. Values set on the step win.
+          userData: { ...collectBrowserTrackingIds(), ...interpolatedUserData },
         },
       };
 

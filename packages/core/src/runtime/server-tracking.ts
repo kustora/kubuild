@@ -61,6 +61,12 @@ export interface ServerTrackingEvent {
     clientUserAgent?: string;
     fbp?: string;
     fbc?: string;
+    /** TikTok `_ttp` cookie value. */
+    ttp?: string;
+    /** TikTok click id (`ttclid` landing-page query param). */
+    ttclid?: string;
+    /** GA4 client id (from the `_ga` cookie, e.g. `123456789.1700000000`). */
+    clientId?: string;
     externalId?: string;
     [key: string]: unknown;
   };
@@ -121,7 +127,12 @@ export interface ServerTrackingOptions {
   sourceUrl?: string;
   simulateInDebug?: boolean;
   onLog?: (message: string, data?: unknown) => void;
+  /** Meta Graph API version for CAPI calls. Defaults to `DEFAULT_META_GRAPH_API_VERSION`. */
+  metaApiVersion?: string;
 }
+
+/** Meta Graph API version used for CAPI unless `options.metaApiVersion` overrides it. */
+export const DEFAULT_META_GRAPH_API_VERSION = 'v26.0';
 
 /**
  * Normalizes an email string (lowercase, trim) according to Meta CAPI specification.
@@ -131,7 +142,8 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
- * Normalizes a phone number (removes non-digits, strips leading zeros if needed) per CAPI spec.
+ * Strips every non-digit from a phone number. It does not add a country code: pass numbers
+ * already in international form (e.g. `60123456789`), as Meta and TikTok expect.
  */
 export function normalizePhone(phone: string): string {
   return (phone || '').replace(/[^0-9]/g, '');
@@ -264,7 +276,8 @@ export async function sendMetaCapiEvent(
   }
 
   try {
-    const url = `https://graph.facebook.com/v19.0/${encodeURIComponent(config.pixelId)}/events`;
+    const version = options?.metaApiVersion || DEFAULT_META_GRAPH_API_VERSION;
+    const url = `https://graph.facebook.com/${version}/${encodeURIComponent(config.pixelId)}/events`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -335,6 +348,11 @@ export async function sendTikTokEventsApi(
   if (rawUserData.clientUserAgent || options?.clientUserAgent) {
     user.user_agent = rawUserData.clientUserAgent || options?.clientUserAgent;
   }
+  if (rawUserData.externalId) {
+    user.external_id = await hashSha256(String(rawUserData.externalId));
+  }
+  if (rawUserData.ttp) user.ttp = rawUserData.ttp;
+  if (rawUserData.ttclid) user.ttclid = rawUserData.ttclid;
 
   const tiktokPayload: Record<string, unknown> = {
     event_source: 'web',
@@ -381,13 +399,15 @@ export async function sendTikTokEventsApi(
       body: JSON.stringify(tiktokPayload),
     });
 
-    const resJson = await res.json().catch(() => ({}));
-    if (!res.ok) {
+    const resJson = (await res.json().catch(() => ({}))) as { code?: number; message?: string };
+    // TikTok reports most errors as HTTP 200 with a non-zero `code`.
+    const apiFailed = typeof resJson.code === 'number' && resJson.code !== 0;
+    if (!res.ok || apiFailed) {
       return {
         provider: 'tiktok',
         success: false,
         status: res.status,
-        error: (resJson as { message?: string })?.message || `HTTP ${res.status}`,
+        error: resJson.message || `HTTP ${res.status}`,
         data: resJson,
       };
     }
@@ -417,10 +437,7 @@ export async function sendGa4MeasurementEvent(
     return { provider: 'google', success: false, error: 'GA4 Measurement ID is missing' };
   }
 
-  const clientId =
-    (event.userData?.clientId as string | undefined) ||
-    (event.userData?.externalId as string | undefined) ||
-    'anonymous_client';
+  const clientId = event.userData?.clientId || event.userData?.externalId || 'anonymous_client';
 
   const ga4Payload = {
     client_id: clientId,
