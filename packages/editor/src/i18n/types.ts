@@ -16,7 +16,20 @@ export type DeepPartial<T> = T extends (...args: never[]) => unknown
 export type TranslationOverrides = Partial<Record<EditorLocale, DeepPartial<TranslationSchema>>>;
 
 export interface TranslationSchema {
-  // Top Level & Tabs
+  // Editor Mode & Top Level Tabs
+  simpleMode: string;
+  advanceMode: string;
+  simpleModeTooltip: string;
+  advanceModeTooltip: string;
+  simpleAppearanceTitle: string;
+  simpleTextColor: string;
+  simpleBgColor: string;
+  simpleFontSize: string;
+  simpleTextAlign: string;
+  simplePadding: string;
+  simpleMargin: string;
+  simpleWidth: string;
+  simpleSwitchToAdvance: string;
   styleTab: string;
   settingsTab: string;
   textSettings: string;

@@ -48,6 +48,7 @@ import { ActionDebuggerPanel } from '../panels/action-debugger-panel.js';
 import { AiChatPanel } from '../ai-chat/ai-chat-panel.js';
 import {
   EditorConfig,
+  EditorMode,
   resolveEditorConfig,
   AiEditorConfig,
   resolveAiEditorConfig,
@@ -76,6 +77,18 @@ export interface KubuildEditorProps {
   initialDocument?: PageDocument;
   pages?: EditorPageItem[];
   activePageId?: string;
+  /**
+   * Controlled editor mode ('simple' | 'advance').
+   */
+  mode?: EditorMode;
+  /**
+   * Uncontrolled initial editor mode ('simple' | 'advance').
+   */
+  defaultMode?: EditorMode;
+  /**
+   * Fires when the user switches between Simple and Advance mode in the editor UI.
+   */
+  onModeChange?: (mode: EditorMode) => void;
   /**
    * Controlled selection. Whenever this prop changes it is synced into the editor store,
    * so canvas, Inspector, Layers and shell chrome all follow it. Selection changes made
@@ -175,6 +188,9 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   initialDocument,
   pages,
   activePageId,
+  mode: propMode,
+  defaultMode,
+  onModeChange,
   selectedNodeId: propSelectedNodeId,
   onSelectionChange,
   locale: propLocale,
@@ -214,6 +230,31 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   const setVariableCatalog = useEditorStore((state) => state.setVariableCatalog);
   const viewport = useEditorStore((state) => state.viewport);
   const setViewport = useEditorStore((state) => state.setViewport);
+  const storeEditorMode = useEditorStore((state) => state.editorMode);
+  const setEditorMode = useEditorStore((state) => state.setEditorMode);
+  const didSeedEditorMode = React.useRef(false);
+  const initialMode = defaultMode ?? config?.mode;
+  const effectiveEditorMode: EditorMode =
+    propMode ??
+    (!didSeedEditorMode.current && initialMode ? initialMode : storeEditorMode);
+  const isSimpleMode = effectiveEditorMode === 'simple';
+
+  useEffect(() => {
+    if (propMode !== undefined) {
+      didSeedEditorMode.current = true;
+      if (useEditorStore.getState().editorMode !== propMode) {
+        setEditorMode(propMode);
+      }
+      return;
+    }
+    if (!didSeedEditorMode.current) {
+      didSeedEditorMode.current = true;
+      if (initialMode && useEditorStore.getState().editorMode !== initialMode) {
+        setEditorMode(initialMode);
+      }
+    }
+  }, [propMode, initialMode, setEditorMode]);
+
   // The store is the single selection source for canvas/Inspector/chrome; a controlled
   // `selectedNodeId` prop is synced into it below. Until a new prop value has been applied
   // (first render / SSR), the shell chrome shows the prop value instead.
@@ -499,7 +540,22 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     mobile: <Smartphone className="w-3.5 h-3.5" />,
   };
 
-  const resolvedConfig = useMemo(() => resolveEditorConfig(config), [config]);
+  const resolvedConfig = useMemo(
+    () => resolveEditorConfig(config, effectiveEditorMode),
+    [config, effectiveEditorMode],
+  );
+
+  const handleModeChange = useCallback(
+    (nextMode: EditorMode) => {
+      didSeedEditorMode.current = true;
+      setEditorMode(nextMode);
+      if (nextMode === 'simple' && viewport === 'tablet') {
+        setViewport('desktop');
+      }
+      onModeChange?.(nextMode);
+    },
+    [setEditorMode, viewport, setViewport, onModeChange],
+  );
   // `data-ai-enabled` lets tests confirm the prop stays opt-in; the AI Chat Panel (STORA-503)
   // and its toolbar toggle (STORA-504) are gated by `aiFeatureEnabled` below, not `enabled`
   // alone — a host can supply `provider` with every `features.*` flag left off, which must
@@ -606,9 +662,14 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     setAiChatMode(resolvedAiConfig.defaultPanelMode);
   }, []);
 
+  const availableViewports: Viewport[] = isSimpleMode
+    ? ['desktop', 'mobile']
+    : ['desktop', 'tablet', 'mobile'];
+
   const shell = (
     <div
       data-ai-enabled={resolvedAiConfig.enabled}
+      data-editor-mode={effectiveEditorMode}
       className={`flex flex-col h-full bg-slate-100 text-slate-900 relative overflow-hidden ${className || ''}`}
     >
       {/* Floating AI Chat Panel (STORA-503) — never mounted when AI is fully disabled */}
@@ -696,6 +757,8 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               <InspectorPanel
                 registry={registry}
                 config={resolvedConfig.inspector}
+                mode={effectiveEditorMode}
+                onModeChange={handleModeChange}
                 aiConfig={resolvedAiConfig}
                 trackingCredentials={trackingCredentials}
                 onManageCredentials={onManageCredentials}
@@ -741,18 +804,49 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
       {/* Editor Top Toolbar */}
       {resolvedConfig.toolbar.enabled && (
         <div className="flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 bg-white border-b border-slate-200 gap-2 overflow-x-auto min-h-[44px]">
-          {resolvedConfig.toolbar.showTitle ? (
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="font-bold text-slate-800 text-xs sm:text-sm tracking-tight">
-                KUBUILD Editor
-              </span>
-              <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border max-w-[120px] sm:max-w-[200px] truncate font-medium">
-                {document.metadata?.title || 'Untitled'}
-              </span>
-            </div>
-          ) : (
-            <div />
-          )}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {resolvedConfig.toolbar.showTitle && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-bold text-slate-800 text-xs sm:text-sm tracking-tight">
+                  KUBUILD Editor
+                </span>
+                <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border max-w-[120px] sm:max-w-[200px] truncate font-medium">
+                  {document.metadata?.title || 'Untitled'}
+                </span>
+              </div>
+            )}
+
+            {/* Simple | Advance Mode Switcher */}
+            {resolvedConfig.toolbar.showModeSwitcher && (
+              <div
+                data-testid="editor-mode-switcher"
+                role="group"
+                aria-label="Editor Mode"
+                className="flex items-center gap-0.5 bg-slate-100 p-0.5 sm:p-1 rounded-md text-xs border border-slate-200/80 shrink-0"
+              >
+                {(['simple', 'advance'] as const).map((m) => {
+                  const active = effectiveEditorMode === m;
+                  const label = m === 'simple' ? 'Simple' : 'Advance';
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      data-testid={`editor-mode-${m}`}
+                      aria-pressed={active}
+                      onClick={() => handleModeChange(m)}
+                      className={`px-2.5 py-1 rounded font-medium transition flex items-center gap-1 text-[11px] sm:text-xs cursor-pointer ${
+                        active
+                          ? 'bg-white text-blue-600 shadow-xs font-semibold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {templates && templates.length > 0 && (
@@ -780,7 +874,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
             {/* Viewport switcher */}
             {resolvedConfig.toolbar.showViewportSwitcher && (
               <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 sm:p-1 rounded-md text-xs border border-slate-200/80">
-                {(['desktop', 'tablet', 'mobile'] as Viewport[]).map((vp) => (
+                {availableViewports.map((vp) => (
                   <button
                     key={vp}
                     type="button"
@@ -799,21 +893,25 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
                     <span className="hidden md:inline">{vp}</span>
                   </button>
                 ))}
-                <div className="w-[1px] h-3.5 bg-slate-300 mx-0.5" />
-                <button
-                  type="button"
-                  data-testid="multi-device-toolbar-toggle"
-                  onClick={toggleMultiDeviceMode}
-                  title={multiDeviceMode ? 'Exit Multi-Device Preview' : 'Side-by-Side Multi-Device Preview (STORA-143)'}
-                  className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded font-medium transition flex items-center gap-1 text-[11px] sm:text-xs cursor-pointer ${
-                    multiDeviceMode
-                      ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Columns3 className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Multi-Device</span>
-                </button>
+                {!isSimpleMode && (
+                  <>
+                    <div className="w-[1px] h-3.5 bg-slate-300 mx-0.5" />
+                    <button
+                      type="button"
+                      data-testid="multi-device-toolbar-toggle"
+                      onClick={toggleMultiDeviceMode}
+                      title={multiDeviceMode ? 'Exit Multi-Device Preview' : 'Side-by-Side Multi-Device Preview (STORA-143)'}
+                      className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded font-medium transition flex items-center gap-1 text-[11px] sm:text-xs cursor-pointer ${
+                        multiDeviceMode
+                          ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Columns3 className="w-3.5 h-3.5" />
+                      <span className="hidden md:inline">Multi-Device</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -878,6 +976,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               viewport={viewport}
               onDiagnostic={onDiagnostic}
               config={resolvedConfig.canvas}
+              mode={effectiveEditorMode}
               fluidWidth={fluidWidth}
               onFluidWidthChange={setFluidWidth}
               onBreakpointChange={(bp) => setViewport(bp)}
@@ -969,6 +1068,8 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               <InspectorPanel
                 registry={registry}
                 config={resolvedConfig.inspector}
+                mode={effectiveEditorMode}
+                onModeChange={handleModeChange}
                 aiConfig={resolvedAiConfig}
                 trackingCredentials={trackingCredentials}
                 onManageCredentials={onManageCredentials}
@@ -1032,14 +1133,16 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => setIsMobileLayersOpen(true)}
-          className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-md text-slate-600 hover:text-blue-600 hover:bg-slate-50 active:bg-slate-100 transition"
-        >
-          <Layers className="w-4 h-4" />
-          <span className="text-[10px] font-medium">Layers</span>
-        </button>
+        {resolvedConfig.sidebar.availableTabs.includes('layers') && (
+          <button
+            type="button"
+            onClick={() => setIsMobileLayersOpen(true)}
+            className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-md text-slate-600 hover:text-blue-600 hover:bg-slate-50 active:bg-slate-100 transition"
+          >
+            <Layers className="w-4 h-4" />
+            <span className="text-[10px] font-medium">Layers</span>
+          </button>
+        )}
 
         {resolvedConfig.inspector.enabled && (
           <button

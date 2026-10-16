@@ -1,7 +1,20 @@
 import { TranslationSchema } from '../types.js';
 
 export const en: TranslationSchema = {
-  // Top Level & Tabs
+  // Editor Mode & Top Level Tabs
+  simpleMode: 'Simple',
+  advanceMode: 'Advance',
+  simpleModeTooltip: 'Simple Mode — Easy content & visual editing for beginners',
+  advanceModeTooltip: 'Advance Mode — Full CSS layout, layers & developer studio',
+  simpleAppearanceTitle: 'Visual Appearance',
+  simpleTextColor: 'Text Color',
+  simpleBgColor: 'Background Color',
+  simpleFontSize: 'Font Size',
+  simpleTextAlign: 'Text Alignment',
+  simplePadding: 'Inner Space (Padding)',
+  simpleMargin: 'Outer Space (Margin)',
+  simpleWidth: 'Element Width',
+  simpleSwitchToAdvance: 'Need advanced layout, actions & CSS controls? Switch to Advance Mode →',
   styleTab: 'Style',
   settingsTab: 'Settings',
   textSettings: 'Text Settings',

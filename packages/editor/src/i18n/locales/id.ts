@@ -1,7 +1,20 @@
 import { TranslationSchema } from '../types.js';
 
 export const id: TranslationSchema = {
-  // Top Level & Tabs
+  // Editor Mode & Top Level Tabs
+  simpleMode: 'Simple',
+  advanceMode: 'Advance',
+  simpleModeTooltip: 'Mode Simple — Edit konten & tampilan dengan mudah untuk pemula',
+  advanceModeTooltip: 'Mode Advance — Pengaturan CSS lengkap, layer & studio pro',
+  simpleAppearanceTitle: 'Tampilan & Gaya Visual',
+  simpleTextColor: 'Warna Teks',
+  simpleBgColor: 'Warna Latar (Background)',
+  simpleFontSize: 'Ukuran Teks',
+  simpleTextAlign: 'Perataan Teks',
+  simplePadding: 'Jarak Dalam (Padding)',
+  simpleMargin: 'Jarak Luar (Margin)',
+  simpleWidth: 'Lebar Elemen',
+  simpleSwitchToAdvance: 'Butuh pengaturan layout, aksi & CSS lebih lengkap? Beralih ke Mode Advance →',
   styleTab: 'Gaya',
   settingsTab: 'Pengaturan',
   textSettings: 'Pengaturan Teks',

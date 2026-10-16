@@ -57,8 +57,10 @@ import {
   BlockDefinition,
 } from '@kubuild/components';
 import type { AiGenerationPlaceholderStatus } from '../ai/generate-page.js';
+import type { EditorMode } from '../config/config.js';
 import { getMissingTemplateComponents } from '../utils/template-requirements.js';
 
+export type { EditorMode };
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 /** Locales that ship with built-in dictionaries. */
 export type BuiltInEditorLocale = 'en' | 'id';
@@ -370,6 +372,9 @@ export interface EditorState {
   /** Active UI locale for the editor and inspector panels (default: 'en'). */
   locale: EditorLocale;
   setLocale: (locale: EditorLocale) => void;
+  /** Active editor UI complexity mode ('simple' | 'advance'). Default: 'advance'. */
+  editorMode: EditorMode;
+  setEditorMode: (mode: EditorMode) => void;
   /**
    * Block library (STORA-535): the single source the Blocks tab, canvas drag-and-drop and
    * `insertBlock(id)` read from. Defaults to `STARTER_BLOCKS`; `KubuildEditor` fills it from
@@ -629,6 +634,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeArtboardId: null,
   artboardReturnDocument: null,
   locale: 'en',
+  editorMode: 'advance',
   blockRegistry: [...STARTER_BLOCKS],
 
   setBlockRegistry: (blocks) => set({ blockRegistry: blocks }),
@@ -636,6 +642,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setIsAiRunning: (isAiRunning) => set({ isAiRunning }),
   setLocale: (locale) => set({ locale }),
+  setEditorMode: (editorMode) =>
+    set((state) => ({
+      editorMode,
+      multiDeviceMode: editorMode === 'simple' ? false : state.multiDeviceMode,
+    })),
   setDragPayload: (payload) => set({ dragPayload: payload }),
   setVariableCatalog: (catalog) => set({ variableCatalog: catalog }),
   setTableSpreadsheetMode: (mode) => set({ tableSpreadsheetMode: mode }),

@@ -22,6 +22,8 @@ export interface CanvasZoomToolbarProps {
   multiDeviceMode?: boolean;
   /** Callback to toggle multi-device preview mode (STORA-143) */
   onToggleMultiDevice?: () => void;
+  /** Simplified compact mode for Simple Editor Mode */
+  compact?: boolean;
 }
 
 export const MIN_ZOOM = 0.25;
@@ -45,6 +47,7 @@ export const CanvasZoomToolbar: React.FC<CanvasZoomToolbarProps> = ({
   onToolModeChange,
   multiDeviceMode = false,
   onToggleMultiDevice,
+  compact = false,
 }) => {
   const percentage = Math.round(zoom * 100);
 
@@ -59,7 +62,7 @@ export const CanvasZoomToolbar: React.FC<CanvasZoomToolbarProps> = ({
       onClick={(e) => e.stopPropagation()}
     >
       {/* Tool Mode: Select (V) / Hand (H) */}
-      {onToolModeChange && (
+      {!compact && onToolModeChange && (
         <>
           <div className="flex items-center bg-slate-100 rounded-md p-0.5">
             <button
@@ -124,53 +127,57 @@ export const CanvasZoomToolbar: React.FC<CanvasZoomToolbarProps> = ({
         <ZoomIn className="w-3.5 h-3.5" />
       </button>
 
-      <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
+      {!compact && (
+        <>
+          <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
 
-      {/* Presets */}
-      <button
-        type="button"
-        data-testid="zoom-preset-50"
-        title="50%"
-        onClick={() => onZoomChange(0.5)}
-        className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition ${
-          percentage === 50 ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100'
-        }`}
-      >
-        50%
-      </button>
-      <button
-        type="button"
-        data-testid="zoom-preset-75"
-        title="75%"
-        onClick={() => onZoomChange(0.75)}
-        className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition ${
-          percentage === 75 ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100'
-        }`}
-      >
-        75%
-      </button>
-      <button
-        type="button"
-        data-testid="zoom-preset-100"
-        title="100%"
-        onClick={() => onZoomChange(1.0)}
-        className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition ${
-          percentage === 100 ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100'
-        }`}
-      >
-        100%
-      </button>
-      <button
-        type="button"
-        data-testid="zoom-preset-150"
-        title="150%"
-        onClick={() => onZoomChange(1.5)}
-        className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition ${
-          percentage === 150 ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100'
-        }`}
-      >
-        150%
-      </button>
+          {/* Presets */}
+          <button
+            type="button"
+            data-testid="zoom-preset-50"
+            title="50%"
+            onClick={() => onZoomChange(0.5)}
+            className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition ${
+              percentage === 50 ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100'
+            }`}
+          >
+            50%
+          </button>
+          <button
+            type="button"
+            data-testid="zoom-preset-75"
+            title="75%"
+            onClick={() => onZoomChange(0.75)}
+            className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition ${
+              percentage === 75 ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100'
+            }`}
+          >
+            75%
+          </button>
+          <button
+            type="button"
+            data-testid="zoom-preset-100"
+            title="100%"
+            onClick={() => onZoomChange(1.0)}
+            className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition ${
+              percentage === 100 ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100'
+            }`}
+          >
+            100%
+          </button>
+          <button
+            type="button"
+            data-testid="zoom-preset-150"
+            title="150%"
+            onClick={() => onZoomChange(1.5)}
+            className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition ${
+              percentage === 150 ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100'
+            }`}
+          >
+            150%
+          </button>
+        </>
+      )}
 
       <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
 
@@ -199,7 +206,7 @@ export const CanvasZoomToolbar: React.FC<CanvasZoomToolbarProps> = ({
       )}
 
       {/* STORA-143: Side-by-Side Multi-Device Preview Toggle */}
-      {onToggleMultiDevice && (
+      {!compact && onToggleMultiDevice && (
         <>
           <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
           <button

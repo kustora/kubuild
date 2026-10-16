@@ -18,7 +18,7 @@ import { replayNodeAnimation } from '@kubuild/renderer';
 import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles, Radio, Upload, Image as ImageIcon, Link2 } from 'lucide-react';
 
 import { StyleSectorId } from '../style-manager/style-manager-accordion.js';
-import { EditorInspectorConfig, ResolvedAiEditorConfig } from '../../config/index.js';
+import { EditorInspectorConfig, EditorMode, ResolvedAiEditorConfig } from '../../config/index.js';
 import { useTranslation } from '../../i18n/index.js';
 import type { MediaTranslations } from '../../i18n/index.js';
 import { LanguageSwitcher } from '../ui/language-switcher.js';
@@ -31,6 +31,10 @@ export interface InspectorPanelProps {
   document?: PageDocument;
   selectedNodeId?: string | null;
   config?: EditorInspectorConfig;
+  /** Active editor mode ('simple' | 'advance'). Falls back to store editorMode. */
+  mode?: EditorMode;
+  /** Callback when the user switches mode from inside the inspector (e.g. "Switch to Advance Mode"). */
+  onModeChange?: (mode: EditorMode) => void;
   /**
    * Fully-resolved AI config (STORA-511). Gates the "Ask AI about this component" action
    * — omitted (or `features.enhance` false) means the action does not render at all,
@@ -957,12 +961,344 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
   );
 };
 
+interface SimpleAppearanceSectionProps {
+  nodeType: string;
+  styles: Record<string, unknown>;
+  baseStyles: Record<string, unknown>;
+  onCommitStyles: (stylesPatch: Record<string, string>) => void;
+  onSwitchToAdvance: () => void;
+}
+
+const SIMPLE_COLOR_SWATCHES = [
+  '#0f172a',
+  '#475569',
+  '#ffffff',
+  '#f8fafc',
+  '#2563eb',
+  '#16a34a',
+  '#d97706',
+  '#dc2626',
+];
+
+const SimpleAppearanceSection: React.FC<SimpleAppearanceSectionProps> = ({
+  nodeType,
+  styles,
+  baseStyles,
+  onCommitStyles,
+  onSwitchToAdvance,
+}) => {
+  const { t } = useTranslation();
+
+  const getEffectiveVal = (key: string): string => {
+    const val = styles[key] ?? baseStyles[key];
+    return typeof val === 'string' ? val : typeof val === 'number' ? `${val}px` : '';
+  };
+
+  const colorVal = getEffectiveVal('color');
+  const bgVal = getEffectiveVal('backgroundColor');
+  const fontSizeVal = getEffectiveVal('fontSize');
+  const textAlignVal = getEffectiveVal('textAlign') || 'left';
+  const borderRadiusVal = getEffectiveVal('borderRadius') || '0px';
+  const paddingVal = getEffectiveVal('paddingTop') || getEffectiveVal('padding') || '0px';
+  const marginBottomVal = getEffectiveVal('marginBottom') || '0px';
+  const widthVal = getEffectiveVal('width') || 'auto';
+
+  const isMediaOnly = nodeType === 'image' || nodeType === 'video' || nodeType === 'divider' || nodeType === 'spacer';
+
+  const radiusPresets = [
+    { label: '0px', value: '0px' },
+    { label: '6px', value: '6px' },
+    { label: '12px', value: '12px' },
+    { label: '9999px', value: '9999px' },
+  ];
+
+  const spacePresets = [
+    { label: '0px', value: '0px' },
+    { label: '8px', value: '8px' },
+    { label: '16px', value: '16px' },
+    { label: '24px', value: '24px' },
+    { label: '40px', value: '40px' },
+  ];
+
+  const fontSizePresets = [
+    { label: '14px', value: '14px' },
+    { label: '16px', value: '16px' },
+    { label: '20px', value: '20px' },
+    { label: '28px', value: '28px' },
+    { label: '36px', value: '36px' },
+  ];
+
+  return (
+    <div data-testid="simple-appearance-section" className="flex flex-col gap-3">
+      <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs">
+        <div className="px-3 py-2.5 bg-slate-50/70 border-b border-slate-100 flex items-center gap-2">
+          <Palette className="w-3.5 h-3.5 text-slate-500 shrink-0" aria-hidden="true" />
+          <span className="text-xs font-semibold text-slate-700">{t.simpleAppearanceTitle}</span>
+        </div>
+
+        <div className="p-3 flex flex-col gap-3.5">
+          {!isMediaOnly && (
+            <>
+              {/* Text Alignment */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                  {t.simpleTextAlign}
+                </label>
+                <div className="grid grid-cols-3 gap-1 rounded-md border border-slate-200 bg-slate-100 p-0.5">
+                  {(['left', 'center', 'right'] as const).map((align) => (
+                    <button
+                      key={align}
+                      type="button"
+                      data-testid={`simple-align-${align}`}
+                      onClick={() => onCommitStyles({ textAlign: align })}
+                      className={`py-1 px-2 text-xs font-medium rounded transition capitalize cursor-pointer ${
+                        textAlignVal === align
+                          ? 'bg-white text-blue-600 shadow-2xs font-semibold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {align}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Font Size Presets */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                  {t.simpleFontSize}
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {fontSizePresets.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      data-testid={`simple-fontsize-${preset.value}`}
+                      onClick={() => onCommitStyles({ fontSize: preset.value })}
+                      className={`px-2 py-1 text-xs rounded border transition cursor-pointer ${
+                        fontSizeVal === preset.value
+                          ? 'bg-blue-50 border-blue-500 text-blue-700 font-semibold'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Text Color */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                  {t.simpleTextColor}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={t.simpleTextColor}
+                    value={colorVal.startsWith('#') && colorVal.length === 7 ? colorVal : '#0f172a'}
+                    onChange={(e) => onCommitStyles({ color: e.target.value })}
+                    className="w-8 h-8 rounded border border-slate-300 bg-white p-0.5 cursor-pointer shrink-0"
+                  />
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {SIMPLE_COLOR_SWATCHES.map((swatch) => (
+                      <button
+                        key={`text-${swatch}`}
+                        type="button"
+                        title={swatch}
+                        onClick={() => onCommitStyles({ color: swatch })}
+                        style={{ backgroundColor: swatch }}
+                        className={`w-5 h-5 rounded-full border transition cursor-pointer ${
+                          colorVal.toLowerCase() === swatch
+                            ? 'ring-2 ring-blue-500 border-white'
+                            : 'border-slate-300 hover:scale-110'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Background Color */}
+          {nodeType !== 'divider' && nodeType !== 'spacer' && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-slate-600">
+                  {t.simpleBgColor}
+                </label>
+                {bgVal && (
+                  <button
+                    type="button"
+                    onClick={() => onCommitStyles({ backgroundColor: '' })}
+                    className="text-[11px] text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {t.resetStyle}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label={t.simpleBgColor}
+                  value={bgVal.startsWith('#') && bgVal.length === 7 ? bgVal : '#ffffff'}
+                  onChange={(e) => onCommitStyles({ backgroundColor: e.target.value })}
+                  className="w-8 h-8 rounded border border-slate-300 bg-white p-0.5 cursor-pointer shrink-0"
+                />
+                <div className="flex items-center gap-1 flex-wrap">
+                  {SIMPLE_COLOR_SWATCHES.map((swatch) => (
+                    <button
+                      key={`bg-${swatch}`}
+                      type="button"
+                      title={swatch}
+                      onClick={() => onCommitStyles({ backgroundColor: swatch })}
+                      style={{ backgroundColor: swatch }}
+                      className={`w-5 h-5 rounded-full border transition cursor-pointer ${
+                        bgVal.toLowerCase() === swatch
+                          ? 'ring-2 ring-blue-500 border-white'
+                          : 'border-slate-300 hover:scale-110'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Corner Radius */}
+          {nodeType !== 'divider' && nodeType !== 'spacer' && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                {t.cornerRadius}
+              </label>
+              <div className="grid grid-cols-4 gap-1">
+                {radiusPresets.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    data-testid={`simple-radius-${preset.value}`}
+                    onClick={() => onCommitStyles({ borderRadius: preset.value })}
+                    className={`py-1 px-1.5 text-[11px] rounded border transition cursor-pointer truncate ${
+                      borderRadiusVal === preset.value
+                        ? 'bg-blue-50 border-blue-500 text-blue-700 font-semibold'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Inner Spacing (Padding) */}
+          {nodeType !== 'divider' && nodeType !== 'spacer' && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                {t.simplePadding}
+              </label>
+              <div className="grid grid-cols-5 gap-1">
+                {spacePresets.map((preset) => (
+                  <button
+                    key={`pad-${preset.value}`}
+                    type="button"
+                    data-testid={`simple-padding-${preset.value}`}
+                    onClick={() =>
+                      onCommitStyles({
+                        paddingTop: preset.value,
+                        paddingRight: preset.value,
+                        paddingBottom: preset.value,
+                        paddingLeft: preset.value,
+                      })
+                    }
+                    className={`py-1 px-1 text-[11px] rounded border transition cursor-pointer truncate ${
+                      paddingVal === preset.value
+                        ? 'bg-blue-50 border-blue-500 text-blue-700 font-semibold'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Outer Bottom Spacing (Margin Bottom) */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+              {t.simpleMargin}
+            </label>
+            <div className="grid grid-cols-5 gap-1">
+              {spacePresets.map((preset) => (
+                <button
+                  key={`margin-${preset.value}`}
+                  type="button"
+                  data-testid={`simple-margin-${preset.value}`}
+                  onClick={() => onCommitStyles({ marginBottom: preset.value })}
+                  className={`py-1 px-1 text-[11px] rounded border transition cursor-pointer truncate ${
+                    marginBottomVal === preset.value
+                      ? 'bg-blue-50 border-blue-500 text-blue-700 font-semibold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Width */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+              {t.simpleWidth}
+            </label>
+            <div className="grid grid-cols-2 gap-1 rounded-md border border-slate-200 bg-slate-100 p-0.5">
+              {[
+                { label: t.hug, value: 'auto' },
+                { label: t.fill, value: '100%' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  data-testid={`simple-width-${opt.value}`}
+                  onClick={() => onCommitStyles({ width: opt.value })}
+                  className={`py-1 px-2 text-xs font-medium rounded transition cursor-pointer ${
+                    widthVal === opt.value
+                      ? 'bg-white text-blue-600 shadow-2xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        data-testid="inspector-switch-to-advance"
+        onClick={onSwitchToAdvance}
+        className="w-full py-2 px-3 text-xs font-medium text-slate-600 hover:text-blue-600 bg-slate-50 hover:bg-blue-50/60 border border-dashed border-slate-300 hover:border-blue-300 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+      >
+        <Settings className="w-3.5 h-3.5" aria-hidden="true" />
+        <span>{t.simpleSwitchToAdvance}</span>
+      </button>
+    </div>
+  );
+};
+
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   registry,
   className,
   document: propDocument,
   selectedNodeId: propSelectedNodeId,
   config,
+  mode,
+  onModeChange,
   aiConfig,
   trackingCredentials,
   onManageCredentials,
@@ -980,6 +1316,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     propSelectedNodeId !== undefined ? propSelectedNodeId : storeState.selectedNodeId;
   const {
     viewport,
+    editorMode: storeEditorMode,
+    setEditorMode,
     updateNodeProps,
     updateNodeStyle,
     resetNodeStyleProperty,
@@ -999,10 +1337,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     requestAiChatFocus,
   } = storeState;
 
+  const effectiveMode: EditorMode = mode ?? storeEditorMode ?? 'advance';
+  const isSimpleMode = effectiveMode === 'simple';
+
   const showProps = config?.showProps !== false;
-  const showTraits = config?.showTraits !== false;
+  const showTraits = config?.showTraits !== undefined ? config.showTraits !== false : !isSimpleMode;
   const showStyles = config?.showStyles !== false;
-  const showStateSelector = config?.showStateSelector !== false;
+  const showStateSelector =
+    config?.showStateSelector !== undefined ? config.showStateSelector !== false : !isSimpleMode;
   const allowedStyleSectors = config?.allowedStyleSectors;
 
   const { t } = useTranslation();
@@ -1260,6 +1602,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     setError(`trait:${traitName}`, result.success ? null : result.error ?? 'Invalid value.');
   };
 
+  const handleSwitchToAdvance = () => {
+    setEditorMode('advance');
+    onModeChange?.('advance');
+  };
+
   return (
     <div className={`flex flex-col h-full min-h-0 overflow-hidden text-sm text-slate-900 ${className || ''}`}>
       {/* STORA-250 — Asset Manager Modal: picking an asset updates the target prop instantly. */}
@@ -1291,8 +1638,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           onManageCredentials={onManageCredentials}
           onSaveTrackingSecret={onSaveTrackingSecret}
           trackingRelayUrl={trackingRelayUrl}
-        inheritedPixels={inheritedTrackingPixels}
-        inheritedPixelsSource={inheritedTrackingPixelsLabel}
+          inheritedPixels={inheritedTrackingPixels}
+          inheritedPixelsSource={inheritedTrackingPixelsLabel}
         />
       )}
       {/* Tab bar: Style / Traits — STORA-211 */}
@@ -1335,80 +1682,84 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       )}
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 p-3 min-w-0">
-      {/* STORA-340 — Interactivity & Action Builder Card */}
-      <div className="pb-3 border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 transition">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-              <Zap className="w-3.5 h-3.5" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-slate-700 leading-tight">Interactivity &amp; Actions</span>
-              <span className="text-[10px] text-slate-500 truncate">
-                {node.actions && node.actions.length > 0
-                  ? `${node.actions.reduce((sum, p) => sum + p.steps.length, 0)} step(s) across ${node.actions.length} trigger(s)`
-                  : 'No actions configured'}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            data-testid="open-action-builder-btn"
-            onClick={() => setIsActionBuilderOpen(true)}
-            className="px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
-          >
-            <Zap className="w-3 h-3" />
-            <span>Actions</span>
-            {node.actions && node.actions.length > 0 && (
-              <span className="ml-0.5 px-1 py-0.2 text-[9px] font-bold bg-blue-600 text-white rounded-full">
-                {node.actions.length}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Pixel Tracking section — separate from action events ───────── */}
-      <div className="pb-3 border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-purple-300 transition">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
-              <Radio className="w-3.5 h-3.5" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-slate-700 leading-tight">Pixel Tracking</span>
-              <span className="text-[10px] text-slate-500 truncate">
-                {document?.tracking?.enabled === false
-                  ? 'Tracking disabled'
-                  : activePixelCount > 0
-                    ? `${activePixelCount} pixel${activePixelCount === 1 ? '' : 's'} active`
-                    : 'No pixel configured yet'}
-              </span>
+      {/* STORA-340 — Interactivity & Action Builder Card (Advance mode only) */}
+      {!isSimpleMode && (
+        <>
+          <div className="pb-3 border-b border-slate-200 shrink-0">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 transition">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                  <Zap className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-semibold text-slate-700 leading-tight">Interactivity &amp; Actions</span>
+                  <span className="text-[10px] text-slate-500 truncate">
+                    {node.actions && node.actions.length > 0
+                      ? `${node.actions.reduce((sum, p) => sum + p.steps.length, 0)} step(s) across ${node.actions.length} trigger(s)`
+                      : 'No actions configured'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                data-testid="open-action-builder-btn"
+                onClick={() => setIsActionBuilderOpen(true)}
+                className="px-2.5 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+              >
+                <Zap className="w-3 h-3" />
+                <span>Actions</span>
+                {node.actions && node.actions.length > 0 && (
+                  <span className="ml-0.5 px-1 py-0.2 text-[9px] font-bold bg-blue-600 text-white rounded-full">
+                    {node.actions.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            data-testid="open-pixel-tracking-btn"
-            onClick={() => setIsTrackingModalOpen(true)}
-            className="px-2.5 py-1 text-xs font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
-          >
-            <Radio className="w-3 h-3" />
-            <span>Pixel</span>
-            {document?.tracking?.enabled !== false && activePixelCount > 0 && (
-              <span className="ml-0.5 px-1 py-0.2 text-[9px] font-bold bg-purple-600 text-white rounded-full">
-                {activePixelCount}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
 
-      {/* ── Per-element pixel event — fires on click via executeNodeActions ── */}
-      <NodePixelEventSection
-        nodeId={node.id}
-        actions={node.actions}
-        onUpdateActions={(actions) => updateNodeActions(node.id, actions)}
-      />
+          {/* ── Pixel Tracking section — separate from action events ───────── */}
+          <div className="pb-3 border-b border-slate-200 shrink-0">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-purple-300 transition">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                  <Radio className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-semibold text-slate-700 leading-tight">Pixel Tracking</span>
+                  <span className="text-[10px] text-slate-500 truncate">
+                    {document?.tracking?.enabled === false
+                      ? 'Tracking disabled'
+                      : activePixelCount > 0
+                        ? `${activePixelCount} pixel${activePixelCount === 1 ? '' : 's'} active`
+                        : 'No pixel configured yet'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                data-testid="open-pixel-tracking-btn"
+                onClick={() => setIsTrackingModalOpen(true)}
+                className="px-2.5 py-1 text-xs font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+              >
+                <Radio className="w-3 h-3" />
+                <span>Pixel</span>
+                {document?.tracking?.enabled !== false && activePixelCount > 0 && (
+                  <span className="ml-0.5 px-1 py-0.2 text-[9px] font-bold bg-purple-600 text-white rounded-full">
+                    {activePixelCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Per-element pixel event — fires on click via executeNodeActions ── */}
+          <NodePixelEventSection
+            nodeId={node.id}
+            actions={node.actions}
+            onUpdateActions={(actions) => updateNodeActions(node.id, actions)}
+          />
+        </>
+      )}
 
       {/* STORA-511 — "Ask AI about this component": opens the AI Chat Panel (if hidden)
           with this node already attached as context, and focuses its input. Only ever
@@ -1690,7 +2041,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                       <div key={field.name}>
                         <label className="block text-xs font-medium text-slate-600 mb-1">{fieldLabel}</label>
                         {!bound && renderPropControl(field)}
-                        {isBindableField(field) && (
+                        {(!isSimpleMode || bound) && isBindableField(field) && (
                           <VariableBindingControl
                             field={field}
                             currentValue={currentValue}
@@ -1729,73 +2080,85 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           )}
 
           {showStyles && (
-            <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full shrink-0">
-              {/* Active state warning badge — STORA-223 */}
-              {activeState !== 'default' && <StateEditingBadge state={activeState} />}
-              {/* Pseudo-state selector — STORA-221 */}
-              {showStateSelector && (
-                <div className="flex items-center gap-2 mb-2">
-                  <label
-                    htmlFor="style-state-selector"
-                    className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0"
-                  >
-                    {t.stateLabel}
-                  </label>
-                  <select
-                    id="style-state-selector"
-                    value={activeState}
-                    onChange={(e) => setActiveState(e.target.value)}
-                    className={`flex-1 text-xs rounded px-2 py-1.5 border focus:outline-none focus:ring-1 transition cursor-pointer ${
-                      activeState !== 'default'
-                        ? 'bg-amber-50 text-amber-900 border-amber-400 focus:ring-amber-400 focus:border-amber-400'
-                        : 'bg-white text-slate-900 border-slate-300 hover:border-slate-400 focus:ring-blue-500 focus:border-blue-500 shadow-xs'
-                    }`}
-                  >
-                    <option value="default">{t.normal}</option>
-                    <option value=":hover">{t.hover}</option>
-                    <option value=":active">{t.pressed}</option>
-                    <option value=":focus">{t.focused}</option>
-                  </select>
-                </div>
-              )}
-              <StyleManagerAccordion
-                key={`${node.id}-${activeBreakpoint}-${activeState}`}
+            isSimpleMode ? (
+              <SimpleAppearanceSection
+                nodeType={node.type}
                 styles={activeLayer}
                 baseStyles={(node.styles?.base as Record<string, unknown> | undefined) ?? {}}
-                animation={node.animation}
-                allowedSectors={allowedStyleSectors}
-                nodeType={node.type}
-                isParentGrid={isParentGrid}
-                onCommitStyle={handleCommitSpacing}
-                onResetProperty={(prop) => {
-                  if (activeBreakpoint !== 'base') {
-                    resetNodeStyleProperty(node.id, prop, activeBreakpoint);
-                  }
+                onCommitStyles={(stylesPatch) => {
+                  updateNodeStyle(node.id, stylesPatch, activeBreakpoint);
                 }}
-                onResetAllOverrides={() => {
-                  if (activeBreakpoint !== 'base') {
-                    resetNodeViewportStyles(node.id, activeBreakpoint);
-                  }
-                }}
-                onCommitAnimation={(anim) => {
-                  const result = updateNodeAnimation(node.id, anim);
-                  if (!result.success && result.error) {
-                    setError('animation', result.error);
-                  }
-                }}
-                onResetAnimation={() => {
-                  updateNodeAnimation(node.id, null);
-                }}
-                onReplayAnimation={() => {
-                  if (node?.id) {
-                    replayNodeAnimation(node.id);
-                  }
-                }}
-                errors={fieldErrors}
-                breakpoint={activeBreakpoint}
-                assetProvider={assetProvider}
+                onSwitchToAdvance={handleSwitchToAdvance}
               />
-            </div>
+            ) : (
+              <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full shrink-0">
+                {/* Active state warning badge — STORA-223 */}
+                {activeState !== 'default' && <StateEditingBadge state={activeState} />}
+                {/* Pseudo-state selector — STORA-221 */}
+                {showStateSelector && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <label
+                      htmlFor="style-state-selector"
+                      className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0"
+                    >
+                      {t.stateLabel}
+                    </label>
+                    <select
+                      id="style-state-selector"
+                      value={activeState}
+                      onChange={(e) => setActiveState(e.target.value)}
+                      className={`flex-1 text-xs rounded px-2 py-1.5 border focus:outline-none focus:ring-1 transition cursor-pointer ${
+                        activeState !== 'default'
+                          ? 'bg-amber-50 text-amber-900 border-amber-400 focus:ring-amber-400 focus:border-amber-400'
+                          : 'bg-white text-slate-900 border-slate-300 hover:border-slate-400 focus:ring-blue-500 focus:border-blue-500 shadow-xs'
+                      }`}
+                    >
+                      <option value="default">{t.normal}</option>
+                      <option value=":hover">{t.hover}</option>
+                      <option value=":active">{t.pressed}</option>
+                      <option value=":focus">{t.focused}</option>
+                    </select>
+                  </div>
+                )}
+                <StyleManagerAccordion
+                  key={`${node.id}-${activeBreakpoint}-${activeState}`}
+                  styles={activeLayer}
+                  baseStyles={(node.styles?.base as Record<string, unknown> | undefined) ?? {}}
+                  animation={node.animation}
+                  allowedSectors={allowedStyleSectors}
+                  nodeType={node.type}
+                  isParentGrid={isParentGrid}
+                  onCommitStyle={handleCommitSpacing}
+                  onResetProperty={(prop) => {
+                    if (activeBreakpoint !== 'base') {
+                      resetNodeStyleProperty(node.id, prop, activeBreakpoint);
+                    }
+                  }}
+                  onResetAllOverrides={() => {
+                    if (activeBreakpoint !== 'base') {
+                      resetNodeViewportStyles(node.id, activeBreakpoint);
+                    }
+                  }}
+                  onCommitAnimation={(anim) => {
+                    const result = updateNodeAnimation(node.id, anim);
+                    if (!result.success && result.error) {
+                      setError('animation', result.error);
+                    }
+                  }}
+                  onResetAnimation={() => {
+                    updateNodeAnimation(node.id, null);
+                  }}
+                  onReplayAnimation={() => {
+                    if (node?.id) {
+                      replayNodeAnimation(node.id);
+                    }
+                  }}
+                  errors={fieldErrors}
+                  breakpoint={activeBreakpoint}
+                  assetProvider={assetProvider}
+                />
+              </div>
+            )
           )}
         </>
       )}

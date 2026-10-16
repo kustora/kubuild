@@ -158,6 +158,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const showHistory = config?.showHistory !== false;
   const showClipboard = config?.showClipboard !== false;
   const showCodeViewer = config?.showCodeViewer !== false;
+  const showTracking = config?.showTracking !== false;
   const showExportImport = propShowExportImport && config?.showExportImport !== false;
   const showPreviewToggle = config?.showPreviewToggle !== false;
   const showActionDebugger = config?.showActionDebugger !== false;
@@ -331,7 +332,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </div>
         )}
 
-        {(showClipboard || showHistory) && (showCodeViewer || showExportImport) && (
+        {(showClipboard || showHistory) && (showCodeViewer || showTracking || showExportImport) && (
           <div className="hidden sm:block h-4 w-px bg-slate-200 mx-1" />
         )}
 
@@ -347,16 +348,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </button>
         )}
 
-        <button
-          type="button"
-          data-testid="toolbar-tracking-toggle"
-          title="Configure Pixel & CAPI Tracking"
-          onClick={() => setIsTrackingModalOpen(true)}
-          className="flex items-center gap-1.5 text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-emerald-500 hover:text-emerald-600 font-medium text-slate-700 transition cursor-pointer"
-        >
-          <Activity className="w-3.5 h-3.5 text-emerald-600" />
-          <span className="hidden sm:inline">Tracking</span>
-        </button>
+        {showTracking && (
+          <button
+            type="button"
+            data-testid="toolbar-tracking-toggle"
+            title="Configure Pixel & CAPI Tracking"
+            onClick={() => setIsTrackingModalOpen(true)}
+            className="flex items-center gap-1.5 text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-emerald-500 hover:text-emerald-600 font-medium text-slate-700 transition cursor-pointer"
+          >
+            <Activity className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden sm:inline">Tracking</span>
+          </button>
+        )}
 
         {showExportImport && (
           <div className="flex items-center gap-1">

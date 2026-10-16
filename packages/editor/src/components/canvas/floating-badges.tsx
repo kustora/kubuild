@@ -16,6 +16,8 @@ export interface FloatingActionBadgesProps {
     height: number;
   };
   onDragStart?: (e: React.DragEvent) => void;
+  /** Hide the "Detach to its own frame" button in Simple Mode */
+  hideDetachArtboard?: boolean;
 }
 
 /**
@@ -34,6 +36,7 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
   registry,
   selectedRect,
   onDragStart,
+  hideDetachArtboard = false,
 }) => {
   const {
     selectNode,
@@ -188,7 +191,7 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
       )}
 
       {/* Detach to its own artboard — works on any node type, not just overlays */}
-      {!isRoot && !activeArtboardId && node.type !== ARTBOARD_REFERENCE_NODE_TYPE && (
+      {!hideDetachArtboard && !isRoot && !activeArtboardId && node.type !== ARTBOARD_REFERENCE_NODE_TYPE && (
         <button
           type="button"
           data-testid="floating-badge-detach-artboard"
