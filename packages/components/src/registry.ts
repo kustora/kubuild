@@ -5,7 +5,7 @@ export type ComponentCategory = 'layout' | 'typography' | 'media' | 'form' | 'in
 export interface ComponentFieldDefinition {
   name: string;
   label: string;
-  type: 'string' | 'textarea' | 'number' | 'boolean' | 'select' | 'color' | 'image' | 'action' | 'json';
+  type: 'string' | 'textarea' | 'number' | 'boolean' | 'select' | 'color' | 'image' | 'action' | 'json' | 'datetime';
   defaultValue?: unknown;
   options?: Array<{ label: string; value: unknown }>;
   description?: string;

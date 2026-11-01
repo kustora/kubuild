@@ -42,6 +42,9 @@ import {
   GtmTrackingProviderConfigSchema,
   TikTokTrackingProviderConfigSchema,
   CustomTrackingProviderConfigSchema,
+  TrackingPixelSchema,
+  TrackingInheritConfigSchema,
+  LegacyTrackingProvidersSchema,
   TrackingConfigSchema,
 } from '../src/tracking.js';
 import { ManifestAssetItemSchema, ManifestSchema } from '../src/manifest.js';
@@ -134,6 +137,13 @@ describe('STORA-552: @kubuild/schema/types mirrors z.infer', () => {
     >();
     expectTypeOf<Pure.CustomTrackingProviderConfig>().toEqualTypeOf<
       z.infer<typeof CustomTrackingProviderConfigSchema>
+    >();
+    expectTypeOf<Pure.TrackingPixel>().toEqualTypeOf<z.infer<typeof TrackingPixelSchema>>();
+    expectTypeOf<Pure.TrackingInheritConfig>().toEqualTypeOf<
+      z.infer<typeof TrackingInheritConfigSchema>
+    >();
+    expectTypeOf<Pure.LegacyTrackingProviders>().toEqualTypeOf<
+      z.infer<typeof LegacyTrackingProvidersSchema>
     >();
     expectTypeOf<Pure.TrackingConfig>().toEqualTypeOf<z.infer<typeof TrackingConfigSchema>>();
   });

@@ -1,12 +1,19 @@
 import type {
   AiChatMessage,
+  AiImageBlock,
   AiProviderAdapter,
   AiProviderGenerateParams,
   AiProviderGenerateResult,
   AiStopReason,
   AiToolUseBlock,
 } from '../../types.js';
-import { getMessageText, getToolResultBlocks, getToolUseBlocks } from '../../core/messages.js';
+import {
+  getImageBlocks,
+  getMessagePromptText,
+  getMessageText,
+  getToolResultBlocks,
+  getToolUseBlocks,
+} from '../../core/messages.js';
 import { readSseDataLines } from './stream-utils.js';
 
 export interface OpenAiAdapterOptions {
@@ -18,9 +25,13 @@ export interface OpenAiAdapterOptions {
 }
 
 /** OpenAI Chat Completions message shape — `tool_calls`/`role: 'tool'` included. */
+type OpenAiContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
 interface OpenAiMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string | null;
+  content: string | OpenAiContentPart[] | null;
   tool_calls?: Array<{
     id: string;
     type: 'function';
@@ -87,9 +98,18 @@ function parseToolCalls(raw: OpenAiToolCallPayload[] | undefined): AiToolUseBloc
     });
 }
 
+/** A user turn's text followed by its images, in OpenAI's multi-part content format. */
+function withImageParts(text: string, images: readonly AiImageBlock[]): OpenAiContentPart[] {
+  return [
+    { type: 'text', text },
+    ...images.map((img) => ({ type: 'image_url' as const, image_url: { url: img.url } })),
+  ];
+}
+
 export class OpenAiAdapter implements AiProviderAdapter {
   readonly name = 'openai';
   readonly supportsTools = true;
+  readonly supportsToolStreaming = true;
   private apiKey: string;
   private model: string;
   private temperature: number;
@@ -152,6 +172,11 @@ export class OpenAiAdapter implements AiProviderAdapter {
       ];
     }
 
+    const images = getImageBlocks(message);
+    if (images.length > 0 && message.role === 'user') {
+      return [{ role: 'user', content: withImageParts(getMessagePromptText(message), images) }];
+    }
+
     return [{ role: message.role, content: text }];
   }
 
@@ -165,7 +190,10 @@ export class OpenAiAdapter implements AiProviderAdapter {
     }
     return [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
+      {
+        role: 'user',
+        content: params.images && params.images.length > 0 ? withImageParts(userPrompt, params.images) : userPrompt,
+      },
     ];
   }
 
@@ -288,7 +316,12 @@ export class OpenAiAdapter implements AiProviderAdapter {
     params: AiProviderGenerateParams,
   ): AsyncGenerator<string, AiProviderGenerateResult, void> {
     const { signal } = params;
-    const res = await this.post({ ...this.buildBody(params), stream: true }, signal);
+    // Without `include_usage` the stream never reports token counts, which would silently
+    // zero out usage accounting for every streamed call.
+    const res = await this.post(
+      { ...this.buildBody(params), stream: true, stream_options: { include_usage: true } },
+      signal,
+    );
 
     if (!res.body) {
       throw new Error('OpenAI streaming response has no readable body');
@@ -333,6 +366,11 @@ export class OpenAiAdapter implements AiProviderAdapter {
         if (call.function?.name) entry.name = call.function.name;
         if (call.function?.arguments) entry.arguments += call.function.arguments;
         toolCallAccumulator.set(index, entry);
+        params.onToolCallDelta?.({
+          index,
+          name: entry.name || undefined,
+          argumentsLength: entry.arguments.length,
+        });
       }
 
       if (choice?.finish_reason) {

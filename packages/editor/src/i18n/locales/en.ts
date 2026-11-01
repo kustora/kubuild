@@ -1,9 +1,23 @@
 import { TranslationSchema } from '../types.js';
 
 export const en: TranslationSchema = {
-  // Top Level & Tabs
+  // Editor Mode & Top Level Tabs
+  simpleMode: 'Simple',
+  advanceMode: 'Advance',
+  simpleModeTooltip: 'Simple Mode — Easy content & visual editing for beginners',
+  advanceModeTooltip: 'Advance Mode — Full CSS layout, layers & developer studio',
+  simpleAppearanceTitle: 'Visual Appearance',
+  simpleTextColor: 'Text Color',
+  simpleBgColor: 'Background Color',
+  simpleFontSize: 'Font Size',
+  simpleTextAlign: 'Text Alignment',
+  simplePadding: 'Inner Space (Padding)',
+  simpleMargin: 'Outer Space (Margin)',
+  simpleWidth: 'Element Width',
+  simpleSwitchToAdvance: 'Need advanced layout, actions & CSS controls? Switch to Advance Mode →',
   styleTab: 'Style',
   settingsTab: 'Settings',
+  aiTab: 'AI',
   textSettings: 'Text Settings',
   componentSettings: (label: string) => `${label} Settings`,
   resetStyle: 'Reset Style',
@@ -143,6 +157,11 @@ export const en: TranslationSchema = {
     dockPanel: 'Dock panel',
     floatPanel: 'Float panel',
     closePanel: 'Close AI Chat',
+    attachImage: 'Attach image',
+    removeImage: 'Remove image',
+    imageUploading: 'Uploading image…',
+    imageUploadFailed: 'The image could not be uploaded. Please try again.',
+    imageLimit: (max) => `You can attach up to ${max} images per message.`,
     thinking: 'Thinking…',
     retry: 'Retry',
     somethingWentWrong: 'Something went wrong.',
@@ -169,10 +188,21 @@ export const en: TranslationSchema = {
     agentApplied: (count: number) => `${count} change(s) applied to the canvas.`,
     agentLabel: 'Agent',
     agentStep: (step: number, maxSteps: number) => `step ${step}/${maxSteps}`,
+    agentProgress: ({ phase, toolName, seconds, outputChars }) => {
+      const chars = outputChars ? ` · ${outputChars.toLocaleString('en')} chars` : '';
+      if (phase === 'tool') return `Running ${toolName ?? 'tool'}… ${seconds}s`;
+      if (toolName) return `Writing ${toolName}… ${seconds}s${chars}`;
+      return `Thinking… ${seconds}s${chars}`;
+    },
     agentRunningAutoApply:
-      'Working through the steps… Changes are applied to the canvas automatically when done.',
+      'Working through the steps… Each change appears on the canvas as soon as its step finishes.',
     agentRunningReview: 'Working through the steps… Changes will be ready to review & apply when done.',
     agentFailed: 'Agent failed.',
+    agentResume: 'Continue',
+    agentResumeHint: (applied: number, pending: number) =>
+      pending > 0
+        ? `${pending} completed change(s) are ready to review — apply them before continuing.`
+        : `${applied} completed change(s) were kept. Continue to finish the rest.`,
     agentChangesReady: (count: number) => `${count} change(s) ready to apply`,
     discard: 'Discard',
     apply: 'Apply',

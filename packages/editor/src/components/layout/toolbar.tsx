@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ComponentRegistry } from '@kubuild/components';
-import type { PixelCredentialOption } from '@kubuild/schema';
+import type { PixelCredentialOption, TrackingPixelInput } from '@kubuild/schema';
 import { useEditorStore } from '../../store/index.js';
 import { ImportModal } from '../modals/import-modal.js';
 import { CodeViewerModal } from '../modals/code-viewer-modal.js';
@@ -10,7 +10,7 @@ import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils/ind
 import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles, Activity, Loader2 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.js';
 
-import { EditorToolbarConfig, isAiChatPanelActive } from '../../config/index.js';
+import { EditorToolbarConfig } from '../../config/index.js';
 
 export interface EditorToolbarProps {
   registry: ComponentRegistry;
@@ -25,12 +25,16 @@ export interface EditorToolbarProps {
   aiEnabled?: boolean;
   /** Saved pixel credentials to populate selector in tracking modal */
   trackingCredentials?: PixelCredentialOption[];
-  /** Called when user clicks "Kelola Kredensial" inside tracking modal */
+  /** Opens the host's pixel library from the tracking modal. */
   onManageCredentials?: () => void;
   /** Stores a tracking secret on the host; returns the credentialId kept in the document. */
   onSaveTrackingSecret?: SaveTrackingSecretHandler;
   /** Host tracking relay URL, shown read-only in the tracking modal. */
   trackingRelayUrl?: string;
+  /** Pixels the host applies to this document (`context.tracking.inheritedPixels`). */
+  inheritedTrackingPixels?: readonly TrackingPixelInput[];
+  /** Label for those pixels in the tracking modal, e.g. "this funnel". */
+  inheritedTrackingPixelsLabel?: string;
 }
 
 interface ToolbarIconButtonProps {
@@ -119,6 +123,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onManageCredentials,
   onSaveTrackingSecret,
   trackingRelayUrl,
+  inheritedTrackingPixels,
+  inheritedTrackingPixelsLabel,
 }) => {
   const {
     document,
@@ -127,8 +133,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     clipboard,
     canUndo,
     canRedo,
-    aiChatMode,
+    inspectorTab,
     toggleAiChat,
+    askAiAboutSelection,
     duplicateComponent,
     deleteComponent,
     copyNode,
@@ -149,9 +156,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const showAiChatToggle = config?.showAiChatToggle !== false && aiEnabled;
+  const isAiTabActive = inspectorTab === 'ai';
   const showHistory = config?.showHistory !== false;
   const showClipboard = config?.showClipboard !== false;
   const showCodeViewer = config?.showCodeViewer !== false;
+  const showTracking = config?.showTracking !== false;
   const showExportImport = propShowExportImport && config?.showExportImport !== false;
   const showPreviewToggle = config?.showPreviewToggle !== false;
   const showActionDebugger = config?.showActionDebugger !== false;
@@ -234,12 +243,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             title={
               isAiRunning
                 ? `${t.aiChat.aiRunning} ${t.aiChat.busyNotice}`
-                : `AI Chat (${isAiChatPanelActive(aiChatMode) ? 'Open' : 'Hidden'})`
+                : `AI Chat (${isAiTabActive ? 'Open' : 'Hidden'})`
             }
-            onClick={toggleAiChat}
-            aria-pressed={isAiChatPanelActive(aiChatMode)}
+            // Opening goes through askAiAboutSelection so a drawer Inspector (below lg) opens too.
+            onClick={isAiTabActive ? toggleAiChat : askAiAboutSelection}
+            aria-pressed={isAiTabActive}
             className={`hidden sm:flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
-              isAiChatPanelActive(aiChatMode)
+              isAiTabActive
                 ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
                 : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
             }`}
@@ -325,7 +335,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </div>
         )}
 
-        {(showClipboard || showHistory) && (showCodeViewer || showExportImport) && (
+        {(showClipboard || showHistory) && (showCodeViewer || showTracking || showExportImport) && (
           <div className="hidden sm:block h-4 w-px bg-slate-200 mx-1" />
         )}
 
@@ -341,16 +351,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </button>
         )}
 
-        <button
-          type="button"
-          data-testid="toolbar-tracking-toggle"
-          title="Configure Pixel & CAPI Tracking"
-          onClick={() => setIsTrackingModalOpen(true)}
-          className="flex items-center gap-1.5 text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-emerald-500 hover:text-emerald-600 font-medium text-slate-700 transition cursor-pointer"
-        >
-          <Activity className="w-3.5 h-3.5 text-emerald-600" />
-          <span className="hidden sm:inline">Tracking</span>
-        </button>
+        {showTracking && (
+          <button
+            type="button"
+            data-testid="toolbar-tracking-toggle"
+            title="Configure Pixel & CAPI Tracking"
+            onClick={() => setIsTrackingModalOpen(true)}
+            className="flex items-center gap-1.5 text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-emerald-500 hover:text-emerald-600 font-medium text-slate-700 transition cursor-pointer"
+          >
+            <Activity className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden sm:inline">Tracking</span>
+          </button>
+        )}
 
         {showExportImport && (
           <div className="flex items-center gap-1">
@@ -461,6 +473,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         onManageCredentials={onManageCredentials}
         onSaveTrackingSecret={onSaveTrackingSecret}
         trackingRelayUrl={trackingRelayUrl}
+        inheritedPixels={inheritedTrackingPixels}
+        inheritedPixelsSource={inheritedTrackingPixelsLabel}
       />
     </>
   );

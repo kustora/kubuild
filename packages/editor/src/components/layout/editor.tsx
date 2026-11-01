@@ -45,14 +45,13 @@ import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/tab
 import { HierarchyBreadcrumbs } from '../canvas/breadcrumbs.js';
 import { LeftSidebar } from '../panels/left-sidebar.js';
 import { ActionDebuggerPanel } from '../panels/action-debugger-panel.js';
-import { AiChatPanel } from '../ai-chat/ai-chat-panel.js';
 import {
   EditorConfig,
+  EditorMode,
   resolveEditorConfig,
   AiEditorConfig,
   resolveAiEditorConfig,
   isAnyAiFeatureEnabled,
-  shouldRenderAiChatPanel,
 } from '../../config/index.js';
 import {
   Monitor,
@@ -69,12 +68,25 @@ import {
   ArrowUp,
   ArrowDown,
   Trash2,
+  Sparkles,
 } from 'lucide-react';
 
 export interface KubuildEditorProps {
   initialDocument?: PageDocument;
   pages?: EditorPageItem[];
   activePageId?: string;
+  /**
+   * Controlled editor mode ('simple' | 'advance').
+   */
+  mode?: EditorMode;
+  /**
+   * Uncontrolled initial editor mode ('simple' | 'advance').
+   */
+  defaultMode?: EditorMode;
+  /**
+   * Fires when the user switches between Simple and Advance mode in the editor UI.
+   */
+  onModeChange?: (mode: EditorMode) => void;
   /**
    * Controlled selection. Whenever this prop changes it is synced into the editor store,
    * so canvas, Inspector, Layers and shell chrome all follow it. Selection changes made
@@ -112,8 +124,13 @@ export interface KubuildEditorProps {
   ai?: AiEditorConfig;
   /** Saved pixel credentials from account/workspace for the tracking settings modal */
   trackingCredentials?: PixelCredentialOption[];
-  /** Called when user clicks "Kelola Kredensial" inside the tracking settings modal */
+  /** Opens the host's pixel library from the tracking settings modal. */
   onManageCredentials?: () => void;
+  /**
+   * Label for the pixels the host applies to this document (`context.tracking.inheritedPixels`),
+   * shown as "Pixels from <label>" in the tracking modal — e.g. "this funnel".
+   */
+  inheritedTrackingPixelsLabel?: string;
   /**
    * Stores a tracking secret (CAPI token, Events API token, GA4 API secret, webhook URL/headers)
    * on the host and returns the `credentialId` the document references. Without it, secret
@@ -169,6 +186,9 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   initialDocument,
   pages,
   activePageId,
+  mode: propMode,
+  defaultMode,
+  onModeChange,
   selectedNodeId: propSelectedNodeId,
   onSelectionChange,
   locale: propLocale,
@@ -185,6 +205,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   ai,
   trackingCredentials,
   onManageCredentials,
+  inheritedTrackingPixelsLabel,
   onSaveTrackingSecret,
   assetProvider,
   blocks,
@@ -200,12 +221,38 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   ref,
 ) {
   const trackingRelayUrl = context?.tracking?.relayUrl;
+  const inheritedTrackingPixels = context?.tracking?.inheritedPixels;
   const document = useEditorStore((state) => state.document);
   const setDocument = useEditorStore((state) => state.setDocument);
   const setOnChangeHandler = useEditorStore((state) => state.setOnChangeHandler);
   const setVariableCatalog = useEditorStore((state) => state.setVariableCatalog);
   const viewport = useEditorStore((state) => state.viewport);
   const setViewport = useEditorStore((state) => state.setViewport);
+  const storeEditorMode = useEditorStore((state) => state.editorMode);
+  const setEditorMode = useEditorStore((state) => state.setEditorMode);
+  const didSeedEditorMode = React.useRef(false);
+  const initialMode = defaultMode ?? config?.mode;
+  const effectiveEditorMode: EditorMode =
+    propMode ??
+    (!didSeedEditorMode.current && initialMode ? initialMode : storeEditorMode);
+  const isSimpleMode = effectiveEditorMode === 'simple';
+
+  useEffect(() => {
+    if (propMode !== undefined) {
+      didSeedEditorMode.current = true;
+      if (useEditorStore.getState().editorMode !== propMode) {
+        setEditorMode(propMode);
+      }
+      return;
+    }
+    if (!didSeedEditorMode.current) {
+      didSeedEditorMode.current = true;
+      if (initialMode && useEditorStore.getState().editorMode !== initialMode) {
+        setEditorMode(initialMode);
+      }
+    }
+  }, [propMode, initialMode, setEditorMode]);
+
   // The store is the single selection source for canvas/Inspector/chrome; a controlled
   // `selectedNodeId` prop is synced into it below. Until a new prop value has been applied
   // (first render / SSR), the shell chrome shows the prop value instead.
@@ -217,8 +264,10 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
       : storeSelectedNodeId;
   const tableSpreadsheetMode = useEditorStore((state) => state.tableSpreadsheetMode);
   const setTableSpreadsheetMode = useEditorStore((state) => state.setTableSpreadsheetMode);
-  const aiChatMode = useEditorStore((state) => state.aiChatMode);
-  const setAiChatMode = useEditorStore((state) => state.setAiChatMode);
+  const inspectorTab = useEditorStore((state) => state.inspectorTab);
+  const setInspectorTab = useEditorStore((state) => state.setInspectorTab);
+  const askAiAboutSelection = useEditorStore((state) => state.askAiAboutSelection);
+  const aiChatFocusRequestId = useEditorStore((state) => state.aiChatFocusRequestId);
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
   const canUndo = useEditorStore((state) => state.canUndo);
@@ -241,9 +290,6 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
 
   const DEFAULT_INSPECTOR_WIDTH = 300;
   const MIN_INSPECTOR_WIDTH = 260;
-
-  const DEFAULT_AI_CHAT_WIDTH = 320;
-  const MIN_AI_CHAT_WIDTH = 260;
 
   const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => {
     if (typeof window !== 'undefined') {
@@ -271,19 +317,6 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     return DEFAULT_INSPECTOR_WIDTH;
   });
 
-  const [aiChatWidth, setAiChatWidth] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('kubuild_ai_chat_width');
-        if (saved) {
-          const parsed = parseInt(saved, 10);
-          if (!isNaN(parsed) && parsed >= MIN_AI_CHAT_WIDTH && parsed <= 700) return parsed;
-        }
-      } catch {}
-    }
-    return DEFAULT_AI_CHAT_WIDTH;
-  });
-
   useEffect(() => {
     try {
       localStorage.setItem('kubuild_left_sidebar_width', String(leftSidebarWidth));
@@ -296,11 +329,14 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     } catch {}
   }, [inspectorWidth]);
 
+  // The AI chat lives in the Inspector's AI tab; below `lg` the Inspector is a drawer, so an
+  // "ask AI" request (selection toolbar, toolbar toggle, mobile nav) opens the drawer too.
   useEffect(() => {
-    try {
-      localStorage.setItem('kubuild_ai_chat_width', String(aiChatWidth));
-    } catch {}
-  }, [aiChatWidth]);
+    if (aiChatFocusRequestId === 0) return;
+    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 1024px)').matches) {
+      setIsMobileInspectorOpen(true);
+    }
+  }, [aiChatFocusRequestId]);
 
   const defaultWidthForViewport = (vp: Viewport) => {
     if (vp === 'mobile') return 375;
@@ -481,7 +517,22 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     mobile: <Smartphone className="w-3.5 h-3.5" />,
   };
 
-  const resolvedConfig = useMemo(() => resolveEditorConfig(config), [config]);
+  const resolvedConfig = useMemo(
+    () => resolveEditorConfig(config, effectiveEditorMode),
+    [config, effectiveEditorMode],
+  );
+
+  const handleModeChange = useCallback(
+    (nextMode: EditorMode) => {
+      didSeedEditorMode.current = true;
+      setEditorMode(nextMode);
+      if (nextMode === 'simple' && viewport === 'tablet') {
+        setViewport('desktop');
+      }
+      onModeChange?.(nextMode);
+    },
+    [setEditorMode, viewport, setViewport, onModeChange],
+  );
   // `data-ai-enabled` lets tests confirm the prop stays opt-in; the AI Chat Panel (STORA-503)
   // and its toolbar toggle (STORA-504) are gated by `aiFeatureEnabled` below, not `enabled`
   // alone — a host can supply `provider` with every `features.*` flag left off, which must
@@ -577,34 +628,27 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     [triggerSave],
   );
 
-  // Seed the panel mode from config once at mount (STORA-503) — after that, the store's
-  // own toggle/setAiChatMode actions are the single source of truth.
-  const didSeedAiChatMode = React.useRef(false);
+  // Open the Inspector on its AI tab at mount when config asks for it (STORA-503) — after
+  // that, the store's own tab actions are the single source of truth.
+  const didSeedInspectorTab = React.useRef(false);
   // Intentionally mount-only: re-running this when `resolvedAiConfig` changes would fight
-  // the store's own setAiChatMode/toggleAiChat actions on every subsequent render.
+  // the store's own tab actions on every subsequent render.
   useEffect(() => {
-    if (didSeedAiChatMode.current) return;
-    didSeedAiChatMode.current = true;
-    setAiChatMode(resolvedAiConfig.defaultPanelMode);
+    if (didSeedInspectorTab.current) return;
+    didSeedInspectorTab.current = true;
+    if (aiFeatureEnabled && resolvedAiConfig.defaultPanelMode !== 'hidden') setInspectorTab('ai');
   }, []);
+
+  const availableViewports: Viewport[] = isSimpleMode
+    ? ['desktop', 'mobile']
+    : ['desktop', 'tablet', 'mobile'];
 
   const shell = (
     <div
       data-ai-enabled={resolvedAiConfig.enabled}
+      data-editor-mode={effectiveEditorMode}
       className={`flex flex-col h-full bg-slate-100 text-slate-900 relative overflow-hidden ${className || ''}`}
     >
-      {/* Floating AI Chat Panel (STORA-503) — never mounted when AI is fully disabled */}
-      {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'floating') && (
-        <AiChatPanel
-          aiConfig={resolvedAiConfig}
-          registry={registry}
-          mode="floating"
-          onDiagnostic={onDiagnostic}
-          onToggleMode={() => setAiChatMode('docked')}
-          onClose={() => setAiChatMode('hidden')}
-        />
-      )}
-
       {/* Floating Table Spreadsheet Editor */}
       {activeTable && tableSpreadsheetMode === 'floating' && (
         <TableSpreadsheetEditor
@@ -675,11 +719,16 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               <InspectorPanel
                 registry={registry}
                 config={resolvedConfig.inspector}
+                mode={effectiveEditorMode}
+                onModeChange={handleModeChange}
                 aiConfig={resolvedAiConfig}
+                onDiagnostic={onDiagnostic}
                 trackingCredentials={trackingCredentials}
                 onManageCredentials={onManageCredentials}
                 onSaveTrackingSecret={onSaveTrackingSecret}
                 trackingRelayUrl={trackingRelayUrl}
+                inheritedTrackingPixels={inheritedTrackingPixels}
+                inheritedTrackingPixelsLabel={inheritedTrackingPixelsLabel}
                 assetProvider={assetProvider}
               />
             </div>
@@ -718,18 +767,49 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
       {/* Editor Top Toolbar */}
       {resolvedConfig.toolbar.enabled && (
         <div className="flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 bg-white border-b border-slate-200 gap-2 overflow-x-auto min-h-[44px]">
-          {resolvedConfig.toolbar.showTitle ? (
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="font-bold text-slate-800 text-xs sm:text-sm tracking-tight">
-                KUBUILD Editor
-              </span>
-              <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border max-w-[120px] sm:max-w-[200px] truncate font-medium">
-                {document.metadata?.title || 'Untitled'}
-              </span>
-            </div>
-          ) : (
-            <div />
-          )}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {resolvedConfig.toolbar.showTitle && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-bold text-slate-800 text-xs sm:text-sm tracking-tight">
+                  KUBUILD Editor
+                </span>
+                <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border max-w-[120px] sm:max-w-[200px] truncate font-medium">
+                  {document.metadata?.title || 'Untitled'}
+                </span>
+              </div>
+            )}
+
+            {/* Simple | Advance Mode Switcher */}
+            {resolvedConfig.toolbar.showModeSwitcher && (
+              <div
+                data-testid="editor-mode-switcher"
+                role="group"
+                aria-label="Editor Mode"
+                className="flex items-center gap-0.5 bg-slate-100 p-0.5 sm:p-1 rounded-md text-xs border border-slate-200/80 shrink-0"
+              >
+                {(['simple', 'advance'] as const).map((m) => {
+                  const active = effectiveEditorMode === m;
+                  const label = m === 'simple' ? 'Simple' : 'Advance';
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      data-testid={`editor-mode-${m}`}
+                      aria-pressed={active}
+                      onClick={() => handleModeChange(m)}
+                      className={`px-2.5 py-1 rounded font-medium transition flex items-center gap-1 text-[11px] sm:text-xs cursor-pointer ${
+                        active
+                          ? 'bg-white text-blue-600 shadow-xs font-semibold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {templates && templates.length > 0 && (
@@ -750,12 +830,14 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               onManageCredentials={onManageCredentials}
               onSaveTrackingSecret={onSaveTrackingSecret}
               trackingRelayUrl={trackingRelayUrl}
+              inheritedTrackingPixels={inheritedTrackingPixels}
+              inheritedTrackingPixelsLabel={inheritedTrackingPixelsLabel}
             />
 
             {/* Viewport switcher */}
             {resolvedConfig.toolbar.showViewportSwitcher && (
               <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 sm:p-1 rounded-md text-xs border border-slate-200/80">
-                {(['desktop', 'tablet', 'mobile'] as Viewport[]).map((vp) => (
+                {availableViewports.map((vp) => (
                   <button
                     key={vp}
                     type="button"
@@ -774,21 +856,25 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
                     <span className="hidden md:inline">{vp}</span>
                   </button>
                 ))}
-                <div className="w-[1px] h-3.5 bg-slate-300 mx-0.5" />
-                <button
-                  type="button"
-                  data-testid="multi-device-toolbar-toggle"
-                  onClick={toggleMultiDeviceMode}
-                  title={multiDeviceMode ? 'Exit Multi-Device Preview' : 'Side-by-Side Multi-Device Preview (STORA-143)'}
-                  className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded font-medium transition flex items-center gap-1 text-[11px] sm:text-xs cursor-pointer ${
-                    multiDeviceMode
-                      ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Columns3 className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Multi-Device</span>
-                </button>
+                {!isSimpleMode && (
+                  <>
+                    <div className="w-[1px] h-3.5 bg-slate-300 mx-0.5" />
+                    <button
+                      type="button"
+                      data-testid="multi-device-toolbar-toggle"
+                      onClick={toggleMultiDeviceMode}
+                      title={multiDeviceMode ? 'Exit Multi-Device Preview' : 'Side-by-Side Multi-Device Preview (STORA-143)'}
+                      className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded font-medium transition flex items-center gap-1 text-[11px] sm:text-xs cursor-pointer ${
+                        multiDeviceMode
+                          ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Columns3 className="w-3.5 h-3.5" />
+                      <span className="hidden md:inline">Multi-Device</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -853,6 +939,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               viewport={viewport}
               onDiagnostic={onDiagnostic}
               config={resolvedConfig.canvas}
+              mode={effectiveEditorMode}
               fluidWidth={fluidWidth}
               onFluidWidthChange={setFluidWidth}
               onBreakpointChange={(bp) => setViewport(bp)}
@@ -860,6 +947,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               activePageId={effectiveActivePageId}
               onActivePageChange={handleActivePageChange}
               onPagesChange={handlePagesChange}
+              aiEnabled={aiFeatureEnabled}
               className="flex-1 min-h-0"
             />
           )}
@@ -944,51 +1032,22 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               <InspectorPanel
                 registry={registry}
                 config={resolvedConfig.inspector}
+                mode={effectiveEditorMode}
+                onModeChange={handleModeChange}
                 aiConfig={resolvedAiConfig}
+                onDiagnostic={onDiagnostic}
                 trackingCredentials={trackingCredentials}
                 onManageCredentials={onManageCredentials}
                 onSaveTrackingSecret={onSaveTrackingSecret}
                 trackingRelayUrl={trackingRelayUrl}
+                inheritedTrackingPixels={inheritedTrackingPixels}
+                inheritedTrackingPixelsLabel={inheritedTrackingPixelsLabel}
                 assetProvider={assetProvider}
               />
             </div>
           </>
         )}
 
-        {/* Docked AI Chat Panel (STORA-503) — an additional sibling column, sized like the
-            other docked panels, so it never shrinks/shifts Sidebar/Navigator/Inspector. */}
-        {shouldRenderAiChatPanel(aiFeatureEnabled, aiChatMode, 'docked') && (
-          <>
-            <PanelResizeHandle
-              side="left"
-              onResize={(dx) =>
-                setAiChatWidth((w) =>
-                  Math.min(
-                    Math.max(MIN_AI_CHAT_WIDTH, w - dx),
-                    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.45) : 600,
-                  ),
-                )
-              }
-              onDoubleClick={() => setAiChatWidth(DEFAULT_AI_CHAT_WIDTH)}
-              ariaLabel="Resize AI Chat Panel"
-              title="Drag to resize AI chat panel width (Double click to reset)"
-              className="hidden lg:flex"
-            />
-            <div
-              style={{ width: `${aiChatWidth}px` }}
-              className="hidden lg:flex shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full"
-            >
-              <AiChatPanel
-                aiConfig={resolvedAiConfig}
-                registry={registry}
-                mode="docked"
-                onDiagnostic={onDiagnostic}
-                onToggleMode={() => setAiChatMode('floating')}
-                onClose={() => setAiChatMode('hidden')}
-              />
-            </div>
-          </>
-        )}
       </div>
 
       {/* Mobile Bottom Navigation Bar (Visible only on < lg screens) */}
@@ -1004,14 +1063,16 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => setIsMobileLayersOpen(true)}
-          className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-md text-slate-600 hover:text-blue-600 hover:bg-slate-50 active:bg-slate-100 transition"
-        >
-          <Layers className="w-4 h-4" />
-          <span className="text-[10px] font-medium">Layers</span>
-        </button>
+        {resolvedConfig.sidebar.availableTabs.includes('layers') && (
+          <button
+            type="button"
+            onClick={() => setIsMobileLayersOpen(true)}
+            className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-md text-slate-600 hover:text-blue-600 hover:bg-slate-50 active:bg-slate-100 transition"
+          >
+            <Layers className="w-4 h-4" />
+            <span className="text-[10px] font-medium">Layers</span>
+          </button>
+        )}
 
         {resolvedConfig.inspector.enabled && (
           <button
@@ -1030,6 +1091,24 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               )}
             </div>
             <span className="text-[10px]">{selectedNodeId ? 'Inspect *' : 'Inspect'}</span>
+          </button>
+        )}
+
+        {aiFeatureEnabled && resolvedConfig.toolbar.showAiChatToggle !== false && (
+          <button
+            type="button"
+            data-testid="mobile-ai-chat-toggle"
+            aria-pressed={isMobileInspectorOpen && inspectorTab === 'ai'}
+            // Opens the Inspector drawer on its AI tab (see the aiChatFocusRequestId effect).
+            onClick={askAiAboutSelection}
+            className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-md transition ${
+              isMobileInspectorOpen && inspectorTab === 'ai'
+                ? 'text-violet-600 font-semibold'
+                : 'text-slate-600 hover:text-violet-600 hover:bg-slate-50'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-violet-600" />
+            <span className="text-[10px] font-medium">AI</span>
           </button>
         )}
 

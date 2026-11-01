@@ -45,11 +45,11 @@ const LEGACY_CHILDREN: Node[] = [
 ];
 
 describe('STORA-550: canonical text prop migration (1.1.0 -> 1.2.0)', () => {
-  it('bumps CURRENT_SCHEMA_VERSION to 1.2.0 with a registered 1.1.0 -> 1.2.0 step', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe('1.2.0');
+  it('registers a 1.1.0 -> 1.2.0 step on the way to the current version', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe('1.3.0');
     const result = migrateDocument(legacyDoc([]));
     expect(result.success).toBe(true);
-    expect(result.diagnostic.migrationPath).toEqual(['1.1.0', '1.2.0']);
+    expect(result.diagnostic.migrationPath).toEqual(['1.1.0', '1.2.0', '1.3.0']);
   });
 
   it('dry-run reports the path and the would-be renames without producing a document', () => {
@@ -60,7 +60,7 @@ describe('STORA-550: canonical text prop migration (1.1.0 -> 1.2.0)', () => {
     expect(result.success).toBe(true);
     expect(result.document).toBeUndefined();
     expect(result.diagnostic.dryRun).toBe(true);
-    expect(result.diagnostic.stepsApplied).toBe(1);
+    expect(result.diagnostic.stepsApplied).toBe(2);
     const warning = result.diagnostic.warnings?.find((w) => w.code === 'PROP_ALIAS_MIGRATED');
     expect(warning?.step).toBe('1.1.0->1.2.0');
     expect(warning?.paths).toContain('document.children.0.props.content');
@@ -71,7 +71,7 @@ describe('STORA-550: canonical text prop migration (1.1.0 -> 1.2.0)', () => {
     const result = migrateDocument(legacyDoc(LEGACY_CHILDREN));
     expect(result.success).toBe(true);
     const doc = result.document!;
-    expect(doc.version).toBe('1.2.0');
+    expect(doc.version).toBe(CURRENT_SCHEMA_VERSION);
     const props = (id: string) => findNodeById(doc.document, id)?.props;
 
     expect(props('p1')).toEqual({ text: 'Para' });
@@ -97,7 +97,7 @@ describe('STORA-550: canonical text prop migration (1.1.0 -> 1.2.0)', () => {
       legacyDoc([{ id: 'p1', type: 'paragraph', props: { content: 'Old' } }], '1.0.0'),
     );
     expect(result.success).toBe(true);
-    expect(result.diagnostic.migrationPath).toEqual(['1.0.0', '1.1.0', '1.2.0']);
+    expect(result.diagnostic.migrationPath).toEqual(['1.0.0', '1.1.0', '1.2.0', '1.3.0']);
     expect(findNodeById(result.document!.document, 'p1')?.props).toEqual({ text: 'Old' });
   });
 
@@ -124,7 +124,7 @@ describe('STORA-550: canonical text prop migration (1.1.0 -> 1.2.0)', () => {
     });
     expect(result.success).toBe(true);
     const artboardDoc = result.project!.artboards[0].document;
-    expect(artboardDoc.version).toBe('1.2.0');
+    expect(artboardDoc.version).toBe(CURRENT_SCHEMA_VERSION);
     expect(findNodeById(artboardDoc.document, 'p1')?.props).toEqual({ text: 'In project' });
   });
 });

@@ -1,5 +1,7 @@
 import { LEGACY_TRACKING_SECRET_KEYS, type TrackingProviderType } from '@kubuild/schema';
 
+const ALL_SECRET_KEYS = [...new Set(Object.values(LEGACY_TRACKING_SECRET_KEYS).flat())];
+
 /**
  * Removes host-owned secret / destination fields (e.g. Meta `capiAccessToken`, TikTok
  * `accessToken`, GA4 `measurementProtocolSecret`, `serverRelayUrl`, custom `endpointUrl` /
@@ -11,6 +13,20 @@ import { LEGACY_TRACKING_SECRET_KEYS, type TrackingProviderType } from '@kubuild
 export function stripTrackingSecretsInPlace(tracking: unknown, basePath = 'tracking'): string[] {
   const removed: string[] = [];
   if (!tracking || typeof tracking !== 'object' || Array.isArray(tracking)) return removed;
+
+  // 1.3.0 pixel entries: no secret field is ever valid on a pixel, whatever its provider.
+  const pixels = (tracking as Record<string, unknown>).pixels;
+  if (Array.isArray(pixels)) {
+    pixels.forEach((pixel, index) => {
+      if (!pixel || typeof pixel !== 'object' || Array.isArray(pixel)) return;
+      for (const key of ALL_SECRET_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(pixel, key)) {
+          delete (pixel as Record<string, unknown>)[key];
+          removed.push(`${basePath}.pixels.${index}.${key}`);
+        }
+      }
+    });
+  }
 
   const providers = (tracking as Record<string, unknown>).providers;
   if (!providers || typeof providers !== 'object' || Array.isArray(providers)) return removed;

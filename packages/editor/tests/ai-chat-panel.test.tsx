@@ -9,7 +9,6 @@ import { KubuildEditor } from '../src/components/layout/editor';
 import {
   resolveAiEditorConfig,
   isAnyAiFeatureEnabled,
-  shouldRenderAiChatPanel,
 } from '../src/config';
 import {
   AiChatPanel,
@@ -35,7 +34,7 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
     const doc = createBlankDocument('AI Chat Panel Test');
     useEditorStore.getState().setDocument(doc);
     useEditorStore.getState().selectNode(null);
-    useEditorStore.getState().setAiChatMode('hidden');
+    useEditorStore.getState().setInspectorTab('style');
   });
 
   describe('isAnyAiFeatureEnabled', () => {
@@ -56,35 +55,6 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
     });
   });
 
-  describe('shouldRenderAiChatPanel (STORA-503 docked/floating/hidden gating)', () => {
-    // Zustand v5's SSR snapshot (`getServerSnapshot` → `store.getInitialState()`) always
-    // reflects the store's state *at module creation*, never a mutation applied right before
-    // a `renderToString` call in tests — so the docked/floating/hidden gate that reads
-    // `aiChatMode` from the store inside `KubuildEditor` is verified here as pure boolean
-    // logic instead of through a full-editor SSR render.
-    it('never renders (either slot) when AI features are disabled, regardless of aiChatMode', () => {
-      expect(shouldRenderAiChatPanel(false, 'docked', 'docked')).toBe(false);
-      expect(shouldRenderAiChatPanel(false, 'floating', 'floating')).toBe(false);
-    });
-
-    it('renders the docked slot only when aiChatMode is docked', () => {
-      expect(shouldRenderAiChatPanel(true, 'docked', 'docked')).toBe(true);
-      expect(shouldRenderAiChatPanel(true, 'floating', 'docked')).toBe(false);
-      expect(shouldRenderAiChatPanel(true, 'hidden', 'docked')).toBe(false);
-    });
-
-    it('renders the floating slot only when aiChatMode is floating', () => {
-      expect(shouldRenderAiChatPanel(true, 'floating', 'floating')).toBe(true);
-      expect(shouldRenderAiChatPanel(true, 'docked', 'floating')).toBe(false);
-      expect(shouldRenderAiChatPanel(true, 'hidden', 'floating')).toBe(false);
-    });
-
-    it('never renders either slot when aiChatMode is hidden', () => {
-      expect(shouldRenderAiChatPanel(true, 'hidden', 'docked')).toBe(false);
-      expect(shouldRenderAiChatPanel(true, 'hidden', 'floating')).toBe(false);
-    });
-  });
-
   describe('mode rendering: docked | floating | hidden', () => {
     it('renders a fixed-position floating shell in floating mode', () => {
       const html = renderToString(<AiChatPanel aiConfig={enabledConfig} mode="floating" />);
@@ -100,6 +70,12 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
       expect(html).not.toContain('fixed bottom-4 right-4');
     });
 
+    it('drops the header bar when showHeader is false (the Inspector tab already labels it)', () => {
+      const html = renderToString(<AiChatPanel aiConfig={enabledConfig} mode="docked" showHeader={false} />);
+      expect(html).toContain('data-testid="ai-chat-panel"');
+      expect(html).not.toContain('data-testid="ai-chat-header"');
+    });
+
     it('renders draggable header with touch-none and grab cursor in floating mode', () => {
       const floatingHtml = renderToString(<AiChatPanel aiConfig={enabledConfig} mode="floating" />);
       expect(floatingHtml).toContain('data-testid="ai-chat-header"');
@@ -113,7 +89,7 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
       expect(dockedHtml).not.toContain('touch-none');
     });
 
-    it("'hidden' mode is the caller's responsibility: KubuildEditor renders zero ai-chat-panel nodes by default (store's true initial aiChatMode is 'hidden')", () => {
+    it('KubuildEditor renders zero ai-chat-panel nodes by default (the Inspector starts on its Style tab)', () => {
       const html = renderToString(
         <KubuildEditor
           registry={registry}
@@ -136,6 +112,48 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
         <KubuildEditor registry={registry} ai={{ provider: fakeAdapter }} />,
       );
       expect(html).not.toContain('data-testid="ai-chat-panel"');
+    });
+  });
+
+  describe('image attachments', () => {
+    const uploadingProvider = {
+      resolve: (uri: string) => uri,
+      upload: async () => ({ id: 'a', url: 'https://cdn.example.com/a.png', mimeType: 'image/png' }),
+    };
+
+    it('shows the attach-image button when the asset provider can upload', () => {
+      const html = renderToString(
+        <AiChatPanel aiConfig={enabledConfig} mode="docked" assetProvider={uploadingProvider} />,
+      );
+      expect(html).toContain('data-testid="ai-chat-attach-image"');
+    });
+
+    it('hides it without an asset provider, or one that cannot upload', () => {
+      expect(renderToString(<AiChatPanel aiConfig={enabledConfig} mode="docked" />)).not.toContain(
+        'data-testid="ai-chat-attach-image"',
+      );
+      expect(
+        renderToString(
+          <AiChatPanel aiConfig={enabledConfig} mode="docked" assetProvider={{ resolve: (uri: string) => uri }} />,
+        ),
+      ).not.toContain('data-testid="ai-chat-attach-image"');
+    });
+
+    it('renders the images attached to a message bubble', () => {
+      const html = renderToString(
+        <AiChatBubble
+          message={{
+            role: 'user',
+            content: [
+              { type: 'text', text: 'make it like this' },
+              { type: 'image', url: 'https://cdn.example.com/ref.png' },
+            ],
+          }}
+        />,
+      );
+      expect(html).toContain('data-testid="ai-chat-bubble-images"');
+      expect(html).toContain('src="https://cdn.example.com/ref.png"');
+      expect(html).toContain('make it like this');
     });
   });
 

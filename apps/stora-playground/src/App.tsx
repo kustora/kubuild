@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   KubuildEditor,
   EditorHandle,
+  EditorMode,
   TemplatePicker,
   ImportModal,
   downloadDocumentAsStora,
@@ -154,9 +155,27 @@ export function App() {
   const [pages, setPages] = useState<ProjectPage[]>(INITIAL_PAGES);
   const [activePageId, setActivePageId] = useState<string>('page-home');
   const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'json'>('editor');
+  const [editorMode, setEditorMode] = useState<EditorMode>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kubuild_editor_mode');
+        if (saved === 'simple' || saved === 'advance') return saved;
+      } catch {}
+    }
+    return 'simple';
+  });
   const [previewViewport, setPreviewViewport] = useState<ViewportDevice>(() =>
     isMobileClient ? 'mobile' : 'desktop',
   );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kubuild_editor_mode', editorMode);
+    } catch {}
+    if (editorMode === 'simple' && activeTab === 'json') {
+      setActiveTab('editor');
+    }
+  }, [editorMode, activeTab]);
   const [isImportOpen, setIsImportOpen] = useState<boolean>(false);
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState<boolean>(false);
   const [isMobileActionsOpen, setIsMobileActionsOpen] = useState<boolean>(false);
@@ -509,40 +528,44 @@ export function App() {
               <Plus className="w-3.5 h-3.5" />
               Add Page
             </button>
-            <button
-              type="button"
-              onClick={() => setIsImportOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
-              title="Import .stora package"
-            >
-              <Upload className="w-3.5 h-3.5 text-blue-400" />
-              Import
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await downloadDocumentAsStora(activePage.document, undefined, {
-                    componentRegistry: registry,
-                  });
-                } catch (e: unknown) {
-                  alert(e instanceof Error ? e.message : String(e));
-                }
-              }}
-              className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition"
-              title="Export active page as .stora archive"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export .stora
-            </button>
-            <button
-              type="button"
-              onClick={() => downloadDocumentAsJson(activePage.document)}
-              className="px-2.5 py-1 rounded text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
-              title="Export active page as JSON"
-            >
-              JSON
-            </button>
+            {editorMode === 'advance' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsImportOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
+                  title="Import .stora package"
+                >
+                  <Upload className="w-3.5 h-3.5 text-blue-400" />
+                  Import
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await downloadDocumentAsStora(activePage.document, undefined, {
+                        componentRegistry: registry,
+                      });
+                    } catch (e: unknown) {
+                      alert(e instanceof Error ? e.message : String(e));
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition"
+                  title="Export active page as .stora archive"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export .stora
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadDocumentAsJson(activePage.document)}
+                  className="px-2.5 py-1 rounded text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
+                  title="Export active page as JSON"
+                >
+                  JSON
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile Actions Dropdown Trigger */}
@@ -572,45 +595,49 @@ export function App() {
                   <Plus className="w-3.5 h-3.5 text-emerald-400" />
                   Add New Page
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMobileActionsOpen(false);
-                    setIsImportOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
-                >
-                  <Upload className="w-3.5 h-3.5 text-blue-400" />
-                  Import .stora
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setIsMobileActionsOpen(false);
-                    try {
-                      await downloadDocumentAsStora(activePage.document, undefined, {
-                        componentRegistry: registry,
-                      });
-                    } catch (e: unknown) {
-                      alert(e instanceof Error ? e.message : String(e));
-                    }
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
-                >
-                  <Download className="w-3.5 h-3.5 text-blue-400" />
-                  Export .stora
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMobileActionsOpen(false);
-                    downloadDocumentAsJson(activePage.document);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
-                >
-                  <FileText className="w-3.5 h-3.5 text-slate-400" />
-                  Download JSON
-                </button>
+                {editorMode === 'advance' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileActionsOpen(false);
+                        setIsImportOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-blue-400" />
+                      Import .stora
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsMobileActionsOpen(false);
+                        try {
+                          await downloadDocumentAsStora(activePage.document, undefined, {
+                            componentRegistry: registry,
+                          });
+                        } catch (e: unknown) {
+                          alert(e instanceof Error ? e.message : String(e));
+                        }
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                    >
+                      <Download className="w-3.5 h-3.5 text-blue-400" />
+                      Export .stora
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileActionsOpen(false);
+                        downloadDocumentAsJson(activePage.document);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-slate-400" />
+                      Download JSON
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -643,19 +670,21 @@ export function App() {
               <Eye className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Preview</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('json')}
-              title="Document Tree"
-              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-medium transition ${
-                activeTab === 'json'
-                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">JSON</span>
-            </button>
+            {editorMode === 'advance' && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('json')}
+                title="Document Tree"
+                className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-medium transition ${
+                  activeTab === 'json'
+                    ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Code2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">JSON</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -788,6 +817,8 @@ export function App() {
         {activeTab === 'editor' && (
           <KubuildEditor
             ref={editorRef}
+            mode={editorMode}
+            onModeChange={setEditorMode}
             blocks={HOST_BLOCKS}
             templates={PLAYGROUND_TEMPLATES}
             onSave={handleSave}

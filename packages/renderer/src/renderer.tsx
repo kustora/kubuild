@@ -30,6 +30,7 @@ import { ToastContainer } from './action-runners/toast-container.js';
 import { useModal, modalManager, type ModalManager } from './action-runners/index.js';
 import { executeNodeActions, useNodeLoadActions } from './action-dispatcher.js';
 import { injectTrackingScripts } from './tracking/tracking-manager.js';
+import { resolveTrackingConfig } from '@kubuild/core';
 import { isLegacyActionResolvable } from './legacy-actions.js';
 
 // Re-export all nodes and media utilities for backward compatibility
@@ -441,17 +442,19 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
     [document, context],
   );
 
-  // Stable string key derived from the tracking config — avoids re-injecting on every render
-  // because each deserialized JSON parse produces a new object reference even if content is unchanged.
-  const trackingKey = React.useMemo(
-    () => (document?.tracking ? JSON.stringify(document.tracking) : null),
-    [document?.tracking],
-  );
+  // The document's tracking (or the legacy metadata location) merged with the pixels the host
+  // applies (`context.tracking.inheritedPixels`). Keyed by its JSON so a re-parsed but equal
+  // config doesn't re-inject on every render.
+  const documentTracking = document?.tracking ?? document?.metadata?.tracking;
+  const inheritedPixels = context?.tracking?.inheritedPixels;
+  const trackingKey = React.useMemo(() => {
+    if (!documentTracking && !inheritedPixels?.length) return null;
+    return JSON.stringify(resolveTrackingConfig(documentTracking, inheritedPixels));
+  }, [documentTracking, inheritedPixels]);
 
   React.useEffect(() => {
-    if (mode === 'runtime' && document?.tracking && trackingKey) {
-      const cleanup = injectTrackingScripts(document.tracking);
-      return cleanup;
+    if (mode === 'runtime' && trackingKey) {
+      return injectTrackingScripts(JSON.parse(trackingKey));
     }
   // trackingKey is a stable string — safe to use instead of the object reference
   }, [mode, trackingKey]);

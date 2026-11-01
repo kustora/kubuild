@@ -34,7 +34,11 @@ export interface AiEditorConfig {
      */
     agent?: boolean;
   };
-  /** Default panel mode when the editor first mounts. Default: `'hidden'`. */
+  /**
+   * Whether the Inspector opens on its AI tab when the editor first mounts: `'docked'` or
+   * `'floating'` open it there (the chat now always lives in the Inspector's AI tab, so the
+   * two are equivalent), `'hidden'` leaves the Inspector on its Style tab. Default: `'hidden'`.
+   */
   defaultPanelMode?: 'docked' | 'floating' | 'hidden';
   /** Extra host-specific system prompt prefix (branding, tone, etc). */
   systemPromptPrefix?: string;
@@ -108,28 +112,4 @@ export function isAnyAiFeatureEnabled(resolved: ResolvedAiEditorConfig): boolean
       resolved.features.enhance ||
       resolved.features.agent)
   );
-}
-
-/**
- * Pure gating logic (STORA-503) for whether `KubuildEditor` should mount the AI Chat Panel
- * in a given layout slot (`'docked'` or `'floating'`). Factored out of the JSX conditional
- * in `editor.tsx` so it has a single, directly-unit-testable source of truth — the panel
- * mode itself lives in Zustand store state, which `react-dom/server`'s SSR snapshot
- * (`getServerSnapshot` → `store.getInitialState()`) can't reflect post-mutation in tests,
- * so this function is exercised with plain boolean/string inputs instead.
- */
-export function shouldRenderAiChatPanel(
-  aiFeatureEnabled: boolean,
-  aiChatMode: 'docked' | 'floating' | 'hidden',
-  targetMode: 'docked' | 'floating',
-): boolean {
-  return aiFeatureEnabled && aiChatMode === targetMode;
-}
-
-/**
- * Whether the AI Chat toolbar toggle (STORA-504) should render in its "active/highlighted"
- * visual state — i.e. the panel is open in some form (docked or floating), not hidden.
- */
-export function isAiChatPanelActive(aiChatMode: 'docked' | 'floating' | 'hidden'): boolean {
-  return aiChatMode !== 'hidden';
 }

@@ -1,10 +1,27 @@
 import type {
+  AiImageBlock,
   AiProviderAdapter,
   AiProviderGenerateParams,
   AiProviderGenerateResult,
 } from '../../types.js';
 import { readSseDataLines } from './stream-utils.js';
-import { getMessageText } from '../../core/messages.js';
+import { getImageBlocks, getMessagePromptText } from '../../core/messages.js';
+
+type AnthropicContent =
+  | string
+  | Array<
+      | { type: 'text'; text: string }
+      | { type: 'image'; source: { type: 'url'; url: string } }
+    >;
+
+/** A user turn's text followed by its images, in Anthropic's content-block format. */
+function withImageBlocks(text: string, images: readonly AiImageBlock[]): AnthropicContent {
+  if (images.length === 0) return text;
+  return [
+    { type: 'text', text },
+    ...images.map((img) => ({ type: 'image' as const, source: { type: 'url' as const, url: img.url } })),
+  ];
+}
 
 export interface AnthropicAdapterOptions {
   apiKey: string;
@@ -41,16 +58,22 @@ export class AnthropicAdapter implements AiProviderAdapter {
 
   private buildMessages(
     params: AiProviderGenerateParams,
-  ): Array<{ role: 'user' | 'assistant'; content: string }> {
+  ): Array<{ role: 'user' | 'assistant'; content: AnthropicContent }> {
     const { userPrompt, messages: chatMessages } = params;
     return chatMessages && chatMessages.length > 0
       ? chatMessages
           .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({ role: m.role as 'user' | 'assistant', content: getMessageText(m) }))
+          .map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            content:
+              m.role === 'user'
+                ? withImageBlocks(getMessagePromptText(m), getImageBlocks(m))
+                : getMessagePromptText(m),
+          }))
       : [
           {
             role: 'user' as const,
-            content: userPrompt,
+            content: withImageBlocks(userPrompt, params.images ?? []),
           },
         ];
   }

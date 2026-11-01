@@ -94,3 +94,52 @@ describe('KubuildAiClient', () => {
     );
   });
 });
+
+describe('KubuildAiClient.runAgent — dropped stream', () => {
+  it('reports streamed ops through onToolResult before the connection fails', async () => {
+    const { createAiClient } = await import('../src/client/ai-client');
+    const op = {
+      id: 'c1',
+      op: { kind: 'update-props', nodeId: 'cta-btn', props: { label: 'Baru' }, merge: true },
+      summary: 'Update props',
+      destructive: false,
+    };
+    const encoder = new TextEncoder();
+    let pulls = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        // First pull delivers a frame; the next one fails, like a proxy dropping the
+        // connection mid-run.
+        if (pulls++ > 0) {
+          controller.error(new TypeError('network error'));
+          return;
+        }
+        controller.enqueue(
+          encoder.encode(
+            `event: tool-result\ndata: ${JSON.stringify({
+              type: 'tool-result',
+              id: 'c1',
+              name: 'update_node_props',
+              ok: true,
+              summary: 'Update props',
+              op,
+            })}\n\n`,
+          ),
+        );
+      },
+    });
+    const client = createAiClient({
+      endpoint: '/ai',
+      fetch: (async () => new Response(body, { status: 200 })) as typeof fetch,
+    });
+
+    const received: unknown[] = [];
+    await expect(
+      client.runAgent(
+        { messages: [{ role: 'user', content: 'x' }], document: {} as never },
+        { onToolResult: (result) => received.push(result.op) },
+      ),
+    ).rejects.toThrow('network error');
+    expect(received).toEqual([op]);
+  });
+});

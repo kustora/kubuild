@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { PageDocument } from '@kubuild/schema';
-import { findNodeById, type Diagnostic } from '@kubuild/core';
+import { findNodeById, type AssetProvider, type Diagnostic } from '@kubuild/core';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
 import { useAiChat, useAiGenerator, useAiAgent } from '@kubuild/ai/react';
 import type { AiChatHistoryStorageAdapter } from '@kubuild/ai/react';
-import { getMessageText, type AiChatMessage, type AgentOpRecord, type PagePlan } from '@kubuild/ai';
+import {
+  buildUserContent,
+  getImageBlocks,
+  getMessageText,
+  type AiChatMessage,
+  type AiImageBlock,
+  type AgentOpRecord,
+  type PagePlan,
+} from '@kubuild/ai';
 import type { AiClientOptions } from '@kubuild/ai/client';
 import { useEditorStore } from '../../store/index.js';
 import { useTranslation } from '../../i18n/index.js';
@@ -36,6 +44,7 @@ import {
   GripVertical,
   CircleSlash,
   ChevronDown,
+  ImagePlus,
 } from 'lucide-react';
 
 export interface AiChatPanelProps {
@@ -43,6 +52,13 @@ export interface AiChatPanelProps {
   aiConfig: ResolvedAiEditorConfig;
   /** `'hidden'` is handled by the caller not mounting this component at all. */
   mode: 'docked' | 'floating';
+  /** Hide the "AI Assistant" header bar, e.g. when a host tab already labels the panel. Default: shown. */
+  showHeader?: boolean;
+  /**
+   * Host asset provider. When it can `upload`, the chat gets an attach-image button: files
+   * are uploaded through it and sent to the AI as hosted image URLs.
+   */
+  assetProvider?: AssetProvider;
   onClose?: () => void;
   onToggleMode?: () => void;
   className?: string;
@@ -141,6 +157,8 @@ export function AiChatTypingIndicator() {
 /** Exported for isolated unit testing (STORA-505) — a single user/assistant chat bubble. */
 export function AiChatBubble({ message }: { message: AiChatMessage }) {
   const isUser = message.role === 'user';
+  const images = getImageBlocks(message);
+  const text = getMessageText(message);
   return (
     <div
       data-testid="ai-chat-bubble"
@@ -161,10 +179,49 @@ export function AiChatBubble({ message }: { message: AiChatMessage }) {
             : 'bg-slate-100 text-slate-800 rounded-bl-sm'
         }`}
       >
-        {getMessageText(message)}
+        {images.length > 0 && (
+          <div className={`flex flex-wrap gap-1 ${text ? 'mb-1.5' : ''}`} data-testid="ai-chat-bubble-images">
+            {images.map((img) => (
+              <a key={img.url} href={img.url} target="_blank" rel="noopener noreferrer">
+                <img src={img.url} alt="" className="w-16 h-16 object-cover rounded-md bg-white/20" />
+              </a>
+            ))}
+          </div>
+        )}
+        {text}
       </div>
     </div>
   );
+}
+
+/** Most images one message may carry — matches `@kubuild/ai`'s per-message cap. */
+const MAX_CHAT_IMAGES = 4;
+
+interface ChatAttachment {
+  id: string;
+  status: 'uploading' | 'ready';
+  /** Local object URL for the thumbnail, revoked once the attachment is sent or removed. */
+  previewUrl: string;
+  /** Hosted URL from the asset provider, set once the upload finishes. */
+  url?: string;
+  mimeType: string;
+}
+
+/** An agent instruction that failed partway, plus the summaries of what already landed. */
+interface AgentResumeState {
+  instruction: string;
+  images?: AiImageBlock[];
+  done: string[];
+}
+
+/** Model-facing, so kept in English regardless of UI locale — the model replies in the user's language anyway. */
+const AGENT_RESUME_INSTRUCTION =
+  'The previous run was interrupted before it finished. The page you see now already contains the changes listed in your last message. Continue the original instruction from where it stopped: do only the remaining work and do not redo or duplicate any of those changes.';
+
+function formatAgentProgress(done: string[]): string {
+  return `Progress before the connection dropped — these changes are already applied to the page:\n${done
+    .map((summary) => `- ${summary}`)
+    .join('\n')}`;
 }
 
 /**
@@ -174,9 +231,12 @@ export function AiChatBubble({ message }: { message: AiChatMessage }) {
 export function AiChatErrorBubble({
   message,
   onRetry,
+  retryLabel,
 }: {
   message: string;
   onRetry: () => void;
+  /** Overrides the default "Retry" label, e.g. "Continue" for a resumable agent run. */
+  retryLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -195,7 +255,7 @@ export function AiChatErrorBubble({
           className="self-start flex items-center gap-1 text-[11px] font-semibold text-red-700 hover:text-red-900 underline"
         >
           <RotateCw className="w-3 h-3" />
-          {t.aiChat.retry}
+          {retryLabel ?? t.aiChat.retry}
         </button>
       </div>
     </div>
@@ -205,6 +265,8 @@ export function AiChatErrorBubble({
 export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   aiConfig,
   mode,
+  showHeader = true,
+  assetProvider,
   onClose,
   onToggleMode,
   className,
@@ -288,6 +350,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     isRunning: isAgentRunning,
     step: agentStep,
     maxSteps: agentMaxSteps,
+    progress: agentProgress,
     timeline: agentTimeline,
     ops: agentOps,
     summary: agentSummary,
@@ -304,7 +367,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     return 'chat';
   });
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
-  const [pendingPlan, setPendingPlan] = useState<{ plan: PagePlan; prompt: string } | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<{ plan: PagePlan; prompt: string; images?: AiImageBlock[] } | null>(null);
   const [isPlanning, setIsPlanning] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   // Planning shares `useAiGenerator`'s busy flag, so it must not read as "enhancing".
@@ -319,6 +382,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generateSummary, setGenerateSummary] = useState<string | null>(null);
   const [lastGeneratePrompt, setLastGeneratePrompt] = useState('');
+  const [lastGenerateImages, setLastGenerateImages] = useState<AiImageBlock[] | undefined>(undefined);
   // STORA-513 — the validated enhance candidate awaiting Apply/Discard. Purely local
   // component state: nothing here has touched the document or the command engine yet.
   const [candidate, setCandidate] = useState<EnhanceCandidate | null>(null);
@@ -329,6 +393,21 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const [agentError, setAgentError] = useState<string | null>(null);
   const [agentApplied, setAgentApplied] = useState<string | null>(null);
   const [lastAgentInstruction, setLastAgentInstruction] = useState('');
+  const [lastAgentImages, setLastAgentImages] = useState<AiImageBlock[] | undefined>(undefined);
+  /**
+   * Images attached to the message being composed. Each uploads through the host asset
+   * provider as soon as it's picked; `previewUrl` is a local object URL shown meanwhile.
+   */
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canAttachImages = !!assetProvider?.upload;
+  const isUploadingImage = attachments.some((a) => a.status === 'uploading');
+  /**
+   * Set when an agent run ends in an error. `done` lists the summaries of ops from the
+   * failed run(s) that actually landed on the canvas, so Retry continues from the current
+   * document instead of redoing — and duplicating — work that is already applied.
+   */
+  const [agentResume, setAgentResume] = useState<AgentResumeState | null>(null);
   /**
    * Auto-apply is opt-in and never covers destructive ops — see
    * `partitionAutoApplicableOps`. Losing content to an agent that misread an instruction
@@ -486,7 +565,58 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const canGeneratePage =
     aiConfig.features.generate && !isLoading && !isAiGeneratorBusy && !!inputValue.trim();
 
-  const doSend = (content: string) => {
+  // Object URLs only live as long as the panel; release any still held on unmount.
+  const attachmentsRef = useRef(attachments);
+  attachmentsRef.current = attachments;
+  useEffect(
+    () => () => attachmentsRef.current.forEach((a) => URL.revokeObjectURL(a.previewUrl)),
+    [],
+  );
+
+  const handleAttachFiles = (files: FileList | File[]) => {
+    if (!assetProvider?.upload) return;
+    const room = MAX_CHAT_IMAGES - attachments.length;
+    const picked = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (picked.length > room) setLocalError(tr.imageLimit(MAX_CHAT_IMAGES));
+    for (const file of picked.slice(0, Math.max(0, room))) {
+      const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const previewUrl = URL.createObjectURL(file);
+      setAttachments((prev) => [...prev, { id, status: 'uploading', previewUrl, mimeType: file.type }]);
+      assetProvider
+        .upload(file)
+        .then((info) => {
+          setAttachments((prev) =>
+            prev.map((a) => (a.id === id ? { ...a, status: 'ready', url: info.url } : a)),
+          );
+        })
+        .catch((err: unknown) => {
+          console.error('AI chat image upload failed:', err);
+          URL.revokeObjectURL(previewUrl);
+          setAttachments((prev) => prev.filter((a) => a.id !== id));
+          setLocalError(tr.imageUploadFailed);
+        });
+    }
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => {
+      const target = prev.find((a) => a.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((a) => a.id !== id);
+    });
+  };
+
+  /** The uploaded images as AI image blocks, clearing the composer's attachments. */
+  const takeImages = (): AiImageBlock[] | undefined => {
+    const images = attachments
+      .filter((a): a is ChatAttachment & { url: string } => a.status === 'ready' && !!a.url)
+      .map((a) => ({ type: 'image' as const, url: a.url, mimeType: a.mimeType }));
+    attachments.forEach((a) => URL.revokeObjectURL(a.previewUrl));
+    setAttachments([]);
+    return images.length > 0 ? images : undefined;
+  };
+
+  const doSend = (content: string, images?: AiImageBlock[]) => {
     if (!content.trim() || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
@@ -503,6 +633,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       currentDocument: ctx.currentDocument,
       selectedNodeId: ctx.selectedNodeId,
       instructions: aiConfig.systemPromptPrefix,
+      images,
     });
     // Dismissal only ever suppresses context for the message just sent (STORA-506 AC).
     setContextDismissed(false);
@@ -511,7 +642,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const content = inputValue.trim();
-    if (!content || isBusy) return;
+    if (!content || isBusy || isUploadingImage) return;
 
     if (activeMode === 'agent') {
       void handleRunAgent();
@@ -521,17 +652,17 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       setInputValue('');
       setGenerateSummary(null);
       setAgentApplied(null);
-      doSend(content);
+      doSend(content, takeImages());
     }
   };
 
   const handleRetry = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-    if (lastUser) doSend(getMessageText(lastUser));
+    if (lastUser) doSend(getMessageText(lastUser), getImageBlocks(lastUser));
   };
 
   const handleRetryGenerate = () => {
-    if (lastGeneratePrompt) void handleGeneratePage(lastGeneratePrompt);
+    if (lastGeneratePrompt) void handleGeneratePage(lastGeneratePrompt, undefined, lastGenerateImages);
   };
 
   /**
@@ -543,7 +674,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    */
   const handleEnhance = async () => {
     const instruction = inputValue.trim();
-    if (!instruction || !selectedNode || !canEnhance || isAiRequestInFlight()) return;
+    if (!instruction || !selectedNode || !canEnhance || isUploadingImage || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
       setLocalError(tr.providerNotReachable);
@@ -558,6 +689,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       node: selectedNode,
       instruction,
       instructions: aiConfig.systemPromptPrefix,
+      images: takeImages(),
     });
 
     if (outcome.status === 'no-result') {
@@ -584,9 +716,13 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    * distinct from Send (chat) and Enhance for the same reason Enhance is distinct from
    * Send: no free-text intent inference, an explicit action the user opts into.
    */
-  const handleGeneratePage = async (promptOverride?: string, approvedPlan?: PagePlan) => {
+  const handleGeneratePage = async (
+    promptOverride?: string,
+    approvedPlan?: PagePlan,
+    imagesOverride?: AiImageBlock[],
+  ) => {
     const prompt = (promptOverride ?? inputValue).trim();
-    if (!prompt || (!promptOverride && !canGeneratePage) || isAiRequestInFlight()) return;
+    if (!prompt || (!promptOverride && (!canGeneratePage || isUploadingImage)) || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
       setLocalError(tr.providerNotReachable);
@@ -597,6 +733,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     setGenerateError(null);
     setGenerateSummary(null);
     setLastGeneratePrompt(prompt);
+    // A retry or an approved plan brings its own images; a fresh prompt takes the composer's.
+    const images = promptOverride ? imagesOverride : takeImages();
+    setLastGenerateImages(images);
     if (!promptOverride) setInputValue('');
 
     let summary: StreamPageGenerationSummary;
@@ -608,6 +747,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           plan: approvedPlan,
           conversationHistory: messages,
           instructions: aiConfig.systemPromptPrefix,
+          images,
         },
         {
           dispatch,
@@ -637,7 +777,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
   const handlePlanPage = async (promptOverride?: string) => {
     const prompt = (promptOverride ?? inputValue).trim();
-    if (!prompt || isAiRequestInFlight()) return;
+    if (!prompt || (!promptOverride && isUploadingImage) || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
       setLocalError(tr.providerNotReachable);
@@ -651,6 +791,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     setPendingPlan(null);
     setIsPlanning(true);
     setLastGeneratePrompt(prompt);
+    // A retried plan reuses the images the original attempt was sent with.
+    const images = promptOverride ? lastGenerateImages : takeImages();
+    setLastGenerateImages(images);
     if (!promptOverride) setInputValue('');
 
     try {
@@ -659,6 +802,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
         prompt,
         conversationHistory: messages,
         instructions: aiConfig.systemPromptPrefix,
+        images,
       });
 
       // `planPage` resolves `null` on failure (reported through `onError`) and on abort
@@ -687,7 +831,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
         return;
       }
 
-      setPendingPlan({ plan, prompt });
+      setPendingPlan({ plan, prompt, images });
     } catch (err) {
       setPlanError(err instanceof Error ? err.message : tr.planFailed);
     } finally {
@@ -697,9 +841,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
   const handleApprovePlan = async () => {
     if (!pendingPlan) return;
-    const { plan, prompt } = pendingPlan;
+    const { plan, prompt, images } = pendingPlan;
     setPendingPlan(null);
-    await handleGeneratePage(prompt, plan);
+    await handleGeneratePage(prompt, plan, images);
   };
 
   const handleDiscardPlan = () => {
@@ -738,7 +882,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    * STORA-530 — applies an agent run through the same store actions manual editing uses,
    * batched into one history transaction so the whole turn is a single Ctrl+Z.
    */
-  const applyOps = (ops: AgentOpRecord[]): boolean => {
+  const applyOps = (ops: AgentOpRecord[], appliedCount = 0): boolean => {
     const result = applyAgentOps(ops, {
       updateNodeProps: (nodeId, props, merge) => updateNodeProps(nodeId, props, registry, merge),
       updateNodeStyle: (nodeId, styles, breakpoint, merge) =>
@@ -754,7 +898,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       replaceNodeSubtree: (nodeId, node) => replaceNodeSubtree(nodeId, node, registry),
       beginHistoryTransaction,
       endHistoryTransaction,
-      getNode: (nodeId) => findNodeById(document.document, nodeId),
+      // Read the live document: ops applied mid-run must see nodes inserted by earlier ops.
+      getNode: (nodeId) =>
+        findNodeById((propDocument ?? useEditorStore.getState().document).document, nodeId),
     });
 
     if (!result.success) {
@@ -762,7 +908,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       return false;
     }
 
-    setAgentApplied(tr.agentApplied(result.appliedOpIds.length));
+    setAgentApplied(tr.agentApplied(appliedCount + result.appliedOpIds.length));
     setAgentError(null);
     return true;
   };
@@ -771,9 +917,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    * STORA-530 — the explicit "Agent" action. Like Enhance and Generate, it is never
    * inferred from message text: the user opts into letting AI edit the page.
    */
-  const handleRunAgent = async (overrideInstruction?: string) => {
-    const instruction = (overrideInstruction ?? inputValue).trim();
-    if (!instruction || isAiRequestInFlight()) return;
+  const handleRunAgent = async (overrideInstruction?: string, resume?: AgentResumeState) => {
+    const instruction = (resume?.instruction ?? overrideInstruction ?? inputValue).trim();
+    if (!instruction || (!overrideInstruction && !resume && isUploadingImage) || isAiRequestInFlight()) return;
 
     if (!endpointOptions) {
       setAgentError(tr.providerNotReachable);
@@ -781,35 +927,95 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     }
 
     setLastAgentInstruction(instruction);
+    // A resume or retry reuses the images the original instruction was sent with.
+    const images = resume ? resume.images : overrideInstruction ? lastAgentImages : takeImages();
+    setLastAgentImages(images);
     setAgentError(null);
     setAgentApplied(null);
     setPendingOps(null);
-    if (!overrideInstruction) setInputValue('');
+    setAgentResume(null);
+    if (!overrideInstruction && !resume) setInputValue('');
+
+    const doneSoFar = resume?.done ?? [];
+    const continuing = doneSoFar.length > 0;
+
+    // With auto-apply on, each op lands on the canvas as soon as it streams in instead of
+    // waiting for the whole run. Live application stops at the first destructive op or
+    // failure — later ops may depend on it, so the rest goes through the end-of-run path.
+    const liveApplied: AgentOpRecord[] = [];
+    let liveHalted = !autoApply;
+    const handleLiveOp = (op: AgentOpRecord) => {
+      if (liveHalted) return;
+      if (op.destructive || !applyOps([op], liveApplied.length)) {
+        liveHalted = true;
+        return;
+      }
+      liveApplied.push(op);
+    };
 
     const result = await runAgent({
-      instruction,
+      // `document` already contains the applied ops, so a continuation only needs to tell
+      // the model what it finished — the page itself is the source of truth.
+      instruction: continuing ? AGENT_RESUME_INSTRUCTION : instruction,
+      images: continuing ? undefined : images,
       document,
       selectedNodeId: contextDismissed ? undefined : (selectedNodeId ?? undefined),
-      history: messages,
+      history: continuing
+        ? [
+            ...messages,
+            { role: 'user', content: buildUserContent(instruction, images), timestamp: Date.now() },
+            { role: 'assistant', content: formatAgentProgress(doneSoFar), timestamp: Date.now() },
+          ]
+        : messages,
       instructions: aiConfig.systemPromptPrefix,
+      onOp: handleLiveOp,
     });
 
-    if (!result || result.ops.length === 0) return;
+    // `null` means the run threw before completing (or was aborted — then no error is shown
+    // and this state is simply never offered).
+    const failed = !result || result.stoppedBy === 'error';
 
-    if (!autoApply) {
-      setPendingOps(result.ops);
+    const liveIds = new Set(liveApplied.map((op) => op.id));
+    const liveDone = [...doneSoFar, ...liveApplied.map((op) => op.summary)];
+    const remainingOps = result ? result.ops.filter((op) => !liveIds.has(op.id)) : [];
+
+    if (!result || remainingOps.length === 0) {
+      if (failed) setAgentResume({ instruction, images, done: liveDone });
       return;
     }
 
-    const { autoApplicable, needsConfirmation } = partitionAutoApplicableOps(result.ops);
-    if (autoApplicable.length > 0) applyOps(autoApplicable);
+    if (!autoApply) {
+      setPendingOps(result.ops);
+      // Pending ops join `done` only if the user applies them (handleApplyAgentOps).
+      if (failed) setAgentResume({ instruction, images, done: doneSoFar });
+      return;
+    }
+
+    const { autoApplicable, needsConfirmation } = partitionAutoApplicableOps(remainingOps);
+    const applied =
+      autoApplicable.length > 0 && applyOps(autoApplicable, liveApplied.length)
+        ? autoApplicable
+        : [];
     // Destructive ops always stop for confirmation, even with auto-apply on.
     setPendingOps(needsConfirmation.length > 0 ? needsConfirmation : null);
+    if (failed) {
+      setAgentResume({ instruction, images, done: [...liveDone, ...applied.map((op) => op.summary)] });
+    }
   };
 
   const handleApplyAgentOps = () => {
     if (!pendingOps) return;
-    if (applyOps(pendingOps)) setPendingOps(null);
+    if (!applyOps(pendingOps)) return;
+    const applied = pendingOps;
+    setPendingOps(null);
+    setAgentResume((prev) =>
+      prev ? { ...prev, done: [...prev.done, ...applied.map((op) => op.summary)] } : prev,
+    );
+  };
+
+  const handleRetryAgent = () => {
+    if (agentResume) void handleRunAgent(undefined, agentResume);
+    else void handleRunAgent(lastAgentInstruction);
   };
 
   const handleDiscardAgentOps = () => {
@@ -1046,8 +1252,18 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 className="flex items-center gap-1.5 text-[11px] text-violet-700 bg-violet-50/80 rounded px-2 py-1.5 border border-violet-100 mt-0.5"
               >
                 <Loader2 className="w-3 h-3 animate-spin shrink-0 text-violet-600" />
-                <span>
-                  {autoApply ? tr.agentRunningAutoApply : tr.agentRunningReview}
+                <span className="flex flex-col">
+                  <span>{autoApply ? tr.agentRunningAutoApply : tr.agentRunningReview}</span>
+                  {agentProgress && (
+                    <span data-testid="ai-agent-progress" className="text-violet-500">
+                      {tr.agentProgress({
+                        phase: agentProgress.phase,
+                        toolName: agentProgress.toolName,
+                        seconds: Math.round(agentProgress.elapsedMs / 1000),
+                        outputChars: agentProgress.outputChars,
+                      })}
+                    </span>
+                  )}
                 </span>
               </div>
             )}
@@ -1060,8 +1276,16 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
         {(agentError || agentHookError) && (
           <AiChatErrorBubble
-            message={agentError || agentHookError?.message || tr.agentFailed}
-            onRetry={() => void handleRunAgent(lastAgentInstruction)}
+            message={
+              agentResume && (agentResume.done.length > 0 || pendingOps)
+                ? `${agentError || agentHookError?.message || tr.agentFailed} ${tr.agentResumeHint(
+                    agentResume.done.length,
+                    pendingOps?.length ?? 0,
+                  )}`
+                : agentError || agentHookError?.message || tr.agentFailed
+            }
+            onRetry={handleRetryAgent}
+            retryLabel={agentResume && agentResume.done.length > 0 ? tr.agentResume : undefined}
           />
         )}
 
@@ -1309,17 +1533,48 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
         )}
 
         <div className="relative flex flex-col border border-slate-200 rounded-xl bg-white shadow-xs focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition">
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-2 pt-2" data-testid="ai-chat-attachments">
+              {attachments.map((a) => (
+                <div key={a.id} className="relative w-12 h-12 rounded-md overflow-hidden border border-slate-200 bg-slate-50">
+                  <img src={a.previewUrl} alt="" className="w-full h-full object-cover" />
+                  {a.status === 'uploading' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-500" aria-label={tr.imageUploading} />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    data-testid="ai-chat-attachment-remove"
+                    title={tr.removeImage}
+                    aria-label={tr.removeImage}
+                    onClick={() => removeAttachment(a.id)}
+                    className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-slate-900/70 text-white hover:bg-slate-900"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <input
             ref={inputRef}
             type="text"
             data-testid="ai-chat-input"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            onPaste={(e) => {
+              if (!canAttachImages) return;
+              const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/'));
+              if (files.length === 0) return;
+              e.preventDefault();
+              handleAttachFiles(files);
+            }}
             placeholder={dynamicPlaceholder}
             className="w-full text-xs px-3 pt-2.5 pb-1 bg-transparent border-0 focus:outline-none"
           />
 
-          <div className="flex items-center justify-between px-2 pb-2 pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-1 px-2 pb-2 pt-1">
             {/* Mode selector dropdown */}
             <div className="relative">
               <button
@@ -1367,7 +1622,35 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               )}
             </div>
 
-            <div className="flex items-center gap-1">
+            {canAttachImages && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  hidden
+                  data-testid="ai-chat-file-input"
+                  onChange={(e) => {
+                    if (e.target.files) handleAttachFiles(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  data-testid="ai-chat-attach-image"
+                  title={tr.attachImage}
+                  aria-label={tr.attachImage}
+                  disabled={attachments.length >= MAX_CHAT_IMAGES}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ImagePlus className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+
+            <div className="flex items-center gap-1 ml-auto">
             {/* Explicit one-shot actions, each gated by its own feature flag. Enhance
                 rewrites the attached node (needs a selection); Generate builds a whole page
                 straight from the prompt, skipping Plan mode's review step. */}
@@ -1375,7 +1658,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               <button
                 type="button"
                 data-testid="ai-chat-enhance"
-                disabled={!canEnhance || !inputValue.trim() || isBusy}
+                disabled={!canEnhance || !inputValue.trim() || isBusy || isUploadingImage}
                 onClick={() => void handleEnhance()}
                 title={selectedNode ? tr.enhanceTooltip : tr.enhanceNeedsSelection}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
@@ -1388,7 +1671,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               <button
                 type="button"
                 data-testid="ai-chat-generate"
-                disabled={!canGeneratePage || isBusy}
+                disabled={!canGeneratePage || isBusy || isUploadingImage}
                 onClick={() => void handleGeneratePage()}
                 title={tr.generateTooltip}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
@@ -1420,7 +1703,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               <button
                 type="submit"
                 data-testid="ai-chat-send"
-                disabled={!inputValue.trim() || isAiGeneratorBusy}
+                disabled={!inputValue.trim() || isAiGeneratorBusy || isUploadingImage}
                 title={tr.send(currentModeInfo.label)}
                 aria-label={tr.send(currentModeInfo.label)}
                 className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
@@ -1451,7 +1734,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               }
             : undefined
         }
-        className={`fixed bottom-4 right-4 z-40 w-[360px] max-w-[92vw] h-[520px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden ${
+        className={`fixed bottom-16 lg:bottom-4 right-4 z-40 w-[360px] max-w-[92vw] h-[520px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden ${
           isDragging ? 'select-none pointer-events-auto' : ''
         } ${className || ''}`}
       >
@@ -1467,7 +1750,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       data-mode="docked"
       className={`flex flex-col h-full min-h-0 bg-white ${className || ''}`}
     >
-      {header}
+      {showHeader && header}
       {body}
     </div>
   );

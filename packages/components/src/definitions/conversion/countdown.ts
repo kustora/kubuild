@@ -63,7 +63,7 @@ export const countdownDefinition: ComponentDefinition = {
     {
       name: 'targetDate',
       label: 'Target Date/Time',
-      type: 'string',
+      type: 'datetime',
       defaultValue: '',
       description: 'Fixed mode: wall-clock time "YYYY-MM-DDTHH:mm" in the selected timezone.',
     },

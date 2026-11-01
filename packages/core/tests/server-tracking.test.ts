@@ -10,6 +10,7 @@ import {
   sendCustomWebhookEvent,
   dispatchServerTracking,
   createTrackingRelayHandler,
+  DEFAULT_META_GRAPH_API_VERSION,
   type ServerTrackingEvent,
   type TrackingSecretResolver,
 } from '../src';
@@ -103,6 +104,23 @@ describe('Server Tracking & CAPI Runtime', () => {
       expect(body.data[0].user_data.client_ip_address).toBe('192.168.1.1');
     });
 
+    it('uses the default Graph API version unless metaApiVersion overrides it', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
+      const cfg = { enabled: true, pixelId: '123456789', capiEnabled: true };
+      const event: ServerTrackingEvent = { eventName: 'Lead', eventId: 'evt_v' };
+
+      await sendMetaCapiEvent(event, cfg, { capiAccessToken: 't' }, { fetchFn: mockFetch as unknown as typeof fetch });
+      await sendMetaCapiEvent(event, cfg, { capiAccessToken: 't' }, {
+        fetchFn: mockFetch as unknown as typeof fetch,
+        metaApiVersion: 'v25.0',
+      });
+
+      expect(mockFetch.mock.calls[0][0]).toBe(
+        `https://graph.facebook.com/${DEFAULT_META_GRAPH_API_VERSION}/123456789/events`,
+      );
+      expect(mockFetch.mock.calls[1][0]).toBe('https://graph.facebook.com/v25.0/123456789/events');
+    });
+
     it('returns failure when pixelId is missing', async () => {
       const result = await sendMetaCapiEvent(
         { eventName: 'Lead' },
@@ -165,6 +183,44 @@ describe('Server Tracking & CAPI Runtime', () => {
       expect(body.test_event_code).toBe('TT_TEST');
       expect(body.data[0].event).toBe('AddToCart');
     });
+
+    it('sends ttp, ttclid and a hashed external_id in user', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ code: 0 }) });
+
+      await sendTikTokEventsApi(
+        {
+          eventName: 'CompletePayment',
+          eventId: 'purchase_1',
+          userData: { ttp: 'ttp-cookie', ttclid: 'click-1', externalId: 'order-1' },
+        },
+        { enabled: true, pixelId: 'TT', eventsApiEnabled: true },
+        { accessToken: 't' },
+        { fetchFn: mockFetch as unknown as typeof fetch },
+      );
+
+      const user = JSON.parse(mockFetch.mock.calls[0][1].body).data[0].user;
+      expect(user.ttp).toBe('ttp-cookie');
+      expect(user.ttclid).toBe('click-1');
+      expect(user.external_id).toBe(await hashSha256('order-1'));
+    });
+
+    it('fails when TikTok answers HTTP 200 with a non-zero code', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 40001, message: 'Access token is invalid' }),
+      });
+
+      const result = await sendTikTokEventsApi(
+        { eventName: 'Lead', eventId: 'evt_x' },
+        { enabled: true, pixelId: 'TT', eventsApiEnabled: true },
+        { accessToken: 'bad' },
+        { fetchFn: mockFetch as unknown as typeof fetch },
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Access token is invalid');
+    });
   });
 
   describe('GA4 Measurement Protocol', () => {
@@ -195,6 +251,19 @@ describe('Server Tracking & CAPI Runtime', () => {
       const [calledUrl] = mockFetch.mock.calls[0];
       expect(calledUrl).toContain('measurement_id=G-12345678');
       expect(calledUrl).toContain('api_secret=ga4-secret');
+    });
+
+    it('uses userData.clientId as the GA4 client_id', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+
+      await sendGa4MeasurementEvent(
+        { eventName: 'purchase', eventId: 'purchase_1', userData: { clientId: '123.456' } },
+        { enabled: true, measurementId: 'G-1' },
+        { measurementProtocolSecret: 's' },
+        { fetchFn: mockFetch as unknown as typeof fetch },
+      );
+
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body).client_id).toBe('123.456');
     });
   });
 
@@ -237,7 +306,8 @@ describe('Server Tracking & CAPI Runtime', () => {
         json: async () => ({ success: true }),
       });
 
-    const fullConfig: TrackingConfig = {
+    // Legacy `providers` shape on purpose: resolveTrackingConfig converts it (ids "legacy-<provider>").
+    const fullConfig: Partial<TrackingConfig> = {
       enabled: true,
       providers: {
         meta: { enabled: true, credentialId: 'cred_meta', pixelId: 'META_123', capiEnabled: true, testEventCode: '' },
@@ -293,10 +363,10 @@ describe('Server Tracking & CAPI Runtime', () => {
 
       expect(outcome.success).toBe(true);
       expect(outcome.eventId).toBeDefined();
-      expect(outcome.results.meta?.success).toBe(true);
-      expect(outcome.results.tiktok?.success).toBe(true);
-      expect(outcome.results.google?.success).toBe(true);
-      expect(outcome.results.custom?.success).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.success).toBe(true);
+      expect(outcome.results['tiktok:legacy-tiktok']?.success).toBe(true);
+      expect(outcome.results['google:legacy-google']?.success).toBe(true);
+      expect(outcome.results['custom:legacy-custom']?.success).toBe(true);
       expect(mockFetch).toHaveBeenCalledTimes(4);
       expect(resolveSpy).toHaveBeenCalledWith({ provider: 'meta', credentialId: 'cred_meta', documentId: 'page_1' });
 
@@ -316,8 +386,8 @@ describe('Server Tracking & CAPI Runtime', () => {
       expect(mockFetch).not.toHaveBeenCalled();
       expect(outcome.success).toBe(true);
       expect(outcome.skipped).toBe(true);
-      expect(outcome.results.meta?.skipped).toBe(true);
-      expect(outcome.results.meta?.reason).toContain('resolveSecrets');
+      expect(outcome.results['meta:legacy-meta']?.skipped).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.reason).toContain('resolveSecrets');
     });
 
     it('skips only providers whose secret is missing', async () => {
@@ -329,11 +399,11 @@ describe('Server Tracking & CAPI Runtime', () => {
 
       expect(outcome.success).toBe(true);
       expect(outcome.skipped).toBeUndefined();
-      expect(outcome.results.meta?.success).toBe(true);
-      expect(outcome.results.meta?.skipped).toBeUndefined();
-      expect(outcome.results.tiktok?.skipped).toBe(true);
-      expect(outcome.results.tiktok?.reason).toContain('cred_tt');
-      expect(outcome.results.custom?.skipped).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.success).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.skipped).toBeUndefined();
+      expect(outcome.results['tiktok:legacy-tiktok']?.skipped).toBe(true);
+      expect(outcome.results['tiktok:legacy-tiktok']?.reason).toContain('cred_tt');
+      expect(outcome.results['custom:legacy-custom']?.skipped).toBe(true);
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -345,7 +415,7 @@ describe('Server Tracking & CAPI Runtime', () => {
         },
       });
       expect(outcome.success).toBe(false);
-      expect(outcome.results.meta?.error).toContain('vault down');
+      expect(outcome.results['meta:legacy-meta']?.error).toContain('vault down');
     });
 
     it('filters by target provider and treats gtm as client-only', async () => {
@@ -355,7 +425,7 @@ describe('Server Tracking & CAPI Runtime', () => {
         resolveSecrets: resolver,
         provider: 'meta',
       });
-      expect(Object.keys(onlyMeta.results)).toEqual(['meta']);
+      expect(Object.keys(onlyMeta.results)).toEqual(['meta:legacy-meta']);
 
       const gtm = await dispatchServerTracking({ eventName: 'Lead' }, fullConfig, {
         fetchFn: mockFetch as unknown as typeof fetch,
@@ -374,8 +444,8 @@ describe('Server Tracking & CAPI Runtime', () => {
         { fetchFn: mockFetch as unknown as typeof fetch, onLog: () => {} },
       );
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(outcome.results.meta?.success).toBe(true);
-      expect((outcome.results.meta?.data as { simulated?: boolean }).simulated).toBe(true);
+      expect(outcome.results['meta:legacy-meta']?.success).toBe(true);
+      expect((outcome.results['meta:legacy-meta']?.data as { simulated?: boolean }).simulated).toBe(true);
     });
   });
 });
@@ -432,8 +502,8 @@ describe('createTrackingRelayHandler', () => {
     expect(TrackingRelayResponseSchema.safeParse(json).success).toBe(true);
     expect(json.success).toBe(true);
     expect(json.eventId).toBe('evt_1');
-    expect(json.results.meta.success).toBe(true);
-    expect(json.results.meta.data).toBeUndefined();
+    expect(json.results['meta:legacy-meta'].success).toBe(true);
+    expect(json.results['meta:legacy-meta'].data).toBeUndefined();
 
     expect(getConfig).toHaveBeenCalledWith(expect.objectContaining({ documentId: 'page_1', provider: 'all' }));
     expect(resolveSecrets).toHaveBeenCalledWith({ provider: 'meta', credentialId: 'cred_meta', documentId: 'page_1' });

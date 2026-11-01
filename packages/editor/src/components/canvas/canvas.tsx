@@ -28,7 +28,7 @@ import { MarqueeSelectionBox, MarqueeRect, calculateMarqueeIntersections } from 
 import { MultiDevicePreview } from './multi-device-preview.js';
 import { GridGuidelinesOverlay } from './grid-guidelines-overlay.js';
 import { ViewportResizer } from './viewport-resizer.js';
-import { EditorCanvasConfig } from '../../config/index.js';
+import { EditorCanvasConfig, EditorMode } from '../../config/index.js';
 import {
   type AiGenerationPlaceholderStatus,
   shouldShowAiGenerationPlaceholder,
@@ -70,6 +70,8 @@ export interface EditorCanvasProps {
    */
   aiGenerationStatus?: AiGenerationPlaceholderStatus | null;
   config?: EditorCanvasConfig;
+  /** Overrides the store's `editorMode` ('simple' | 'advance') for this render. */
+  mode?: EditorMode;
   fluidWidth?: number;
   onFluidWidthChange?: (width: number) => void;
   onBreakpointChange?: (breakpoint: Viewport) => void;
@@ -86,6 +88,8 @@ export interface EditorCanvasProps {
   activeArtboardId?: string | null;
   /** Overrides the store's `selectedNodeId` for this render. */
   selectedNodeId?: string | null;
+  /** Shows the selection toolbar's AI button, which opens the Inspector's AI tab. */
+  aiEnabled?: boolean;
   className?: string;
 }
 
@@ -150,6 +154,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onDiagnostic,
   aiGenerationStatus: propAiGenerationStatus,
   config,
+  mode: propMode,
   fluidWidth,
   onFluidWidthChange,
   onBreakpointChange,
@@ -160,9 +165,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   componentArtboards: propComponentArtboards,
   activeArtboardId: propActiveArtboardId,
   selectedNodeId: propSelectedNodeId,
+  aiEnabled = false,
   className,
 }) => {
   const storeDoc = useEditorStore((s) => s.document);
+  const storeEditorMode = useEditorStore((s) => s.editorMode);
   const storeSelectedNodeId = useEditorStore((s) => s.selectedNodeId);
   const selectedNodeIds = useEditorStore((s) => s.selectedNodeIds);
   const hoveredNodeId = useEditorStore((s) => s.hoveredNodeId);
@@ -196,6 +203,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const inlineEditTxActiveRef = useRef(false);
 
   const document = propDoc ?? storeDoc;
+  const editorMode = propMode ?? storeEditorMode;
+  const isSimpleMode = editorMode === 'simple';
   const selectedNodeId =
     propSelectedNodeId !== undefined ? propSelectedNodeId : storeSelectedNodeId;
   const aiGenerationStatus = propAiGenerationStatus ?? storeAiGenerationStatus;
@@ -258,6 +267,13 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     }
     return allPages[0]?.id || 'default';
   }, [activeArtboardId, activePageId, allPages]);
+
+  // In Simple Mode, focus on a single active page artboard instead of laying out all pages side by side.
+  const visiblePages = useMemo<EditorPageItem[]>(() => {
+    if (!isSimpleMode) return allPages;
+    const active = allPages.filter((p) => p.id === effectiveActivePageId);
+    return active.length > 0 ? active : allPages.slice(0, 1);
+  }, [isSimpleMode, allPages, effectiveActivePageId]);
 
   const activeDoc = useMemo(() => {
     return allPages.find((p) => p.id === effectiveActivePageId)?.document || document;
@@ -1173,9 +1189,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     const layout: Record<string, { x: number; y: number }> = {};
     let flowX = ARTBOARD_SURFACE_PADDING;
 
-    for (const item of allPages) {
+    for (const item of visiblePages) {
       const width = getPageWidth(item);
-      if (item.position) {
+      if (!isSimpleMode && item.position) {
         layout[item.id] = item.position;
       } else {
         layout[item.id] = { x: flowX, y: ARTBOARD_SURFACE_PADDING };
@@ -1183,11 +1199,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       }
     }
 
-    if (draggingArtboardId && dragPosition) {
+    if (!isSimpleMode && draggingArtboardId && dragPosition) {
       layout[draggingArtboardId] = dragPosition;
     }
     return layout;
-  }, [allPages, getPageWidth, draggingArtboardId, dragPosition]);
+  }, [visiblePages, isSimpleMode, getPageWidth, draggingArtboardId, dragPosition]);
 
   /**
    * The scrollable extent of the artboard surface. Absolutely-positioned children don't
@@ -1197,7 +1213,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const artboardSurfaceSize = useMemo(() => {
     let maxRight = 0;
     let maxBottom = 0;
-    for (const item of allPages) {
+    for (const item of visiblePages) {
       const spot = artboardLayout[item.id];
       if (!spot) continue;
       maxRight = Math.max(maxRight, spot.x + getPageWidth(item));
@@ -1209,7 +1225,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       width: `${Math.max(maxRight + ARTBOARD_SURFACE_PADDING, 1200)}px`,
       height: `${Math.max(maxBottom + ARTBOARD_SURFACE_PADDING, 800)}px`,
     };
-  }, [allPages, artboardLayout, getPageWidth]);
+  }, [visiblePages, artboardLayout, getPageWidth]);
 
   /**
    * Drag an artboard by its header, Figma-style. Panning gestures (hand tool, held space,
@@ -1362,7 +1378,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           className="relative select-none"
           style={{ width: artboardSurfaceSize.width, height: artboardSurfaceSize.height }}
         >
-          {allPages.map((pageItem) => {
+          {visiblePages.map((pageItem) => {
             const isActive = pageItem.id === effectiveActivePageId;
             const pageWidth = getPageWidth(pageItem);
             const pageViewport = getPageViewport(pageItem);
@@ -1611,6 +1627,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     )}
 
                   {!previewMode &&
+                    !isSimpleMode &&
                     !isMultiSelecting &&
                     !(isTouchDevice && isSmallScreen) &&
                     selectedRect &&
@@ -1645,6 +1662,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       registry={registry}
                       selectedRect={selectedRect}
                       onDragStart={handleDragStart}
+                      hideDetachArtboard={isSimpleMode}
+                      aiEnabled={aiEnabled}
                     />
                   )}
 
@@ -1737,6 +1756,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             onToolModeChange={setToolMode}
             multiDeviceMode={multiDeviceMode}
             onToggleMultiDevice={toggleMultiDeviceMode}
+            compact={isSimpleMode}
           />
         </div>
       )}

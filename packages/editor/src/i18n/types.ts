@@ -16,9 +16,23 @@ export type DeepPartial<T> = T extends (...args: never[]) => unknown
 export type TranslationOverrides = Partial<Record<EditorLocale, DeepPartial<TranslationSchema>>>;
 
 export interface TranslationSchema {
-  // Top Level & Tabs
+  // Editor Mode & Top Level Tabs
+  simpleMode: string;
+  advanceMode: string;
+  simpleModeTooltip: string;
+  advanceModeTooltip: string;
+  simpleAppearanceTitle: string;
+  simpleTextColor: string;
+  simpleBgColor: string;
+  simpleFontSize: string;
+  simpleTextAlign: string;
+  simplePadding: string;
+  simpleMargin: string;
+  simpleWidth: string;
+  simpleSwitchToAdvance: string;
   styleTab: string;
   settingsTab: string;
+  aiTab: string;
   textSettings: string;
   componentSettings: (componentLabel: string) => string;
   resetStyle: string;
@@ -164,6 +178,11 @@ export interface AiChatTranslations {
   dockPanel: string;
   floatPanel: string;
   closePanel: string;
+  attachImage: string;
+  removeImage: string;
+  imageUploading: string;
+  imageUploadFailed: string;
+  imageLimit: (max: number) => string;
   thinking: string;
   retry: string;
   somethingWentWrong: string;
@@ -186,9 +205,20 @@ export interface AiChatTranslations {
   agentApplied: (count: number) => string;
   agentLabel: string;
   agentStep: (step: number, maxSteps: number) => string;
+  /** Live heartbeat line while the agent waits on the model or a long tool call. */
+  agentProgress: (progress: {
+    phase: 'model' | 'tool';
+    toolName?: string;
+    seconds: number;
+    outputChars?: number;
+  }) => string;
   agentRunningAutoApply: string;
   agentRunningReview: string;
   agentFailed: string;
+  /** Retry label when an interrupted agent run can continue from its applied changes. */
+  agentResume: string;
+  /** Appended to the agent error when some work from the failed run was kept. */
+  agentResumeHint: (applied: number, pending: number) => string;
   agentChangesReady: (count: number) => string;
   discard: string;
   apply: string;

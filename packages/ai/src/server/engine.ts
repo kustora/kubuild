@@ -7,6 +7,7 @@ import type {
   AiChatRequest,
   AiChatResponse,
   AiChatMessage,
+  AiImageBlock,
   AiGenerateResponse,
   AiCompiledComponentSpec,
   AiStreamEvent,
@@ -22,7 +23,7 @@ import {
   appendClientInstructions,
   joinInstructions,
 } from '../core/prompt-compiler.js';
-import { getMessageText } from '../core/messages.js';
+import { describeImages, getImageBlocks, getMessagePromptText } from '../core/messages.js';
 import {
   extractJsonFromResponse,
   normalizeAndValidatePageDocument,
@@ -81,6 +82,22 @@ function buildFallbackPlan(prompt: string): PagePlan & { sections: PlannedSectio
 
 const PLAN_FALLBACK_MESSAGE =
   'The AI response could not be parsed as a page plan, so a generic default plan was used instead.';
+
+/** Most images a plan/generate call sends — each section call re-sends them. */
+const MAX_GENERATION_IMAGES = 4;
+
+/**
+ * Images for a plan/generate call: the request's own plus any attached earlier in the
+ * conversation it carries, de-duplicated by URL, keeping the most recent few.
+ */
+function collectRequestImages(request: {
+  images?: AiImageBlock[];
+  conversationHistory?: AiChatMessage[];
+}): AiImageBlock[] | undefined {
+  const all = [...(request.conversationHistory ?? []).flatMap(getImageBlocks), ...(request.images ?? [])];
+  const unique = all.filter((img, i) => all.findIndex((other) => other.url === img.url) === i);
+  return unique.length > 0 ? unique.slice(-MAX_GENERATION_IMAGES) : undefined;
+}
 
 export class KubuildAiEngine {
   private options: KubuildAiEngineOptions;
@@ -143,16 +160,19 @@ export class KubuildAiEngine {
       }
       if (request.conversationHistory && request.conversationHistory.length > 0) {
         const chatContext = request.conversationHistory
-          .map((m) => `${m.role.toUpperCase()}: ${getMessageText(m)}`)
+          .map((m) => `${m.role.toUpperCase()}: ${getMessagePromptText(m)}`)
           .join('\n');
         userPrompt += `\n\nPrior Conversation Discussion Context:\n${chatContext}`;
       }
+      const directImagesNote = describeImages(request.images ?? []);
+      if (directImagesNote) userPrompt += `\n\n${directImagesNote}`;
 
       const jsonSchema = buildJsonSchemaForMode('full-page');
 
       const result = await this.options.adapter.generate({
         systemPrompt,
         userPrompt,
+        images: collectRequestImages(request),
         jsonSchema,
         signal: context?.signal,
       });
@@ -252,12 +272,15 @@ export class KubuildAiEngine {
       if (request.parentContext) {
         userPrompt += `\nSurrounding Page Context: ${request.parentContext}`;
       }
+      const imagesNote = describeImages(request.images ?? []);
+      if (imagesNote) userPrompt += `\n\n${imagesNote}`;
 
       const jsonSchema = buildJsonSchemaForMode('section');
 
       const result = await this.options.adapter.generate({
         systemPrompt,
         userPrompt,
+        images: request.images,
         jsonSchema,
         signal: context?.signal,
       });
@@ -306,12 +329,15 @@ export class KubuildAiEngine {
         request.instructions,
       );
 
-      const userPrompt = `Instruction: ${request.instruction}\n\nCurrent Node:\n${JSON.stringify(request.node, null, 2)}`;
+      let userPrompt = `Instruction: ${request.instruction}\n\nCurrent Node:\n${JSON.stringify(request.node, null, 2)}`;
+      const imagesNote = describeImages(request.images ?? []);
+      if (imagesNote) userPrompt += `\n\n${imagesNote}`;
       const jsonSchema = buildJsonSchemaForMode('refactor');
 
       const result = await this.options.adapter.generate({
         systemPrompt,
         userPrompt,
+        images: request.images,
         jsonSchema,
         signal: context?.signal,
       });
@@ -382,10 +408,12 @@ ${sectionGuidance}
     if (request.locale) planUserPrompt += `\nLocale: ${request.locale}`;
     if (request.conversationHistory && request.conversationHistory.length > 0) {
       const chatContext = request.conversationHistory
-        .map((m) => `${m.role.toUpperCase()}: ${getMessageText(m)}`)
+        .map((m) => `${m.role.toUpperCase()}: ${getMessagePromptText(m)}`)
         .join('\n');
       planUserPrompt += `\n\nPrior Conversation Discussion Context:\n${chatContext}`;
     }
+    const directImagesNote = describeImages(request.images ?? []);
+    if (directImagesNote) planUserPrompt += `\n\n${directImagesNote}`;
 
     return {
       systemPrompt: appendClientInstructions(planSystemPrompt, request.instructions),
@@ -405,6 +433,7 @@ ${sectionGuidance}
       planResult = await this.options.adapter.generate({
         systemPrompt,
         userPrompt,
+        images: collectRequestImages(request),
         signal: context?.signal,
       });
     } catch (err: unknown) {
@@ -481,6 +510,7 @@ ${sectionGuidance}
         const planResult = await this.options.adapter.generate({
           systemPrompt: planSystemPrompt,
           userPrompt: planUserPrompt,
+          images: collectRequestImages(request),
           signal: context?.signal,
         });
 
@@ -573,6 +603,9 @@ ${sectionGuidance}
             stylePreference: request.stylePreference,
             instructions: request.instructions,
             targetSectionType: plannedSec.type,
+            // Every section sees the images too, so a screenshot to recreate or a photo to
+            // place reaches the section that needs it, not just the plan.
+            images: collectRequestImages(request),
             parentContext: `Website: ${plan.title}. Previous sections: ${sectionsToGenerate.slice(0, i).map((s) => s.title).join(', ')}`,
           },
           { signal: context?.signal },
@@ -685,7 +718,7 @@ ${sectionSummary || '(Canvas is currently empty)'}
 
     // Extract last user message
     const lastUserMsg = [...request.messages].reverse().find((m) => m.role === 'user');
-    const userPrompt = lastUserMsg ? getMessageText(lastUserMsg) || 'Hello' : 'Hello';
+    const userPrompt = lastUserMsg ? getMessagePromptText(lastUserMsg) || 'Hello' : 'Hello';
 
     return { systemPrompt, userPrompt };
   }

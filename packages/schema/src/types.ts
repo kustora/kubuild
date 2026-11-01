@@ -307,18 +307,41 @@ export interface CustomTrackingProviderConfig {
   credentialId?: string;
 }
 
+export interface TrackingPixel {
+  id: string;
+  provider: TrackingProviderType;
+  label?: string;
+  enabled: boolean;
+  credentialId?: string;
+  pixelId: string;
+  serverEnabled: boolean;
+  testEventCode: string;
+  disabledEvents: string[];
+}
+
+export interface TrackingInheritConfig {
+  enabled: boolean;
+  excludedPixelIds: string[];
+}
+
+/** @deprecated `<= 1.2.0` one-config-per-provider shape. */
+export interface LegacyTrackingProviders {
+  meta?: MetaTrackingProviderConfig;
+  google?: GoogleTrackingProviderConfig;
+  gtm?: GtmTrackingProviderConfig;
+  tiktok?: TikTokTrackingProviderConfig;
+  custom?: CustomTrackingProviderConfig;
+}
+
 export interface TrackingConfig {
   enabled: boolean;
   debugMode: boolean;
   autoPageView: boolean;
   defaultDelivery: TrackingDelivery;
-  providers: {
-    meta?: MetaTrackingProviderConfig;
-    google?: GoogleTrackingProviderConfig;
-    gtm?: GtmTrackingProviderConfig;
-    tiktok?: TikTokTrackingProviderConfig;
-    custom?: CustomTrackingProviderConfig;
-  };
+  pixels: TrackingPixel[];
+  inherit: TrackingInheritConfig;
+  /** @deprecated converted into `pixels` by migration / `resolveTrackingConfig`. */
+  providers?: LegacyTrackingProviders;
 }
 
 /* ----------------------------------------------------------------------------------------

@@ -30,7 +30,7 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
       type: 'string',
       pattern: '^\\d+(\\.\\d+)*$',
       description: 'Schema version of the document',
-      default: '1.2.0',
+      default: '1.3.0',
     },
     metadata: {
       $ref: '#/definitions/documentMetadata',
@@ -77,8 +77,42 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
         debugMode: { type: 'boolean', default: false },
         autoPageView: { type: 'boolean', default: true },
         defaultDelivery: { type: 'string', enum: ['both', 'client_only', 'server_only'], default: 'both' },
+        pixels: {
+          type: 'array',
+          description: 'The document\'s own pixels — any number per provider.',
+          items: {
+            type: 'object',
+            required: ['id', 'provider'],
+            properties: {
+              id: { type: 'string', minLength: 1, maxLength: 256 },
+              provider: { type: 'string', enum: ['meta', 'google', 'gtm', 'tiktok', 'custom'] },
+              label: { type: 'string', maxLength: 200 },
+              enabled: { type: 'boolean', default: true },
+              credentialId: { type: 'string', maxLength: 256 },
+              pixelId: {
+                type: 'string',
+                maxLength: 256,
+                description: 'Meta/TikTok pixel id, GA4 measurement id or GTM container id.',
+              },
+              serverEnabled: { type: 'boolean', default: false },
+              testEventCode: { type: 'string', maxLength: 100 },
+              disabledEvents: { type: 'array', items: { type: 'string', maxLength: 256 } },
+            },
+            additionalProperties: false,
+          },
+        },
+        inherit: {
+          type: 'object',
+          description: 'Use / exclude pixels the host passes at runtime.',
+          properties: {
+            enabled: { type: 'boolean', default: true },
+            excludedPixelIds: { type: 'array', items: { type: 'string', maxLength: 256 } },
+          },
+          additionalProperties: false,
+        },
         providers: {
           type: 'object',
+          description: 'Pre-1.3.0 one-config-per-provider shape; converted into `pixels`.',
           properties: {
             meta: {
               type: 'object',

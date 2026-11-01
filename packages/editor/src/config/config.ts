@@ -4,6 +4,13 @@ import { StyleSectorId } from '../components/style-manager/style-manager-accordi
 
 export type LeftSidebarTab = 'components' | 'blocks' | 'layers';
 
+/**
+ * Editor UI complexity mode:
+ * - `'simple'`: Streamlined, beginner-friendly view (curated blocks/components, unified simple inspector, single-page focus).
+ * - `'advance'`: Full studio & developer view with all CSS sectors, DOM layers, actions, and multi-artboard canvas.
+ */
+export type EditorMode = 'simple' | 'advance';
+
 export type { CoreComponentType, ComponentCategory };
 
 /**
@@ -18,9 +25,30 @@ export type ComponentTypeFilter = CoreComponentType | (string & {});
  */
 export type ComponentCategoryFilter = ComponentCategory | (string & {});
 
+/**
+ * Curated list of essential, beginner-friendly components displayed in Simple Mode
+ * when no custom `allowedComponents` or `hiddenComponents` filter is provided.
+ */
+export const SIMPLE_MODE_ALLOWED_COMPONENTS: ComponentTypeFilter[] = [
+  'section',
+  'columns',
+  'divider',
+  'spacer',
+  'heading',
+  'paragraph',
+  'list',
+  'image',
+  'video',
+  'button',
+  'link',
+  'form',
+];
+
 export interface EditorToolbarConfig {
   /** Display page title & status badge in toolbar. Default: true */
   showTitle?: boolean;
+  /** Display the Simple | Advance mode switcher in toolbar. Default: true */
+  showModeSwitcher?: boolean;
   /**
    * Display the AI Chat toggle button (STORA-504). Default: true.
    * The button is still hidden when AI is disabled entirely in `AiEditorConfig`
@@ -29,19 +57,21 @@ export interface EditorToolbarConfig {
   showAiChatToggle?: boolean;
   /** Display Undo and Redo buttons. Default: true */
   showHistory?: boolean;
-  /** Display Copy, Paste, Duplicate, and Delete buttons. Default: true */
+  /** Display Copy, Paste, Duplicate, and Delete buttons. Default: true in advance, false in simple */
   showClipboard?: boolean;
-  /** Display "View Code" (< >) modal button. Default: true */
+  /** Display "View Code" (< >) modal button. Default: true in advance, false in simple */
   showCodeViewer?: boolean;
-  /** Display Import and Export (.stora / JSON) buttons. Default: true */
+  /** Display Pixel Tracking settings button in toolbar. Default: true */
+  showTracking?: boolean;
+  /** Display Import and Export (.stora / JSON) buttons. Default: true in advance, false in simple */
   showExportImport?: boolean;
   /** Display Viewport breakpoint switcher (desktop/tablet/mobile). Default: true */
   showViewportSwitcher?: boolean;
   /** Display Preview / Edit mode toggle button. Default: true */
   showPreviewToggle?: boolean;
-  /** Display Action Debugger toggle button in preview mode. Default: true */
+  /** Display Action Debugger toggle button in preview mode. Default: true in advance, false in simple */
   showActionDebugger?: boolean;
-  /** Display selected element ID badge on right side. Default: true */
+  /** Display selected element ID badge on right side. Default: true in advance, false in simple */
   showSelectionStatus?: boolean;
   /** Custom extra actions or buttons rendered in the toolbar */
   customActions?: React.ReactNode;
@@ -50,9 +80,9 @@ export interface EditorToolbarConfig {
 export interface EditorSidebarConfig {
   /** Whether the left sidebar is enabled and visible. Default: true */
   enabled?: boolean;
-  /** Default active tab ('components' | 'blocks' | 'layers'). Default: 'components' */
+  /** Default active tab ('components' | 'blocks' | 'layers'). Default: 'components' in advance, 'blocks' in simple */
   defaultTab?: LeftSidebarTab;
-  /** List of tabs available for user navigation. Default: ['components', 'blocks', 'layers'] */
+  /** List of tabs available for user navigation. Default: ['components', 'blocks', 'layers'] in advance, ['blocks', 'components'] in simple */
   availableTabs?: LeftSidebarTab[];
   /**
    * Whitelist of component types to display in the Components panel.
@@ -99,7 +129,7 @@ export interface EditorSidebarConfig {
 }
 
 export interface EditorCanvasConfig {
-  /** Display hierarchy breadcrumbs bar below the canvas. Default: true */
+  /** Display hierarchy breadcrumbs bar below the canvas. Default: true in advance, false in simple */
   showBreadcrumbs?: boolean;
   /** Display floating action badges on selected node. Default: true */
   showFloatingBadges?: boolean;
@@ -114,7 +144,7 @@ export interface EditorInspectorConfig {
   showTraits?: boolean;
   /** Display Style Manager section. Default: true */
   showStyles?: boolean;
-  /** Display pseudo-state selector (:hover, :active, :focus). Default: true */
+  /** Display pseudo-state selector (:hover, :active, :focus). Default: true in advance, false in simple */
   showStateSelector?: boolean;
   /**
    * Filter allowed style sectors ('dimension' | 'spacing' | 'typography' | 'decorations' | 'flex' | 'motion').
@@ -124,6 +154,8 @@ export interface EditorInspectorConfig {
 }
 
 export interface EditorConfig {
+  /** Editor complexity mode ('simple' | 'advance'). Default: 'advance' */
+  mode?: EditorMode;
   /** Configure or toggle Top Toolbar. If false, toolbar is completely hidden. Default: true */
   toolbar?: boolean | EditorToolbarConfig;
   /** Configure or toggle Left Sidebar. If false, sidebar is completely hidden. Default: true */
@@ -135,13 +167,16 @@ export interface EditorConfig {
 }
 
 export interface ResolvedEditorConfig {
+  mode: EditorMode;
   toolbar: {
     enabled: boolean;
     showTitle: boolean;
+    showModeSwitcher: boolean;
     showAiChatToggle: boolean;
     showHistory: boolean;
     showClipboard: boolean;
     showCodeViewer: boolean;
+    showTracking: boolean;
     showExportImport: boolean;
     showViewportSwitcher: boolean;
     showPreviewToggle: boolean;
@@ -172,7 +207,13 @@ export interface ResolvedEditorConfig {
   };
 }
 
-export function resolveEditorConfig(config?: EditorConfig): ResolvedEditorConfig {
+export function resolveEditorConfig(
+  config?: EditorConfig,
+  activeMode?: EditorMode,
+): ResolvedEditorConfig {
+  const mode: EditorMode = activeMode ?? config?.mode ?? 'advance';
+  const isSimple = mode === 'simple';
+
   const toolbarOpt = config?.toolbar;
   const toolbarEnabled = toolbarOpt !== false;
   const toolbarCfg = typeof toolbarOpt === 'object' ? toolbarOpt : {};
@@ -187,48 +228,64 @@ export function resolveEditorConfig(config?: EditorConfig): ResolvedEditorConfig
   const inspectorEnabled = inspectorOpt !== false && (typeof inspectorOpt !== 'object' || inspectorOpt.enabled !== false);
   const inspectorCfg = typeof inspectorOpt === 'object' ? inspectorOpt : {};
 
+  const defaultTabsForMode: LeftSidebarTab[] = isSimple
+    ? ['blocks', 'components']
+    : ['components', 'blocks', 'layers'];
+
   const availableTabs: LeftSidebarTab[] = sidebarCfg.availableTabs && sidebarCfg.availableTabs.length > 0
     ? sidebarCfg.availableTabs
-    : ['components', 'blocks', 'layers'];
+    : defaultTabsForMode;
+
+  const fallbackDefaultTab: LeftSidebarTab =
+    isSimple && availableTabs.includes('blocks')
+      ? 'blocks'
+      : availableTabs[0] ?? 'components';
 
   const defaultTab: LeftSidebarTab = sidebarCfg.defaultTab && availableTabs.includes(sidebarCfg.defaultTab)
     ? sidebarCfg.defaultTab
-    : availableTabs[0] ?? 'components';
+    : fallbackDefaultTab;
+
+  const allowedComponents =
+    sidebarCfg.allowedComponents ??
+    (isSimple && !sidebarCfg.hiddenComponents ? SIMPLE_MODE_ALLOWED_COMPONENTS : undefined);
 
   return {
+    mode,
     toolbar: {
       enabled: toolbarEnabled,
       showTitle: toolbarCfg.showTitle ?? true,
+      showModeSwitcher: toolbarCfg.showModeSwitcher ?? true,
       showAiChatToggle: toolbarCfg.showAiChatToggle ?? true,
       showHistory: toolbarCfg.showHistory ?? true,
-      showClipboard: toolbarCfg.showClipboard ?? true,
-      showCodeViewer: toolbarCfg.showCodeViewer ?? true,
-      showExportImport: toolbarCfg.showExportImport ?? true,
+      showClipboard: toolbarCfg.showClipboard ?? !isSimple,
+      showCodeViewer: toolbarCfg.showCodeViewer ?? !isSimple,
+      showTracking: toolbarCfg.showTracking ?? !isSimple,
+      showExportImport: toolbarCfg.showExportImport ?? !isSimple,
       showViewportSwitcher: toolbarCfg.showViewportSwitcher ?? true,
       showPreviewToggle: toolbarCfg.showPreviewToggle ?? true,
-      showActionDebugger: toolbarCfg.showActionDebugger ?? true,
-      showSelectionStatus: toolbarCfg.showSelectionStatus ?? true,
+      showActionDebugger: toolbarCfg.showActionDebugger ?? !isSimple,
+      showSelectionStatus: toolbarCfg.showSelectionStatus ?? !isSimple,
       customActions: toolbarCfg.customActions,
     },
     sidebar: {
       enabled: sidebarEnabled,
       defaultTab,
       availableTabs,
-      allowedComponents: sidebarCfg.allowedComponents,
+      allowedComponents,
       hiddenComponents: sidebarCfg.hiddenComponents,
       allowedCategories: sidebarCfg.allowedCategories,
       hiddenCategories: sidebarCfg.hiddenCategories,
     },
     canvas: {
-      showBreadcrumbs: canvasCfg.showBreadcrumbs ?? true,
+      showBreadcrumbs: canvasCfg.showBreadcrumbs ?? !isSimple,
       showFloatingBadges: canvasCfg.showFloatingBadges ?? true,
     },
     inspector: {
       enabled: inspectorEnabled,
       showProps: inspectorCfg.showProps ?? true,
-      showTraits: inspectorCfg.showTraits ?? true,
+      showTraits: inspectorCfg.showTraits ?? !isSimple,
       showStyles: inspectorCfg.showStyles ?? true,
-      showStateSelector: inspectorCfg.showStateSelector ?? true,
+      showStateSelector: inspectorCfg.showStateSelector ?? !isSimple,
       allowedStyleSectors: inspectorCfg.allowedStyleSectors,
     },
   };

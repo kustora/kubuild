@@ -5,5 +5,6 @@ export * from './conditional-resolver.js';
 export * from './pipeline-executor.js';
 export * from './state-store.js';
 export * from './server-tracking.js';
+export * from './tracking-pixels.js';
 
 export * from './tracking-relay.js';

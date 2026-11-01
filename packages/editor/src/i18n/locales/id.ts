@@ -1,9 +1,23 @@
 import { TranslationSchema } from '../types.js';
 
 export const id: TranslationSchema = {
-  // Top Level & Tabs
+  // Editor Mode & Top Level Tabs
+  simpleMode: 'Simple',
+  advanceMode: 'Advance',
+  simpleModeTooltip: 'Mode Simple — Edit konten & tampilan dengan mudah untuk pemula',
+  advanceModeTooltip: 'Mode Advance — Pengaturan CSS lengkap, layer & studio pro',
+  simpleAppearanceTitle: 'Tampilan & Gaya Visual',
+  simpleTextColor: 'Warna Teks',
+  simpleBgColor: 'Warna Latar (Background)',
+  simpleFontSize: 'Ukuran Teks',
+  simpleTextAlign: 'Perataan Teks',
+  simplePadding: 'Jarak Dalam (Padding)',
+  simpleMargin: 'Jarak Luar (Margin)',
+  simpleWidth: 'Lebar Elemen',
+  simpleSwitchToAdvance: 'Butuh pengaturan layout, aksi & CSS lebih lengkap? Beralih ke Mode Advance →',
   styleTab: 'Gaya',
   settingsTab: 'Pengaturan',
+  aiTab: 'AI',
   textSettings: 'Pengaturan Teks',
   componentSettings: (label: string) => `Pengaturan ${label}`,
   resetStyle: 'Reset Style',
@@ -143,6 +157,11 @@ export const id: TranslationSchema = {
     dockPanel: 'Tempelkan panel',
     floatPanel: 'Mengambangkan panel',
     closePanel: 'Tutup AI Chat',
+    attachImage: 'Lampirkan gambar',
+    removeImage: 'Hapus gambar',
+    imageUploading: 'Mengunggah gambar…',
+    imageUploadFailed: 'Gambar gagal diunggah. Silakan coba lagi.',
+    imageLimit: (max) => `Maksimal ${max} gambar per pesan.`,
     thinking: 'Berpikir…',
     retry: 'Coba lagi',
     somethingWentWrong: 'Terjadi kesalahan.',
@@ -169,11 +188,22 @@ export const id: TranslationSchema = {
     agentApplied: (count: number) => `${count} perubahan diterapkan ke canvas.`,
     agentLabel: 'Agent',
     agentStep: (step: number, maxSteps: number) => `langkah ${step}/${maxSteps}`,
+    agentProgress: ({ phase, toolName, seconds, outputChars }) => {
+      const chars = outputChars ? ` · ${outputChars.toLocaleString('id')} karakter` : '';
+      if (phase === 'tool') return `Menjalankan ${toolName ?? 'tool'}… ${seconds} dtk`;
+      if (toolName) return `Menulis ${toolName}… ${seconds} dtk${chars}`;
+      return `Berpikir… ${seconds} dtk${chars}`;
+    },
     agentRunningAutoApply:
-      'Sedang memproses langkah... Perubahan otomatis diterapkan ke kanvas setelah selesai.',
+      'Sedang memproses langkah... Setiap perubahan langsung tampil di kanvas begitu langkahnya selesai.',
     agentRunningReview:
       'Sedang memproses langkah... Perubahan akan siap di-review & di-apply setelah selesai.',
     agentFailed: 'Agent gagal.',
+    agentResume: 'Lanjutkan',
+    agentResumeHint: (applied: number, pending: number) =>
+      pending > 0
+        ? `${pending} perubahan yang sudah selesai siap ditinjau — terapkan dulu sebelum melanjutkan.`
+        : `${applied} perubahan yang sudah selesai tetap disimpan. Lanjutkan untuk mengerjakan sisanya.`,
     agentChangesReady: (count: number) => `${count} perubahan siap diterapkan`,
     discard: 'Buang',
     apply: 'Terapkan',

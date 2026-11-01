@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { trackEventRunner } from '../src/action-runners/tracking';
 import { customEventRunner } from '../src/action-runners/navigation-utils';
-import { fireBrowserPixel, injectTrackingScripts, removeTrackingScripts } from '../src/tracking/tracking-manager';
+import {
+  collectBrowserTrackingIds,
+  fireBrowserPixel,
+  injectTrackingScripts,
+  removeTrackingScripts,
+} from '../src/tracking/tracking-manager';
 import { TrackingRelayRequestSchema, type ActionStep, type TrackingConfig } from '@kubuild/schema';
 
 describe('Renderer Tracking & Action Runner', () => {
@@ -229,6 +234,39 @@ describe('Renderer Tracking & Action Runner', () => {
       expect(JSON.stringify(body)).not.toContain('META_999');
     });
 
+    it('adds browser ids to the relay userData, letting step values win', async () => {
+      mockWindow.location.href = 'https://example.com/test?ttclid=click-9';
+      mockDocument.cookie = '_fbp=fb.1.1.111; _fbc=fb.1.1.abc; _ttp=ttp-1; _ga=GA1.1.123.456';
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ version: 1, success: true, eventId: 'x', results: {} }),
+      });
+
+      await trackEventRunner(
+        {
+          ...serverStep,
+          payload: { ...(serverStep.payload as Record<string, unknown>), userData: { email: '{{ form.email }}', fbp: 'from-step' } },
+        },
+        {
+          form: { email: 'buyer@example.com' },
+          document: trackingDoc,
+          trackingRuntime: { relayUrl: '/api/tracking/relay', fetchFn: mockFetch },
+        },
+        new AbortController().signal,
+      );
+
+      const userData = JSON.parse(mockFetch.mock.calls[0][1].body).event.userData;
+      expect(userData).toMatchObject({
+        email: 'buyer@example.com',
+        fbp: 'from-step',
+        fbc: 'fb.1.1.abc',
+        ttp: 'ttp-1',
+        ttclid: 'click-9',
+        clientId: '123.456',
+      });
+    });
+
     it('ignores a legacy serverRelayUrl stored in the step payload or document', async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
       const onDiag = vi.fn();
@@ -299,6 +337,19 @@ describe('Renderer Tracking & Action Runner', () => {
       expect(mockWindow.fbq).not.toHaveBeenCalled();
       expect(mockFetch).not.toHaveBeenCalled();
       expect(result.serverSkippedReason).toContain('GTM');
+    });
+  });
+
+  describe('collectBrowserTrackingIds', () => {
+    it('returns only the ids present', () => {
+      mockDocument.cookie = '_ttp=ttp-1; other=x';
+      expect(collectBrowserTrackingIds()).toEqual({ ttp: 'ttp-1' });
+    });
+
+    it('builds fbc from fbclid when there is no _fbc cookie', () => {
+      mockWindow.location.href = 'https://example.com/?fbclid=abc';
+      mockDocument.cookie = '';
+      expect(collectBrowserTrackingIds().fbc).toMatch(/^fb\.1\.\d+\.abc$/);
     });
   });
 

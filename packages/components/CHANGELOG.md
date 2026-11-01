@@ -1,5 +1,84 @@
 # @kubuild/components
 
+## 0.11.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/schema@0.11.0
+  - @kubuild/core@0.11.0
+
+## 0.10.2
+
+### Patch Changes
+
+- @kubuild/editor
+
+  • Add an AI chat toggle button to the editor toolbar on mobile.
+  • Adjust the AI chat panel behavior while a live agent operation is running.
+  • Support datetime fields in the inspector panel, used by the countdown component.
+  • Update i18n strings (en, id).
+
+  @kubuild/components
+
+  • Support datetime props in the countdown component, including its conversion and the component registry.
+
+  @kubuild/ai
+
+  • Improve live agent operation handling in the useAIAgent hook.
+
+- Updated dependencies []:
+  - @kubuild/core@0.10.2
+  - @kubuild/schema@0.10.2
+
+## 0.10.1
+
+### Patch Changes
+
+- fix version
+- Updated dependencies []:
+  - @kubuild/core@0.10.1
+  - @kubuild/schema@0.10.1
+
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/core@0.10.0
+  - @kubuild/schema@0.10.0
+
+## 0.9.0
+
+### Minor Changes
+
+- • Host Form Submit Hook (RenderContext.onFormSubmit):
+  • Added an optional asynchronous onFormSubmit(submission, helpers) hook to RenderContext (STORA-558).
+  • Enables host applications to intercept form submissions and handle them programmatically (e.g., custom backend workflows, CRM webhooks, multi-step funnel
+  checkouts) once client-side validation passes.
+  • Exposes setErrors(errors) and reset() helpers directly within the host submission handler.
+  • Added supporting TypeScript interfaces (FormSubmission, FormSubmitHelpers) in @kubuild/core.
+
+  ──────
+
+  ### 🐛 Bug Fixes
+
+  #### @kubuild/renderer
+
+  • Form Field Validation Error Rendering (aria-errormessage):
+  • Fixed a bug where input, textarea, and select components attached aria-errormessage="<id>-error", but never rendered the corresponding error container element
+  into the DOM.
+  • Schema validation errors and messages set via setErrors() are now visibly rendered directly beneath the target field with proper semantic accessibility
+  attributes (role="alert").
+
+  ──────
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @kubuild/core@0.9.0
+  - @kubuild/schema@0.9.0
+
 ## 0.8.2
 
 ### Patch Changes

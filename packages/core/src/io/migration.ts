@@ -9,6 +9,7 @@ import {
 import { deepClone } from '../document/command-tree-utils.js';
 import { validateDocument } from '../validation/validator.js';
 import { stripDocumentTrackingSecretsInPlace } from './tracking-sanitizer.js';
+import { convertDocumentTrackingProvidersInPlace } from '../runtime/tracking-pixels.js';
 
 export type MigrationErrorCode =
   | 'NO_MIGRATION_PATH'
@@ -24,7 +25,10 @@ export interface MigrationError {
   details?: Record<string, unknown>;
 }
 
-export type MigrationWarningCode = 'TRACKING_SECRET_REMOVED' | 'PROP_ALIAS_MIGRATED';
+export type MigrationWarningCode =
+  | 'TRACKING_SECRET_REMOVED'
+  | 'PROP_ALIAS_MIGRATED'
+  | 'TRACKING_PROVIDERS_CONVERTED';
 
 /**
  * Non-fatal note emitted by a migration step (the migration still succeeds).
@@ -372,6 +376,27 @@ defaultMigrationRegistry.register({
         code: 'PROP_ALIAS_MIGRATED',
         message: 'Deprecated text prop aliases were renamed to their canonical names.',
         step: '1.1.0->1.2.0',
+        paths: changed,
+      });
+    }
+    return migrated;
+  },
+});
+
+// 7. 1.2.0 -> 1.3.0: multi-pixel tracking — `tracking.providers` (one config per provider) becomes `tracking.pixels[]`
+defaultMigrationRegistry.register({
+  fromVersion: '1.2.0',
+  toVersion: '1.3.0',
+  description: 'Convert tracking.providers (one config per provider) into tracking.pixels entries',
+  migrate: (rawDoc: Record<string, unknown>, context) => {
+    const migrated = deepClone(rawDoc);
+    migrated.version = '1.3.0';
+    const changed = convertDocumentTrackingProvidersInPlace(migrated);
+    if (changed.length > 0) {
+      context.warn({
+        code: 'TRACKING_PROVIDERS_CONVERTED',
+        message: 'Tracking providers were converted into pixel entries (ids "legacy-<provider>").',
+        step: '1.2.0->1.3.0',
         paths: changed,
       });
     }
