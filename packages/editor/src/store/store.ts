@@ -71,8 +71,8 @@ export type BuiltInEditorLocale = 'en' | 'id';
  */
 export type EditorLocale = BuiltInEditorLocale | (string & {});
 export type TableSpreadsheetMode = 'floating' | 'docked' | 'hidden';
-/** Panel mode for the AI Chat Panel (STORA-503), following the `TableSpreadsheetMode` pattern. */
-export type AiChatPanelMode = 'docked' | 'floating' | 'hidden';
+/** Active tab of the right-hand Inspector panel; `'ai'` is where the AI Chat Panel lives. */
+export type InspectorTab = 'style' | 'traits' | 'ai';
 
 export interface ActionLogEntry {
   id: string;
@@ -331,12 +331,12 @@ export interface EditorState {
   /** Host-declared bindable variables + editor/preview-only sample values (STORA-053). Never serialized to the document. */
   variableCatalog: VariableCatalog;
   tableSpreadsheetMode: TableSpreadsheetMode;
-  /** UI-only panel mode for the AI Chat Panel (STORA-503/504). Never serialized into `PageDocument`. */
-  aiChatMode: AiChatPanelMode;
+  /** UI-only active Inspector tab. Never serialized into `PageDocument`. */
+  inspectorTab: InspectorTab;
   /**
    * Monotonically-increasing signal (STORA-511) the AI Chat Panel watches to focus its
-   * chat input and re-attach the current selection as context — e.g. "Ask AI about this
-   * component" from the Inspector. UI-only, never serialized into `PageDocument`.
+   * chat input and re-attach the current selection as context — e.g. the canvas
+   * selection toolbar's AI button. UI-only, never serialized into `PageDocument`.
    */
   aiChatFocusRequestId: number;
   previewMode: boolean;
@@ -389,10 +389,13 @@ export interface EditorState {
   setVariableCatalog: (catalog: VariableCatalog) => void;
   setTableSpreadsheetMode: (mode: TableSpreadsheetMode) => void;
   toggleTableSpreadsheet: () => void;
-  setAiChatMode: (mode: AiChatPanelMode) => void;
+  setInspectorTab: (tab: InspectorTab) => void;
+  /** Switches the Inspector to the AI tab, or back to the Style tab when it is already on it. */
   toggleAiChat: () => void;
   /** Bumps `aiChatFocusRequestId` (STORA-511) — does not itself open the panel. */
   requestAiChatFocus: () => void;
+  /** Opens the AI tab and focuses its input with the current selection attached as context. */
+  askAiAboutSelection: () => void;
   setPreviewMode: (enabled: boolean) => void;
   togglePreviewMode: () => void;
   setMultiDeviceMode: (enabled: boolean) => void;
@@ -621,7 +624,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   onChangeHandler: null,
   variableCatalog: [],
   tableSpreadsheetMode: 'floating',
-  aiChatMode: 'hidden',
+  inspectorTab: 'style',
   aiChatFocusRequestId: 0,
   previewMode: false,
   multiDeviceMode: false,
@@ -654,13 +657,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({
       tableSpreadsheetMode: state.tableSpreadsheetMode === 'hidden' ? 'floating' : 'hidden',
     })),
-  setAiChatMode: (mode) => set({ aiChatMode: mode }),
+  setInspectorTab: (tab) => set({ inspectorTab: tab }),
   toggleAiChat: () =>
     set((state) => ({
-      aiChatMode: state.aiChatMode === 'hidden' ? 'floating' : 'hidden',
+      inspectorTab: state.inspectorTab === 'ai' ? 'style' : 'ai',
     })),
   requestAiChatFocus: () =>
     set((state) => ({ aiChatFocusRequestId: state.aiChatFocusRequestId + 1 })),
+  askAiAboutSelection: () =>
+    set((state) => ({ inspectorTab: 'ai', aiChatFocusRequestId: state.aiChatFocusRequestId + 1 })),
   setPreviewMode: (enabled) =>
     set((state) => ({
       previewMode: enabled,

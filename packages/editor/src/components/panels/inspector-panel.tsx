@@ -18,11 +18,12 @@ import { replayNodeAnimation } from '@kubuild/renderer';
 import { AlertTriangle, Palette, Settings, Crosshair, Trash2, X, Zap, Sparkles, Radio, Upload, Image as ImageIcon, Link2 } from 'lucide-react';
 
 import { StyleSectorId } from '../style-manager/style-manager-accordion.js';
-import { EditorInspectorConfig, EditorMode, ResolvedAiEditorConfig } from '../../config/index.js';
+import { EditorInspectorConfig, EditorMode, ResolvedAiEditorConfig, isAnyAiFeatureEnabled } from '../../config/index.js';
 import { useTranslation } from '../../i18n/index.js';
 import type { MediaTranslations } from '../../i18n/index.js';
 import { LanguageSwitcher } from '../ui/language-switcher.js';
-import type { AssetProvider } from '@kubuild/core';
+import type { AssetProvider, Diagnostic } from '@kubuild/core';
+import { AiChatPanel } from '../ai-chat/ai-chat-panel.js';
 
 
 export interface InspectorPanelProps {
@@ -36,11 +37,13 @@ export interface InspectorPanelProps {
   /** Callback when the user switches mode from inside the inspector (e.g. "Switch to Advance Mode"). */
   onModeChange?: (mode: EditorMode) => void;
   /**
-   * Fully-resolved AI config (STORA-511). Gates the "Ask AI about this component" action
-   * — omitted (or `features.enhance` false) means the action does not render at all,
-   * matching every other AI feature's opt-in-only behavior.
+   * Fully-resolved AI config. Gates the AI tab, which hosts the AI Chat Panel — omitted
+   * (or every feature off) means the tab does not render at all, matching every other AI
+   * feature's opt-in-only behavior.
    */
   aiConfig?: ResolvedAiEditorConfig;
+  /** Forwarded to the AI Chat Panel in the AI tab (see `KubuildEditorProps.onDiagnostic`). */
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
   /** Saved pixel credentials for the account/workspace (fetched by the host app). */
   trackingCredentials?: PixelCredentialOption[];
   /** Opens the host app's credential management page (e.g. /dashboard/marketing). */
@@ -1300,6 +1303,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   mode,
   onModeChange,
   aiConfig,
+  onDiagnostic,
   trackingCredentials,
   onManageCredentials,
   onSaveTrackingSecret,
@@ -1332,9 +1336,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     selectNode,
     tableSpreadsheetMode,
     setTableSpreadsheetMode,
-    aiChatMode,
-    toggleAiChat,
-    requestAiChatFocus,
+    inspectorTab: activeTab,
+    setInspectorTab: setActiveTab,
   } = storeState;
 
   const effectiveMode: EditorMode = mode ?? storeEditorMode ?? 'advance';
@@ -1349,14 +1352,15 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
   const { t } = useTranslation();
 
-  const initialTab = !showStyles && showTraits ? 'traits' : 'style';
+  const aiTabEnabled = !!aiConfig && isAnyAiFeatureEnabled(aiConfig);
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
-  const [activeTab, setActiveTab] = useState<'style' | 'traits'>(initialTab);
   // STORA-250 — asset manager modal state (open + which prop field it targets).
   const [assetPickerField, setAssetPickerField] = useState<string | null>(null);
   // STORA-340 — Visual Action Builder modal state
   const [isActionBuilderOpen, setIsActionBuilderOpen] = useState<boolean>(false);
+  // Whether the AI tab has been opened yet — its chat panel mounts lazily (see aiPane).
+  const [hasOpenedAiTab, setHasOpenedAiTab] = useState<boolean>(false);
   // Pixel Tracking modal — opened from the inspector's Pixel Tracking card
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState<boolean>(false);
   // Active pseudo-state layer for the style manager — STORA-221.
@@ -1364,13 +1368,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   // Component props accordion open state
   const [isPropsOpen, setIsPropsOpen] = useState<boolean>(true);
 
+  // The tab lives in the store, so fall back whenever it points at a tab this panel hides.
   useEffect(() => {
-    if (!showStyles && showTraits && activeTab !== 'traits') {
-      setActiveTab('traits');
-    } else if (!showTraits && showStyles && activeTab !== 'style') {
-      setActiveTab('style');
-    }
-  }, [showStyles, showTraits, activeTab]);
+    const isAvailable =
+      activeTab === 'ai' ? aiTabEnabled : activeTab === 'traits' ? showTraits : showStyles;
+    if (isAvailable) return;
+    if (showStyles) setActiveTab('style');
+    else if (showTraits) setActiveTab('traits');
+  }, [showStyles, showTraits, aiTabEnabled, activeTab, setActiveTab]);
 
   const node = selectedNodeId ? findNodeById(document.document, selectedNodeId) : null;
   const definition = node ? registry.get(node.type) : undefined;
@@ -1380,9 +1385,67 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     setIsPropsOpen(true);
   }, [node?.id]);
 
+  const tabs: Array<{ id: 'style' | 'traits' | 'ai'; label: string; icon: React.ReactNode }> = [
+    ...(showStyles ? [{ id: 'style' as const, label: t.styleTab, icon: <Palette className="w-3.5 h-3.5" aria-hidden="true" /> }] : []),
+    ...(showTraits ? [{ id: 'traits' as const, label: t.settingsTab, icon: <Settings className="w-3.5 h-3.5" aria-hidden="true" /> }] : []),
+    ...(aiTabEnabled ? [{ id: 'ai' as const, label: t.aiTab, icon: <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> }] : []),
+  ];
+
+  // Tab bar: Style / Traits — STORA-211 — plus AI when it is configured.
+  const tabBar =
+    tabs.length > 1 ? (
+      <div key="tab-bar" className="flex shrink-0 border-b border-slate-200 bg-slate-50 items-center justify-between">
+        <div className="flex flex-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              data-testid={`inspector-tab-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
+                activeTab === tab.id
+                  ? 'text-blue-600 border-blue-600 bg-white'
+                  : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="px-2">
+          <LanguageSwitcher />
+        </div>
+      </div>
+    ) : (
+      <div key="tab-bar" className="flex shrink-0 justify-end border-b border-slate-200 bg-slate-50 px-3 py-1.5">
+        <LanguageSwitcher />
+      </div>
+    );
+
+  // The AI Chat Panel mounts the first time its tab opens, then stays mounted while another
+  // tab is shown; the same `key` in both return paths below keeps it mounted across selection
+  // changes too — so the chat session, agent timeline and any in-flight run survive both.
+  const isAiTab = activeTab === 'ai' && aiTabEnabled;
+  if (isAiTab && !hasOpenedAiTab) setHasOpenedAiTab(true);
+  const aiPane = aiTabEnabled && (isAiTab || hasOpenedAiTab) ? (
+    <div key="ai-pane" className={isAiTab ? 'flex-1 min-h-0 flex flex-col' : 'hidden'}>
+      <AiChatPanel aiConfig={aiConfig} registry={registry} mode="docked" onDiagnostic={onDiagnostic} />
+    </div>
+  ) : null;
+
   if (!node || !definition) {
+    if (!aiTabEnabled) {
+      return (
+        <div className={`p-3 text-xs text-slate-500 ${className || ''}`}>No element selected.</div>
+      );
+    }
     return (
-      <div className={`p-3 text-xs text-slate-500 ${className || ''}`}>No element selected.</div>
+      <div className={`flex flex-col h-full min-h-0 overflow-hidden text-sm text-slate-900 ${className || ''}`}>
+        {tabBar}
+        {aiPane}
+        {!isAiTab && <div key="empty" className="p-3 text-xs text-slate-500">No element selected.</div>}
+      </div>
     );
   }
 
@@ -1642,46 +1705,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           inheritedPixelsSource={inheritedTrackingPixelsLabel}
         />
       )}
-      {/* Tab bar: Style / Traits — STORA-211 */}
-      {showStyles && showTraits ? (
-        <div className="flex shrink-0 border-b border-slate-200 bg-slate-50 items-center justify-between">
-          <div className="flex flex-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab('style')}
-              className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
-                activeTab === 'style'
-                  ? 'text-blue-600 border-blue-600 bg-white'
-                  : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>{t.styleTab}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('traits')}
-              className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
-                activeTab === 'traits'
-                  ? 'text-blue-600 border-blue-600 bg-white'
-                  : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Settings className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>{t.settingsTab}</span>
-            </button>
-          </div>
-          <div className="px-2">
-            <LanguageSwitcher />
-          </div>
-        </div>
-      ) : (
-        <div className="flex shrink-0 justify-end border-b border-slate-200 bg-slate-50 px-3 py-1.5">
-          <LanguageSwitcher />
-        </div>
-      )}
+      {tabBar}
+      {aiPane}
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 p-3 min-w-0">
+      <div key="body" className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-4 p-3 min-w-0 ${isAiTab ? 'hidden' : ''}`}>
       {/* STORA-340 — Interactivity & Action Builder Card (Advance mode only) */}
       {!isSimpleMode && (
         <>
@@ -1759,39 +1786,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             onUpdateActions={(actions) => updateNodeActions(node.id, actions)}
           />
         </>
-      )}
-
-      {/* STORA-511 — "Ask AI about this component": opens the AI Chat Panel (if hidden)
-          with this node already attached as context, and focuses its input. Only ever
-          rendered when a node is selected (guaranteed here) and `features.enhance` is on. */}
-      {aiConfig?.enabled && aiConfig.features.enhance && (
-        <div className="pb-3 border-b border-slate-200 shrink-0">
-          <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50/60 border border-blue-200 hover:border-blue-300 transition">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                <Sparkles className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-semibold text-slate-700 leading-tight">Ask AI</span>
-                <span className="text-[10px] text-slate-500 truncate">
-                  Discuss or enhance this component with AI
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              data-testid="ask-ai-about-component-btn"
-              onClick={() => {
-                if (aiChatMode === 'hidden') toggleAiChat();
-                requestAiChatFocus();
-              }}
-              className="px-2.5 py-1 text-xs font-medium text-blue-600 bg-white hover:bg-blue-100 border border-blue-200 rounded-md transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>Ask AI</span>
-            </button>
-          </div>
-        </div>
       )}
 
       {node.type === 'list' && (

@@ -32,6 +32,7 @@ export interface TranslationSchema {
   simpleSwitchToAdvance: string;
   styleTab: string;
   settingsTab: string;
+  aiTab: string;
   textSettings: string;
   componentSettings: (componentLabel: string) => string;
   resetStyle: string;

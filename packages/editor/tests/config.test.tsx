@@ -10,7 +10,7 @@ import { LeftSidebar } from '../src/components/panels/left-sidebar';
 import { ComponentPanel } from '../src/components/panels/component-panel';
 import { InspectorPanel } from '../src/components/panels/inspector-panel';
 import { StyleManagerAccordion } from '../src/components/style-manager/style-manager-accordion';
-import { resolveEditorConfig, isAiChatPanelActive } from '../src/config';
+import { resolveEditorConfig } from '../src/config';
 
 describe('Editor Customization & Module Modularity (EditorConfig)', () => {
   const registry = createDefaultComponentRegistry();
@@ -19,7 +19,7 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
     const doc = createBlankDocument('Custom Config Test');
     useEditorStore.getState().setDocument(doc);
     useEditorStore.getState().selectNode(null);
-    useEditorStore.getState().setAiChatMode('hidden');
+    useEditorStore.getState().setInspectorTab('style');
   });
 
   describe('resolveEditorConfig', () => {
@@ -362,7 +362,7 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
     });
 
     it('is not highlighted (aria-pressed=false) while the panel is hidden', () => {
-      useEditorStore.getState().setAiChatMode('hidden');
+      useEditorStore.getState().setInspectorTab('style');
       const html = renderToString(
         <KubuildEditor
           registry={registry}
@@ -371,17 +371,6 @@ describe('Editor Customization & Module Modularity (EditorConfig)', () => {
       );
       expect(html).toContain('data-testid="toolbar-ai-chat-toggle"');
       expect(html).toMatch(/data-testid="toolbar-ai-chat-toggle"[^>]*aria-pressed="false"/);
-    });
-
-    // The full-editor `aria-pressed="true"` case (panel docked/floating) can't be driven
-    // through a `renderToString` mutation — Zustand v5's SSR snapshot always reflects the
-    // store's state at module creation (`getServerSnapshot` → `getInitialState()`), never a
-    // `setAiChatMode()` call made right before render. `isAiChatPanelActive` is the toggle's
-    // exact highlight predicate, so it's verified directly here instead.
-    it('is highlighted (isAiChatPanelActive) once the panel is docked or floating, not hidden', () => {
-      expect(isAiChatPanelActive('docked')).toBe(true);
-      expect(isAiChatPanelActive('floating')).toBe(true);
-      expect(isAiChatPanelActive('hidden')).toBe(false);
     });
   });
 });

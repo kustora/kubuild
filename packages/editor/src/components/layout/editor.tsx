@@ -45,7 +45,6 @@ import { TableSpreadsheetEditor, findActiveTableNode } from '../table-editor/tab
 import { HierarchyBreadcrumbs } from '../canvas/breadcrumbs.js';
 import { LeftSidebar } from '../panels/left-sidebar.js';
 import { ActionDebuggerPanel } from '../panels/action-debugger-panel.js';
-import { AiChatPanel } from '../ai-chat/ai-chat-panel.js';
 import {
   EditorConfig,
   EditorMode,
@@ -53,7 +52,6 @@ import {
   AiEditorConfig,
   resolveAiEditorConfig,
   isAnyAiFeatureEnabled,
-  shouldRenderAiChatPanel,
 } from '../../config/index.js';
 import {
   Monitor,
@@ -266,18 +264,10 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
       : storeSelectedNodeId;
   const tableSpreadsheetMode = useEditorStore((state) => state.tableSpreadsheetMode);
   const setTableSpreadsheetMode = useEditorStore((state) => state.setTableSpreadsheetMode);
-  const aiChatMode = useEditorStore((state) => state.aiChatMode);
-  const setAiChatMode = useEditorStore((state) => state.setAiChatMode);
-  // Closing the AI panel only hides it: once opened it stays mounted in its last mode, so
-  // the chat session, agent timeline and any in-flight run survive a close/reopen.
-  const [lastOpenAiChatMode, setLastOpenAiChatMode] = useState<'docked' | 'floating' | null>(
-    null,
-  );
-  useEffect(() => {
-    if (aiChatMode !== 'hidden') setLastOpenAiChatMode(aiChatMode);
-  }, [aiChatMode]);
-  const mountedAiChatMode = aiChatMode !== 'hidden' ? aiChatMode : lastOpenAiChatMode;
-  const isAiChatHidden = aiChatMode === 'hidden';
+  const inspectorTab = useEditorStore((state) => state.inspectorTab);
+  const setInspectorTab = useEditorStore((state) => state.setInspectorTab);
+  const askAiAboutSelection = useEditorStore((state) => state.askAiAboutSelection);
+  const aiChatFocusRequestId = useEditorStore((state) => state.aiChatFocusRequestId);
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
   const canUndo = useEditorStore((state) => state.canUndo);
@@ -300,9 +290,6 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
 
   const DEFAULT_INSPECTOR_WIDTH = 300;
   const MIN_INSPECTOR_WIDTH = 260;
-
-  const DEFAULT_AI_CHAT_WIDTH = 320;
-  const MIN_AI_CHAT_WIDTH = 260;
 
   const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => {
     if (typeof window !== 'undefined') {
@@ -330,19 +317,6 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     return DEFAULT_INSPECTOR_WIDTH;
   });
 
-  const [aiChatWidth, setAiChatWidth] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('kubuild_ai_chat_width');
-        if (saved) {
-          const parsed = parseInt(saved, 10);
-          if (!isNaN(parsed) && parsed >= MIN_AI_CHAT_WIDTH && parsed <= 700) return parsed;
-        }
-      } catch {}
-    }
-    return DEFAULT_AI_CHAT_WIDTH;
-  });
-
   useEffect(() => {
     try {
       localStorage.setItem('kubuild_left_sidebar_width', String(leftSidebarWidth));
@@ -355,11 +329,14 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     } catch {}
   }, [inspectorWidth]);
 
+  // The AI chat lives in the Inspector's AI tab; below `lg` the Inspector is a drawer, so an
+  // "ask AI" request (selection toolbar, toolbar toggle, mobile nav) opens the drawer too.
   useEffect(() => {
-    try {
-      localStorage.setItem('kubuild_ai_chat_width', String(aiChatWidth));
-    } catch {}
-  }, [aiChatWidth]);
+    if (aiChatFocusRequestId === 0) return;
+    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 1024px)').matches) {
+      setIsMobileInspectorOpen(true);
+    }
+  }, [aiChatFocusRequestId]);
 
   const defaultWidthForViewport = (vp: Viewport) => {
     if (vp === 'mobile') return 375;
@@ -651,15 +628,15 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
     [triggerSave],
   );
 
-  // Seed the panel mode from config once at mount (STORA-503) — after that, the store's
-  // own toggle/setAiChatMode actions are the single source of truth.
-  const didSeedAiChatMode = React.useRef(false);
+  // Open the Inspector on its AI tab at mount when config asks for it (STORA-503) — after
+  // that, the store's own tab actions are the single source of truth.
+  const didSeedInspectorTab = React.useRef(false);
   // Intentionally mount-only: re-running this when `resolvedAiConfig` changes would fight
-  // the store's own setAiChatMode/toggleAiChat actions on every subsequent render.
+  // the store's own tab actions on every subsequent render.
   useEffect(() => {
-    if (didSeedAiChatMode.current) return;
-    didSeedAiChatMode.current = true;
-    setAiChatMode(resolvedAiConfig.defaultPanelMode);
+    if (didSeedInspectorTab.current) return;
+    didSeedInspectorTab.current = true;
+    if (aiFeatureEnabled && resolvedAiConfig.defaultPanelMode !== 'hidden') setInspectorTab('ai');
   }, []);
 
   const availableViewports: Viewport[] = isSimpleMode
@@ -672,21 +649,6 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
       data-editor-mode={effectiveEditorMode}
       className={`flex flex-col h-full bg-slate-100 text-slate-900 relative overflow-hidden ${className || ''}`}
     >
-      {/* Floating AI Chat Panel (STORA-503) — never mounted when AI is fully disabled */}
-      {mountedAiChatMode &&
-        shouldRenderAiChatPanel(aiFeatureEnabled, mountedAiChatMode, 'floating') && (
-          <div className={isAiChatHidden ? 'hidden' : 'contents'}>
-            <AiChatPanel
-              aiConfig={resolvedAiConfig}
-              registry={registry}
-              mode="floating"
-              onDiagnostic={onDiagnostic}
-              onToggleMode={() => setAiChatMode('docked')}
-              onClose={() => setAiChatMode('hidden')}
-            />
-          </div>
-        )}
-
       {/* Floating Table Spreadsheet Editor */}
       {activeTable && tableSpreadsheetMode === 'floating' && (
         <TableSpreadsheetEditor
@@ -760,6 +722,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
                 mode={effectiveEditorMode}
                 onModeChange={handleModeChange}
                 aiConfig={resolvedAiConfig}
+                onDiagnostic={onDiagnostic}
                 trackingCredentials={trackingCredentials}
                 onManageCredentials={onManageCredentials}
                 onSaveTrackingSecret={onSaveTrackingSecret}
@@ -984,6 +947,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               activePageId={effectiveActivePageId}
               onActivePageChange={handleActivePageChange}
               onPagesChange={handlePagesChange}
+              aiEnabled={aiFeatureEnabled}
               className="flex-1 min-h-0"
             />
           )}
@@ -1071,6 +1035,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
                 mode={effectiveEditorMode}
                 onModeChange={handleModeChange}
                 aiConfig={resolvedAiConfig}
+                onDiagnostic={onDiagnostic}
                 trackingCredentials={trackingCredentials}
                 onManageCredentials={onManageCredentials}
                 onSaveTrackingSecret={onSaveTrackingSecret}
@@ -1083,41 +1048,6 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
           </>
         )}
 
-        {/* Docked AI Chat Panel (STORA-503) — an additional sibling column, sized like the
-            other docked panels, so it never shrinks/shifts Sidebar/Navigator/Inspector. */}
-        {mountedAiChatMode &&
-          shouldRenderAiChatPanel(aiFeatureEnabled, mountedAiChatMode, 'docked') && (
-          <div className={isAiChatHidden ? 'hidden' : 'contents'}>
-            <PanelResizeHandle
-              side="left"
-              onResize={(dx) =>
-                setAiChatWidth((w) =>
-                  Math.min(
-                    Math.max(MIN_AI_CHAT_WIDTH, w - dx),
-                    typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.45) : 600,
-                  ),
-                )
-              }
-              onDoubleClick={() => setAiChatWidth(DEFAULT_AI_CHAT_WIDTH)}
-              ariaLabel="Resize AI Chat Panel"
-              title="Drag to resize AI chat panel width (Double click to reset)"
-              className="hidden lg:flex"
-            />
-            <div
-              style={{ width: `${aiChatWidth}px` }}
-              className="hidden lg:flex shrink-0 bg-white border-l border-slate-200 overflow-hidden flex-col min-h-0 h-full"
-            >
-              <AiChatPanel
-                aiConfig={resolvedAiConfig}
-                registry={registry}
-                mode="docked"
-                onDiagnostic={onDiagnostic}
-                onToggleMode={() => setAiChatMode('floating')}
-                onClose={() => setAiChatMode('hidden')}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Mobile Bottom Navigation Bar (Visible only on < lg screens) */}
@@ -1168,11 +1098,11 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
           <button
             type="button"
             data-testid="mobile-ai-chat-toggle"
-            aria-pressed={aiChatMode !== 'hidden'}
-            // The docked column is desktop-only, so on mobile the panel always opens floating.
-            onClick={() => setAiChatMode(aiChatMode === 'floating' ? 'hidden' : 'floating')}
+            aria-pressed={isMobileInspectorOpen && inspectorTab === 'ai'}
+            // Opens the Inspector drawer on its AI tab (see the aiChatFocusRequestId effect).
+            onClick={askAiAboutSelection}
             className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-md transition ${
-              aiChatMode !== 'hidden'
+              isMobileInspectorOpen && inspectorTab === 'ai'
                 ? 'text-violet-600 font-semibold'
                 : 'text-slate-600 hover:text-violet-600 hover:bg-slate-50'
             }`}

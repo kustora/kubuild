@@ -10,7 +10,7 @@ import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils/ind
 import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles, Activity, Loader2 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.js';
 
-import { EditorToolbarConfig, isAiChatPanelActive } from '../../config/index.js';
+import { EditorToolbarConfig } from '../../config/index.js';
 
 export interface EditorToolbarProps {
   registry: ComponentRegistry;
@@ -133,8 +133,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     clipboard,
     canUndo,
     canRedo,
-    aiChatMode,
+    inspectorTab,
     toggleAiChat,
+    askAiAboutSelection,
     duplicateComponent,
     deleteComponent,
     copyNode,
@@ -155,6 +156,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const showAiChatToggle = config?.showAiChatToggle !== false && aiEnabled;
+  const isAiTabActive = inspectorTab === 'ai';
   const showHistory = config?.showHistory !== false;
   const showClipboard = config?.showClipboard !== false;
   const showCodeViewer = config?.showCodeViewer !== false;
@@ -241,12 +243,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             title={
               isAiRunning
                 ? `${t.aiChat.aiRunning} ${t.aiChat.busyNotice}`
-                : `AI Chat (${isAiChatPanelActive(aiChatMode) ? 'Open' : 'Hidden'})`
+                : `AI Chat (${isAiTabActive ? 'Open' : 'Hidden'})`
             }
-            onClick={toggleAiChat}
-            aria-pressed={isAiChatPanelActive(aiChatMode)}
+            // Opening goes through askAiAboutSelection so a drawer Inspector (below lg) opens too.
+            onClick={isAiTabActive ? toggleAiChat : askAiAboutSelection}
+            aria-pressed={isAiTabActive}
             className={`hidden sm:flex items-center gap-1 text-xs px-2.5 py-1 rounded border transition font-medium cursor-pointer ${
-              isAiChatPanelActive(aiChatMode)
+              isAiTabActive
                 ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-xs'
                 : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
             }`}

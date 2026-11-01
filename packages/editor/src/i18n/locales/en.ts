@@ -17,6 +17,7 @@ export const en: TranslationSchema = {
   simpleSwitchToAdvance: 'Need advanced layout, actions & CSS controls? Switch to Advance Mode →',
   styleTab: 'Style',
   settingsTab: 'Settings',
+  aiTab: 'AI',
   textSettings: 'Text Settings',
   componentSettings: (label: string) => `${label} Settings`,
   resetStyle: 'Reset Style',

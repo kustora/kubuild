@@ -9,7 +9,6 @@ import { KubuildEditor } from '../src/components/layout/editor';
 import {
   resolveAiEditorConfig,
   isAnyAiFeatureEnabled,
-  shouldRenderAiChatPanel,
 } from '../src/config';
 import {
   AiChatPanel,
@@ -35,7 +34,7 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
     const doc = createBlankDocument('AI Chat Panel Test');
     useEditorStore.getState().setDocument(doc);
     useEditorStore.getState().selectNode(null);
-    useEditorStore.getState().setAiChatMode('hidden');
+    useEditorStore.getState().setInspectorTab('style');
   });
 
   describe('isAnyAiFeatureEnabled', () => {
@@ -53,35 +52,6 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
           resolveAiEditorConfig({ provider: fakeAdapter, features: { enhance: true } }),
         ),
       ).toBe(true);
-    });
-  });
-
-  describe('shouldRenderAiChatPanel (STORA-503 docked/floating/hidden gating)', () => {
-    // Zustand v5's SSR snapshot (`getServerSnapshot` → `store.getInitialState()`) always
-    // reflects the store's state *at module creation*, never a mutation applied right before
-    // a `renderToString` call in tests — so the docked/floating/hidden gate that reads
-    // `aiChatMode` from the store inside `KubuildEditor` is verified here as pure boolean
-    // logic instead of through a full-editor SSR render.
-    it('never renders (either slot) when AI features are disabled, regardless of aiChatMode', () => {
-      expect(shouldRenderAiChatPanel(false, 'docked', 'docked')).toBe(false);
-      expect(shouldRenderAiChatPanel(false, 'floating', 'floating')).toBe(false);
-    });
-
-    it('renders the docked slot only when aiChatMode is docked', () => {
-      expect(shouldRenderAiChatPanel(true, 'docked', 'docked')).toBe(true);
-      expect(shouldRenderAiChatPanel(true, 'floating', 'docked')).toBe(false);
-      expect(shouldRenderAiChatPanel(true, 'hidden', 'docked')).toBe(false);
-    });
-
-    it('renders the floating slot only when aiChatMode is floating', () => {
-      expect(shouldRenderAiChatPanel(true, 'floating', 'floating')).toBe(true);
-      expect(shouldRenderAiChatPanel(true, 'docked', 'floating')).toBe(false);
-      expect(shouldRenderAiChatPanel(true, 'hidden', 'floating')).toBe(false);
-    });
-
-    it('never renders either slot when aiChatMode is hidden', () => {
-      expect(shouldRenderAiChatPanel(true, 'hidden', 'docked')).toBe(false);
-      expect(shouldRenderAiChatPanel(true, 'hidden', 'floating')).toBe(false);
     });
   });
 
@@ -113,7 +83,7 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
       expect(dockedHtml).not.toContain('touch-none');
     });
 
-    it("'hidden' mode is the caller's responsibility: KubuildEditor renders zero ai-chat-panel nodes by default (store's true initial aiChatMode is 'hidden')", () => {
+    it('KubuildEditor renders zero ai-chat-panel nodes by default (the Inspector starts on its Style tab)', () => {
       const html = renderToString(
         <KubuildEditor
           registry={registry}

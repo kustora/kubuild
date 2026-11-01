@@ -17,6 +17,7 @@ export const id: TranslationSchema = {
   simpleSwitchToAdvance: 'Butuh pengaturan layout, aksi & CSS lebih lengkap? Beralih ke Mode Advance →',
   styleTab: 'Gaya',
   settingsTab: 'Pengaturan',
+  aiTab: 'AI',
   textSettings: 'Pengaturan Teks',
   componentSettings: (label: string) => `Pengaturan ${label}`,
   resetStyle: 'Reset Style',

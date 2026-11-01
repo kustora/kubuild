@@ -906,47 +906,6 @@ describe('Editor Store', () => {
     });
   });
 
-  describe('aiChatMode (STORA-503)', () => {
-    it('defaults to hidden', () => {
-      useEditorStore.getState().setAiChatMode('hidden');
-      expect(useEditorStore.getState().aiChatMode).toBe('hidden');
-    });
-
-    it('setAiChatMode switches between docked, floating, and hidden', () => {
-      useEditorStore.getState().setAiChatMode('docked');
-      expect(useEditorStore.getState().aiChatMode).toBe('docked');
-
-      useEditorStore.getState().setAiChatMode('floating');
-      expect(useEditorStore.getState().aiChatMode).toBe('floating');
-
-      useEditorStore.getState().setAiChatMode('hidden');
-      expect(useEditorStore.getState().aiChatMode).toBe('hidden');
-    });
-
-    it('toggleAiChat flips between hidden and floating like toggleNavigator/toggleTableSpreadsheet', () => {
-      useEditorStore.getState().setAiChatMode('hidden');
-
-      useEditorStore.getState().toggleAiChat();
-      expect(useEditorStore.getState().aiChatMode).toBe('floating');
-
-      useEditorStore.getState().toggleAiChat();
-      expect(useEditorStore.getState().aiChatMode).toBe('hidden');
-    });
-
-    it('toggleAiChat from docked collapses to hidden (any non-hidden mode toggles off)', () => {
-      useEditorStore.getState().setAiChatMode('docked');
-
-      useEditorStore.getState().toggleAiChat();
-      expect(useEditorStore.getState().aiChatMode).toBe('hidden');
-    });
-
-    it('is UI-only: setDocument does not reset aiChatMode', () => {
-      useEditorStore.getState().setAiChatMode('docked');
-      useEditorStore.getState().setDocument(createBlankDocument('Fresh Doc'));
-      expect(useEditorStore.getState().aiChatMode).toBe('docked');
-    });
-  });
-
   describe('requestAiChatFocus (STORA-511)', () => {
     it('starts at 0 and increments on every call', () => {
       useEditorStore.getState().setDocument(createBlankDocument('Focus Signal Test'));
@@ -964,6 +923,44 @@ describe('Editor Store', () => {
       const before = useEditorStore.getState().aiChatFocusRequestId;
       useEditorStore.getState().setDocument(createBlankDocument('Fresh Doc'));
       expect(useEditorStore.getState().aiChatFocusRequestId).toBe(before);
+    });
+  });
+
+  describe('inspectorTab', () => {
+    it('setInspectorTab switches between style, traits, and ai', () => {
+      useEditorStore.getState().setInspectorTab('traits');
+      expect(useEditorStore.getState().inspectorTab).toBe('traits');
+
+      useEditorStore.getState().setInspectorTab('ai');
+      expect(useEditorStore.getState().inspectorTab).toBe('ai');
+
+      useEditorStore.getState().setInspectorTab('style');
+      expect(useEditorStore.getState().inspectorTab).toBe('style');
+    });
+
+    it('toggleAiChat opens the AI tab, and from the AI tab goes back to Style', () => {
+      useEditorStore.getState().setInspectorTab('traits');
+
+      useEditorStore.getState().toggleAiChat();
+      expect(useEditorStore.getState().inspectorTab).toBe('ai');
+
+      useEditorStore.getState().toggleAiChat();
+      expect(useEditorStore.getState().inspectorTab).toBe('style');
+    });
+
+    it('askAiAboutSelection opens the AI tab and bumps the focus signal', () => {
+      useEditorStore.getState().setInspectorTab('style');
+      const before = useEditorStore.getState().aiChatFocusRequestId;
+
+      useEditorStore.getState().askAiAboutSelection();
+      expect(useEditorStore.getState().inspectorTab).toBe('ai');
+      expect(useEditorStore.getState().aiChatFocusRequestId).toBe(before + 1);
+    });
+
+    it('is UI-only: setDocument does not reset inspectorTab', () => {
+      useEditorStore.getState().setInspectorTab('ai');
+      useEditorStore.getState().setDocument(createBlankDocument('Fresh Doc'));
+      expect(useEditorStore.getState().inspectorTab).toBe('ai');
     });
   });
 
