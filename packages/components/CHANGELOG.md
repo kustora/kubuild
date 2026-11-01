@@ -1,5 +1,13 @@
 # @kubuild/components
 
+## 0.12.0
+
+### Patch Changes
+
+- Updated dependencies [[`e31e2f1`](https://github.com/kustora/kubuild/commit/e31e2f1640abaad83c797df725d5d0308359d76e)]:
+  - @kubuild/core@0.12.0
+  - @kubuild/schema@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes

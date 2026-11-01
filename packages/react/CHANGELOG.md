@@ -1,5 +1,17 @@
 # @kubuild/react
 
+## 0.12.0
+
+### Patch Changes
+
+- Updated dependencies [`0c4b334`, `0c4b334`, [`e31e2f1`](https://github.com/kustora/kubuild/commit/e31e2f1640abaad83c797df725d5d0308359d76e)]:
+  - @kubuild/ai@0.12.0
+  - @kubuild/editor@0.12.0
+  - @kubuild/core@0.12.0
+  - @kubuild/renderer@0.12.0
+  - @kubuild/components@0.12.0
+  - @kubuild/schema@0.12.0
+
 ## 0.11.0
 
 ### Minor Changes
