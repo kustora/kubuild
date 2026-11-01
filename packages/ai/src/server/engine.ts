@@ -83,9 +83,12 @@ function buildFallbackPlan(prompt: string): PagePlan & { sections: PlannedSectio
 const PLAN_FALLBACK_MESSAGE =
   'The AI response could not be parsed as a page plan, so a generic default plan was used instead.';
 
+/** Most images a plan/generate call sends — each section call re-sends them. */
+const MAX_GENERATION_IMAGES = 4;
+
 /**
  * Images for a plan/generate call: the request's own plus any attached earlier in the
- * conversation it carries, de-duplicated by URL.
+ * conversation it carries, de-duplicated by URL, keeping the most recent few.
  */
 function collectRequestImages(request: {
   images?: AiImageBlock[];
@@ -93,7 +96,7 @@ function collectRequestImages(request: {
 }): AiImageBlock[] | undefined {
   const all = [...(request.conversationHistory ?? []).flatMap(getImageBlocks), ...(request.images ?? [])];
   const unique = all.filter((img, i) => all.findIndex((other) => other.url === img.url) === i);
-  return unique.length > 0 ? unique : undefined;
+  return unique.length > 0 ? unique.slice(-MAX_GENERATION_IMAGES) : undefined;
 }
 
 export class KubuildAiEngine {

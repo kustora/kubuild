@@ -14,35 +14,41 @@ import type {
 } from '../types.js';
 import { joinInstructions } from '../core/prompt-compiler.js';
 
-/** Most images one request may carry, across `images`, `messages` and `conversationHistory`. */
-export const MAX_REQUEST_IMAGES = 8;
+/** Most images one message (or a request's own `images` field) may carry. */
+export const MAX_IMAGES_PER_MESSAGE = 4;
+/**
+ * Most images one request may carry in total — chat history re-sends earlier attachments,
+ * so this is well above the per-message cap.
+ */
+export const MAX_REQUEST_IMAGES = 20;
 const MAX_IMAGE_URL_LENGTH = 2048;
 
 /**
  * Rejects image blocks the providers can't (or shouldn't) be handed: only hosted http(s)
  * URLs are accepted — a `data:` URL would put the whole file in the request body and the
- * model prompt — and the total count is capped. Returns the 400 response, or `null`.
+ * model prompt — and counts are capped per message and per request. Returns the 400
+ * response, or `null`.
  */
 export function validateRequestImages(
   payload: AiApiRequestBody,
 ): { status: number; response: AiGenerateResponse<unknown> } | null {
-  const fromMessages = (messages: unknown): unknown[] =>
-    Array.isArray(messages)
-      ? messages.flatMap((m) =>
-          m && typeof m === 'object' && Array.isArray((m as AiChatMessage).content)
-            ? ((m as AiChatMessage).content as Array<{ type?: unknown }>).filter((b) => b?.type === 'image')
-            : [],
-        )
+  const imagesOf = (message: unknown): unknown[] =>
+    message && typeof message === 'object' && Array.isArray((message as AiChatMessage).content)
+      ? ((message as AiChatMessage).content as Array<{ type?: unknown }>).filter((b) => b?.type === 'image')
       : [];
-  const images: unknown[] = [
-    ...(payload.images === undefined ? [] : Array.isArray(payload.images) ? payload.images : [null]),
-    ...fromMessages(payload.messages),
-    ...fromMessages(payload.conversationHistory),
+  const groups: unknown[][] = [
+    payload.images === undefined ? [] : Array.isArray(payload.images) ? payload.images : [null],
+    ...(Array.isArray(payload.messages) ? payload.messages.map(imagesOf) : []),
+    ...(Array.isArray(payload.conversationHistory) ? payload.conversationHistory.map(imagesOf) : []),
   ];
+  const images = groups.flat();
   const invalid = (message: string) => ({
     status: 400,
     response: { success: false, error: { code: 'INVALID_IMAGES', message } },
   });
+  if (groups.some((group) => group.length > MAX_IMAGES_PER_MESSAGE)) {
+    return invalid(`At most ${MAX_IMAGES_PER_MESSAGE} images can be attached to one message`);
+  }
   if (images.length > MAX_REQUEST_IMAGES) {
     return invalid(`At most ${MAX_REQUEST_IMAGES} images can be attached to one request`);
   }

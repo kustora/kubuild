@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { OpenAiAdapter } from '../src/server/adapters/openai';
 import { AnthropicAdapter } from '../src/server/adapters/anthropic';
 import { KubuildAiEngine } from '../src/server/engine';
-import { processAiRequest, MAX_REQUEST_IMAGES } from '../src/server/handler';
+import { processAiRequest, MAX_IMAGES_PER_MESSAGE, MAX_REQUEST_IMAGES } from '../src/server/handler';
 import { buildUserContent, getImageBlocks, getMessagePromptText, getMessageText } from '../src/core/messages';
 import type { AiImageBlock, AiProviderAdapter, AiProviderGenerateParams } from '../src/types';
 
@@ -166,12 +166,31 @@ describe('processAiRequest image validation', () => {
     expect(status).toBe(400);
   });
 
-  it('rejects more than the image cap', async () => {
-    const images = Array.from({ length: MAX_REQUEST_IMAGES + 1 }, (_, i) => ({
-      type: 'image',
-      url: `https://cdn.example.com/${i}.png`,
-    }));
-    const { status } = await processAiRequest(engine, { mode: 'plan', prompt: 'p', images });
+  const imagesN = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ type: 'image' as const, url: `https://cdn.example.com/${i}.png` }));
+
+  it('rejects more than the per-message cap', async () => {
+    const { status } = await processAiRequest(engine, {
+      mode: 'plan',
+      prompt: 'p',
+      images: imagesN(MAX_IMAGES_PER_MESSAGE + 1),
+    });
+    expect(status).toBe(400);
+  });
+
+  it('allows history to add up past the per-message cap, but not past the request cap', async () => {
+    const turn = (n: number) => ({ role: 'user' as const, content: imagesN(n) });
+    const fits = await processAiRequest(engine, {
+      mode: 'plan',
+      prompt: 'p',
+      conversationHistory: [turn(MAX_IMAGES_PER_MESSAGE), turn(MAX_IMAGES_PER_MESSAGE)],
+    });
+    expect(fits.response.error?.code).not.toBe('INVALID_IMAGES');
+
+    const tooMany = Array.from({ length: MAX_REQUEST_IMAGES / MAX_IMAGES_PER_MESSAGE + 1 }, () =>
+      turn(MAX_IMAGES_PER_MESSAGE),
+    );
+    const { status } = await processAiRequest(engine, { mode: 'plan', prompt: 'p', conversationHistory: tooMany });
     expect(status).toBe(400);
   });
 
