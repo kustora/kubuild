@@ -17,7 +17,7 @@ import {
   compileComponentCatalog,
   joinInstructions,
 } from '../core/prompt-compiler.js';
-import { getMessageText } from '../core/messages.js';
+import { getMessagePromptText } from '../core/messages.js';
 import type { KubuildAiEngine } from './engine.js';
 import { createDocumentTools, toToolDefinitions, type AgentTool } from './tools/index.js';
 
@@ -340,7 +340,7 @@ export class KubuildAiAgent {
           this.callModel(
             {
               systemPrompt,
-              userPrompt: getMessageText(request.messages[request.messages.length - 1]),
+              userPrompt: getMessagePromptText(request.messages[request.messages.length - 1]),
               messages,
               tools: toolDefinitions,
               toolChoice: 'auto',

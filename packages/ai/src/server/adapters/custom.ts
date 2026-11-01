@@ -3,7 +3,7 @@ import type {
   AiProviderGenerateParams,
   AiProviderGenerateResult,
 } from '../../types.js';
-import { getMessageText } from '../../core/messages.js';
+import { getMessagePromptText } from '../../core/messages.js';
 
 export interface CustomHttpAdapterOptions {
   url: string;
@@ -36,7 +36,7 @@ export class CustomHttpAdapter implements AiProviderAdapter {
           params.messages && params.messages.length > 0
             ? [
                 { role: 'system', content: params.systemPrompt },
-                ...params.messages.map((m) => ({ role: m.role, content: getMessageText(m) })),
+                ...params.messages.map((m) => ({ role: m.role, content: getMessagePromptText(m) })),
               ]
             : [
                 { role: 'system', content: params.systemPrompt },

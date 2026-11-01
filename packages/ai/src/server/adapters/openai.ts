@@ -1,12 +1,19 @@
 import type {
   AiChatMessage,
+  AiImageBlock,
   AiProviderAdapter,
   AiProviderGenerateParams,
   AiProviderGenerateResult,
   AiStopReason,
   AiToolUseBlock,
 } from '../../types.js';
-import { getMessageText, getToolResultBlocks, getToolUseBlocks } from '../../core/messages.js';
+import {
+  getImageBlocks,
+  getMessagePromptText,
+  getMessageText,
+  getToolResultBlocks,
+  getToolUseBlocks,
+} from '../../core/messages.js';
 import { readSseDataLines } from './stream-utils.js';
 
 export interface OpenAiAdapterOptions {
@@ -18,9 +25,13 @@ export interface OpenAiAdapterOptions {
 }
 
 /** OpenAI Chat Completions message shape — `tool_calls`/`role: 'tool'` included. */
+type OpenAiContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
 interface OpenAiMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string | null;
+  content: string | OpenAiContentPart[] | null;
   tool_calls?: Array<{
     id: string;
     type: 'function';
@@ -85,6 +96,14 @@ function parseToolCalls(raw: OpenAiToolCallPayload[] | undefined): AiToolUseBloc
         input,
       };
     });
+}
+
+/** A user turn's text followed by its images, in OpenAI's multi-part content format. */
+function withImageParts(text: string, images: readonly AiImageBlock[]): OpenAiContentPart[] {
+  return [
+    { type: 'text', text },
+    ...images.map((img) => ({ type: 'image_url' as const, image_url: { url: img.url } })),
+  ];
 }
 
 export class OpenAiAdapter implements AiProviderAdapter {
@@ -153,6 +172,11 @@ export class OpenAiAdapter implements AiProviderAdapter {
       ];
     }
 
+    const images = getImageBlocks(message);
+    if (images.length > 0 && message.role === 'user') {
+      return [{ role: 'user', content: withImageParts(getMessagePromptText(message), images) }];
+    }
+
     return [{ role: message.role, content: text }];
   }
 
@@ -166,7 +190,10 @@ export class OpenAiAdapter implements AiProviderAdapter {
     }
     return [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
+      {
+        role: 'user',
+        content: params.images && params.images.length > 0 ? withImageParts(userPrompt, params.images) : userPrompt,
+      },
     ];
   }
 

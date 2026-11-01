@@ -6,12 +6,59 @@ import type {
   AiGenerateSectionRequest,
   AiRefactorNodeRequest,
   AiChatMessage,
+  AiImageBlock,
   AiGenerateResponse,
   AiGenerationMode,
   AiStreamEvent,
   PagePlan,
 } from '../types.js';
 import { joinInstructions } from '../core/prompt-compiler.js';
+
+/** Most images one request may carry, across `images`, `messages` and `conversationHistory`. */
+export const MAX_REQUEST_IMAGES = 8;
+const MAX_IMAGE_URL_LENGTH = 2048;
+
+/**
+ * Rejects image blocks the providers can't (or shouldn't) be handed: only hosted http(s)
+ * URLs are accepted — a `data:` URL would put the whole file in the request body and the
+ * model prompt — and the total count is capped. Returns the 400 response, or `null`.
+ */
+export function validateRequestImages(
+  payload: AiApiRequestBody,
+): { status: number; response: AiGenerateResponse<unknown> } | null {
+  const fromMessages = (messages: unknown): unknown[] =>
+    Array.isArray(messages)
+      ? messages.flatMap((m) =>
+          m && typeof m === 'object' && Array.isArray((m as AiChatMessage).content)
+            ? ((m as AiChatMessage).content as Array<{ type?: unknown }>).filter((b) => b?.type === 'image')
+            : [],
+        )
+      : [];
+  const images: unknown[] = [
+    ...(payload.images === undefined ? [] : Array.isArray(payload.images) ? payload.images : [null]),
+    ...fromMessages(payload.messages),
+    ...fromMessages(payload.conversationHistory),
+  ];
+  const invalid = (message: string) => ({
+    status: 400,
+    response: { success: false, error: { code: 'INVALID_IMAGES', message } },
+  });
+  if (images.length > MAX_REQUEST_IMAGES) {
+    return invalid(`At most ${MAX_REQUEST_IMAGES} images can be attached to one request`);
+  }
+  for (const image of images) {
+    const url = image && typeof image === 'object' ? (image as AiImageBlock).url : undefined;
+    if (
+      (image as AiImageBlock | null)?.type !== 'image' ||
+      typeof url !== 'string' ||
+      url.length > MAX_IMAGE_URL_LENGTH ||
+      !/^https?:\/\//i.test(url)
+    ) {
+      return invalid('Each image must be an { type: "image", url } block with an http(s) URL');
+    }
+  }
+  return null;
+}
 
 /** Default cap for client-supplied `instructions` (characters). */
 export const DEFAULT_MAX_CLIENT_INSTRUCTIONS_LENGTH = 4000;
@@ -46,6 +93,8 @@ export interface AiApiRequestBody {
   instructions?: string;
   /** @deprecated Alias of `instructions`, accepted for older clients. Same rules apply. */
   systemPrompt?: string;
+  /** Images for plan/full-page/section/refactor modes; chat and agent carry theirs in `messages`. */
+  images?: AiImageBlock[];
 }
 
 /** Controls how client-supplied `instructions` are accepted by the handler. */
@@ -107,6 +156,8 @@ export async function processAiRequest(
   }
 
   const payload = body as AiApiRequestBody;
+  const imagesError = validateRequestImages(payload);
+  if (imagesError) return imagesError;
   const mode = payload.mode || 'full-page';
   const instructions = resolveClientInstructions(payload, instructionsOptions);
 
@@ -127,6 +178,7 @@ export async function processAiRequest(
       {
         prompt: payload.prompt,
         stylePreference: payload.stylePreference,
+        images: payload.images,
         tone: payload.tone,
         locale: payload.locale,
         metadata: payload.metadata,
@@ -160,6 +212,7 @@ export async function processAiRequest(
       {
         prompt: payload.prompt,
         stylePreference: payload.stylePreference,
+        images: payload.images,
         targetSectionType: payload.targetSectionType,
         parentContext: payload.parentContext,
         instructions,
@@ -190,6 +243,7 @@ export async function processAiRequest(
         node: payload.node,
         instruction: payload.instruction,
         stylePreference: payload.stylePreference,
+        images: payload.images,
         instructions,
       },
       { signal },
@@ -269,6 +323,7 @@ export async function processAiRequest(
       {
         prompt: payload.prompt,
         stylePreference: payload.stylePreference,
+        images: payload.images,
         tone: payload.tone,
         locale: payload.locale,
         sectionCount: payload.sectionCount,
@@ -482,6 +537,13 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
         (streamMode === 'full-page' || streamMode === 'chat' || streamMode === 'agent')
       ) {
         const mode = streamMode;
+        const imagesError = validateRequestImages(body);
+        if (imagesError) {
+          return new Response(JSON.stringify(imagesError.response), {
+            status: imagesError.status,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
         const instructions = resolveClientInstructions(body, options);
 
         // Agent streaming (STORA-530) — emits agent-step/tool-call/tool-result events as
@@ -565,6 +627,7 @@ export function createAiHandler(engine: KubuildAiEngine, options?: CreateAiHandl
             {
               prompt: body.prompt!,
               stylePreference: body.stylePreference,
+              images: body.images,
               tone: body.tone,
               locale: body.locale,
               metadata: body.metadata,

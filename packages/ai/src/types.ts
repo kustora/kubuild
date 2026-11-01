@@ -32,7 +32,19 @@ export interface AiToolResultBlock {
   isError?: boolean;
 }
 
-export type AiContentBlock = AiTextBlock | AiToolUseBlock | AiToolResultBlock;
+/**
+ * An image the user attached. `url` must be a hosted http(s) URL (the editor uploads the
+ * file through the host's asset provider first): vision-capable adapters send it to the
+ * model as an image, and every adapter also lists the URL in the prompt text so the model
+ * can place the image on the page.
+ */
+export interface AiImageBlock {
+  type: 'image';
+  url: string;
+  mimeType?: string;
+}
+
+export type AiContentBlock = AiTextBlock | AiToolUseBlock | AiToolResultBlock | AiImageBlock;
 
 export interface AiChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -97,6 +109,8 @@ export interface AiPlanPageRequest {
    * (`allowClientInstructions` / `maxClientInstructionsLength`).
    */
   instructions?: string;
+  /** Images attached to this request — see `AiImageBlock`. */
+  images?: AiImageBlock[];
 }
 
 export interface AiGeneratePageRequest {
@@ -119,6 +133,8 @@ export interface AiGeneratePageRequest {
    * (`allowClientInstructions` / `maxClientInstructionsLength`).
    */
   instructions?: string;
+  /** Images attached to this request — see `AiImageBlock`. */
+  images?: AiImageBlock[];
 }
 
 export interface AiGenerateSectionRequest {
@@ -133,6 +149,8 @@ export interface AiGenerateSectionRequest {
    * (`allowClientInstructions` / `maxClientInstructionsLength`).
    */
   instructions?: string;
+  /** Images attached to this request — see `AiImageBlock`. */
+  images?: AiImageBlock[];
 }
 
 export interface AiRefactorNodeRequest {
@@ -146,6 +164,8 @@ export interface AiRefactorNodeRequest {
    * (`allowClientInstructions` / `maxClientInstructionsLength`).
    */
   instructions?: string;
+  /** Images attached to this request — see `AiImageBlock`. */
+  images?: AiImageBlock[];
 }
 
 export type AiStreamEvent =
@@ -288,6 +308,12 @@ export interface AiProviderGenerateParams {
   systemPrompt: string;
   userPrompt: string;
   messages?: AiChatMessage[];
+  /**
+   * Images that go with `userPrompt` when `messages` is absent (plan/generate/section/
+   * refactor calls). Chat-style calls carry theirs as `AiImageBlock`s inside `messages`.
+   * Adapters without vision support ignore it — the URLs are already in the prompt text.
+   */
+  images?: AiImageBlock[];
   jsonSchema?: Record<string, unknown>;
   signal?: AbortSignal;
   /**

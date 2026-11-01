@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { PageDocument } from '@kubuild/schema';
-import type { AgentOpRecord, AiAgentProgress, AiAgentRunResult, AiChatMessage } from '../types.js';
+import type { AgentOpRecord, AiAgentProgress, AiAgentRunResult, AiChatMessage, AiImageBlock } from '../types.js';
+import { buildUserContent } from '../core/messages.js';
 import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client.js';
 
 /** One entry in the live run timeline the panel renders while the agent works. */
@@ -31,6 +32,8 @@ export interface RunAgentParams {
    * its tool/safety rules). Subject to the handler's `allowClientInstructions` cap.
    */
   instructions?: string;
+  /** Images attached to this turn's instruction (hosted http(s) URLs — see `AiImageBlock`). */
+  images?: AiImageBlock[];
   /**
    * Called for each op as soon as its tool result streams in, before the run completes.
    * Lets the caller apply edits live; the final result still carries every op.
@@ -99,7 +102,7 @@ export function useAiAgent(options: UseAiAgentOptions) {
 
       const messages: AiChatMessage[] = [
         ...(params.history ?? []),
-        { role: 'user', content: params.instruction, timestamp: Date.now() },
+        { role: 'user', content: buildUserContent(params.instruction, params.images), timestamp: Date.now() },
       ];
 
       try {

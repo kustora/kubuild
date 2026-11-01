@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { PageDocument } from '@kubuild/schema';
-import type { AiChatMessage, AiChatResponse } from '../types.js';
+import type { AiChatMessage, AiChatResponse, AiImageBlock } from '../types.js';
+import { buildUserContent } from '../core/messages.js';
 import { createAiClient, type AiClientOptions, KubuildAiClient } from '../client/ai-client.js';
 
 /**
@@ -58,6 +59,8 @@ export interface SendMessageOptions {
    * When `false`, behaves exactly like the pre-streaming single request/response call.
    */
   stream?: boolean;
+  /** Images to attach to this message (hosted http(s) URLs — see `AiImageBlock`). */
+  images?: AiImageBlock[];
 }
 
 export function useAiChat(options: UseAiChatOptions) {
@@ -132,7 +135,7 @@ export function useAiChat(options: UseAiChatOptions) {
 
   const sendMessage = useCallback(
     async (content: string, sendOptions?: SendMessageOptions): Promise<AiChatMessage | null> => {
-      if (!content.trim()) return null;
+      if (!content.trim() && !sendOptions?.images?.length) return null;
 
       cancel();
       const ac = new AbortController();
@@ -140,7 +143,7 @@ export function useAiChat(options: UseAiChatOptions) {
 
       const userMessage: AiChatMessage = {
         role: 'user',
-        content: content.trim(),
+        content: buildUserContent(content.trim(), sendOptions?.images),
         timestamp: Date.now(),
       };
 
