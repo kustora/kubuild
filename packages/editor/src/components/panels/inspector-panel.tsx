@@ -1430,7 +1430,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   if (isAiTab && !hasOpenedAiTab) setHasOpenedAiTab(true);
   const aiPane = aiTabEnabled && (isAiTab || hasOpenedAiTab) ? (
     <div key="ai-pane" className={isAiTab ? 'flex-1 min-h-0 flex flex-col' : 'hidden'}>
-      <AiChatPanel aiConfig={aiConfig} registry={registry} mode="docked" showHeader={false} onDiagnostic={onDiagnostic} />
+      <AiChatPanel
+        aiConfig={aiConfig}
+        registry={registry}
+        mode="docked"
+        showHeader={false}
+        assetProvider={assetProvider}
+        onDiagnostic={onDiagnostic}
+      />
     </div>
   ) : null;
 

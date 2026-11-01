@@ -115,6 +115,48 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
     });
   });
 
+  describe('image attachments', () => {
+    const uploadingProvider = {
+      resolve: (uri: string) => uri,
+      upload: async () => ({ id: 'a', url: 'https://cdn.example.com/a.png', mimeType: 'image/png' }),
+    };
+
+    it('shows the attach-image button when the asset provider can upload', () => {
+      const html = renderToString(
+        <AiChatPanel aiConfig={enabledConfig} mode="docked" assetProvider={uploadingProvider} />,
+      );
+      expect(html).toContain('data-testid="ai-chat-attach-image"');
+    });
+
+    it('hides it without an asset provider, or one that cannot upload', () => {
+      expect(renderToString(<AiChatPanel aiConfig={enabledConfig} mode="docked" />)).not.toContain(
+        'data-testid="ai-chat-attach-image"',
+      );
+      expect(
+        renderToString(
+          <AiChatPanel aiConfig={enabledConfig} mode="docked" assetProvider={{ resolve: (uri: string) => uri }} />,
+        ),
+      ).not.toContain('data-testid="ai-chat-attach-image"');
+    });
+
+    it('renders the images attached to a message bubble', () => {
+      const html = renderToString(
+        <AiChatBubble
+          message={{
+            role: 'user',
+            content: [
+              { type: 'text', text: 'make it like this' },
+              { type: 'image', url: 'https://cdn.example.com/ref.png' },
+            ],
+          }}
+        />,
+      );
+      expect(html).toContain('data-testid="ai-chat-bubble-images"');
+      expect(html).toContain('src="https://cdn.example.com/ref.png"');
+      expect(html).toContain('make it like this');
+    });
+  });
+
   describe('message bubbles (STORA-505)', () => {
     it('renders user and assistant messages with distinguishing data-role + styling', () => {
       const userHtml = renderToString(

@@ -178,6 +178,11 @@ export interface AiChatTranslations {
   dockPanel: string;
   floatPanel: string;
   closePanel: string;
+  attachImage: string;
+  removeImage: string;
+  imageUploading: string;
+  imageUploadFailed: string;
+  imageLimit: (max: number) => string;
   thinking: string;
   retry: string;
   somethingWentWrong: string;
