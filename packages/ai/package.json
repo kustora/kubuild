@@ -27,6 +27,16 @@
         "default": "./dist/server/index.cjs"
       }
     },
+    "./skills-loader": {
+      "import": {
+        "types": "./dist/server/skills-loader.d.ts",
+        "default": "./dist/server/skills-loader.js"
+      },
+      "require": {
+        "types": "./dist/server/skills-loader.d.cts",
+        "default": "./dist/server/skills-loader.cjs"
+      }
+    },
     "./client": {
       "import": {
         "types": "./dist/client/index.d.ts",

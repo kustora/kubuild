@@ -19,7 +19,7 @@ import {
 } from '../core/prompt-compiler.js';
 import { getMessagePromptText } from '../core/messages.js';
 import type { KubuildAiEngine } from './engine.js';
-import { createDocumentTools, toToolDefinitions, type AgentTool } from './tools/index.js';
+import { createDocumentTools, createSkillTools, toToolDefinitions, type AgentTool } from './tools/index.js';
 
 export interface KubuildAiAgentOptions extends KubuildAiEngineOptions {
   /**
@@ -107,7 +107,10 @@ export class KubuildAiAgent {
     }
     this.options = options;
     this.catalog = compileComponentCatalog(options.registry);
-    this.tools = options.tools ?? createDocumentTools();
+    this.tools = [
+      ...(options.tools ?? createDocumentTools()),
+      ...(options.skills && options.skills.length > 0 ? createSkillTools(options.skills) : []),
+    ];
   }
 
   get adapterName(): string {
@@ -177,6 +180,8 @@ export class KubuildAiAgent {
     call: AiToolUseBlock,
     snapshot: PageDocument,
     signal?: AbortSignal,
+    /** Skills this run has loaded so far — `insert_section` generates with them too. */
+    loadedSkills: Set<string> = new Set(),
   ): Promise<{
     block: AiContentBlock;
     ok: boolean;
@@ -215,7 +220,10 @@ export class KubuildAiAgent {
           ? async ({ prompt, parentContext }) => {
               const response = await this.options.engine!.generateSection(
                 { prompt, parentContext },
-                { signal },
+                {
+                  signal,
+                  skills: (this.options.skills ?? []).filter((skill) => loadedSkills.has(skill.name)),
+                },
               );
               if (!response.success || !response.data) {
                 throw new Error(response.error?.message ?? 'Section generation failed');
@@ -238,6 +246,10 @@ export class KubuildAiAgent {
           content: JSON.stringify({ ok: false, error: message }),
         },
       };
+    }
+
+    if (result.ok && call.name === 'load_skill' && typeof call.input?.name === 'string') {
+      loadedSkills.add(call.input.name.trim());
     }
 
     const op: AgentOpRecord | undefined =
@@ -309,7 +321,9 @@ export class KubuildAiAgent {
       prefix: this.options.systemPromptPrefix,
       stylePreference: request.stylePreference,
       additionalContext: joinInstructions(request.instructions, request.systemPrompt),
+      skills: this.options.skills,
     });
+    const loadedSkills = new Set<string>();
 
     const toolDefinitions = toToolDefinitions(this.tools);
     const messages: AiChatMessage[] = [...request.messages];
@@ -392,7 +406,7 @@ export class KubuildAiAgent {
           yield { type: 'tool-call', id: call.id, name: call.name, input: call.input ?? {} };
 
           const executed = yield* awaitWithProgress(
-            this.executeToolCall(call, snapshot, signal),
+            this.executeToolCall(call, snapshot, signal, loadedSkills),
             progressIntervalMs,
             (elapsedMs) => ({
               type: 'agent-progress',

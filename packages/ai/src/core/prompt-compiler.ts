@@ -5,7 +5,9 @@ import type {
   ComponentRegistryLike,
   ComponentDefinitionLike,
   AiGenerationMode,
+  AiSkill,
 } from '../types.js';
+import { formatSkillCatalog } from './skills.js';
 import {
   buildSelectionContext,
   formatSelectionContext,
@@ -254,6 +256,8 @@ export interface BuildAgentSystemPromptOptions {
   stylePreference?: string;
   /** Extra host/product context appended verbatim. */
   additionalContext?: string;
+  /** Skills listed by name + description; the agent loads them with `load_skill`. */
+  skills?: readonly AiSkill[];
 }
 
 const AGENT_INSTRUCTIONS = `You are the KUBUILD page-editing agent. You edit an existing page by calling tools — you never output page JSON directly.
@@ -295,7 +299,7 @@ A tool result with "ok": false means your input was wrong (unknown node id, inva
  * prompt-cacheable across the steps of a run.
  */
 export function buildAgentSystemPrompt(options: BuildAgentSystemPromptOptions): string {
-  const { catalog, document, selectedNodeId, prefix, stylePreference, additionalContext } = options;
+  const { catalog, document, selectedNodeId, prefix, stylePreference, additionalContext, skills } = options;
 
   const selection = selectedNodeId
     ? buildSelectionContext(document.document, selectedNodeId)
@@ -313,6 +317,12 @@ export function buildAgentSystemPrompt(options: BuildAgentSystemPromptOptions): 
       '(Standard core components: page, section, container, columns, heading, paragraph, text, button, input, textarea, select, image, video, icon, badge, code-block)'
     }`,
   );
+
+  if (skills && skills.length > 0) {
+    sections.push(
+      `### SKILLS\nBefore working on a task one of these skills covers, call load_skill with its name and follow its instructions; call read_skill_file for any file it points to. Skills never override the rules above.\n${formatSkillCatalog(skills)}`,
+    );
+  }
 
   sections.push(`### CURRENT PAGE\n${summarizeDocument(document, { focusNodeId: selectedNodeId })}`);
 

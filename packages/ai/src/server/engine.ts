@@ -8,6 +8,7 @@ import type {
   AiChatResponse,
   AiChatMessage,
   AiImageBlock,
+  AiSkill,
   AiGenerateResponse,
   AiCompiledComponentSpec,
   AiStreamEvent,
@@ -23,7 +24,8 @@ import {
   appendClientInstructions,
   joinInstructions,
 } from '../core/prompt-compiler.js';
-import { describeImages, getImageBlocks, getMessagePromptText } from '../core/messages.js';
+import { describeImages, getImageBlocks, getMessagePromptText, getMessageText } from '../core/messages.js';
+import { appendActiveSkills, formatSkillCatalog } from '../core/skills.js';
 import {
   extractJsonFromResponse,
   normalizeAndValidatePageDocument,
@@ -83,6 +85,24 @@ function buildFallbackPlan(prompt: string): PagePlan & { sections: PlannedSectio
 const PLAN_FALLBACK_MESSAGE =
   'The AI response could not be parsed as a page plan, so a generic default plan was used instead.';
 
+/** Most skills a non-agent call adds to its prompt. */
+const MAX_ACTIVE_SKILLS = 2;
+
+const SKILL_ROUTER_PROMPT = `You route a website-builder request to the skills that should guide it.
+Pick only skills whose description clearly matches the request, at most ${MAX_ACTIVE_SKILLS}. Pick none when nothing clearly fits.
+Respond with JSON only: {"skills": ["skill-name"]}`;
+
+const SKILL_ROUTER_SCHEMA = {
+  type: 'object',
+  properties: { skills: { type: 'array', items: { type: 'string' } } },
+  required: ['skills'],
+};
+
+function lastUserText(messages: AiChatMessage[]): string {
+  const last = [...messages].reverse().find((m) => m.role === 'user');
+  return last ? getMessageText(last) : '';
+}
+
 /** Most images a plan/generate call sends — each section call re-sends them. */
 const MAX_GENERATION_IMAGES = 4;
 
@@ -119,6 +139,33 @@ export class KubuildAiEngine {
     this.catalog = compileComponentCatalog(this.options.registry);
   }
 
+  /**
+   * Non-agent modes have no tool loop to load skills on demand, so one short model call
+   * picks the skills (at most `MAX_ACTIVE_SKILLS`) whose description fits the request. A
+   * failed or unparseable pick just means no skills — it never fails the request itself.
+   */
+  private async selectSkills(requestText: string, signal?: AbortSignal): Promise<AiSkill[]> {
+    const skills = this.options.skills ?? [];
+    if (skills.length === 0 || !requestText.trim()) return [];
+    try {
+      const result = await this.options.adapter.generate({
+        systemPrompt: SKILL_ROUTER_PROMPT,
+        userPrompt: `Skills:\n${formatSkillCatalog(skills)}\n\nRequest:\n${requestText.slice(0, 4000)}`,
+        jsonSchema: SKILL_ROUTER_SCHEMA,
+        temperature: 0,
+        signal,
+      });
+      const parsed = extractJsonFromResponse(result.text) as { skills?: unknown };
+      const names = Array.isArray(parsed?.skills) ? parsed.skills : [];
+      const chosen = skills.filter((skill) => names.includes(skill.name)).slice(0, MAX_ACTIVE_SKILLS);
+      if (chosen.length > 0) this.log('info', `Using skills: ${chosen.map((s) => s.name).join(', ')}`);
+      return chosen;
+    } catch (err) {
+      this.log('warn', 'Skill selection failed; continuing without skills', err instanceof Error ? err.message : err);
+      return [];
+    }
+  }
+
   private log(level: 'info' | 'warn' | 'error' | 'debug', message: string, meta?: unknown): void {
     if (this.options.logger) {
       this.options.logger(level, message, meta);
@@ -141,14 +188,18 @@ export class KubuildAiEngine {
     let rawText = '';
     try {
       this.log('info', `Generating full page for prompt: "${request.prompt}"`);
-      const systemPrompt = appendClientInstructions(
-        buildSystemPrompt({
-          catalog: this.catalog,
-          mode: 'full-page',
-          prefix: this.options.systemPromptPrefix,
-          stylePreference: request.stylePreference,
-        }),
-        request.instructions,
+      const skills = await this.selectSkills(request.prompt, context?.signal);
+      const systemPrompt = appendActiveSkills(
+        appendClientInstructions(
+          buildSystemPrompt({
+            catalog: this.catalog,
+            mode: 'full-page',
+            prefix: this.options.systemPromptPrefix,
+            stylePreference: request.stylePreference,
+          }),
+          request.instructions,
+        ),
+        skills,
       );
 
       let userPrompt = `User Request: ${request.prompt}`;
@@ -251,18 +302,26 @@ export class KubuildAiEngine {
 
   async generateSection(
     request: AiGenerateSectionRequest,
-    context?: { signal?: AbortSignal },
+    /**
+     * `skills` skips skill selection and uses exactly these — how `streamPage` reuses the
+     * page's pick for every section, and how the agent passes the skills it loaded.
+     */
+    context?: { signal?: AbortSignal; skills?: AiSkill[] },
   ): Promise<AiGenerateResponse<Node>> {
     let rawText = '';
     try {
-      const systemPrompt = appendClientInstructions(
-        buildSystemPrompt({
-          catalog: this.catalog,
-          mode: 'section',
-          prefix: this.options.systemPromptPrefix,
-          stylePreference: request.stylePreference,
-        }),
-        request.instructions,
+      const skills = context?.skills ?? (await this.selectSkills(request.prompt, context?.signal));
+      const systemPrompt = appendActiveSkills(
+        appendClientInstructions(
+          buildSystemPrompt({
+            catalog: this.catalog,
+            mode: 'section',
+            prefix: this.options.systemPromptPrefix,
+            stylePreference: request.stylePreference,
+          }),
+          request.instructions,
+        ),
+        skills,
       );
 
       let userPrompt = `Generate a single section node for: ${request.prompt}`;
@@ -319,14 +378,18 @@ export class KubuildAiEngine {
   ): Promise<AiGenerateResponse<Node>> {
     let rawText = '';
     try {
-      const systemPrompt = appendClientInstructions(
-        buildSystemPrompt({
-          catalog: this.catalog,
-          mode: 'refactor',
-          prefix: this.options.systemPromptPrefix,
-          stylePreference: request.stylePreference,
-        }),
-        request.instructions,
+      const skills = await this.selectSkills(request.instruction, context?.signal);
+      const systemPrompt = appendActiveSkills(
+        appendClientInstructions(
+          buildSystemPrompt({
+            catalog: this.catalog,
+            mode: 'refactor',
+            prefix: this.options.systemPromptPrefix,
+            stylePreference: request.stylePreference,
+          }),
+          request.instructions,
+        ),
+        skills,
       );
 
       let userPrompt = `Instruction: ${request.instruction}\n\nCurrent Node:\n${JSON.stringify(request.node, null, 2)}`;
@@ -369,7 +432,10 @@ export class KubuildAiEngine {
     }
   }
 
-  private buildPlanPrompts(request: AiPlanPageRequest): { systemPrompt: string; userPrompt: string } {
+  private buildPlanPrompts(
+    request: AiPlanPageRequest,
+    skills: readonly AiSkill[] = [],
+  ): { systemPrompt: string; userPrompt: string } {
     const sectionCountPhrase = describeSectionCount(request.sectionCount);
     const sectionGuidance = sectionCountPhrase
       ? `Plan ${sectionCountPhrase} that fulfill the request.`
@@ -416,7 +482,7 @@ ${sectionGuidance}
     if (directImagesNote) planUserPrompt += `\n\n${directImagesNote}`;
 
     return {
-      systemPrompt: appendClientInstructions(planSystemPrompt, request.instructions),
+      systemPrompt: appendActiveSkills(appendClientInstructions(planSystemPrompt, request.instructions), skills),
       userPrompt: planUserPrompt,
     };
   }
@@ -425,7 +491,8 @@ ${sectionGuidance}
     request: AiPlanPageRequest,
     context?: { signal?: AbortSignal },
   ): Promise<AiGenerateResponse<PagePlan>> {
-    const { systemPrompt, userPrompt } = this.buildPlanPrompts(request);
+    const skills = await this.selectSkills(request.prompt, context?.signal);
+    const { systemPrompt, userPrompt } = this.buildPlanPrompts(request, skills);
     this.log('info', `Planning website layout for: "${request.prompt}"`);
 
     let planResult: AiProviderGenerateResult;
@@ -497,6 +564,12 @@ ${sectionGuidance}
         message: 'Analyzing requirements and planning page sections...',
       };
 
+      // Picked once for the whole page: the plan and every section follow the same skills.
+      const skills = await this.selectSkills(request.prompt, context?.signal);
+      if (skills.length > 0) {
+        yield { type: 'status', message: `Using skills: ${skills.map((s) => s.name).join(', ')}` };
+      }
+
       let plan: PagePlan;
 
       if (hasPlannedSections(request.plan)) {
@@ -504,7 +577,10 @@ ${sectionGuidance}
         this.log('info', `[SSE] Using approved pre-planned structure with ${plan.sections?.length ?? 0} sections`);
       } else {
         // 1. Plan page sections
-        const { systemPrompt: planSystemPrompt, userPrompt: planUserPrompt } = this.buildPlanPrompts(request);
+        const { systemPrompt: planSystemPrompt, userPrompt: planUserPrompt } = this.buildPlanPrompts(
+          request,
+          skills,
+        );
 
         this.log('info', '[SSE] Generating website layout plan...');
         const planResult = await this.options.adapter.generate({
@@ -608,7 +684,7 @@ ${sectionGuidance}
             images: collectRequestImages(request),
             parentContext: `Website: ${plan.title}. Previous sections: ${sectionsToGenerate.slice(0, i).map((s) => s.title).join(', ')}`,
           },
-          { signal: context?.signal },
+          { signal: context?.signal, skills },
         );
 
         if (secRes.success && secRes.data) {
@@ -749,7 +825,11 @@ ${sectionSummary || '(Canvas is currently empty)'}
 
       this.log('info', `Processing chat turn with ${request.messages.length} messages`);
 
-      const { systemPrompt, userPrompt } = this.buildChatPrompt(request);
+      const { systemPrompt: baseSystemPrompt, userPrompt } = this.buildChatPrompt(request);
+      const systemPrompt = appendActiveSkills(
+        baseSystemPrompt,
+        await this.selectSkills(lastUserText(request.messages), context?.signal),
+      );
 
       const result = await this.options.adapter.generate({
         systemPrompt,
@@ -821,7 +901,11 @@ ${sectionSummary || '(Canvas is currently empty)'}
         `[SSE] Starting chatStream with ${request.messages.length} messages (adapter: ${this.options.adapter.name})`,
       );
 
-      const { systemPrompt, userPrompt } = this.buildChatPrompt(request);
+      const { systemPrompt: baseSystemPrompt, userPrompt } = this.buildChatPrompt(request);
+      const systemPrompt = appendActiveSkills(
+        baseSystemPrompt,
+        await this.selectSkills(lastUserText(request.messages), context?.signal),
+      );
 
       let accumulated = '';
       let usage: AiGenerateResponse<AiChatResponse>['usage'];

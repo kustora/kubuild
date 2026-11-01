@@ -408,11 +408,38 @@ export interface ComponentRegistryLike {
   has?(type: string): boolean;
 }
 
+/**
+ * An Agent Skill (https://agentskills.io/specification), parsed from a `SKILL.md` — see
+ * `parseSkill` / `loadSkillsFromDirectory`. Only `name` + `description` are always in the
+ * prompt; `instructions` and `files` load when a request needs the skill.
+ */
+export interface AiSkill {
+  /** 1-64 lowercase letters, digits and single hyphens; matches the skill's folder name. */
+  name: string;
+  /** What the skill does and when to use it — the model picks skills from this alone. */
+  description: string;
+  /** The `SKILL.md` body. */
+  instructions: string;
+  /**
+   * Extra text files keyed by path relative to the skill root, e.g. `references/faq.md`.
+   * Only the agent can read these (`read_skill_file`); non-agent modes get `instructions`
+   * alone, so keep what those modes need in `SKILL.md` itself.
+   */
+  files?: Record<string, string>;
+}
+
 export interface KubuildAiEngineOptions {
   registry?: ComponentRegistryLike;
   adapter: AiProviderAdapter;
   securityLimits?: DocumentSecurityLimits;
   systemPromptPrefix?: string;
+  /**
+   * Skills the AI may use. The agent sees the catalog and loads skills itself through its
+   * `load_skill` / `read_skill_file` tools; chat, plan, generate, section and refactor
+   * calls first ask the model which skills (at most 2) fit the request — one short extra
+   * call per request — and add those to the system prompt.
+   */
+  skills?: AiSkill[];
   /** Agent loop step ceiling (STORA-530). Default: 8. */
   maxAgentSteps?: number;
   /**
