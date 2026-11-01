@@ -1395,25 +1395,25 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const tabBar =
     tabs.length > 1 ? (
       <div key="tab-bar" className="flex shrink-0 border-b border-slate-200 bg-slate-50 items-center justify-between">
-        <div className="flex flex-1">
+        <div className="flex flex-1 min-w-0">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               data-testid={`inspector-tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 px-3 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1.5 ${
+              className={`flex-1 min-w-0 px-2 py-2 text-xs font-medium transition border-b-2 flex items-center justify-center gap-1 ${
                 activeTab === tab.id
                   ? 'text-blue-600 border-blue-600 bg-white'
                   : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'
               }`}
             >
-              {tab.icon}
-              <span>{tab.label}</span>
+              <span className="shrink-0">{tab.icon}</span>
+              <span className="truncate">{tab.label}</span>
             </button>
           ))}
         </div>
-        <div className="px-2">
+        <div className="shrink-0 px-1.5">
           <LanguageSwitcher />
         </div>
       </div>
@@ -1430,7 +1430,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   if (isAiTab && !hasOpenedAiTab) setHasOpenedAiTab(true);
   const aiPane = aiTabEnabled && (isAiTab || hasOpenedAiTab) ? (
     <div key="ai-pane" className={isAiTab ? 'flex-1 min-h-0 flex flex-col' : 'hidden'}>
-      <AiChatPanel aiConfig={aiConfig} registry={registry} mode="docked" onDiagnostic={onDiagnostic} />
+      <AiChatPanel aiConfig={aiConfig} registry={registry} mode="docked" showHeader={false} onDiagnostic={onDiagnostic} />
     </div>
   ) : null;
 

@@ -43,6 +43,8 @@ export interface AiChatPanelProps {
   aiConfig: ResolvedAiEditorConfig;
   /** `'hidden'` is handled by the caller not mounting this component at all. */
   mode: 'docked' | 'floating';
+  /** Hide the "AI Assistant" header bar, e.g. when a host tab already labels the panel. Default: shown. */
+  showHeader?: boolean;
   onClose?: () => void;
   onToggleMode?: () => void;
   className?: string;
@@ -224,6 +226,7 @@ export function AiChatErrorBubble({
 export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   aiConfig,
   mode,
+  showHeader = true,
   onClose,
   onToggleMode,
   className,
@@ -1421,7 +1424,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             className="w-full text-xs px-3 pt-2.5 pb-1 bg-transparent border-0 focus:outline-none"
           />
 
-          <div className="flex items-center justify-between px-2 pb-2 pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-1 px-2 pb-2 pt-1">
             {/* Mode selector dropdown */}
             <div className="relative">
               <button
@@ -1469,7 +1472,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               )}
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 ml-auto">
             {/* Explicit one-shot actions, each gated by its own feature flag. Enhance
                 rewrites the attached node (needs a selection); Generate builds a whole page
                 straight from the prompt, skipping Plan mode's review step. */}
@@ -1569,7 +1572,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       data-mode="docked"
       className={`flex flex-col h-full min-h-0 bg-white ${className || ''}`}
     >
-      {header}
+      {showHeader && header}
       {body}
     </div>
   );

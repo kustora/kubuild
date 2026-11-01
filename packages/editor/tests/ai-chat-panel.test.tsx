@@ -70,6 +70,12 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
       expect(html).not.toContain('fixed bottom-4 right-4');
     });
 
+    it('drops the header bar when showHeader is false (the Inspector tab already labels it)', () => {
+      const html = renderToString(<AiChatPanel aiConfig={enabledConfig} mode="docked" showHeader={false} />);
+      expect(html).toContain('data-testid="ai-chat-panel"');
+      expect(html).not.toContain('data-testid="ai-chat-header"');
+    });
+
     it('renders draggable header with touch-none and grab cursor in floating mode', () => {
       const floatingHtml = renderToString(<AiChatPanel aiConfig={enabledConfig} mode="floating" />);
       expect(floatingHtml).toContain('data-testid="ai-chat-header"');
