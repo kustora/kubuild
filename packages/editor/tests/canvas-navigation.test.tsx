@@ -111,6 +111,23 @@ describe('Canvas Navigation (STORA-230, STORA-231, STORA-232)', () => {
       expect(html).not.toContain('data-testid="floating-badge-delete"');
     });
 
+    it('shows the Ask AI button only when AI is enabled', () => {
+      const doc = createTestDoc();
+      const props = {
+        selectedNodeId: 'btn-1',
+        document: doc,
+        registry,
+        selectedRect: { top: 100, left: 50, width: 120, height: 40 },
+      };
+
+      expect(renderToString(<FloatingActionBadges {...props} />)).not.toContain(
+        'data-testid="floating-badge-ask-ai"',
+      );
+      expect(renderToString(<FloatingActionBadges {...props} aiEnabled />)).toContain(
+        'data-testid="floating-badge-ask-ai"',
+      );
+    });
+
     it('clicking ⬆️ Select Parent updates the selectedNodeId in store', () => {
       const doc = createTestDoc();
       useEditorStore.getState().setDocument(doc);

@@ -88,6 +88,8 @@ export interface EditorCanvasProps {
   activeArtboardId?: string | null;
   /** Overrides the store's `selectedNodeId` for this render. */
   selectedNodeId?: string | null;
+  /** Shows the selection toolbar's AI button, which opens the Inspector's AI tab. */
+  aiEnabled?: boolean;
   className?: string;
 }
 
@@ -163,6 +165,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   componentArtboards: propComponentArtboards,
   activeArtboardId: propActiveArtboardId,
   selectedNodeId: propSelectedNodeId,
+  aiEnabled = false,
   className,
 }) => {
   const storeDoc = useEditorStore((s) => s.document);
@@ -1660,6 +1663,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       selectedRect={selectedRect}
                       onDragStart={handleDragStart}
                       hideDetachArtboard={isSimpleMode}
+                      aiEnabled={aiEnabled}
                     />
                   )}
 

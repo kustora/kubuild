@@ -2,7 +2,7 @@ import React from 'react';
 import { PageDocument, ARTBOARD_REFERENCE_NODE_TYPE } from '@kubuild/schema';
 import { ComponentRegistry } from '@kubuild/components';
 import { findNodeById, getParentNodeId } from '@kubuild/core';
-import { ArrowUp, ChevronUp, ChevronDown, Move, Copy, Trash2, ExternalLink } from 'lucide-react';
+import { ArrowUp, ChevronUp, ChevronDown, Move, Copy, Trash2, ExternalLink, Sparkles } from 'lucide-react';
 import { useEditorStore } from '../../store/index.js';
 
 export interface FloatingActionBadgesProps {
@@ -18,6 +18,8 @@ export interface FloatingActionBadgesProps {
   onDragStart?: (e: React.DragEvent) => void;
   /** Hide the "Detach to its own frame" button in Simple Mode */
   hideDetachArtboard?: boolean;
+  /** Show the "Ask AI" button, which opens the Inspector's AI tab with this node as context. */
+  aiEnabled?: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ export interface FloatingActionBadgesProps {
  *  - Move Up / Move Down (ChevronUp / ChevronDown)
  *  - Move Handle (Move)
  *  - Duplicate (Copy)
+ *  - Ask AI (Sparkles), when AI is configured
  *  - Delete (Trash2)
  */
 export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
@@ -37,6 +40,7 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
   selectedRect,
   onDragStart,
   hideDetachArtboard = false,
+  aiEnabled = false,
 }) => {
   const {
     selectNode,
@@ -47,6 +51,7 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
     detachNodeToArtboard,
     activateArtboard,
     activeArtboardId,
+    askAiAboutSelection,
   } = useEditorStore();
 
   const node = findNodeById(document.document, selectedNodeId);
@@ -229,6 +234,27 @@ export const FloatingActionBadges: React.FC<FloatingActionBadgesProps> = ({
           className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
         >
           <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+      )}
+
+      {/* Ask AI Button — opens the Inspector's AI tab with this node attached as context */}
+      {aiEnabled && (
+        <button
+          type="button"
+          data-testid="floating-badge-ask-ai"
+          title="Ask AI about this element"
+          aria-label="Ask AI"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            askAiAboutSelection();
+          }}
+          className="px-1.5 py-1 hover:bg-blue-500 active:bg-blue-700 transition flex items-center justify-center border-l border-blue-500/40 text-[11px]"
+        >
+          <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       )}
 
