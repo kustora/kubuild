@@ -8,8 +8,6 @@
     "version-packages": "changeset version",
     "release": "turbo run build && changeset publish",
     "dev": "turbo run dev",
-    "dev:docs": "pnpm --filter @kubuild/docs dev",
-    "build:docs": "pnpm --filter @kubuild/docs build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
