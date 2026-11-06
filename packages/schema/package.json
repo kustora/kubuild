@@ -84,11 +84,12 @@
   },
   "homepage": "https://github.com/kustora/kubuild#readme",
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "tsup": "^8.3.6",
     "typescript": "^6.0.0",
-    "vitest": "^3.0.5"
+    "vitest": "^4.1.12"
   }
 }
