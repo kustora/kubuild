@@ -1,12 +1,29 @@
 ---
 title: Overview & Philosophy
-description: Open, portable, and backend-agnostic web page builder & layout engine.
+description: KUBUILD is an open-source (MIT) page builder engine for React. Embed a visual editor, store pages as portable .stora JSON, and render them anywhere.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Card, Cards } from 'fumadocs-ui/components/card';
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+
+## What is KUBUILD?
+
+**KUBUILD is an open-source, MIT-licensed page builder engine that you embed in your own React app.** It gives your users a visual drag-and-drop editor, saves every page as a portable, Zod-validated JSON document (the `.stora` format) in *your* database, and renders that document on the server with a lightweight React renderer. It is built and maintained by [Kustora](https://github.com/kustora).
+
+### KUBUILD at a glance
+
+| | |
+| :--- | :--- |
+| **What it is** | An embeddable page builder engine (library), not a hosted website builder |
+| **License** | MIT, free and open source |
+| **Language** | TypeScript |
+| **Framework** | React 18+ for the editor and renderer; `@kubuild/schema` and `@kubuild/core` run without React |
+| **Page format** | `.stora`: plain JSON validated by Zod schemas, versioned with built-in migrations |
+| **Storage** | Any: PostgreSQL, MongoDB, S3, Cloudflare R2, Git, or the filesystem |
+| **Packages** | `@kubuild/react`, `schema`, `core`, `components`, `renderer`, `editor`, `ai` (7 total) |
+| **Best for** | SaaS apps, internal marketing portals, ecommerce stores, and headless CMSs that need a page builder they control |
 
 ## Introduction
 
@@ -259,7 +276,7 @@ Explore the following guides to get started with KUBUILD in your application:
   <Card title=".stora Document Anatomy" href="/docs/getting-started/stora-document">
     Examine the JSON schema specification, node tree hierarchy, and styling models.
   </Card>
-  <Card title="Interactive Sandbox" href="/docs/test">
+  <Card title="Interactive Playground" href="/docs/playground">
     Try live component previews and explore syntax-highlighted code examples.
   </Card>
 </Cards>

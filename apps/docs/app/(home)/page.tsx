@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { ArrowRight, Play } from 'lucide-react';
 import { ServerCodeBlock } from 'fumadocs-ui/components/codeblock.rsc';
 import { gitConfig } from '@/lib/shared';
+import { createMetadata, organizationLd, siteTitle, softwareLd, websiteLd } from '@/lib/seo';
+import { JsonLd } from '@/components/json-ld';
 import { HeroLayers } from './hero-layers';
 import { InstallTabs } from './install-tabs';
 
 export const metadata: Metadata = {
-  title: { absolute: 'KUBUILD — Open & Portable Web Page Builder Engine' },
-  description:
-    'Embed a visual page builder in your React app. Pages are portable .stora JSON documents you store anywhere and render on the server, with no vendor lock-in.',
+  ...createMetadata({ path: '/' }),
+  title: { absolute: siteTitle },
 };
 
 const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
@@ -209,6 +210,7 @@ function FeatureCell({
 export default function HomePage() {
   return (
     <main className="flex flex-1 flex-col">
+      <JsonLd data={[organizationLd, websiteLd, softwareLd]} />
       <div className="mx-auto w-full max-w-(--fd-layout-width) border-x">
         {/* Hero */}
         <section className="grid grid-cols-1 border-b lg:grid-cols-2">
@@ -522,7 +524,7 @@ export default function HomePage() {
           <div>
             <h2 className="text-3xl font-medium tracking-tight">Free &amp; open source</h2>
             <p className="mt-4 max-w-md text-fd-muted-foreground">
-              KUBUILD is MIT licensed and will always be free and open sourceand no lock-in: the documents are yours.
+              KUBUILD is MIT licensed and will always be free and open source, with no lock-in: the documents are yours.
             </p>
             <a
               href={githubUrl}

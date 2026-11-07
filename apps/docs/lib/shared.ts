@@ -1,7 +1,7 @@
 import { createGetUrl } from 'fumadocs-core/source';
 
 export const appName = 'KUBUILD';
-export const siteUrl = 'https://kubuild.kustora.com';
+export const siteUrl = 'https://docs.stora.page';
 export const docsRoute = '/docs';
 export const docsImageRoute = '/og/docs';
 export const docsContentRoute = '/llms.mdx/docs';

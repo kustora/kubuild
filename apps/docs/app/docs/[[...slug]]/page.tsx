@@ -12,6 +12,15 @@ import { getMDXComponents } from '@/components/mdx';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { getPageImageUrl, getPageMarkdownUrl, gitConfig } from '@/lib/shared';
+import {
+  absoluteUrl,
+  breadcrumbLd,
+  createMetadata,
+  extractAccordionFaq,
+  faqLd,
+  organizationLd,
+} from '@/lib/seo';
+import { JsonLd } from '@/components/json-ld';
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -21,8 +30,41 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const MDX = page.data.body;
   const markdownUrl = getPageMarkdownUrl(page).url;
 
+  const crumbs = [
+    { name: 'KUBUILD', path: '/' },
+    { name: 'Docs', path: '/docs' },
+    ...(page.url === '/docs' ? [] : [{ name: page.data.title, path: page.url }]),
+  ];
+  const faq = extractAccordionFaq(await page.data.getText('raw'));
+  const structuredData: Record<string, unknown>[] = [
+    {
+      '@type': 'TechArticle',
+      headline: page.data.title,
+      description: page.data.description,
+      url: absoluteUrl(page.url),
+      image: absoluteUrl(getPageImageUrl(page).url),
+      inLanguage: 'en',
+      isPartOf: { '@type': 'WebSite', name: 'KUBUILD', url: absoluteUrl('/') },
+      about: {
+        '@type': 'SoftwareApplication',
+        name: 'KUBUILD',
+        applicationCategory: 'DeveloperApplication',
+      },
+      author: organizationLd,
+      publisher: organizationLd,
+      encoding: {
+        '@type': 'MediaObject',
+        encodingFormat: 'text/markdown',
+        contentUrl: absoluteUrl(markdownUrl),
+      },
+    },
+    breadcrumbLd(crumbs),
+  ];
+  if (faq.length > 0) structuredData.push(faqLd(faq));
+
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
+      <JsonLd data={structuredData} />
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
@@ -53,11 +95,15 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
-  return {
+  return createMetadata({
     title: page.data.title,
     description: page.data.description,
-    openGraph: {
-      images: getPageImageUrl(page).url,
+    path: page.url,
+    image: getPageImageUrl(page).url,
+    type: 'article',
+    alternates: {
+      // Plain-markdown twin of the page for LLM crawlers and answer engines.
+      types: { 'text/markdown': getPageMarkdownUrl(page).url },
     },
-  };
+  });
 }
