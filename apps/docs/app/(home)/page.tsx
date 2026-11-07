@@ -396,7 +396,7 @@ export default function HomePage() {
                 {'!'}
               </Window>
               <div className="absolute right-8 bottom-10 rounded-md bg-white px-5 py-4 text-lg font-semibold text-slate-900">
-                Welcome, Aisyah!
+                Welcome, Salwa!
               </div>
             </Field>
           </FeatureCell>
@@ -522,8 +522,7 @@ export default function HomePage() {
           <div>
             <h2 className="text-3xl font-medium tracking-tight">Free &amp; open source</h2>
             <p className="mt-4 max-w-md text-fd-muted-foreground">
-              KUBUILD is MIT licensed and will always be free and open source. No hosted service, no
-              CMS, and no lock-in: the documents are yours.
+              KUBUILD is MIT licensed and will always be free and open sourceand no lock-in: the documents are yours.
             </p>
             <a
               href={githubUrl}
