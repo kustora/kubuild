@@ -8,7 +8,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const url = (path: string) => new URL(path, siteUrl).toString();
 
   return [
-    { url: url('/docs'), changeFrequency: 'weekly', priority: 1 },
+    { url: url('/'), changeFrequency: 'weekly', priority: 1 },
+    { url: url('/docs'), changeFrequency: 'weekly', priority: 0.9 },
     { url: url('/playground'), changeFrequency: 'monthly', priority: 0.8 },
     ...source.getPages().map((page) => ({
       url: url(page.url),

@@ -49,3 +49,15 @@ html > body[data-scroll-locked] {
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* Home page hero: the document's layers drop into place, one after another. */
+@keyframes kb-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
