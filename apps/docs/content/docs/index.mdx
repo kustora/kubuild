@@ -18,6 +18,12 @@ At the core of KUBUILD is a simple, uncompromising ethos:
 
 Every page, layout, block, and style created with KUBUILD is compiled into a deterministic, strictly-typed Abstract Syntax Tree (AST) known as the **`.stora` document format**. Because `.stora` documents are pure JSON data validated against robust Zod schemas, they can be stored anywhere (PostgreSQL, SQLite, S3, Cloudflare R2, Redis, or Git), transmitted over any protocol, edited via browser visual editors, and rendered headlessly on any server or edge runtime.
 
+<Screenshot
+  src="/screenshots/editor/editor-inspector.webp"
+  alt="The KUBUILD visual editor with a selected heading"
+  caption="The KUBUILD editor: drag components onto the canvas, select a node, and edit it in the inspector."
+/>
+
 <Callout type="info" title="Portable by Design">
   KUBUILD is intentionally decoupled from Stora.page, arbitrary backend APIs, and specific databases. Stora.page is simply one consumer of KUBUILD. You can embed KUBUILD into your own SaaS, internal marketing portal, ecommerce store, or headless CMS.
 </Callout>

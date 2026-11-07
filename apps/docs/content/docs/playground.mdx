@@ -12,6 +12,12 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 KUBUILD includes a standalone, zero-installation **Interactive Playground** accessible directly at [`/playground`](/playground). The playground embeds the production-grade visual editor (`<KubuildEditor />`) in a full-height workspace, allowing developers, designers, and product teams to evaluate builder capabilities without configuring a local development environment.
 
+<Screenshot
+  src="/screenshots/editor/editor-overview.webp"
+  alt="The playground editor with the SaaS Landing Page template"
+  caption="The playground with the SaaS Landing Page template loaded."
+/>
+
 <Callout type="info" title="Try It Now">
   Launch the live builder in full-screen mode by visiting the [Interactive Playground](/playground).
 </Callout>
@@ -28,6 +34,12 @@ flowchart LR
 ## Prebuilt Starter Templates
 
 The playground comes preloaded with three distinct layouts demonstrating different responsive architectures and design patterns:
+
+<Screenshot
+  src="/screenshots/editor/editor-templates.webp"
+  alt="The Replace with template dialog"
+  caption="The Templates dialog replaces the current page with a starter template."
+/>
 
 <Cards>
   <Card
@@ -54,6 +66,12 @@ To switch between templates, use the **Template Selector** dropdown located at t
 - **Multi-Device Viewport Switcher**: Toggle between Desktop (`1200px`), Tablet (`768px`), and Mobile (`375px`) viewports to test cascading responsive styles.
 - **Smart Drag & Drop**: Rearrange sections, containers, headings, and buttons directly on the interactive canvas.
 - **Visual Selection & Breadcrumbs**: Click any element to highlight its hierarchy path and trigger the properties inspector.
+
+<Screenshot
+  src="/screenshots/editor/editor-inspector.webp"
+  alt="A selected heading with its floating toolbar and inspector"
+  caption="Click any element to select it, then edit it in the inspector or move it with the floating toolbar."
+/>
 
 ### 2. Export `.stora` Archive
 Click the **Export .stora** button in the header toolbar to immediately download the active page document. KUBUILD exports:

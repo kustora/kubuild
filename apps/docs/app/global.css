@@ -2,6 +2,10 @@
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
 
+/* The editor ships Tailwind classes, not a stylesheet: scan its source so its panels get styled. */
+@source '../../../packages/editor/src';
+@source '../../../packages/renderer/src';
+
 html {
   scrollbar-gutter: stable;
   scroll-behavior: smooth;

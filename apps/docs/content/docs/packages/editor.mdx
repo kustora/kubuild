@@ -19,6 +19,12 @@ Whether embedding a simple landing page builder for content marketers or offerin
 
 The editor shell is centered around the `<KubuildEditor />` component, which orchestrates five main UI zones into an integrated design workstation:
 
+<Screenshot
+  src="/screenshots/editor/editor-overview.webp"
+  alt="KUBUILD editor with the component palette, canvas, and inspector"
+  caption="The editor in Advance mode: component palette (left), canvas with viewport switcher and zoom bar (center), inspector (right)."
+/>
+
 ```mermaid
 flowchart TD
     subgraph TopbarToolbar["1. Topbar Toolbar"]
@@ -67,6 +73,24 @@ flowchart TD
 3. **Center Canvas:** The GPU-accelerated direct manipulation area. Houses the resizable viewport frame, 8-point transform handles, on-canvas spacing sliders, smart snapping guidelines, distance meters, and floating node action badges.
 4. **Right Inspector:** Deep design and trait editor. Switches dynamically between style sectors (Box Model, Auto Layout, CSS Grid, Dimensions, Typography, Backgrounds, Borders, Effects, Motion) and component-specific properties (Traits & Validation).
 5. **State & Orchestration Engine:** Headless state management layer powered by Zustand (`useEditorStore`) and `@kubuild/core`, ensuring 60 FPS interactions without re-rendering unaffected subtree nodes.
+
+<Screenshot
+  src="/screenshots/editor/editor-inspector.webp"
+  alt="A selected heading with its floating toolbar and the Style inspector"
+  caption="Selecting a node shows its floating toolbar on the canvas and its text, actions, tracking, and style controls in the inspector."
+/>
+
+<Screenshot
+  src="/screenshots/editor/editor-layers.webp"
+  alt="The Layers panel showing the page node tree"
+  caption="The Layers tab mirrors the document tree; click a row to select the node on the canvas."
+/>
+
+<Screenshot
+  src="/screenshots/editor/editor-blocks.webp"
+  alt="The Blocks panel with prebuilt layout and section blocks"
+  caption="The Blocks tab inserts prebuilt multi-node blocks (columns, navbars, heroes, feature cards). Add your own with the blocks prop."
+/>
 
 ---
 
@@ -405,6 +429,12 @@ Holding down <kbd>Alt</kbd> (Windows/Linux) or <kbd>Option</kbd> (macOS) while a
 
 The editor toolbar provides instant viewport toggles: **Desktop** (`≥ 1024px`), **Tablet** (`768px – 1023px`), and **Mobile** (`< 768px`).
 
+<Screenshot
+  src="/screenshots/editor/editor-mobile.webp"
+  alt="The canvas switched to the 375px mobile viewport"
+  caption="Mobile viewport (375px). Style edits made here are stored as mobile overrides."
+/>
+
 ```mermaid
 flowchart LR
     BaseStyle["Desktop / Base Layer\n(Canonical CSS Specs)"]
@@ -422,6 +452,12 @@ flowchart LR
 ### 4. Multi-Device Side-by-Side Preview
 
 Clicking the **Multi-Device Mode** button in the zoom toolbar renders Desktop, Tablet, and Mobile artboards simultaneously side-by-side in real time. Scrolling, hover states, and live edits sync across all three frames synchronously.
+
+<Screenshot
+  src="/screenshots/editor/editor-multi-device.webp"
+  alt="Desktop, tablet, and mobile previews side by side"
+  caption="Multi-Device preview renders every breakpoint at once."
+/>
 
 ### 5. Inline Text Editing with Caret Stability
 
@@ -442,6 +478,12 @@ Canvas navigation operates smoothly at 60 FPS using GPU hardware-accelerated CSS
 ## Dual-Mode Progressive Disclosure: Simple vs Advance
 
 KUBUILD features a dual-mode design system engineered to accommodate both non-technical creators and professional developers within the exact same software engine.
+
+<Screenshot
+  src="/screenshots/editor/editor-simple-mode.webp"
+  alt="The editor in Simple mode with a reduced toolbar and inspector"
+  caption="Simple mode: fewer toolbar actions, a Blocks-first palette, and a compact visual inspector."
+/>
 
 ```mermaid
 flowchart TD
@@ -489,6 +531,12 @@ flowchart TD
 | **Breadcrumbs Bar** | Hidden | Interactive ancestor hierarchy breadcrumbs |
 | **Action Debugger Panel** | Hidden | Real-time dispatch logger & payload tracer |
 | **Component Whitelist** | Curated 12 essential beginner elements | All 35+ components + custom host plugins |
+
+<Screenshot
+  src="/screenshots/editor/editor-view-code.webp"
+  alt="The Live Code Viewer with generated HTML and CSS"
+  caption="The Code Viewer (Advance mode) shows the semantic HTML and structured CSS generated from the current document."
+/>
 
 ---
 

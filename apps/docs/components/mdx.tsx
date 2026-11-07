@@ -9,6 +9,7 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { File, Folder, Files } from 'fumadocs-ui/components/files';
 import { InteractiveRenderer, InteractiveSandbox } from '@/components/interactive-renderer';
 import { Mermaid } from '@/components/mermaid';
+import { Screenshot } from '@/components/screenshot';
 import type { MDXComponents } from 'mdx/types';
 
 export function getMDXComponents(components?: MDXComponents) {
@@ -32,6 +33,7 @@ export function getMDXComponents(components?: MDXComponents) {
     InteractiveRenderer,
     InteractiveSandbox,
     Mermaid,
+    Screenshot,
     ...components,
   } satisfies MDXComponents;
 }
