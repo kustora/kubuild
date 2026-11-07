@@ -1,0 +1,102 @@
+---
+title: FAQ & Troubleshooting
+description: Answers to common questions about KUBUILD's architecture, integration, and the errors you're most likely to hit.
+---
+
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+
+## General
+
+<Accordions type="multiple">
+  <Accordion title="Is KUBUILD tied to Stora.page or a specific backend?">
+    No. KUBUILD is a backend-agnostic library. Stora.page is one consumer of it, and the packages never depend on Stora.page. Documents are plain JSON validated by Zod, so you can store them in any database, object storage, or Git. See [Backend Storage](/docs/integration/backend-storage).
+  </Accordion>
+
+  <Accordion title="Which packages do I need?">
+    Most React apps only need `@kubuild/react`, which re-exports the editor, renderer, schema, and core APIs. Install the individual packages when you want a smaller surface, for example only `@kubuild/renderer` on public pages, or only `@kubuild/schema` and `@kubuild/core` on a server that validates documents. See [Architecture](/docs/getting-started/architecture).
+  </Accordion>
+
+  <Accordion title="Can I use KUBUILD without React?">
+    Partly. `@kubuild/schema` and `@kubuild/core` are pure TypeScript with no framework or DOM dependency, so validation, commands, migration, and `.stora` export/import work anywhere (Node.js, edge runtimes, workers). `@kubuild/renderer`, `@kubuild/editor`, and `@kubuild/react` require React.
+  </Accordion>
+
+  <Accordion title="Which React versions are supported?">
+    `@kubuild/renderer`, `@kubuild/editor`, and `@kubuild/react` declare peer dependencies of `react >= 18` and `react-dom >= 18`.
+  </Accordion>
+
+  <Accordion title="Does the document format use Tailwind classes?">
+    No. Page styling is stored as a portable style object (layout, spacing, typography, background, border, effects) with `base`, `desktop`, `tablet`, and `mobile` overrides. Tailwind is only used for the builder's own UI. See [Responsive Cascade](/docs/guides/responsive-cascade).
+  </Accordion>
+
+  <Accordion title="How do I build a site with several pages or detached modals?">
+    Use a `ProjectDocument` with page and component artboards. See [Projects & Artboards](/docs/guides/projects-artboards).
+  </Accordion>
+
+  <Accordion title="What license is KUBUILD under?">
+    MIT.
+  </Accordion>
+</Accordions>
+
+## Integration
+
+<Accordions type="multiple">
+  <Accordion title="The editor crashes or shows hydration errors in Next.js">
+    The editor measures the DOM and uses browser-only APIs, so it must not be server-rendered. Load it with `next/dynamic(() => import('@kubuild/editor').then((m) => m.KubuildEditor), { ssr: false })` inside a Client Component. Public pages can use `<KubuildRenderer />` in Server Components. See [Next.js](/docs/integration/nextjs).
+  </Accordion>
+
+  <Accordion title="Responsive styles flash or don't apply on the first paint">
+    Render public pages with `<KubuildRenderer responsive="css" />`. In this mode the renderer emits breakpoint rules as `@media` CSS in the server HTML, so the layout is correct before JavaScript runs. The default `viewport` mode picks styles from the `viewport` prop and is meant for previews inside the editor.
+  </Accordion>
+
+  <Accordion title="&quot;Invalid hook call&quot; after linking local packages">
+    Two copies of React are loaded. In Vite, add `resolve.dedupe: ['react', 'react-dom']`. In a monorepo, make sure the app and the `@kubuild/*` packages resolve the same `react` install.
+  </Accordion>
+
+  <Accordion title="How do I inject per-visitor data such as the user's name?">
+    Declare a variable catalog for the editor and pass runtime values through `createRenderContext({ variables })`. Text like `{{ user.name | there }}` resolves at render time with a fallback. See [Dynamic Variables](/docs/guides/dynamic-variables).
+  </Accordion>
+
+  <Accordion title="How do I apply a tenant's brand color to a shared template?">
+    Reference theme tokens in node styles (`var(--kb-color-primary)`) and pass a per-tenant override with `createRenderContext({ theme })`. See [Theming](/docs/guides/theming).
+  </Accordion>
+</Accordions>
+
+## Import, Export & Migration
+
+<Accordions type="multiple">
+  <Accordion title="Import fails with MISSING_COMPONENTS">
+    The package uses custom component types your registry doesn't know. Register them before importing, or import anyway with `dependencyPolicy: 'import-with-placeholder'` so the nodes are kept and rendered as placeholders. See [Export & Import](/docs/guides/export-import).
+  </Accordion>
+
+  <Accordion title="Import fails with ASSET_CONFLICT">
+    An asset ID in the package already exists on your host. Choose an `assetCollisionStrategy`: `'rename'` (remaps references automatically), `'reuse-existing'`, or `'overwrite'`. The default `'reject'` refuses the import.
+  </Accordion>
+
+  <Accordion title="Import reports TRACKING_SECRET_REMOVED">
+    The package contained secret tracking keys from an old schema version. They were stripped on purpose: documents must never hold secrets. Re-enter the secret on your server and reference it with a `credentialId`. See [Tracking Pixels](/docs/guides/tracking-pixels).
+  </Accordion>
+
+  <Accordion title="How do I open documents saved with an older schema version?">
+    Run them through `migrateDocument(raw)` (pages) or `loadProjectDocument(raw)` (projects or legacy pages). Importing a `.stora` package migrates automatically. See [Schema Migrations](/docs/reference/migrations).
+  </Accordion>
+
+  <Accordion title="How do I duplicate a page or turn it into a template?">
+    Use `saveDraftAsTemplate` to create a template record and `cloneTemplateAsPage` to create a new page from it. Cloning assigns fresh IDs to every node and remaps internal references such as `modalNodeId` and `formId`.
+  </Accordion>
+</Accordions>
+
+## Security
+
+<Accordions type="multiple">
+  <Accordion title="Where do API keys for AI providers and tracking go?">
+    On your server only. AI requests go through a backend route created with `createAiHandler` from `@kubuild/ai/server`, and tracking secrets are resolved by `createTrackingRelayHandler` from a `credentialId`. Nothing secret is stored in a document or sent to the browser.
+  </Accordion>
+
+  <Accordion title="Can a document run arbitrary JavaScript?">
+    No. Documents are declarative JSON. Actions map to a fixed set of step types (`api_request`, `navigate`, `show_toast`, …) and any handlers your host registers. URLs, style values, and theme tokens are sanitized. See [Security](/docs/integration/security).
+  </Accordion>
+</Accordions>
+
+## Still stuck?
+
+Open an issue on [GitHub](https://github.com/kustora/kubuild/issues). For security issues, follow `SECURITY.md` instead of opening a public issue.

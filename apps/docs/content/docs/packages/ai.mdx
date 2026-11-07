@@ -271,14 +271,13 @@ const registry = createDefaultComponentRegistry();
 const adapter = new OpenAiAdapter({
   apiKey: process.env.OPENAI_API_KEY!,
   model: 'gpt-4o',
+  temperature: 0.4, // sampling settings live on the adapter
 });
 
 // 3. Initialize the core generation engine
 const engine = new KubuildAiEngine({
   adapter,
   registry,
-  maxTokens: 4096,
-  temperature: 0.4,
 });
 
 // 4. Initialize the agent for multi-turn canvas mutations
@@ -286,7 +285,7 @@ const agent = new KubuildAiAgent({
   adapter,
   registry,
   tools: createDocumentTools({ allowWrites: true }),
-  maxSteps: 10,
+  maxAgentSteps: 10, // default: 8
 });
 
 // 5. Export the Next.js Route Handler with auth & rate limiting
@@ -408,30 +407,36 @@ Write tools mutate the AST atomically and return structured diff operations:
 Before any tool execution result is committed to the document, it undergoes rigorous runtime verification:
 
 ```typescript
-import { 
-  checkNesting, 
-  checkComponentType, 
-  checkDocumentSecurity, 
-  normalizeIncomingNode 
+import { compileComponentCatalog } from '@kubuild/ai';
+import {
+  checkNesting,
+  checkComponentType,
+  checkDocumentSecurity,
+  normalizeIncomingNode,
 } from '@kubuild/ai/server';
 import { validateDocumentSecurity } from '@kubuild/core';
 
-// 1. Verify component existence in host registry
-checkComponentType('custom-card', registry);
+// The catalog is the AI-facing view of your component registry
+const catalog = compileComponentCatalog(registry);
+
+// 1. Verify the component exists in the host registry.
+//    Each check returns `null` when valid, or a retry hint string for the model.
+const typeHint = checkComponentType(catalog, 'custom-card');
 
 // 2. Validate structural hierarchy rules
-// (e.g., A button cannot nest an interactive form or another button)
-checkNesting('button', 'form'); // Throws descriptive ToolExecutionError
+//    (e.g. a button cannot contain a form)
+const nestingHint = checkNesting(catalog, buttonNode, 'form');
 
-// 3. Normalize styles and auto-generate deterministic IDs
-const safeNode = normalizeIncomingNode(rawLlmNode, existingIds);
+// 3. Normalize styles and generate IDs that don't collide with the document
+const safeNode = normalizeIncomingNode(rawLlmNode, currentDocument);
 
-// 4. Validate security limits against DDoS / prototype pollution
-validateDocumentSecurity(updatedDocument, {
-  maxDepth: 32,
-  maxNodes: 2000,
+// 4. Validate security limits against oversized or malicious trees
+const securityHint = checkDocumentSecurity(updatedDocument); // string | null
+const { safe, errors } = validateDocumentSecurity(updatedDocument, {
+  maxTreeDepth: 32,
+  maxNodeCount: 2000,
   maxStringLength: 100000,
-  disallowedProtocols: ['javascript:', 'data:', 'vbscript:'],
+  allowedUrlSchemes: ['https:', 'http:', 'mailto:', 'tel:'],
 });
 ```
 
@@ -445,7 +450,7 @@ Generative LLMs frequently emit incomplete JSON chunks during token streaming, m
 
 ```mermaid
 flowchart TD
-    RawStream["Raw LLM Token Stream: '```json { \"type\": \"hero\", ...'"]
+    RawStream["Raw LLM token stream (fenced JSON, partial objects)"]
     Extractor["extractJsonFromResponse()"]
     IDRepair["ID Sanitizer & Uniqueness Counter"]
     PropHealer["Prop Type Coercion (e.g., '1' -> 1)"]
@@ -633,7 +638,7 @@ If you are building custom AI experiences outside the editor chrome (such as a f
 import { useAiChat } from '@kubuild/ai/react';
 
 export function AiChatWidget() {
-  const { messages, isStreaming, sendMessage, cancel, clearHistory } = useAiChat({
+  const { messages, isStreaming, sendMessage, cancel, clearMessages } = useAiChat({
     endpoint: '/api/ai',
     onMessage: (msg) => console.log('New message received:', msg),
   });
@@ -641,8 +646,8 @@ export function AiChatWidget() {
   return (
     <div className="chat-widget">
       <div className="messages">
-        {messages.map((m) => (
-          <div key={m.id} className={`message-${m.role}`}>
+        {messages.map((m, index) => (
+          <div key={m.timestamp ?? index} className={`message-${m.role}`}>
             {typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}
           </div>
         ))}

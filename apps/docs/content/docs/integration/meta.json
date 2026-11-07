@@ -6,5 +6,6 @@
     "backend-storage",
     "performance",
     "security"
-  ]
+  ],
+  "defaultOpen": true
 }

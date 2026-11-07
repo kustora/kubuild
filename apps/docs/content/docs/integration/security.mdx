@@ -9,50 +9,50 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-Dalam sistem visual page builder modern, keamanan adalah pondasi mutlak yang tidak boleh dikompromikan. Aplikasi builder menerima, memanipulasi, dan merender dokumen kompleks yang dapat berasal dari berbagai sumber eksternal: template komunitas, unggahan file `.stora` dari pengguna publik, sinkronisasi cloud pihak ketiga, hingga kode yang di-*generate* secara dinamis oleh Large Language Models (LLM) seperti Google Gemini atau OpenAI.
+In a modern visual page builder, security is a foundation that can't be compromised. A builder receives, manipulates, and renders complex documents from many external sources: community templates, `.stora` uploads from public users, third-party cloud sync, and content generated on the fly by Large Language Models (LLMs) such as Google Gemini or OpenAI.
 
-Jika sistem visual builder mempercayai dokumen eksternal secara naif, sistem tersebut rentan terhadap serangkaian serangan berbahaya:
-- **Cross-Site Scripting (XSS)** melalui injeksi atribut event handler inline (`onload`, `onerror`), skema pseudo-protokol `javascript:`, atau manipulasi DOM langsung.
-- **CSS Injection & Data Exfiltration** melalui ekspresi CSS kuno (`expression(...)`), pemanggilan `@import` ke server penyerang, atau `url(javascript:...)`.
-- **Prototype Pollution** yang merusak objek bawaan JavaScript (`Object.prototype`) saat memproses interpolasi variabel dinamis atau deserialisasi state dokumen.
-- **Denial of Service (DoS) & Zip Bombs** melalui file arsip `.stora` terkompresi berukuran kecil yang membengkak menjadi puluhan gigabyte saat diekstrak di memori, atau pohon dokumen dengan 100.000 node yang membekukan thread utama browser.
-- **Credential Leakage** jika token API backend, kunci Facebook Pixel CAPI, atau kredensial database tersimpan secara tidak sengaja di dalam payload dokumen.
+A builder that naively trusts external documents is open to a range of attacks:
+- **Cross-Site Scripting (XSS)** through inline event-handler attributes (`onload`, `onerror`), `javascript:` pseudo-protocol URLs, or direct DOM manipulation.
+- **CSS injection & data exfiltration** through legacy CSS expressions (`expression(...)`), `@import` calls to an attacker's server, or `url(javascript:...)`.
+- **Prototype pollution** that corrupts built-in JavaScript objects (`Object.prototype`) while interpolating dynamic variables or deserializing document state.
+- **Denial of Service (DoS) & zip bombs** through small compressed `.stora` archives that expand to tens of gigabytes in memory, or document trees with 100,000 nodes that freeze the browser's main thread.
+- **Credential leakage** when backend API tokens, Facebook Pixel CAPI keys, or database credentials end up in the document payload by accident.
 
-**KUBUILD mengadopsi postur keamanan *"Never Trust Untrusted Input"* dengan arsitektur pertahanan berlapis (*Defense-in-Depth*).**
+**KUBUILD adopts a *"never trust untrusted input"* posture with a layered *defense-in-depth* architecture.**
 
 ---
 
-## Filosofi Keamanan & Model Ancaman
+## Security Philosophy & Threat Model
 
-Setiap dokumen `.stora`, cuplikan AST, atau input dari AI Copilot diperlakukan sebagai **untrusted data** sejak pertama kali diterima oleh sistem hingga saat dirender di layar pengguna akhir. 
+Every `.stora` document, AST fragment, or AI Copilot output is treated as **untrusted data** from the moment it enters the system until it is rendered on the end user's screen.
 
-KUBUILD menerapkan 4 lapis filter independen:
+KUBUILD applies four independent filter layers:
 
 ```mermaid
 flowchart TD
     Untrusted["Untrusted External Input\n(.stora archive, Community JSON, AI LLM, Paste event)"]
     
-    subgraph Layer1["Lapisan 1: Schema Validation (@kubuild/schema)"]
+    subgraph Layer1["Layer 1: Schema Validation (@kubuild/schema)"]
         L1_Zod["Zod Strict Schema Validation"]
         L1_CSS["DANGEROUS_STYLE_VALUE_PATTERN Check"]
         L1_Types["Safe Primitive Value Restrictions"]
     end
 
-    subgraph Layer2["Lapisan 2: Core AST Security Screening (@kubuild/core)"]
+    subgraph Layer2["Layer 2: Core AST Security Screening (@kubuild/core)"]
         L2_Proto["Prototype Pollution Shield (containsProhibitedKeys)"]
         L2_URL["URL Scheme Whitelist (isSafeUrl)"]
         L2_Limits["Resource Limits (Depth <= 32, Nodes <= 5000, 10MB)"]
         L2_Zip["Zip Bomb & Asset Extension Filter (checkZipBomb)"]
     end
 
-    subgraph Layer3["Lapisan 3: Runtime Rendering (@kubuild/renderer)"]
+    subgraph Layer3["Layer 3: Runtime Rendering (@kubuild/renderer)"]
         L3_HTML["DOM Sanitization (sanitizeHtml for Embeds)"]
         L3_Text["Pure Text Nodes for Public Visitor View"]
         L3_Links["Auto rel='noopener noreferrer' on target='_blank'"]
         L3_Zero["Zero Secrets Policy (Host-Side Credential Storage)"]
     end
 
-    subgraph Layer4["Lapisan 4: Host Edge & Browser Sandbox (HTTP CSP)"]
+    subgraph Layer4["Layer 4: Host Edge & Browser Sandbox (HTTP CSP)"]
         L4_CSP["Strict Content Security Policy (CSP Nonces)"]
         L4_Eval["Disallow unsafe-eval & Malicious Hosts"]
         L4_Headers["X-Content-Type-Options: nosniff"]
@@ -66,21 +66,21 @@ flowchart TD
 ```
 
 <Cards>
-  <Card title="Lapisan 1: Schema" description="Penyaringan tipe primitif aman dan pemblokiran CSS injection di @kubuild/schema." />
-  <Card title="Lapisan 2: Core Engine" description="Proteksi prototype pollution, screening batas dokumen, dan proteksi Zip Bomb di @kubuild/core." />
-  <Card title="Lapisan 3: Runtime Renderer" description="Sanitasi atribut DOM, pembersihan paste rich-text, dan auto-noopener di @kubuild/renderer." />
-  <Card title="Lapisan 4: HTTP CSP" description="Isolasi tingkat browser melalui Content Security Policy ketat di Next.js Host." />
+  <Card title="Layer 1: Schema" description="Safe primitive types and CSS injection blocking in @kubuild/schema." />
+  <Card title="Layer 2: Core Engine" description="Prototype pollution protection, document limit screening, and zip bomb protection in @kubuild/core." />
+  <Card title="Layer 3: Runtime Renderer" description="DOM attribute sanitization, rich-text paste cleanup, and auto-noopener in @kubuild/renderer." />
+  <Card title="Layer 4: HTTP CSP" description="Browser-level isolation through a strict Content Security Policy in the Next.js host." />
 </Cards>
 
 ---
 
-## Proteksi Lapisan 1: Schema & Style Value Sanitization
+## Layer 1 Protection: Schema & Style Value Sanitization
 
-Di level `@kubuild/schema`, seluruh objek yang mendefinisikan gaya grafis (*styles*), aset (*assets*), aksi (*actions*), dan variabel (*variable bindings*) divalidasi menggunakan skema Zod yang ketat sebelum diizinkan masuk ke memori aplikasi.
+In `@kubuild/schema`, every object that defines *styles*, *assets*, *actions*, and *variable bindings* is validated with strict Zod schemas before it is allowed into application memory.
 
-### Pemblokiran CSS Injection (`DANGEROUS_STYLE_VALUE_PATTERN`)
+### Blocking CSS Injection (`DANGEROUS_STYLE_VALUE_PATTERN`)
 
-CSS modern memiliki fitur-fitur berdaya tinggi yang, jika disalahgunakan, dapat memicu eksekusi kode atau kebocoran data (*CSS-based keylogging / exfiltration*). KUBUILD menerapkan regex filter `DANGEROUS_STYLE_VALUE_PATTERN` pada seluruh nilai properti gaya:
+Modern CSS has powerful features that, if abused, can trigger code execution or data leaks (*CSS-based keylogging / exfiltration*). KUBUILD applies the `DANGEROUS_STYLE_VALUE_PATTERN` regex to every style property value:
 
 ```typescript
 // packages/schema/src/document.ts
@@ -98,40 +98,40 @@ export const StyleValueSchema = z.union([
 ]);
 ```
 
-Pola ini secara aktif mendeteksi dan menolak:
-- `javascript:...` — Vektor klasik XSS dalam atribut CSS `background: url('javascript:alert(1)')`.
-- `expression(...)` — Fitur warisan Internet Explorer yang memungkinkan eksekusi JavaScript di dalam CSS.
-- `@import` — Mencegah injeksi style sheet eksternal yang tidak sah untuk mengubah hierarki halaman.
-- `<script` — Upaya menyelipkan tag script ke dalam property string CSS.
-- `vbscript:` — Skema VBScript lawas yang dapat dieksekusi di beberapa engine web view.
-- `data:text/html` — URI data berkonten HTML yang dapat memicu eksekusi sandbox berbahaya.
+The pattern detects and rejects:
+- `javascript:...` — the classic XSS vector in CSS, e.g. `background: url('javascript:alert(1)')`.
+- `expression(...)` — a legacy Internet Explorer feature that runs JavaScript inside CSS.
+- `@import` — prevents injecting unauthorized external style sheets that change the page.
+- `<script` — attempts to smuggle script tags into CSS string properties.
+- `vbscript:` — the legacy VBScript scheme that some web views still execute.
+- `data:text/html` — HTML data URIs that can trigger dangerous sandboxed execution.
 
-### Pembatasan Safe Primitives
+### Safe Primitives Only
 
-Dalam `StyleValueSchema`, nilai style **dibatasi secara ketat hanya pada tipe primitif yang dapat diserialisasi**:
-- `string` (yang telah lolos uji regex sanitasi)
-- `number` (contoh: `opacity: 0.8`, `zIndex: 10`, `flexGrow: 1`)
+In `StyleValueSchema`, style values are **strictly limited to serializable primitive types**:
+- `string` (after passing the sanitization regex)
+- `number` (e.g. `opacity: 0.8`, `zIndex: 10`, `flexGrow: 1`)
 - `boolean`
-- `null` atau `undefined` (untuk menghapus atau me-reset style)
+- `null` or `undefined` (to remove or reset a style)
 
-Objek, fungsi (`Function`), *class instance*, atau array tidak diperbolehkan sebagai nilai properti gaya, menutup celah eksekusi fungsi tak terduga saat dokumen dievaluasi.
+Objects, functions, *class instances*, or arrays are not allowed as style values, closing off unexpected function execution while documents are evaluated.
 
-<Tabs items={["Contoh Payload Ditolak", "Contoh Payload Sah (Valid)"]}>
-  <Tab value="Contoh Payload Ditolak">
+<Tabs items={["Rejected Payload Example", "Valid Payload Example"]}>
+  <Tab value="Rejected Payload Example">
 ```json
 {
   "type": "button",
   "id": "btn-malicious",
   "styles": {
-    "background": "url(javascript:alert('pwned'))", // DITOLAK: Mengandung 'javascript:'
-    "color": "expression(document.cookie)",         // DITOLAK: Mengandung 'expression('
-    "fontFamily": "@import url('https://evil.com/font.css')", // DITOLAK: Mengandung '@import'
-    "border": "<script>alert(1)</script>"          // DITOLAK: Mengandung '<script'
+    "background": "url(javascript:alert('pwned'))", // REJECTED: contains 'javascript:'
+    "color": "expression(document.cookie)",         // REJECTED: contains 'expression('
+    "fontFamily": "@import url('https://evil.com/font.css')", // REJECTED: contains '@import'
+    "border": "<script>alert(1)</script>"          // REJECTED: contains '<script'
   }
 }
 ```
   </Tab>
-  <Tab value="Contoh Payload Sah (Valid)">
+  <Tab value="Valid Payload Example">
 ```json
 {
   "type": "button",
@@ -152,18 +152,18 @@ Objek, fungsi (`Function`), *class instance*, atau array tidak diperbolehkan seb
 
 ---
 
-## Proteksi Lapisan 2: Core Engine & Untrusted Import
+## Layer 2 Protection: Core Engine & Untrusted Import
 
-Saat dokumen diimpor ke dalam aplikasi (misalnya melalui fungsi `importStoraZip` atau `validateDocumentSecurity`), paket `@kubuild/core` menjalankan serangkaian pemeriksaan keamanan komprehensif sebelum membuat pohon AST atau state editor.
+When a document is imported (for example through `importStoraPackage` or `validateDocumentSecurity`), `@kubuild/core` runs a comprehensive set of security checks before building the AST or editor state.
 
-### Proteksi Prototype Pollution
+### Prototype Pollution Protection
 
-*Prototype Pollution* adalah kerentanan di mana penyerang memanipulasi properti global `Object.prototype`, yang dapat membajak logika autentikasi, bypass validasi, atau memicu *Remote Code Execution* (RCE) di lingkungan Node.js.
+*Prototype pollution* is a vulnerability where an attacker manipulates the global `Object.prototype`, which can hijack authentication logic, bypass validation, or lead to *Remote Code Execution* (RCE) in Node.js.
 
-KUBUILD memblokir serangan ini di dua titik krusial:
+KUBUILD blocks this attack at two critical points:
 
-1. **Pemindaian Struktur Objek Rekursif (`containsProhibitedKeys`)**:
-   Setiap simpul AST dokumen dipindai secara mendalam. Jika ditemukan kunci terlarang berikut, proses impor langsung digagalkan:
+1. **Recursive object structure scanning (`containsProhibitedKeys`)**:
+   Every document AST node is scanned deeply. If any of these forbidden keys is found, the import fails immediately:
    - `__proto__`
    - `constructor`
    - `prototype`
@@ -172,8 +172,8 @@ KUBUILD memblokir serangan ini di dua titik krusial:
    - `__lookupGetter__`
    - `__lookupSetter__`
 
-2. **Resolusi Variabel Aman (`resolveBinding`)**:
-   Mesin interpolasi variabel dinamis (seperti `{{ site.name }}` atau `{{ user.profile.email }}`) tidak pernah menggunakan `eval()` atau `Function()`. Resolusi dilakukan melalui traversal data murni:
+2. **Safe variable resolution (`resolveBinding`)**:
+   The dynamic variable interpolation engine (e.g. `{{ site.name }}` or `{{ user.profile.email }}`) never uses `eval()` or `Function()`. Resolution is plain data traversal:
 
 ```typescript
 // packages/core/src/runtime/binding-resolver.ts
@@ -185,7 +185,7 @@ export function resolveBinding(
 ): ResolveOutcome {
   const segments = binding.key.split('.').filter(Boolean);
   
-  // Deteksi dini: Tolak jika ada segmen terlarang
+  // Early detection: reject forbidden segments
   if (segments.some((segment) => FORBIDDEN_KEY_SEGMENTS.has(segment))) {
     return applyMissingPolicy(binding);
   }
@@ -195,14 +195,14 @@ export function resolveBinding(
   for (const segment of segments) {
     if (FORBIDDEN_KEY_SEGMENTS.has(segment)) return applyMissingPolicy(binding);
     if (current === null || typeof current !== 'object') return applyMissingPolicy(binding);
-    // Verifikasi kepemilikan properti eksplisit (bukan warisan prototype)
+    // Require an explicit own property (not inherited from the prototype)
     if (!Object.prototype.hasOwnProperty.call(current, segment)) {
       return applyMissingPolicy(binding);
     }
     current = (current as Record<string, unknown>)[segment];
   }
 
-  // Jangan pernah kembalikan fungsi yang dapat dieksekusi
+  // Never return an executable function
   if (current === undefined || typeof current === 'function') {
     return applyMissingPolicy(binding);
   }
@@ -213,94 +213,94 @@ export function resolveBinding(
 
 ### URL Scheme Whitelist & Protocol Sanitization
 
-Semua link navigasi, target aksi, dan URL sumber gambar disaring menggunakan utilitas `isSafeUrl` dan `sanitizeUrl`:
+All navigation links, action targets, and image source URLs are filtered with `isSafeUrl` and `sanitizeUrl`:
 
-| Skema URL | Status | Catatan / Aturan Penggunaan |
+| URL Scheme | Status | Notes / Usage Rules |
 | :--- | :--- | :--- |
-| `http:`, `https:` | **Diizinkan** | Protokol web standar untuk tautan dan aset eksternal. |
-| `mailto:`, `tel:` | **Diizinkan** | Tautan interaksi pengunjung (*Click to Email*, *Click to Call*). |
-| `#`, `/path`, `./`, `?` | **Diizinkan** | Navigasi jangkar (*anchor*) internal, halaman relatif, dan parameter kueri. |
-| `data:image/*` | **Diizinkan** | Data URI khusus gambar murni (`png`, `jpeg`, `webp`, `gif`, `avif`, `svg+xml`). |
-| `blob:` | **Diizinkan Terbatas** | Hanya diizinkan pada sesi editor in-memory untuk pratinjau media lokal, diblokir dari impor arsip publik. |
-| `javascript:`, `vbscript:` | **DIBLOKIR MUTLAK** | Vektor eksekusi script; otomatis diganti menjadi `#` atau dibatalkan. |
-| `data:text/html` | **DIBLOKIR MUTLAK** | Mencegah rendering HTML mentah tak terduga di dalam iframe atau browser window. |
-| `file:`, `ftp:` | **DIBLOKIR MUTLAK** | Mencegah akses ke sistem file lokal klien atau server. |
+| `http:`, `https:` | **Allowed** | Standard web protocols for links and external assets. |
+| `mailto:`, `tel:` | **Allowed** | Visitor interaction links (*click to email*, *click to call*). |
+| `#`, `/path`, `./`, `?` | **Allowed** | Internal anchors, relative pages, and query parameters. |
+| `data:image/*` | **Allowed** | Image-only data URIs (`png`, `jpeg`, `webp`, `gif`, `avif`, `svg+xml`). |
+| `blob:` | **Restricted** | Only allowed in in-memory editor sessions for local media previews; blocked in imported public archives. |
+| `javascript:`, `vbscript:` | **ALWAYS BLOCKED** | Script execution vectors; replaced with `#` or rejected. |
+| `data:text/html` | **ALWAYS BLOCKED** | Prevents unexpected raw HTML rendering in iframes or browser windows. |
+| `file:`, `ftp:` | **ALWAYS BLOCKED** | Prevents access to the client's or server's local file system. |
 
 ```typescript
 import { isSafeUrl, sanitizeUrl } from '@kubuild/core';
 
-// Contoh sanitasi URL
-sanitizeUrl('javascript:alert(1)', '#'); // Mengembalikan '#'
-sanitizeUrl('https://example.com/checkout'); // Mengembalikan 'https://example.com/checkout'
-sanitizeUrl('data:text/html,<script>alert(1)</script>', '#'); // Mengembalikan '#'
-sanitizeUrl('data:image/png;base64,...'); // Mengembalikan 'data:image/png;base64,...'
+// URL sanitization examples
+sanitizeUrl('javascript:alert(1)', '#'); // Returns '#'
+sanitizeUrl('https://example.com/checkout'); // Returns 'https://example.com/checkout'
+sanitizeUrl('data:text/html,<script>alert(1)</script>', '#'); // Returns '#'
+sanitizeUrl('data:image/png;base64,...'); // Returns 'data:image/png;base64,...'
 ```
 
 ### Resource Limits & Denial of Service Defense
 
-Untuk mencegah serangan *ReDoS*, pembekuan memori (*Memory Exhaustion*), dan tab crash di browser pengguna, `validateDocumentSecurity` menerapkan batasan dimensi:
+To prevent *ReDoS*, *memory exhaustion*, and crashed browser tabs, `validateDocumentSecurity` enforces size limits:
 
 ```typescript
 // packages/core/src/validation/security.ts
 export const DEFAULT_DOCUMENT_SECURITY_LIMITS = {
-  maxNodeCount: 5000,               // Maksimum total node dalam 1 dokumen
-  maxTreeDepth: 32,                 // Kedalaman nesting maksimum
-  maxPropsCount: 200,               // Maksimum properti per node
-  maxStringLength: 100_000,         // Panjang karakter maksimum per string
-  maxChildrenPerNode: 1000,         // Maksimum anak langsung per kontainer
-  maxDocumentSizeBytes: 10 * 1024 * 1024, // Ukuran payload JSON maksimum (10 MB)
-  maxZipExpansionRatio: 100,        // Rasio dekompresi maksimum untuk pencegahan Zip Bomb
+  maxNodeCount: 5000,               // Maximum total nodes in one document
+  maxTreeDepth: 32,                 // Maximum nesting depth
+  maxPropsCount: 200,               // Maximum props per node
+  maxStringLength: 100_000,         // Maximum characters per string
+  maxChildrenPerNode: 1000,         // Maximum direct children per container
+  maxDocumentSizeBytes: 10 * 1024 * 1024, // Maximum JSON payload size (10 MB)
+  maxZipExpansionRatio: 100,        // Maximum decompression ratio to stop zip bombs
 };
 ```
 
 ### Zip Bomb & Malicious Asset Protection (`checkZipBomb`)
 
-Saat pengguna mengunggah arsip `.stora` (yang merupakan kontainer ZIP terkompresi berisi `manifest.json`, `page.json`, dan aset grafis), KUBUILD melakukan verifikasi keamanan sebelum mengekstrak konten:
+When a user uploads a `.stora` archive (a compressed ZIP container holding `manifest.json`, `page.json`, and graphic assets), KUBUILD verifies it before extracting the contents:
 
 ```mermaid
 flowchart TD
-    Archive["Incoming .stora ZIP Archive"] --> CheckSize["1. Cek Ukuran File Arsip Terkompresi"]
-    CheckSize --> RatioCheck["2. Hitung Rasio Ekspansi: (Uncompressed / Compressed)"]
+    Archive["Incoming .stora ZIP Archive"] --> CheckSize["1. Check the compressed archive size"]
+    CheckSize --> RatioCheck["2. Compute the expansion ratio: (Uncompressed / Compressed)"]
     RatioCheck --> Decision{Rasio > 100:1 && Uncompressed > 10MB?}
-    Decision -- Ya --> RejectZip["Ditolak: Potential ZIP BOMB Detected (SIZE_LIMIT_EXCEEDED)"]
-    Decision -- Tidak --> ExtCheck["3. Pindai Ekstensi Setiap Berkas di Arsip"]
-    ExtCheck --> IsDanger{Mengandung Ekstensi Berbahaya / Double Ext?}
-    IsDanger -- Ya --> RejectExt["Ditolak: EXECUTABLE_ASSET_DETECTED (.exe, .php, .sh, dll)"]
-    IsDanger -- Tidak --> Success["4. Lolos Pemeriksaan Keamanan & Berekspansi Aman"]
+    Decision -- Yes --> RejectZip["Rejected: Potential ZIP BOMB Detected (SIZE_LIMIT_EXCEEDED)"]
+    Decision -- No --> ExtCheck["3. Scan the extension of every file in the archive"]
+    ExtCheck --> IsDanger{Dangerous Extension / Double Ext?}
+    IsDanger -- Yes --> RejectExt["Rejected: EXECUTABLE_ASSET_DETECTED (.exe, .php, .sh, etc.)"]
+    IsDanger -- No --> Success["4. Passes security checks and expands safely"]
 ```
 
 ```typescript
 import { checkZipBomb, isDangerousAssetFilename } from '@kubuild/core';
 
-// 1. Pengecekan Zip Bomb: rasio ekspansi berlebih
+// 1. Zip bomb check: excessive expansion ratio
 const isBomb = checkZipBomb(archiveBytes.byteLength, totalUncompressedBytes);
 if (isBomb) {
   throw new Error('Security violation: Potential Zip Bomb attack detected.');
 }
 
-// 2. Pengecekan Ekstensi Aset Berbahaya & Double Extensions
-isDangerousAssetFilename('malicious.php');         // true (Ditolak)
-isDangerousAssetFilename('innocent.png.exe');     // true (Ditolak: double extension)
-isDangerousAssetFilename('script.js');            // true (Ditolak)
-isDangerousAssetFilename('banner.webp');          // false (Diterima)
+// 2. Dangerous asset extensions & double extensions
+isDangerousAssetFilename('malicious.php');         // true (rejected)
+isDangerousAssetFilename('innocent.png.exe');     // true (rejected: double extension)
+isDangerousAssetFilename('script.js');            // true (rejected)
+isDangerousAssetFilename('banner.webp');          // false (accepted)
 ```
 
-Daftar ekstensi aset yang otomatis dilarang:
+Asset extensions that are rejected automatically:
 `.exe`, `.dll`, `.so`, `.sh`, `.bat`, `.cmd`, `.js`, `.mjs`, `.cjs`, `.php`, `.py`, `.vbs`, `.wasm`, `.bin`, `.com`, `.scr`, `.pif`, `.hta`, `.jar`.
 
 ---
 
-## Proteksi Lapisan 3: Runtime Rendering & DOM Sanitization
+## Layer 3 Protection: Runtime Rendering & DOM Sanitization
 
-Pada saat dokumen dirender ke dalam DOM (baik di editor visual maupun di halaman publik pengunjung), paket `@kubuild/renderer` menegakkan aturan keamanan DOM berikut:
+When a document is rendered into the DOM (in the visual editor or on public visitor pages), `@kubuild/renderer` enforces these DOM security rules:
 
-### 1. Sanitasi HTML Embed (`sanitizeHtml`)
+### 1. HTML Embed Sanitization (`sanitizeHtml`)
 
-Untuk komponen seperti `html-embed` atau area teks kaya (*rich text*), `@kubuild/renderer` memanfaatkan utilitas sanitasi bawaan untuk membersihkan kode HTML yang diinjeksikan:
+For components such as `html-embed` or *rich text* areas, `@kubuild/renderer` uses built-in sanitization utilities to clean injected HTML:
 
-- **Menghapus Tag Eksekusi**: Menghapus seluruh tag `<script>`, `<object>`, `<embed>`, `<applet>`, `<base>`, dan `<link rel="import">`.
-- **Menghapus Atribut Event Handler**: Seluruh atribut yang diawali dengan `on` (misal: `onload=`, `onclick=`, `onerror=`, `onmouseover=`) dibersihkan menggunakan ekspresi reguler.
-- **Melumpuhkan Tautan Protokol Berbahaya**: Atribut `href`, `src`, `data`, atau `action` yang menggunakan `javascript:`, `vbscript:`, atau `data:text/html` diubah menjadi `#`.
+- **Removes executable tags**: all `<script>`, `<object>`, `<embed>`, `<applet>`, `<base>`, and `<link rel="import">` tags.
+- **Removes event-handler attributes**: every attribute starting with `on` (e.g. `onload=`, `onclick=`, `onerror=`, `onmouseover=`) is stripped with regular expressions.
+- **Neutralizes dangerous protocol links**: `href`, `src`, `data`, or `action` attributes using `javascript:`, `vbscript:`, or `data:text/html` become `#`.
 
 ```typescript
 // packages/core/src/validation/security.ts
@@ -308,16 +308,16 @@ export function sanitizeHtml(rawHtml: unknown): string {
   if (typeof rawHtml !== 'string') return '';
   let html = rawHtml;
 
-  // 1. Bersihkan tag script
+  // 1. Strip script tags
   html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 
-  // 2. Bersihkan tag embed/object
+  // 2. Strip embed/object tags
   html = html.replace(/<\/?(object|embed|applet|base|link)\b[^>]*>/gi, '');
 
-  // 3. Bersihkan handler on*
+  // 3. Strip on* handlers
   html = html.replace(/\s+on[a-z0-9_-]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
 
-  // 4. Netralkan protokol berbahaya
+  // 4. Neutralize dangerous protocols
   html = html.replace(
     /\b(href|src|data|action)\s*=\s*(['"])\s*(?:javascript:|vbscript:|data:text\/html)[^'"]*\2/gi,
     '$1="#"'
@@ -327,66 +327,66 @@ export function sanitizeHtml(rawHtml: unknown): string {
 }
 ```
 
-### 2. Teks Publik Aman (*Zero Client-Side DOM Injection*)
+### 2. Safe Public Text (*Zero Client-Side DOM Injection*)
 
-Pada mode runtime publik (`mode="preview"` atau `@kubuild/renderer` di Next.js Server Components):
-- Node teks dan heading dirender sebagai anak teks murni React (`{value}`), bukan via `dangerouslySetInnerHTML`. React secara bawaan melakukan HTML escaping pada semua nilai string.
-- Pada mode editor (`mode="editor"`), komponen `EditableText` menggunakan fungsi `escapeHtml` internal dan membaca input pengguna via `textContent` / `innerText`, sehingga penempelan teks (*paste event*) tidak dapat mengeksekusi script.
+In public runtime mode (`mode="runtime"`, or `@kubuild/renderer` in Next.js Server Components):
+- Text and heading nodes render as plain React text children (`{value}`), not through `dangerouslySetInnerHTML`. React escapes every string value by default.
+- In editor mode (`mode="editor"`), the `EditableText` component uses an internal `escapeHtml` function and reads user input via `textContent` / `innerText`, so pasted text cannot execute scripts.
 
-### 3. Proteksi Reverse Tabnabbing (`rel="noopener noreferrer"`)
+### 3. Reverse Tabnabbing Protection (`rel="noopener noreferrer"`)
 
-Ketika komponen tombol atau tautan dikonfigurasi untuk membuka tab baru (`target="_blank"`), `@kubuild/renderer` **secara otomatis menambahkan atribut `rel="noopener noreferrer"`**:
+When a button or link is configured to open a new tab (`target="_blank"`), `@kubuild/renderer` **automatically adds `rel="noopener noreferrer"`**:
 
 ```html
-<!-- Dihasilkan secara otomatis oleh @kubuild/renderer -->
+<!-- Generated automatically by @kubuild/renderer -->
 <a href="https://partner-site.com" target="_blank" rel="noopener noreferrer">
   Kunjungi Situs Mitra
 </a>
 ```
 
-Atribut ini mencegah eksploitasi *Reverse Tabnabbing*, di mana halaman tujuan eksternal dapat mengakses objek `window.opener` dan mengarahkan kembali tab asal pengguna ke situs *phishing*.
+This prevents *reverse tabnabbing*, where the external destination page uses `window.opener` to redirect the user's original tab to a *phishing* site.
 
 ### 4. Zero Secrets Policy
 
-Arsitektur KUBUILD mengadopsi prinsip **Zero Secrets Policy**:
-- Kredensial rahasia (seperti Facebook CAPI Access Token, Google Analytics API Secret, Database Connection String, atau API Key OpenAI) **tidak pernah disimpan di dalam pohon AST `.stora`**.
-- Dokumen hanya menyimpan *opaque identifiers* (misalnya: `credentialId: "cred_fb_checkout_01"` atau `actionId: "action_submit_lead"`).
-- Pada saat formulir atau tracking dieksekusi, browser hanya mengirim referensi opaque tersebut ke backend host aplikasi Anda. Server backend yang terisolasi kemudian mengambil kredensial asli dari environment variable server (`process.env.FB_CAPI_TOKEN`) dan menghubungi API pihak ketiga secara aman.
+KUBUILD follows a **zero secrets policy**:
+- Secret credentials (Facebook CAPI access tokens, Google Analytics API secrets, database connection strings, or OpenAI API keys) are **never stored in the `.stora` AST**.
+- Documents only store *opaque identifiers* (e.g. `credentialId: "cred_fb_checkout_01"` or `actionId: "action_submit_lead"`).
+- When a form or tracking event runs, the browser only sends those opaque references to your host backend. The isolated backend then loads the real credentials from server environment variables (`process.env.FB_CAPI_TOKEN`) and calls the third-party API securely.
 
-<Callout type="warn" title="Peringatan Arsitektur">
-Jangan pernah menaruh API key pihak ketiga yang bersifat rahasia di dalam prop komponen builder. Segala data yang berada di dalam dokumen `.stora` dapat dibaca oleh browser pengunjung jika dokumen tersebut dipublikasikan.
+<Callout type="warn" title="Architecture Warning">
+Never put secret third-party API keys in builder component props. Everything inside a `.stora` document can be read by visitors' browsers once the document is published.
 </Callout>
 
 ---
 
-## Rekomendasi Content Security Policy (CSP)
+## Content Security Policy (CSP) Recommendations
 
-Meskipun KUBUILD melakukan sanitasi menyeluruh di sisi aplikasi, menerapkan **Content Security Policy (CSP)** pada server host adalah lapisan pertahanan terakhir yang krusial (*browser-level sandbox*). CSP membatasi sumber script, gambar, font, dan koneksi yang dapat dimuat oleh browser.
+Even though KUBUILD sanitizes thoroughly at the application level, a **Content Security Policy (CSP)** on the host server is a crucial last line of defense (*browser-level sandbox*). CSP restricts which scripts, images, fonts, and connections the browser may load.
 
-### Matriks Direktif CSP Rekomendasi KUBUILD
+### Recommended CSP Directive Matrix
 
-| Direktif CSP | Nilai Rekomendasi | Alasan Keamanan |
+| CSP Directive | Recommended Value | Security Rationale |
 | :--- | :--- | :--- |
-| `default-src` | `'self'` | Batasi semua sumber ke origin sendiri kecuali diizinkan eksplisit. |
-| `script-src` | `'self' 'nonce-...' https://connect.facebook.net https://www.googletagmanager.com` | Izinkan script aplikasi dan pixel tracking resmi. **Jangan gunakan `'unsafe-eval'`**. |
-| `style-src` | `'self' 'unsafe-inline'` | Diperlukan untuk render dynamic inline styles komponen builder. |
-| `img-src` | `'self' data: https: blob:` | Izinkan gambar dari CDN host, data URI gambar aman, dan media preview in-memory editor. |
-| `font-src` | `'self' https://fonts.gstatic.com data:` | Izinkan font internal dan Google Fonts yang digunakan template. |
-| `frame-src` | `'self' https://www.youtube.com https://player.vimeo.com` | Izinkan penyematan video responsif YouTube dan Vimeo. |
-| `connect-src` | `'self' https://api.kustora.id https://*.google-analytics.com` | Batasi target HTTP fetch/XHR hanya ke API host dan tracking terverifikasi. |
-| `object-src` | `'none'` | Memblokir plugin lawas berbahaya seperti Flash atau Java Applet. |
-| `base-uri` | `'self'` | Mencegah penyerang mengubah base URL dokumen melalui tag `<base>`. |
-| `form-action` | `'self'` | Memastikan formulir builder hanya mengirim data ke endpoint host terpercaya. |
+| `default-src` | `'self'` | Restrict every source to your own origin unless explicitly allowed. |
+| `script-src` | `'self' 'nonce-...' https://connect.facebook.net https://www.googletagmanager.com` | Allow app scripts and official tracking pixels. **Never use `'unsafe-eval'`**. |
+| `style-src` | `'self' 'unsafe-inline'` | Required for the builder components' dynamic inline styles. |
+| `img-src` | `'self' data: https: blob:` | Allow images from the host CDN, safe image data URIs, and in-memory editor previews. |
+| `font-src` | `'self' https://fonts.gstatic.com data:` | Allow internal fonts and Google Fonts used by templates. |
+| `frame-src` | `'self' https://www.youtube.com https://player.vimeo.com` | Allow responsive YouTube and Vimeo embeds. |
+| `connect-src` | `'self' https://api.kustora.id https://*.google-analytics.com` | Restrict fetch/XHR targets to the host API and verified tracking endpoints. |
+| `object-src` | `'none'` | Block dangerous legacy plugins such as Flash or Java applets. |
+| `base-uri` | `'self'` | Prevent attackers from changing the document base URL via `<base>`. |
+| `form-action` | `'self'` | Ensure builder forms only submit to trusted host endpoints. |
 
 ---
 
-## Implementasi CSP di Next.js Host Application
+## CSP in a Next.js Host Application
 
-Berikut adalah cara mengimplementasikan Content Security Policy pada aplikasi Next.js Anda:
+How to implement a Content Security Policy in your Next.js app:
 
 <Tabs items={["Next.js App Router (Middleware + Nonce)", "next.config.mjs (Static Headers)", "Custom Express / Node.js Server"]}>
   <Tab value="Next.js App Router (Middleware + Nonce)">
-Pendekatan **Nonce-based CSP** di `middleware.ts` adalah standar keamanan tertinggi untuk Next.js App Router. Nonce acak unik dihasilkan pada setiap request dan diinjeksikan ke dalam request header untuk Server Components:
+A **nonce-based CSP** in `middleware.ts` is the strongest option for the Next.js App Router. A unique random nonce is generated for every request and passed to Server Components through request headers:
 
 ```typescript
 // middleware.ts
@@ -394,10 +394,10 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // 1. Buat nonce acak berbasis base64 (16 bytes)
+  // 1. Generate a random base64 nonce (16 bytes)
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
 
-  // 2. Susun direktif CSP ketat
+  // 2. Build strict CSP directives
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://connect.facebook.net https://www.googletagmanager.com;
@@ -413,7 +413,7 @@ export function middleware(request: NextRequest) {
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, ' ').trim();
 
-  // 3. Teruskan nonce ke komponen via request headers
+  // 3. Forward the nonce to components via request headers
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', cspHeader);
@@ -424,7 +424,7 @@ export function middleware(request: NextRequest) {
     },
   });
 
-  // 4. Set Content-Security-Policy pada response browser
+  // 4. Set Content-Security-Policy on the browser response
   response.headers.set('Content-Security-Policy', cspHeader);
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'SAMEORIGIN');
@@ -436,7 +436,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Terapkan ke semua rute kecuali file statis, _next/image, dan favicon.ico
+     * Apply to every route except static files, _next/image, and favicon.ico
      */
     {
       source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
@@ -451,7 +451,7 @@ export const config = {
   </Tab>
 
   <Tab value="next.config.mjs (Static Headers)">
-Jika Anda menggunakan halaman statis murni (*Static Site Generation - SSG*) tanpa runtime middleware dinamis, Anda dapat mengonfigurasi header CSP statis di `next.config.mjs`:
+If you use fully static pages (*Static Site Generation — SSG*) without dynamic middleware, configure static CSP headers in `next.config.mjs`:
 
 ```javascript
 // next.config.mjs
@@ -500,7 +500,7 @@ export default nextConfig;
   </Tab>
 
   <Tab value="Custom Express / Node.js Server">
-Jika Anda menyematkan `@kubuild/renderer` pada server Express atau Hono.js:
+If you embed `@kubuild/renderer` in an Express or Hono.js server:
 
 ```typescript
 // server.ts (Express)
@@ -538,46 +538,46 @@ app.use(
 
 ---
 
-## Panduan Keamanan untuk Host Integrator
+## Security Guide for Host Integrators
 
-Bagi tim pengembang yang mengintegrasikan KUBUILD ke dalam aplikasi multi-tenant atau portal SaaS publik, ikuti langkah-langkah rekomendasi berikut:
+Teams integrating KUBUILD into multi-tenant apps or public SaaS portals should follow these steps:
 
 <Steps>
-  <Step title="Validasi Seluruh Input Dokumen di Backend">
-    Jangan pernah menyimpan dokumen `.stora` JSON langsung ke database tanpa melalui `validateDocumentSecurity` dan validasi Zod schema di server Anda.
+  <Step title="Validate Every Document Input on the Backend">
+    Never store `.stora` JSON documents in the database without running `validateDocumentSecurity` and Zod schema validation on your server.
   </Step>
 
-  <Step title="Pisahkan Domain Aset Pengguna (User Uploads)">
-    Simpan gambar dan berkas yang diunggah pengguna ke bucket S3 atau Cloudflare R2 dengan domain terpisah (misalnya `assets.kustora.id`, bukan `app.kustora.id`). Konfigurasikan header `Content-Disposition: inline` dan `X-Content-Type-Options: nosniff`.
+  <Step title="Separate the User Upload Asset Domain">
+    Store user-uploaded images and files in an S3 or Cloudflare R2 bucket on a separate domain (e.g. `assets.kustora.id`, not `app.kustora.id`). Set `Content-Disposition: inline` and `X-Content-Type-Options: nosniff` headers.
   </Step>
 
-  <Step title="Proxy AI Request Melalui Server Terproteksi">
-    Jangan pernah menaruh API key LLM (Gemini, Claude, OpenAI) di sisi browser klien. Selalu buat rute API backend host (misal `/api/kubuild/ai-copilot`) dengan rate limiting dan autentikasi pengguna.
+  <Step title="Proxy AI Requests Through a Protected Server">
+    Never put LLM API keys (Gemini, Claude, OpenAI) in the browser. Always create a host backend API route (e.g. `/api/kubuild/ai-copilot`) with rate limiting and user authentication.
   </Step>
 
   <Step title="Audit Custom Component Renderers">
-    Jika Anda mendaftarkan custom component (`registerComponent`), pastikan renderer kustom Anda tidak menggunakan `dangerouslySetInnerHTML` tanpa memanggil `sanitizeHtml(rawHtml)` terlebih dahulu.
+    If you register a custom component (`registry.register(...)`), make sure your custom renderer never uses `dangerouslySetInnerHTML` without first calling `sanitizeHtml(rawHtml)`.
   </Step>
 </Steps>
 
 ---
 
-## Tanya Jawab Keamanan (FAQ)
+## Security FAQ
 
 <Accordions>
-  <Accordion title="Mengapa KUBUILD membutuhkan 'unsafe-inline' untuk style-src di CSP?">
-    KUBUILD mendukung responsive styling breakpoint (*mobile, tablet, desktop*), CSS grid, dan flexbox dinamis yang dapat dikustomisasi secara real-time oleh desainer. Gaya-gaya ini disematkan sebagai inline CSS style properties pada node DOM untuk performa render maksimal. Dengan adanya validasi `DANGEROUS_STYLE_VALUE_PATTERN`, seluruh string gaya telah disterilkan dari vektor CSS injection sebelum mencapai browser.
+  <Accordion title="Why does KUBUILD need 'unsafe-inline' for style-src in the CSP?">
+    KUBUILD supports responsive breakpoint styling (*mobile, tablet, desktop*), CSS grid, and dynamic flexbox that designers customize in real time. These styles are emitted as inline styles and `<style>` tags for maximum render performance. With `DANGEROUS_STYLE_VALUE_PATTERN` validation, every style string is sterilized of CSS injection vectors before it reaches the browser.
   </Accordion>
 
-  <Accordion title="Bagaimana cara KUBUILD menangani serangan SVG XSS?">
-    File SVG dapat memuat script JavaScript tersembunyi (`<svg onload="alert(1)">`). Di KUBUILD, gambar SVG yang diunggah diproses melalui validasi ekstensi, dan jika disematkan via elemen `<img>`, browser secara otomatis menjalankan SVG dalam sandbox gambar murni tanpa mengeksekusi script inline di dalamnya.
+  <Accordion title="How does KUBUILD handle SVG XSS attacks?">
+    SVG files can contain hidden JavaScript (`<svg onload="alert(1)">`). In KUBUILD, uploaded SVG images go through extension validation, and when embedded via an `<img>` element the browser runs the SVG in a pure image sandbox without executing inline scripts.
   </Accordion>
 
-  <Accordion title="Apakah dokumen .stora dapat mengeksekusi fungsi JavaScript kustom?">
-    **Tidak.** Format dokumen `.stora` bersifat murni deklaratif (*Pure Declarative AST*). Tidak ada parser JavaScript runtime (`eval()`, `new Function()`, atau VM) di dalam `@kubuild/core` maupun `@kubuild/renderer`. Aksi pengguna (seperti klik tombol) dipetakan ke *Action Pipeline* terdaftar yang hanya menjalankan handler yang telah didefinisikan secara statis oleh aplikasi host.
+  <Accordion title="Can .stora documents execute custom JavaScript functions?">
+    **No.** The `.stora` format is a *pure declarative AST*. There is no runtime JavaScript parser (`eval()`, `new Function()`, or a VM) in `@kubuild/core` or `@kubuild/renderer`. User actions (such as button clicks) map to registered *action pipelines* that only run handlers statically defined by the host app.
   </Accordion>
 
-  <Accordion title="Bagaimana cara melaporkan kerentanan keamanan yang ditemukan?">
-    Kami menjalankan program pengungkapan kerentanan terkoordinasi (*Coordinated Vulnerability Disclosure*). Silakan laporkan melalui [GitHub Private Security Advisory](https://github.com/kustora/kubuild/security/advisories/new) atau kirim email langsung ke `contact@kustora.id` sesuai panduan di `SECURITY.md`.
+  <Accordion title="How do I report a security vulnerability?">
+    We run a *coordinated vulnerability disclosure* program. Report through a [GitHub private security advisory](https://github.com/kustora/kubuild/security/advisories/new) or email `contact@kustora.id`, following the guidelines in `SECURITY.md`.
   </Accordion>
 </Accordions>

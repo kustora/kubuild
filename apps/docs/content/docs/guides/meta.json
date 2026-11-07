@@ -7,6 +7,10 @@
     "dynamic-variables",
     "forms-and-actions",
     "tracking-pixels",
-    "ai-assistant"
-  ]
+    "ai-assistant",
+    "projects-artboards",
+    "theming",
+    "export-import"
+  ],
+  "defaultOpen": true
 }

@@ -278,26 +278,26 @@ import {
 
 export default function AdminPageBuilder() {
   const [document, setDocument] = useState<PageDocument>(() =>
-    createBlankDocument({
-      title: 'New Marketing Campaign',
-      description: 'Built with @kubuild/react unified studio',
-    })
+    createBlankDocument('New Marketing Campaign')
   );
   const [mode, setMode] = useState<EditorMode>('simple');
   const editorRef = useRef<EditorHandle>(null);
 
   // Integrated AI Assistant
+  // Provider keys stay on the server: the hook talks to your AI route (see @kubuild/ai)
   const { messages, sendMessage, isLoading } = useAiChat({
-    provider: 'gemini',
-    apiKey: process.env.NEXT_PUBLIC_AI_API_KEY,
+    endpoint: '/api/ai',
   });
+  // Pass document context per message: sendMessage(prompt, { currentDocument: document })
 
   const handleSave = useCallback(async (doc: PageDocument) => {
     setDocument(doc);
-    const bundle = await exportStoraPackage(doc);
+    const result = await exportStoraPackage(doc);
+    if (!result.success) throw new Error(result.diagnosticMessage);
     await fetch('/api/documents/save', {
       method: 'POST',
-      body: bundle,
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: new Uint8Array(result.archive),
     });
   }, []);
 
@@ -456,10 +456,12 @@ flowchart LR
 
     const registry = createDefaultComponentRegistry();
     registry.register({
-      type: 'custom_badge',
-      name: 'Status Badge',
+      type: 'custom.status-badge',
+      label: 'Status Badge',
+      category: 'custom',
+      defaultProps: { text: 'Active' },
       renderer: ({ node }) => (
-        <span className="badge">{node.props.text as string}</span>
+        <span className="badge">{String(node.props?.text ?? '')}</span>
       ),
     });
     ```

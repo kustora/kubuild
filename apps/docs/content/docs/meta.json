@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "index",
+    "playground",
+    "getting-started",
+    "guides",
+    "integration",
+    "packages",
+    "reference"
+  ]
+}

@@ -1,4 +1,9 @@
 {
   "title": "Getting Started",
-  "pages": ["quickstart", "architecture", "stora-document"]
+  "pages": [
+    "quickstart",
+    "architecture",
+    "stora-document"
+  ],
+  "defaultOpen": true
 }

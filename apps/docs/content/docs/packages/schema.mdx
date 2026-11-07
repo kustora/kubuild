@@ -35,8 +35,8 @@ graph TD
         Editor["@kubuild/editor"]
     end
 
-    HostAPI -->|validateDocument()| ValidateEntry
-    HostUI -->|import type { PageDocument }| TypesEntry
+    HostAPI -->|"validateDocument()"| ValidateEntry
+    HostUI -->|"import type #123; PageDocument #125;"| TypesEntry
     HostUI -->|Zod parsing| SchemaEntry
     Core --> SchemaEntry
     Renderer --> SchemaEntry
@@ -113,7 +113,7 @@ The top-level portable document contract is governed by `PageDocumentSchema`.
 
 ```typescript
 import { z } from 'zod';
-import { PageDocumentSchema, type PageDocument } from '@kubuild/schema';
+import { DocumentMetadataSchema, PageDocumentSchema, type PageDocument } from '@kubuild/schema';
 
 // Parsing and validating an unknown document
 const parsedDocument: PageDocument = PageDocumentSchema.parse(rawPayload);
@@ -571,7 +571,7 @@ To maintain strict typing for custom metadata in your application, define an app
 
 ```typescript
 import { z } from 'zod';
-import { PageDocumentSchema, type PageDocument } from '@kubuild/schema';
+import { DocumentMetadataSchema, PageDocumentSchema, type PageDocument } from '@kubuild/schema';
 
 // 1. Define your host-specific business metadata schema
 export const HostCustomMetadataSchema = z.object({
@@ -592,15 +592,13 @@ export function parseHostDocument(raw: unknown): PageDocument & {
   metadata: { custom: HostCustomMetadata };
 } {
   const doc = PageDocumentSchema.parse(raw);
-  const validatedCustom = HostCustomMetadataSchema.parse(doc.metadata?.custom);
+  // `metadata` is optional on the document; parsing `{}` fills in the schema defaults
+  const metadata = doc.metadata ?? DocumentMetadataSchema.parse({});
+  const validatedCustom = HostCustomMetadataSchema.parse(metadata.custom);
 
   return {
     ...doc,
-    metadata: {
-      ...doc.metadata,
-      title: doc.metadata?.title ?? 'Untitled Page',
-      custom: validatedCustom,
-    },
+    metadata: { ...metadata, custom: validatedCustom },
   };
 }
 ```
@@ -705,11 +703,12 @@ export function createPromotionalBanner(title: string, ctaUrl: string): PageDocu
       {
         id: 'cta-click-pipeline',
         trigger: 'click',
+        enabled: true,
         steps: [
           {
+            id: 'open-offer',
             type: 'navigate',
-            url: ctaUrl,
-            target: '_blank',
+            payload: { url: ctaUrl, target: '_blank' },
           },
         ],
       },
@@ -721,7 +720,11 @@ export function createPromotionalBanner(title: string, ctaUrl: string): PageDocu
     version: CURRENT_SCHEMA_VERSION,
     metadata: {
       title: 'Promotional Banner',
+      description: 'Limited-time discount banner',
+      author: 'Marketing',
       tags: ['promo', 'banner'],
+      category: 'marketing',
+      version: '1.0.0',
     },
     theme: {
       colors: {

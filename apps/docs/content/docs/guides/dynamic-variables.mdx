@@ -10,24 +10,24 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { InteractiveRenderer } from '@/components/interactive-renderer';
 
-Landing page modern dan situs pemasaran konversi tinggi membutuhkan **personalisasi tingkat lanjut**: menyapa pengunjung dengan namanya, menampilkan harga dalam mata uang lokal, menyisipkan nama merchant/afiliasi, hingga menghitung diskon secara *real-time*.
+Modern landing pages and high-converting marketing sites need **advanced personalization**: greeting visitors by name, showing prices in the local currency, inserting merchant/affiliate names, and calculating discounts in *real time*.
 
-Namun, menyuntikkan data dinamis ke dalam visual page builder sering kali menjadi mimpi buruk keamanan dan arsitektur:
-- **Pendekatan Naif**: Menggunakan fungsi berbahaya seperti `eval()` atau `new Function()` yang mengekspos aplikasi ke celah serangan Remote Code Execution (RCE) dan XSS.
-- **Injeksi Tidak Terstruktur**: Template string liar yang mudah merusak validasi schema dokumen `.stora`.
-- **Pengalaman Penulisan yang Buruk**: Author/marketer kebingungan mencari daftar variabel yang tersedia karena ketiadaan katalog terstruktur.
+But injecting dynamic data into a visual page builder is often a security and architecture nightmare:
+- **The naive approach**: dangerous functions like `eval()` or `new Function()` expose the app to Remote Code Execution (RCE) and XSS.
+- **Unstructured injection**: ad-hoc template strings that easily break `.stora` schema validation.
+- **Poor authoring experience**: authors and marketers can't find the available variables because there's no structured catalog.
 
-**KUBUILD mengatasi masalah ini melalui arsitektur decoupled dua lapis:**
-1. **Host Variable Catalog (`@kubuild/core`)**: Kontrak tipe data datar (*flat array*) dengan metadata pengelompokan opsional (`group`), label ramah pengguna, dan nilai simulasi (*sample values*) untuk authoring di dalam editor.
-2. **Deterministic Pure Resolver (`@kubuild/renderer`)**: Mesin resolusi dan interpolasi template murni yang terlindungi dari serangan *prototype pollution*, tanpa eksekusi kode dinamis, serta mendukung fallback bertingkat.
+**KUBUILD solves this with a decoupled two-layer architecture:**
+1. **Host Variable Catalog (`@kubuild/core`)**: a flat array contract with optional grouping metadata (`group`), friendly labels, and *sample values* for authoring in the editor.
+2. **Deterministic pure resolver (`@kubuild/core` runtime, used by `@kubuild/renderer`)**: a pure template resolution and interpolation engine protected against *prototype pollution*, with no dynamic code execution and multi-level fallbacks.
 
 ---
 
 ## Live Interactive Sandbox
 
-Sandbox interaktif di bawah mendemonstrasikan bagaimana variabel dinamis seperti nama pelanggan, nama produk, dan diskon diinterpolasi langsung ke dalam teks komponen KUBUILD.
+The interactive sandbox below shows dynamic variables such as the customer name, product name, and discount being interpolated directly into KUBUILD component text.
 
-Ubah nilai input pada panel **Host Variable Simulator** di bawah untuk melihat teks pratinjau berubah secara seketika (*instant live update*):
+Change the inputs in the **Host Variable Simulator** panel to see the preview text update instantly (*instant live update*):
 
 <InteractiveRenderer
   title="Dynamic Variable Interpolation Sandbox"
@@ -35,36 +35,36 @@ Ubah nilai input pada panel **Host Variable Simulator** di bawah untuk melihat t
   defaultViewport="desktop"
   showJsonToggle={true}
   initialVariables={{
-    "user.name": "Budi Santoso",
-    "product.name": "Sepatu Sneaker Pro Ultra",
-    "product.discount_price": "Rp 199.000",
-    "product.savings": "Rp 100.000",
+    "user.name": "Alex Morgan",
+    "product.name": "Pro Ultra Running Sneakers",
+    "product.discount_price": "$49",
+    "product.savings": "$25",
     "store.name": "Kustora Official Store"
   }}
   variableControls={[
     {
       key: "user.name",
       label: "Customer Name",
-      defaultValue: "Budi Santoso",
-      placeholder: "Masukkan nama pelanggan..."
+      defaultValue: "Alex Morgan",
+      placeholder: "Enter a customer name..."
     },
     {
       key: "product.name",
       label: "Product Name",
-      defaultValue: "Sepatu Sneaker Pro Ultra",
-      placeholder: "Nama produk..."
+      defaultValue: "Pro Ultra Running Sneakers",
+      placeholder: "Product name..."
     },
     {
       key: "product.discount_price",
       label: "Special Price",
-      defaultValue: "Rp 199.000",
-      placeholder: "Harga diskon..."
+      defaultValue: "$49",
+      placeholder: "Discount price..."
     },
     {
       key: "product.savings",
       label: "Total Savings",
-      defaultValue: "Rp 100.000",
-      placeholder: "Nominal hemat..."
+      defaultValue: "$25",
+      placeholder: "Amount saved..."
     }
   ]}
   document={{
@@ -126,7 +126,7 @@ Ubah nilai input pada panel **Host Variable Simulator** di bawah untuk melihat t
               id: "merchant-badge",
               type: "badge",
               props: {
-                text: "✨ Rekomendasi Eksklusif dari {{ store.name | Mitra Resmi }}",
+                text: "✨ Exclusive Recommendation from {{ store.name | Official Partner }}",
                 variant: "outline"
               },
               styles: {
@@ -147,7 +147,7 @@ Ubah nilai input pada panel **Host Variable Simulator** di bawah untuk melihat t
               type: "heading",
               props: {
                 level: 2,
-                text: "Selamat datang, {{ user.name | Pelanggan Setia }}!"
+                text: "Welcome, {{ user.name | Valued Customer }}!"
               },
               styles: {
                 base: {
@@ -164,7 +164,7 @@ Ubah nilai input pada panel **Host Variable Simulator** di bawah untuk melihat t
               id: "promo-desc",
               type: "paragraph",
               props: {
-                text: "Dapatkan diskon khusus untuk {{ product.name | Produk Pilihan }} hanya seharga {{ product.discount_price | Rp 199.000 }} (Hemat {{ product.savings | Rp 100.000 }}) khusus untuk transaksi hari ini."
+                text: "Get a special discount on {{ product.name | Featured Product }} for only {{ product.discount_price | $49 }} (save {{ product.savings | $25 }}) on orders placed today."
               },
               styles: {
                 base: {
@@ -179,7 +179,7 @@ Ubah nilai input pada panel **Host Variable Simulator** di bawah untuk melihat t
               id: "cta-claim-button",
               type: "button",
               props: {
-                label: "Klaim Diskon untuk {{ user.name | Anda }} Sekarang",
+                label: "Claim the Discount for {{ user.name | You }} Now",
                 variant: "solid"
               },
               styles: {
@@ -205,39 +205,39 @@ Ubah nilai input pada panel **Host Variable Simulator** di bawah untuk melihat t
   }}
 />
 
-<Callout type="info" title="Pembaruan Real-Time">
-  Perhatikan bahwa saat nilai pada input diubah, teks tombol dan paragraf langsung memperbarui teks yang berada di dalam sintaks `{{ ... }}` tanpa merusak struktur DOM maupun memicu mutasi dokumen JSON.
+<Callout type="info" title="Real-Time Updates">
+  Notice that when an input changes, the button and paragraph text inside the `{{ ... }}` syntax update immediately without breaking the DOM structure or mutating the JSON document.
 </Callout>
 
 ---
 
-## Arsitektur Sistem Variabel di KUBUILD
+## Variable System Architecture in KUBUILD
 
-Sistem variabel KUBUILD dirancang untuk dua tujuan utama: **keamanan mutlak** dan **kenyamanan penulisan konten**.
+The KUBUILD variable system is designed for two goals: **absolute safety** and **comfortable content authoring**.
 
-### Dua Pola Representasi Variabel
+### Two Ways to Represent Variables
 
-KUBUILD mendukung dua cara menyatakan variabel di dalam dokumen:
+KUBUILD supports two ways to express variables in a document:
 
 <Tabs items={["Inline Mustache Interpolation", "Structured VariableBinding"]}>
   <Tab value="Inline Mustache Interpolation">
-    Digunakan pada teks bebas, heading, deskripsi, atau label tombol di mana teks statis dan variabel digabungkan secara alami:
+    Used in free text, headings, descriptions, or button labels where static text and variables mix naturally:
 
     ```json
     {
       "id": "heading-1",
       "type": "heading",
       "props": {
-        "text": "Selamat datang kembali, {{ user.name | Pelanggan Setia }}!"
+        "text": "Welcome back, {{ user.name | Valued Customer }}!"
       }
     }
     ```
 
-    - Menggunakan tag kurung kurawal ganda (`{{ ... }}`).
-    - Mendukung fallback langsung dengan pemisah pipa (`|`). Jika `user.name` tidak ditemukan di dalam runtime context, string fallback setelah tanda `|` akan langsung digunakan.
+    - Uses double curly braces (`{{ ... }}`).
+    - Supports inline fallbacks with a pipe separator (`|`). If `user.name` isn't found in the runtime context, the fallback string after `|` is used.
   </Tab>
   <Tab value="Structured VariableBinding">
-    Digunakan ketika sebuah properti komponen terikat secara utuh pada objek variabel terstruktur (berdasarkan schema `VariableBindingSchema`):
+    Used when a component property is bound entirely to a structured variable object (per `VariableBindingSchema`):
 
     ```json
     {
@@ -247,22 +247,22 @@ KUBUILD mendukung dua cara menyatakan variabel di dalam dokumen:
         "content": {
           "type": "variable",
           "key": "product.discount_price",
-          "fallback": "Rp 0"
+          "fallback": "$0"
         }
       }
     }
     ```
 
-    - Memenuhi validasi schema Zod `VariableBindingSchema`.
-    - Mempertahankan tipe data primitif asli (string, number, boolean) tanpa konversi paksa menjadi string jika komponen memerlukan tipe numerik.
+    - Passes Zod `VariableBindingSchema` validation.
+    - Keeps the original primitive type (string, number, boolean) instead of forcing it into a string when the component expects a number.
   </Tab>
 </Tabs>
 
-### Keamanan: Zero Eval & Prototype Pollution Defense
+### Security: Zero Eval & Prototype Pollution Defense
 
-Banyak library templating yang mengevaluasi ekspresi JavaScript menggunakan `eval()` atau `new Function()`. Pola tersebut sangat rentan terhadap eksploitasi Remote Code Execution (RCE) dan Cross-Site Scripting (XSS).
+Many templating libraries evaluate JavaScript expressions with `eval()` or `new Function()`. That pattern is highly vulnerable to Remote Code Execution (RCE) and Cross-Site Scripting (XSS).
 
-KUBUILD menerapkan **Pure Traversal Algorithm** yang sepenuhnya terisolasi:
+KUBUILD uses a fully isolated **pure traversal algorithm**:
 
 ```mermaid
 flowchart LR
@@ -276,8 +276,8 @@ flowchart LR
 ```
 
 > [!IMPORTANT]
-> **Pencegahan Prototype Pollution:**
-> Traversal pada `binding-resolver.ts` dan `interpolator.ts` secara eksplisit memeriksa segmen yang dilarang (`__proto__`, `constructor`, `prototype`) **sebelum** properti objek diakses. Upaya injeksi path seperti `{{ __proto__.polluted }}` atau `{{ constructor.prototype.isAdmin }}` akan langsung diblokir dan dialihkan ke fallback yang aman.
+> **Preventing prototype pollution:**
+> Traversal in `binding-resolver.ts` and `interpolator.ts` explicitly checks for forbidden segments (`__proto__`, `constructor`, `prototype`) **before** accessing any object property. Path injection attempts like `{{ __proto__.polluted }}` or `{{ constructor.prototype.isAdmin }}` are blocked and fall back safely.
 
 ```ts title="packages/core/src/runtime/binding-resolver.ts"
 const FORBIDDEN_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -288,12 +288,12 @@ export function resolveBinding(
 ): ResolveOutcome {
   const segments = binding.key.split('.').filter(Boolean);
   
-  // Guard ketat sebelum mengakses objek apapun
+  // Strict guard before touching any object
   if (segments.some((segment) => FORBIDDEN_KEY_SEGMENTS.has(segment))) {
     return applyMissingPolicy(binding);
   }
   
-  // Resolusi data murni tanpa eval()
+  // Pure data resolution without eval()
   // ...
 }
 ```
@@ -302,11 +302,11 @@ export function resolveBinding(
 
 ## Host Variable Catalog
 
-Host application (aplikasi induk Anda seperti Next.js, Laravel dashboard, atau sistem SaaS) mendeklarasikan variabel yang tersedia untuk visual editor menggunakan **Variable Catalog**.
+The host application (your Next.js app, Laravel dashboard, or SaaS system) declares the variables available to the visual editor through a **Variable Catalog**.
 
-### Struktur Flat Array dengan Pengelompokan Opsional
+### Flat Array with Optional Grouping
 
-KUBUILD secara arsitektural menetapkan bahwa `VariableCatalog` adalah **flat array** dari objek `VariableDefinition`:
+Architecturally, KUBUILD defines `VariableCatalog` as a **flat array** of `VariableDefinition` objects:
 
 ```ts title="types/variable-catalog.ts"
 import type { VariableCatalog } from '@kubuild/core';
@@ -318,15 +318,15 @@ export const hostCatalog: VariableCatalog = [
     label: 'Customer Name',
     type: 'string',
     group: 'Customer Profile',
-    sampleValue: 'Budi Santoso',
-    description: 'Nama lengkap pelanggan yang sedang masuk.'
+    sampleValue: 'Alex Morgan',
+    description: 'Full name of the signed-in customer.'
   },
   {
     key: 'user.email',
     label: 'Customer Email',
     type: 'string',
     group: 'Customer Profile',
-    sampleValue: 'budi@example.com'
+    sampleValue: 'alex@example.com'
   },
 
   // Group: E-Commerce & Pricing
@@ -335,21 +335,21 @@ export const hostCatalog: VariableCatalog = [
     label: 'Product Title',
     type: 'string',
     group: 'E-Commerce',
-    sampleValue: 'Sepatu Sneaker Pro Ultra'
+    sampleValue: 'Pro Ultra Running Sneakers'
   },
   {
     key: 'product.discount_price',
     label: 'Discounted Price',
     type: 'string',
     group: 'E-Commerce',
-    sampleValue: 'Rp 199.000'
+    sampleValue: '$49'
   },
   {
     key: 'product.savings',
     label: 'Total Discount Amount',
     type: 'string',
     group: 'E-Commerce',
-    sampleValue: 'Rp 100.000'
+    sampleValue: '$25'
   },
 
   // Group: Store & Tenant
@@ -363,79 +363,84 @@ export const hostCatalog: VariableCatalog = [
 ];
 ```
 
-### Mengapa Flat Array, Bukan Nested Tree?
+### Why a Flat Array Instead of a Nested Tree?
 
-Keputusan arsitektur ini diambil secara sengaja berdasarkan pertimbangan teknis berikut:
+This is a deliberate architectural decision for the following technical reasons:
 
 <Cards>
-  <Card title="Menghindari Breaking Changes" icon="ShieldCheck">
-    Struktur flat array menjaga kompatibilitas API penuh sejak versi 0.8. Penambahan properti `group?: string` bersifat aditif (*non-breaking*).
+  <Card title="Avoids Breaking Changes" icon="ShieldCheck">
+    The flat array keeps full API compatibility with earlier versions. The `group?: string` property is purely additive (*non-breaking*).
   </Card>
-  <Card title="Pencarian & Filter Cepat (O(N))" icon="Search">
-    Editor dapat dengan mudah memfilter variabel berdasarkan tipe data primitif, misalnya `catalog.filter(v => v.type === 'string')`, tanpa perlu rekursi traversal pohon.
+  <Card title="Fast Search & Filtering (O(N))" icon="Search">
+    The editor can filter variables by primitive type, e.g. `catalog.filter(v => v.type === 'string')`, without recursive tree traversal.
   </Card>
-  <Card title="Komposisi Host Sangat Mudah" icon="Layers">
-    Aplikasi induk dapat menggabungkan katalog dari berbagai modul hanya dengan *array spread*: `[...tenantVars, ...authVars, ...campaignVars]`.
+  <Card title="Easy Host Composition" icon="Layers">
+    The host app can merge catalogs from different modules with an *array spread*: `[...tenantVars, ...authVars, ...campaignVars]`.
   </Card>
-  <Card title="Pengurutan Terjaga (Deterministic Order)" icon="ListOrdered">
-    Kelompok dan entri variabel ditampilkan di editor mengikuti urutan kemunculan pertama pada array yang disediakan oleh host.
+  <Card title="Deterministic Order" icon="ListOrdered">
+    Groups and variable entries appear in the editor in the order they first occur in the array provided by the host.
   </Card>
 </Cards>
 
 > [!NOTE]
-> Properti `group` dan `sampleValue` hanya dimanfaatkan di tingkat editor (*editor-only*) untuk kebutuhan UI dan pratinjau canvas. Nilai-nilai ini **tidak pernah disimpan** ke dalam file dokumen `.stora` portabel guna menjaga ukuran file tetap minimal dan mencegah kebocoran data sensitif host.
+> The `group` and `sampleValue` properties are *editor-only*, used for the UI and canvas preview. They are **never stored** in the portable `.stora` document, which keeps files small and prevents leaking sensitive host data.
 
 ### Auto-Grouping Fallback
 
-Bagaimana jika host mendefinisikan variabel tanpa mengisi properti `group`?
+What if the host defines a variable without a `group`?
 
-KUBUILD menyediakan fallback cerdas melalui fungsi bawaan `getVariableGroup()` di `@kubuild/core`:
-- Jika `entry.group` didefinisikan, editor menggunakan grup tersebut.
-- Jika `entry.group` kosong, editor secara otomatis mengelompokkan variabel berdasarkan **segmen pertama dari dotted key**.
-- Contoh: `store.address` otomatis masuk ke kelompok **"store"**, dan `affiliate.code` masuk ke kelompok **"affiliate"**.
+KUBUILD provides a smart fallback through the built-in `getVariableGroup()` function in `@kubuild/core`:
+- If `entry.group` is set, the editor uses that group.
+- If `entry.group` is empty, the editor groups the variable by the **first segment of its dotted key**.
+- Example: `store.address` goes into the **"store"** group, and `affiliate.code` goes into **"affiliate"**.
 
 ```ts
-import { getVariableGroup, groupVariableCatalog } from '@kubuild/core';
+import { getVariableGroup, groupVariableCatalog, type VariableDefinition } from '@kubuild/core';
 
-const entry = { key: 'store.address', label: 'Store Address', type: 'string', sampleValue: 'Jakarta' };
+const entry: VariableDefinition = {
+  key: 'store.address',
+  label: 'Store Address',
+  type: 'string',
+  sampleValue: 'Austin, TX',
+};
 console.log(getVariableGroup(entry)); // Output: "store"
 ```
 
 ---
 
-## Spesifikasi Tipe Data `VariableDefinition`
+## `VariableDefinition` Type Specification
 
-Berikut adalah referensi lengkap untuk setiap field pada antarmuka `VariableDefinition`:
+Complete reference for every field of the `VariableDefinition` interface:
 
 <TypeTable
   type={{
     key: {
-      description: 'Dotted string key unik untuk mengakses variabel (contoh: "user.name", "product.price"). Wajib diisi.',
+      description: 'Unique dotted string key used to access the variable (e.g. "user.name", "product.price"). Required.',
       type: 'string',
       required: true,
     },
     label: {
-      description: 'Label ramah pengguna yang ditampilkan pada dropdown picker visual editor.',
+      description: 'Friendly label shown in the visual editor picker dropdown.',
       type: 'string',
       required: true,
     },
     type: {
-      description: 'Tipe data nilai primitif variabel yang diharapkan.',
+      description: 'Expected primitive value type of the variable.',
       type: "'string' | 'number' | 'boolean' | 'array' | 'object'",
       required: true,
     },
     sampleValue: {
-      description: 'Nilai tiruan (dummy data) yang digunakan saat authoring di visual editor canvas agar desainer melihat tampilan realistis. Tidak pernah disimpan ke dokumen .stora.',
+      description: 'Mock (dummy) value used while authoring on the editor canvas so designers see a realistic preview. Never stored in the .stora document.',
       type: 'unknown',
       required: true,
     },
     description: {
-      description: 'Petunjuk tambahan atau tooltip yang menjelaskan asal data variabel kepada author/desainer.',
+      description: 'Extra hint or tooltip explaining where the variable data comes from.',
       type: 'string',
       required: false,
     },
     group: {
-      description: 'Label kategori/pengelompokan pada UI picker (contoh: "Customer Profile", "E-Commerce"). Jika dikosongkan, editor fallback ke segmen pertama key.',
+      description: 'Category/group label in the picker UI (e.g. "Customer Profile", "E-Commerce"). If empty, the editor falls back to the first key segment.',
       type: 'string',
       required: false,
     },
@@ -444,42 +449,42 @@ Berikut adalah referensi lengkap untuk setiap field pada antarmuka `VariableDefi
 
 ---
 
-## Pengalaman Authoring di Visual Editor
+## Authoring Experience in the Visual Editor
 
-KUBUILD menyajikan dua cara intuitif bagi author dalam memanfaatkan variabel katalog di dalam visual editor:
+KUBUILD gives authors two intuitive ways to use catalog variables in the visual editor:
 
 ### 1. Inline Text Toolbar & Dropdown Trigger
 
-Saat author sedang mengedit teks langsung di canvas (*contentEditable*):
-- Mengetik shortcut kurung kurawal ganda (`{{`) atau mengklik tombol variabel `{x}` pada floating text toolbar.
-- Popover dropdown akan muncul menampilkan seluruh variabel yang tersedia, dikelompokkan berdasarkan kategori (`group`).
-- Saat variabel dipilih, teks `{{ user.name }}` disisipkan secara mulus pada posisi kursor.
+While editing text directly on the canvas (*contentEditable*):
+- Type the double-brace shortcut (`{{`) or click the `{x}` variable button in the floating text toolbar.
+- A dropdown popover lists all available variables, grouped by category (`group`).
+- Selecting a variable inserts `{{ user.name }}` at the cursor position.
 
 ### 2. Inspector Property Binding
 
-Untuk properti komponen di sidebar kanan (seperti URL gambar, nilai atribut link, atau teks tombol):
-- Di samping field input inspector, terdapat tombol rantai / binding variabel.
-- Mengklik tombol tersebut mengubah mode input dari teks literal menjadi **Variable Selector Dropdown**.
-- Author dapat memilih variabel dari katalog dan mengisi kolom **Fallback Value** opsional.
+For component properties in the right sidebar (such as image URLs, link attributes, or button text):
+- Next to the inspector input there is a chain / variable binding button.
+- Clicking it switches the input from literal text to a **Variable Selector Dropdown**.
+- The author picks a variable from the catalog and can fill in an optional **Fallback Value**.
 
 ---
 
-## Perbedaan Scope: Bare Key vs Action Pipeline
+## Scope Differences: Bare Keys vs. Action Pipelines
 
-Salah satu aspek desain penting di KUBUILD adalah perbedaan scope penulisan variabel antara properti komponen/teks biasa dengan Action Pipeline.
+An important design aspect of KUBUILD is the difference in variable scope between component props/text and action pipelines.
 
-Perbedaan ini dirancang secara sengaja untuk memberikan pengalaman pengguna yang paling optimal pada masing-masing konteks:
+The difference is intentional, giving the best experience in each context:
 
-| Konteks Penggunaan | Format Sintaks | Contoh Penulisan | Alasan Arsitektural |
+| Context | Syntax | Example | Architectural Reason |
 | :--- | :--- | :--- | :--- |
-| **Props & Text Nodes** | **Bare Key** | `{{ store.name }}` atau `{{ user.name }}` | Lingkup resolusi diarahkan langsung ke `context.variables`. Pengguna tidak perlu mengetik prefix redundan. |
-| **Action Pipeline Payloads** | **Namespaced Key** | `{{ variables.store.name }}` | Pipeline executor beroperasi dalam multi-namespace terstruktur: `{ form, variables, response, state }`. |
+| **Props & Text Nodes** | **Bare key** | `{{ store.name }}` or `{{ user.name }}` | Resolution is scoped directly to `context.variables`, so authors don't type a redundant prefix. |
+| **Action Pipeline Payloads** | **Namespaced key** | `{{ variables.store.name }}` | The pipeline executor works across structured namespaces: `{ form, variables, response, state }`. |
 
-<Callout type="warning" title="Perhatikan Namespace Action Pipeline">
-  Saat mengonfigurasi langkah aksi (*Action Step*) seperti **API Request**, **Show Toast**, atau **Navigate URL**, selalu gunakan prefix `{{ variables.<key> }}` atau `{{ form.<fieldName> }}` agar pipeline evaluator mengetahui dari namespace mana nilai harus diambil.
+<Callout type="warning" title="Mind the Action Pipeline Namespace">
+  When configuring an *action step* such as **API Request**, **Show Toast**, or **Navigate URL**, always use the `{{ variables.<key> }}` or `{{ form.<fieldName> }}` prefix so the pipeline evaluator knows which namespace to read from.
 </Callout>
 
-### Contoh pada Action Step Payload
+### Example: Action Step Payload
 
 ```json title="Action Pipeline Step Payload"
 {
@@ -498,15 +503,15 @@ Perbedaan ini dirancang secara sengaja untuk memberikan pengalaman pengguna yang
 
 ---
 
-## Injeksi Runtime pada Production Renderer
+## Runtime Injection in the Production Renderer
 
-Pada aplikasi produksi (production host), dokumen `.stora` dirender menggunakan komponen `<KubuildRenderer />`. 
+In a production host, `.stora` documents are rendered with the `<KubuildRenderer />` component.
 
-Data variabel dinamis disuplai melalui runtime context dengan memanggil fungsi `createRenderContext()`:
+Dynamic variable data is supplied through the runtime context created with `createRenderContext()`:
 
-### Contoh Integrasi SSR pada Next.js App Router
+### SSR Example with the Next.js App Router
 
-Di Next.js App Router, Anda dapat mengambil data pengguna dari database atau sesi server, lalu menyuntikkannya langsung ke renderer saat Server-Side Rendering (SSR) berlangsung:
+In the Next.js App Router you can load user data from the database or server session and inject it into the renderer during Server-Side Rendering (SSR):
 
 ```tsx title="app/offers/[slug]/page.tsx"
 import { notFound } from 'next/navigation';
@@ -521,26 +526,26 @@ interface PageProps {
 export default async function PersonalizedOfferPage({ params }: PageProps) {
   const { slug } = await params;
   
-  // 1. Ambil dokumen .stora dari database / CMS
+  // 1. Load the .stora document from the database / CMS
   const document: PageDocument | null = await getDocumentFromDatabase(slug);
   if (!document) {
     notFound();
   }
 
-  // 2. Ambil data dinamis user & e-commerce dari sesi backend
+  // 2. Load dynamic user & e-commerce data from the backend session
   const user = await getAuthenticatedUser();
   const productOffer = {
-    name: 'Paket Bundling Premium 2026',
-    discount_price: 'Rp 450.000',
-    savings: 'Rp 150.000'
+    name: 'Premium Bundle 2026',
+    discount_price: '$45',
+    savings: '$15'
   };
 
-  // 3. Buat immutable render context dengan variabel runtime
-  // Mendukung nested object maupun flat dotted string
+  // 3. Create an immutable render context with runtime variables
+  // Supports nested objects as well as flat dotted strings
   const context = createRenderContext({
     variables: {
       user: {
-        name: user ? user.fullName : 'Pelanggan Setia',
+        name: user ? user.fullName : 'Valued Customer',
         email: user ? user.email : '',
       },
       product: {
@@ -554,7 +559,7 @@ export default async function PersonalizedOfferPage({ params }: PageProps) {
     }
   });
 
-  // 4. Render dokumen dengan context variabel yang sudah terisi
+  // 4. Render the document with the populated variable context
   return (
     <main className="min-h-screen bg-slate-950">
       <KubuildRenderer
@@ -568,16 +573,16 @@ export default async function PersonalizedOfferPage({ params }: PageProps) {
 }
 ```
 
-### Fleksibilitas Struktur `context.variables`
+### Flexible `context.variables` Structure
 
-Fungsi `resolveBinding()` pada runtime resolver mendukung dua format struktur data variabel:
+The runtime resolver's `resolveBinding()` supports two variable data shapes:
 
 1. **Nested Objects**:
    ```ts
    createRenderContext({
      variables: {
        user: {
-         name: 'Budi Santoso',
+         name: 'Alex Morgan',
          profile: { tier: 'Gold' }
        }
      }
@@ -587,28 +592,28 @@ Fungsi `resolveBinding()` pada runtime resolver mendukung dua format struktur da
    ```ts
    createRenderContext({
      variables: {
-       'user.name': 'Budi Santoso',
+       'user.name': 'Alex Morgan',
        'user.profile.tier': 'Gold'
      }
    });
    ```
 
-Resolver secara cerdas akan memeriksa pencocokan properti langsung (*fast-path check*) sebelum melakukan pemecahan segmen titik, menghasilkan performa eksekusi berkecepatan tinggi tanpa overhead memori.
+The resolver checks for a direct property match (*fast-path check*) before splitting on dots, so resolution stays fast with no memory overhead.
 
 ---
 
-## Tanya Jawab & Solusi Masalah
+## FAQ & Troubleshooting
 
 <Accordions>
-  <Accordion title="Apa yang terjadi jika variabel tidak ditemukan di context?">
-    Jika sebuah variabel seperti `{{ user.points }}` tidak disediakan pada `context.variables`:
-    1. Jika terdapat sintaks fallback seperti `{{ user.points | 0 }}`, maka nilai `0` yang akan ditampilkan.
-    2. Jika tidak ada fallback, resolver akan mempertahankan tag asli `{{ user.points }}` agar memudahkan debugging saat development, atau mengembalikan string kosong sesuai konfigurasi missing policy dokumen.
+  <Accordion title="What happens if a variable is missing from the context?">
+    If a variable such as `{{ user.points }}` isn't provided in `context.variables`:
+    1. With fallback syntax such as `{{ user.points | 0 }}`, the value `0` is shown.
+    2. Without a fallback, the resolver keeps the original `{{ user.points }}` tag to make debugging easier in development, or returns an empty string depending on the document's missing-value policy.
   </Accordion>
-  <Accordion title="Apakah data sampleValue tersimpan ke dalam database?">
-    **Tidak.** Nilai `sampleValue` murni hidup pada memori browser saat visual editor sedang aktif. Ketika user menekan tombol Save atau memanggil `exportDocument()`, node pohon yang disimpan ke database hanya berisi key variabel, bukan data sample.
+  <Accordion title="Is sampleValue data stored in the database?">
+    **No.** `sampleValue` only lives in browser memory while the visual editor is active. When the user saves or calls `exportStoraPackage()`, the stored node tree only contains variable keys, not sample data.
   </Accordion>
-  <Accordion title="Apakah aman menyuntikkan HTML ke dalam variabel dinamis?">
-    KUBUILD secara default memperlakukan seluruh hasil resolusi variabel teks sebagai **safe text string**. Ketika disisipkan ke dalam React Virtual DOM, karakter khusus seperti `<script>` atau `<img>` akan otomatis di-escape secara aman oleh React, mencegah segala celah Cross-Site Scripting (XSS).
+  <Accordion title="Is it safe to inject HTML into dynamic variables?">
+    By default KUBUILD treats every resolved text variable as a **safe text string**. When it is inserted into the React virtual DOM, special characters such as `<script>` or `<img>` are escaped by React, preventing Cross-Site Scripting (XSS).
   </Accordion>
 </Accordions>

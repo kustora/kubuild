@@ -341,10 +341,18 @@ const context = createRenderContext({
     register: (type, handler) => { /* ... */ },
     unregister: (type) => { /* ... */ },
   },
-  onActionDispatch: (actionType, payload, nodeId) => {
-    console.log(`Action dispatched: [${actionType}] from node: ${nodeId}`, payload);
+  // Unknown actions and handler failures are reported as diagnostics
+  onDiagnostic: (diagnostic) => {
+    console.warn('[kubuild]', diagnostic);
   },
 });
+
+// To observe every dispatched action, use the renderer prop:
+// <KubuildRenderer
+//   document={doc}
+//   context={context}
+//   onActionDispatch={(actionType, payload, nodeId) => console.log(actionType, nodeId, payload)}
+// />
 ```
 
 ---
@@ -620,7 +628,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   <Card title="@kubuild/core" href="/docs/packages/core" icon="Cpu">
     Discover headless tree operations, action pipeline execution, and AST manipulation utilities.
   </Card>
-  <Card title="Multi-Pixel Tracking Guide" href="/docs/features/multi-pixel-tracking" icon="Activity">
+  <Card title="Multi-Pixel Tracking Guide" href="/docs/guides/tracking-pixels" icon="Activity">
     Set up CAPI server relay endpoints and client pixel deduplication.
   </Card>
 </Cards>

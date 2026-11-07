@@ -202,7 +202,7 @@ The `.stora` file format is the canonical single-source-of-truth document model 
   "version": "1.3.0",
   "tracking": {
     "enabled": true,
-    "inherit": false,
+    "inherit": { "enabled": false, "excludedPixelIds": [] },
     "pixels": [
       {
         "id": "legacy-meta",
@@ -357,7 +357,8 @@ When fetching legacy documents from PostgreSQL (via Prisma, Drizzle, or raw JSON
 
 ```typescript title="lib/storage/page-loader.ts"
 import { prisma } from '@/lib/db';
-import { migrateDocument, CURRENT_SCHEMA_VERSION } from '@kubuild/core';
+import { migrateDocument } from '@kubuild/core';
+import { CURRENT_SCHEMA_VERSION } from '@kubuild/schema';
 import type { PageDocument } from '@kubuild/schema';
 
 export async function loadPageWithAutoMigration(pageId: string): Promise<PageDocument> {

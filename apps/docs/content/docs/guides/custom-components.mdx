@@ -304,14 +304,15 @@ export const testimonialCardDefinition: ComponentDefinition = {
   },
 
   // 7. Functional traits (accessibility & semantic metadata)
-  traits: {
-    ariaLabel: {
+  traits: [
+    {
+      name: 'ariaLabel',
       type: 'string',
       label: 'ARIA Label',
       description: 'Screen reader accessibility label for the card container.',
-      default: 'Customer testimonial',
+      defaultValue: 'Customer testimonial',
     },
-  },
+  ],
 
   // 8. Required host capabilities for runtime compatibility checks
   capabilities: ['assetProvider'],

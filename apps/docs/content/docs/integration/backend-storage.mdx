@@ -9,28 +9,28 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-Menyimpan dokumen visual page builder ke backend pada lingkungan *production* skala enterprise memerlukan pendekatan arsitektur yang cermat. Dokumen KUBUILD (`.stora`) bukan sekadar teks biasa, melainkan pohon hierarki komponen (*Component Tree*) bertipe data kuat yang mencakup konfigurasi tema (*theme tokens*), *tracking pixels*, alur aksi interaktif (*action pipelines*), dan relasi aset media.
+Storing visual page builder documents in an enterprise *production* backend needs a careful architecture. A KUBUILD document (`.stora`) is not plain text: it is a strongly typed *component tree* that also carries theme tokens, *tracking pixels*, interactive *action pipelines*, and media asset references.
 
-Tantangan utama persistensi dokumen visual builder meliputi:
-1. **Pemisahan Draft vs Published**: Memastikan tim desainer atau marketing dapat mengedit, bereksperimen, dan mempratinjau perubahan (*drafting*) tanpa merusak tampilan halaman yang sedang diakses pengunjung publik secara *live*.
-2. **Integritas Skema & Validasi Keamanan**: Menginspeksi payload JSON sebelum disimpan guna mencegah *XSS injection*, manipulasi protokol URL berbahaya (`javascript:`), atau skema usang.
-3. **Optimistic Locking & Race Conditions**: Mencegah insiden *lost updates* ketika dua tab browser atau dua kolaborator mengedit halaman yang sama secara simultan.
-4. **Debounced Auto-Save di Sisi Klien**: Mengurangi beban I/O server dengan mengumpulkan mutasi kanvas (*canvas changes*) dalam jeda waktu tertentu, disertai proteksi saat tab ditutup (*beforeunload*).
-5. **Skalabilitas Distribusi Publik**: Memisahkan beban kerja authoring (database relasional) dari konsumsi publik masif (Object Storage Cloudflare R2 / AWS S3 + Edge CDN Caching).
+The main persistence challenges for visual builder documents are:
+1. **Draft vs. published separation**: designers and marketers must be able to edit, experiment, and preview changes (*drafting*) without breaking the page that public visitors see *live*.
+2. **Schema integrity & security validation**: inspect the JSON payload before saving to prevent *XSS injection*, dangerous URL protocols (`javascript:`), or outdated schemas.
+3. **Optimistic locking & race conditions**: prevent *lost updates* when two browser tabs or two collaborators edit the same page at the same time.
+4. **Client-side debounced auto-save**: reduce server I/O by batching *canvas changes* over a short window, with protection when the tab closes (*beforeunload*).
+5. **Scalable public delivery**: separate the authoring workload (relational database) from high-volume public reads (Cloudflare R2 / AWS S3 object storage + edge CDN caching).
 
 ---
 
-## Arsitektur Lifecycle Dokumen `.stora`
+## `.stora` Document Lifecycle Architecture
 
-Siklus hidup dokumen KUBUILD mengadopsi prinsip *Staged Document Lifecycle*. Dokumen berpindah dari fase draf lokal, validasi ketat di sisi server, persistensi basis data, hingga publikasi snapshot statis ke CDN global.
+The KUBUILD document lifecycle follows a *staged document lifecycle*: a document moves from a local draft, through strict server-side validation and database persistence, to a static snapshot published on a global CDN.
 
 ```mermaid
 flowchart TD
-    subgraph Client["Sisi Klien (Visual Editor)"]
+    subgraph Client["Client Side (Visual Editor)"]
         Canvas["Canvas Edit Action\n(Zustand State Mutation)"]
         Debounce["useDocumentAutoSave Hook\n(Debounce 1500ms)"]
-        ConflictUI["Modal Resolusi 409\n(Reload vs Overwrite)"]
-        PublishBtn["Tombol 'Publish'\nTrigger Endpoint"]
+        ConflictUI["409 Resolution Modal\n(Reload vs Overwrite)"]
+        PublishBtn["'Publish' Button\nTrigger Endpoint"]
         
         Canvas --> Debounce
         Debounce -->|Save Draft Request| API_Draft
@@ -63,54 +63,54 @@ flowchart TD
     end
 ```
 
-### Pola Draft vs Published
+### Draft vs. Published Pattern
 
-Dalam arsitektur KUBUILD, satu entitas halaman memiliki dua representasi isi (*content representation*) yang terisolasi di dalam tabel basis data:
+In a KUBUILD architecture, one page entity has two isolated *content representations* in the database table:
 
-- `draft_content`: JSON dokumen aktif yang terhubung ke visual builder. Setiap ketukan teks, pergeseran margin, atau penambahan blok oleh editor langsung diperbarui ke kolom ini melalui auto-save. Perubahan di sini **tidak pernah** terlihat oleh pengunjung publik.
-- `published_content`: Snapshot JSON dokumen yang telah diverifikasi dan disetujui. Kolom ini hanya diperbarui saat pengguna menekan tombol **"Publish"**. Pengunjung publik dan crawler mesin pencari hanya membaca representasi ini.
+- `draft_content`: the active document JSON connected to the visual builder. Every keystroke, margin tweak, or added block is written to this column through auto-save. Changes here are **never** visible to public visitors.
+- `published_content`: a verified, approved JSON snapshot of the document. This column only changes when the user clicks **"Publish"**. Public visitors and search crawlers only read this representation.
 
-<Callout type="info" title="Spesifikasi .stora & Arsitektur Modul">
-Format `.stora` (lihat dokumentasi arsitektur §27–§31) adalah format arsip mandiri (*self-contained package*) yang berisi `manifest.json`, `page.json`, `metadata.json`, dan direktori `assets/`. Di tingkat database operasional, backend menyimpan struktur pohon `page.json` di dalam kolom JSONB, dan mengekspor atau mengimpor paket fisik `.stora` saat pengguna melakukan migrasi antar lingkungan atau membuat template.
+<Callout type="info" title=".stora Specification & Module Architecture">
+The `.stora` format (see the architecture spec §27–§31) is a *self-contained package* holding `manifest.json`, `page.json`, `metadata.json`, and an `assets/` directory. In the operational database the backend stores the `page.json` tree in a JSONB column, and exports or imports physical `.stora` packages when users migrate between environments or create templates.
 </Callout>
 
-### Empat Fase Status Dokumen
+### Four Document Status Phases
 
-Dokumen KUBUILD bergerak melalui empat status siklus hidup yang dapat dinyatakan dengan enum `PageStatus`:
+A KUBUILD document moves through four lifecycle statuses, which can be expressed as a `PageStatus` enum:
 
 <Cards>
   <Card title="1. Draft" icon="Pencil">
-    Halaman baru dibuat atau sedang mengalami perubahan desain. Pengunjung publik menerima status 404 atau versi lama sebelum halaman pertama kali dipublikasikan.
+    A new page is being created or redesigned. Before the first publish, public visitors receive a 404 (or the previous version afterwards).
   </Card>
   <Card title="2. Staging / Review" icon="Eye">
-    Tautan pratinjau rahasia (*preview token*) dibuat agar *stakeholder* atau tim QA dapat melihat hasil draf di lingkungan terisolasi sebelum go-live.
+    A secret *preview token* link lets stakeholders or QA review the draft in an isolated environment before go-live.
   </Card>
   <Card title="3. Published" icon="Globe">
-    Snapshot dokumen disalin ke `published_content`, diarsipkan ke `page_revisions`, dan didistribusikan ke Edge CDN / Object Storage dengan performa tinggi.
+    The document snapshot is copied to `published_content`, archived in `page_revisions`, and distributed to the edge CDN / object storage for high performance.
   </Card>
   <Card title="4. Archived" icon="Archive">
-    Halaman dinonaktifkan dari akses publik tanpa menghapus riwayat revisi dan data historis analitik di database.
+    The page is removed from public access without deleting its revision history or historical analytics data.
   </Card>
 </Cards>
 
 ---
 
-## Skema Database Produksi (PostgreSQL & Prisma)
+## Production Database Schema (PostgreSQL & Prisma)
 
-PostgreSQL adalah pilihan basis data relasional standar industri untuk menyimpan dokumen KUBUILD. Berkat tipe data `JSONB`, PostgreSQL menyediakan fleksibilitas penyimpanan struktur dokumen pohon (*NoSQL tree flexibility*) dipadukan dengan integritas relasional, transaksi ACID, dan pengindeksan biner berkecepatan tinggi.
+PostgreSQL is the industry-standard relational database for storing KUBUILD documents. With the `JSONB` type it combines *NoSQL tree flexibility* for the document structure with relational integrity, ACID transactions, and fast binary indexing.
 
-### 1. Skema SQL PostgreSQL
+### 1. PostgreSQL SQL Schema
 
-Berikut adalah struktur DDL (*Data Definition Language*) PostgreSQL lengkap untuk tabel `pages` dan `page_revisions`:
+The complete PostgreSQL DDL (*Data Definition Language*) for the `pages` and `page_revisions` tables:
 
 ```sql
--- Aktifkan ekstensi UUID jika belum tersedia
+-- Enable the UUID extension if it isn't available yet
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Enum status halaman
+-- Page status enum
 CREATE TYPE page_status_enum AS ENUM ('draft', 'published', 'archived');
 
--- 1. Tabel Utama: pages
+-- 1. Main table: pages
 CREATE TABLE pages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
@@ -132,18 +132,18 @@ CREATE TABLE pages (
     published_at TIMESTAMPTZ
 );
 
--- Indeks unik komposit: satu tenant tidak boleh memiliki dua halaman dengan slug yang sama
+-- Composite unique index: a tenant can't have two pages with the same slug
 CREATE UNIQUE INDEX idx_pages_tenant_slug ON pages (tenant_id, slug);
 
--- Indeks status dan tenant untuk pencarian cepat di dashboard admin
+-- Status and tenant index for fast admin dashboard lookups
 CREATE INDEX idx_pages_tenant_status ON pages (tenant_id, status);
 
--- GIN Index untuk pencarian JSONB (misal: mencari halaman yang menggunakan komponen tertentu)
+-- GIN index for JSONB search (e.g. finding pages that use a given component)
 CREATE INDEX idx_pages_draft_content_gin ON pages USING GIN (draft_content);
 CREATE INDEX idx_pages_published_content_gin ON pages USING GIN (published_content);
 
 
--- 2. Tabel Riwayat Revisi: page_revisions
+-- 2. Revision history table: page_revisions
 CREATE TABLE page_revisions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     page_id UUID NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
@@ -155,13 +155,13 @@ CREATE TABLE page_revisions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Indeks riwayat halaman terurut menurun berdasarkan nomor revisi
+-- Page history index ordered by revision number, descending
 CREATE INDEX idx_page_revisions_lookup ON page_revisions (page_id, revision_number DESC);
 ```
 
-### 2. Skema ORM Prisma (`schema.prisma`)
+### 2. Prisma ORM Schema (`schema.prisma`)
 
-Jika aplikasi Anda menggunakan **Prisma ORM**, definisikan model berikut di file `prisma/schema.prisma`:
+If your app uses **Prisma ORM**, define these models in `prisma/schema.prisma`:
 
 ```prisma
 datasource db {
@@ -186,7 +186,7 @@ model Page {
   title            String         @db.VarChar(255)
   status           PageStatus     @default(draft)
   
-  // Format dokumen JSONB @kubuild/schema PageDocument
+  // @kubuild/schema PageDocument stored as JSONB
   draftContent     Json           @map("draft_content") @db.JsonB
   publishedContent Json?          @map("published_content") @db.JsonB
   
@@ -227,17 +227,17 @@ model PageRevision {
 
 ## Optimistic Locking & Conflict Resolution
 
-Pada aplikasi visual builder kolaboratif, risiko penimpaan data (*race condition*) sangat nyata. Misalnya:
-- Desainer A membuka tab halaman pada pukul 10:00 (memuat versi 5).
-- Desainer B membuka tab halaman yang sama pada pukul 10:05 (memuat versi 5).
-- Desainer B mengubah warna tombol dan sistem auto-save menyimpan dokumen sebagai versi 6 pada pukul 10:07.
-- Desainer A mengubah susunan layout hero section pada pukul 10:08. Tanpa *optimistic locking*, draf milik Desainer A akan menimpa pekerjaan Desainer B kembali ke versi lama (*Lost Update Problem*).
+In a collaborative visual builder, the risk of overwriting data (*race conditions*) is real. For example:
+- Designer A opens the page at 10:00 (loads version 5).
+- Designer B opens the same page at 10:05 (loads version 5).
+- Designer B changes a button color and auto-save stores the document as version 6 at 10:07.
+- Designer A rearranges the hero section at 10:08. Without *optimistic locking*, Designer A's draft overwrites Designer B's work with an older base (*lost update problem*).
 
-### Mekanisme SQL Optimistic Concurrency Control
+### SQL Optimistic Concurrency Control
 
-KUBUILD menerapkan *Optimistic Locking* berbasis kolom bilangan bulat inkremental (`version INT`):
+KUBUILD uses *optimistic locking* based on an incrementing integer column (`version INT`):
 
-Setiap mutasi simpan dari klien wajib menyertakan versi dokumen yang sedang diedit (`currentVersion`). Database mengeksekusi operasi `UPDATE` hanya jika versi saat ini cocok dengan versi di database:
+Every save from the client must include the version it is editing (`currentVersion`). The database only runs the `UPDATE` when that version matches the stored one:
 
 ```sql
 UPDATE pages
@@ -251,11 +251,11 @@ WHERE
 RETURNING version, updated_at;
 ```
 
-Jika query di atas menghasilkan **0 baris terpengaruh** (`rowCount === 0`), berarti telah terjadi modifikasi oleh sesi lain. Server langsung menolak pembaruan dan mengembalikan respons HTTP `409 Conflict`.
+If the query above affects **0 rows** (`rowCount === 0`), another session has modified the page. The server rejects the update and returns HTTP `409 Conflict`.
 
-### Implementasi Route Handler Server (Next.js / Express)
+### Server Route Handler (Next.js / Express)
 
-Berikut adalah contoh implementasi endpoint API Next.js App Router (`app/api/pages/[id]/draft/route.ts`) yang aman dengan validasi Zod dari `@kubuild/schema`:
+A secure Next.js App Router endpoint (`app/api/pages/[id]/draft/route.ts`) with Zod validation from `@kubuild/schema`:
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
@@ -263,7 +263,7 @@ import { z } from 'zod';
 import { PageDocumentSchema } from '@kubuild/schema';
 import prisma from '@/lib/prisma';
 
-// Skema payload request simpan draf
+// Request payload schema for saving a draft
 const SaveDraftPayloadSchema = z.object({
   version: z.number().int().positive(),
   document: PageDocumentSchema,
@@ -277,22 +277,22 @@ export async function PATCH(
     const { id } = await params;
     const json = await request.json();
 
-    // 1. Validasi struktur dokumen dengan Zod
+    // 1. Validate the document structure with Zod
     const parsed = SaveDraftPayloadSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Dokumen tidak valid', details: parsed.error.format() },
+        { error: 'Invalid document', details: parsed.error.format() },
         { status: 400 }
       );
     }
 
     const { version, document } = parsed.data;
 
-    // 2. Eksekusi conditional update untuk optimistic locking
+    // 2. Conditional update for optimistic locking
     const updateResult = await prisma.page.updateMany({
       where: {
         id,
-        version: version, // Kunci: harus cocok persis dengan versi yang dipegang klien
+        version: version, // Key: must exactly match the version held by the client
       },
       data: {
         draftContent: document as unknown as object,
@@ -302,7 +302,7 @@ export async function PATCH(
       },
     });
 
-    // 3. Deteksi konflik jika tidak ada baris yang terupdate
+    // 3. Detect a conflict when no row was updated
     if (updateResult.count === 0) {
       const currentPage = await prisma.page.findUnique({
         where: { id },
@@ -311,7 +311,7 @@ export async function PATCH(
 
       return NextResponse.json(
         {
-          error: 'Conflict: Dokumen telah diubah oleh sesi lain.',
+          error: 'Conflict: the document was modified by another session.',
           serverVersion: currentPage?.version ?? null,
           lastUpdatedAt: currentPage?.updatedAt ?? null,
         },
@@ -319,7 +319,7 @@ export async function PATCH(
       );
     }
 
-    // 4. Sukses: kembalikan nomor versi baru ke klien
+    // 4. Success: return the new version number to the client
     return NextResponse.json({
       success: true,
       newVersion: version + 1,
@@ -335,48 +335,48 @@ export async function PATCH(
 }
 ```
 
-### Strategi Penanganan Konflik di Sisi Klien (Frontend UX)
+### Client-Side Conflict Handling (Frontend UX)
 
-Ketika klien menerima respons HTTP 409, jangan panik dan jangan menghapus state visual editor. Tampilkan dialog resolusi konflik interaktif dengan tiga opsi mitigasi:
+When the client receives HTTP 409, don't panic and don't discard the editor state. Show an interactive conflict-resolution dialog with three options:
 
 ```mermaid
 flowchart TD
-    Err409["Klien Menerima HTTP 409 Conflict"] --> Modal["Tampilkan Modal Resolusi Konflik"]
+    Err409["Client receives HTTP 409 Conflict"] --> Modal["Show conflict resolution modal"]
     
-    Modal --> Choice1["1. Muat Ulang Versi Server\n(Discard Local Edits)"]
-    Modal --> Choice2["2. Timpa Paksa (Force Overwrite)\n(Gunakan Versi Server Terkini)"]
-    Modal --> Choice3["3. Ekspor Cadangan .stora\n(Simpan File Fisik Lokal)"]
+    Modal --> Choice1["1. Reload server version\n(Discard Local Edits)"]
+    Modal --> Choice2["2. Force overwrite\n(Rebase on latest server version)"]
+    Modal --> Choice3["3. Export .stora backup\n(Save a local file)"]
 
-    Choice1 --> ActionReload["Ambil data draft terbaru dari server\nReset editor store ke server document"]
-    Choice2 --> ActionOverwrite["Ambil serverVersion terkini\nKirim ulang dokumen lokal dengan version baru"]
-    Choice3 --> ActionExport["Download .stora package ke komputer\nPengguna tidak kehilangan hasil karyanya"]
+    Choice1 --> ActionReload["Fetch the latest draft from the server\nReset the editor store to the server document"]
+    Choice2 --> ActionOverwrite["Fetch the latest serverVersion\nResend the local document with the new version"]
+    Choice3 --> ActionExport["Download the .stora package\nThe user never loses their work"]
 ```
 
-<Callout type="warning" title="Pencegahan Kehilangan Data">
-Selalu sediakan tombol **"Download .stora Backup"** di dalam modal konflik 409. Hal ini menjamin pengguna tidak akan pernah kehilangan pekerjaan berharga mereka bahkan jika mereka ragu memilih antara Reload atau Overwrite.
+<Callout type="warning" title="Preventing Data Loss">
+Always offer a **"Download .stora Backup"** button in the 409 conflict modal. Users then never lose valuable work, even when they're unsure whether to reload or overwrite.
 </Callout>
 
 ---
 
-## Pola Debounced Auto-Save di Client
+## Client-Side Debounced Auto-Save
 
-Mengirim request jaringan pada setiap ketukan keyboard atau saat menyeret *slider* margin akan membanjiri server dengan ratusan panggilan API yang tidak perlu. Pola yang benar adalah menggunakan teknik **debounced auto-save** dengan interval 1000–2000 milidetik.
+Sending a network request on every keystroke or margin-slider drag floods the server with hundreds of unnecessary API calls. Use **debounced auto-save** with a 1000–2000 ms interval instead.
 
-### Siklus State Machine Auto-Save
+### Auto-Save State Machine
 
-Sistem auto-save di klien dikelola oleh mesin status (*finite state machine*) dengan lima status:
+Client auto-save is managed by a *finite state machine* with five states:
 
-| Status | Deskripsi | Aksi UI |
+| Status | Description | UI Action |
 | :--- | :--- | :--- |
-| `idle` | Tidak ada perubahan baru sejak simpanan terakhir. | Menampilkan badge *"Semua perubahan tersimpan"*. |
-| `dirty` | Pengguna mengubah kanvas; timer debounce sedang berjalan. | Menampilkan indikator *"Menunggu jeda edit..."*. |
-| `saving` | Request HTTP PATCH sedang dalam perjalanan ke server. | Menampilkan spinner animasi *"Menyimpan draf..."*. |
-| `saved` | Data sukses diterima dan versi database telah naik. | Menampilkan centang hijau *"Tersimpan"*. |
-| `error` | Gagal jaringan atau HTTP 409 Conflict. | Menampilkan tanda seru merah dan tombol *"Coba Lagi"*. |
+| `idle` | No new changes since the last save. | Show an *"All changes saved"* badge. |
+| `dirty` | The user changed the canvas; the debounce timer is running. | Show *"Waiting for edits to settle..."*. |
+| `saving` | An HTTP PATCH request is in flight. | Show a *"Saving draft..."* spinner. |
+| `saved` | The server accepted the data and the database version increased. | Show a green *"Saved"* check. |
+| `error` | Network failure or HTTP 409 Conflict. | Show a red warning and a *"Retry"* button. |
 
-### Implementasi React Hook: `useDocumentAutoSave`
+### React Hook: `useDocumentAutoSave`
 
-Berikut adalah implementasi custom hook produksi yang dilengkapi integrasi listener `window.onbeforeunload` untuk mencegah tab tertutup saat perubahan belum tersimpan:
+A production custom hook with a `window.onbeforeunload` listener that keeps the tab from closing while changes are unsaved:
 
 ```typescript
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -411,7 +411,7 @@ export function useDocumentAutoSave({
   const latestDocRef = useRef<PageDocument>(document);
   const latestVersionRef = useRef<number>(currentVersion);
 
-  // Perbarui referensi dokumen dan versi terkini
+  // Keep the latest document and version in refs
   useEffect(() => {
     latestDocRef.current = document;
   }, [document]);
@@ -420,7 +420,7 @@ export function useDocumentAutoSave({
     latestVersionRef.current = currentVersion;
   }, [currentVersion]);
 
-  // Fungsi pengiriman request simpan ke server
+  // Send the save request to the server
   const saveToServer = useCallback(async () => {
     if (status === 'saving') return;
 
@@ -440,7 +440,7 @@ export function useDocumentAutoSave({
       if (response.status === 409) {
         const errorData = await response.json();
         setStatus('conflict');
-        setErrorMessage('Konflik: Dokumen telah diperbarui oleh pengguna lain.');
+        setErrorMessage('Conflict: the document was updated by another user.');
         onConflict?.(errorData.serverVersion);
         return;
       }
@@ -455,7 +455,7 @@ export function useDocumentAutoSave({
       setStatus('saved');
       onSaved?.(data.newVersion);
 
-      // Kembalikan ke idle setelah beberapa detik
+      // Return to idle after a few seconds
       setTimeout(() => {
         if (isMountedRef.current) {
           setStatus((prev) => (prev === 'saved' ? 'idle' : prev));
@@ -464,11 +464,11 @@ export function useDocumentAutoSave({
     } catch (err) {
       console.error('Auto-save failed:', err);
       setStatus('error');
-      setErrorMessage(err instanceof Error ? err.message : 'Gagal menyimpan draf');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to save draft');
     }
   }, [pageId, status, onConflict, onSaved]);
 
-  // Panggil fungsi ini setiap kali ada event onChange dari editor
+  // Call this on every onChange event from the editor
   const markDirty = useCallback(() => {
     setStatus('dirty');
 
@@ -481,12 +481,12 @@ export function useDocumentAutoSave({
     }, debounceMs);
   }, [debounceMs, saveToServer]);
 
-  // Proteksi beforeunload: Cegah user menutup tab saat draf belum tersimpan
+  // beforeunload guard: stop the user from closing the tab with an unsaved draft
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (status === 'dirty' || status === 'saving') {
         event.preventDefault();
-        event.returnValue = ''; // Standar browser untuk memicu konfirmasi keluar
+        event.returnValue = ''; // Browser standard for triggering the leave confirmation
       }
     };
 
@@ -508,9 +508,9 @@ export function useDocumentAutoSave({
 }
 ```
 
-### Komponen UI: Status Pill Auto-Save
+### UI Component: Auto-Save Status Pill
 
-Sematkan komponen visual pada toolbar atas editor untuk memberi transparansi penuh kepada pengguna:
+Put a visual indicator in the editor's top toolbar so users always know the save state:
 
 ```tsx
 import React from 'react';
@@ -528,14 +528,14 @@ export function SaveStatusIndicator({ status, lastSavedAt, onRetry }: SaveStatus
       return (
         <span className="flex items-center gap-1.5 text-xs text-amber-500 font-medium">
           <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-          Menyimpan draf...
+          Saving draft...
         </span>
       );
     case 'dirty':
       return (
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="h-2 w-2 rounded-full bg-amber-400" />
-          Perubahan belum tersimpan
+          Unsaved changes
         </span>
       );
     case 'saved':
@@ -544,8 +544,8 @@ export function SaveStatusIndicator({ status, lastSavedAt, onRetry }: SaveStatus
         <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           {lastSavedAt
-            ? `Tersimpan ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-            : 'Tersimpan'}
+            ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            : 'Saved'}
         </span>
       );
     case 'conflict':
@@ -554,7 +554,7 @@ export function SaveStatusIndicator({ status, lastSavedAt, onRetry }: SaveStatus
           onClick={onRetry}
           className="flex items-center gap-1 text-xs text-destructive font-semibold underline"
         >
-          Konflik terdeteksi (Klik untuk resolusi)
+          Conflict detected (click to resolve)
         </button>
       );
     case 'error':
@@ -563,7 +563,7 @@ export function SaveStatusIndicator({ status, lastSavedAt, onRetry }: SaveStatus
           onClick={onRetry}
           className="flex items-center gap-1 text-xs text-red-500 font-semibold underline"
         >
-          Gagal simpan (Klik untuk coba lagi)
+          Save failed (click to retry)
         </button>
       );
   }
@@ -574,59 +574,59 @@ export function SaveStatusIndicator({ status, lastSavedAt, onRetry }: SaveStatus
 
 ## Object Storage & Edge Caching (Cloudflare R2 / AWS S3)
 
-Meskipun PostgreSQL sangat unggul untuk operasi penulisan *authoring*, melayani jutaan *request* pengunjung publik langsung dari database relasional dapat menghabiskan koneksi database (*connection pool exhaustion*) dan meningkatkan biaya operasional.
+PostgreSQL is excellent for *authoring* writes, but serving millions of public visitor requests straight from a relational database can exhaust the connection pool (*connection pool exhaustion*) and raise operating costs.
 
-### Perbandingan: Database vs Object Storage
+### Comparison: Database vs. Object Storage
 
-<Tabs items={['Perbandingan Arsitektur', 'Kapan Menggunakan R2/S3', 'Kapan Menggunakan Postgres']}>
-  <Tab value="Perbandingan Arsitektur">
-    | Dimensi | PostgreSQL JSONB | Cloudflare R2 / AWS S3 |
+<Tabs items={['Architecture Comparison', 'When to Use R2/S3', 'When to Use Postgres']}>
+  <Tab value="Architecture Comparison">
+    | Dimension | PostgreSQL JSONB | Cloudflare R2 / AWS S3 |
     | :--- | :--- | :--- |
-    | **Fokus Penggunaan** | Authoring, editing, kueri analitik, multi-tenant RBAC | Pengiriman publik skala tinggi (*High-throughput public runtime*) |
-    | **Latensi Respons** | ~20–80 ms (tergantung jarak ke server DB) | ~5–20 ms (Edge CDN cache hit di kota terdekat) |
-    | **Biaya Skalabilitas** | Meningkat seiring kebutuhan CPU/RAM database | Sangat murah (tanpa biaya egress di Cloudflare R2) |
-    | **Konkurensi** | Dibatasi *connection pool* (e.g. 50–200 pooling) | Nyaris tak terbatas (dikelola oleh CDN Edge) |
+    | **Primary use** | Authoring, editing, analytic queries, multi-tenant RBAC | High-throughput public runtime delivery |
+    | **Response latency** | ~20–80 ms (depends on distance to the DB) | ~5–20 ms (edge CDN cache hit in the nearest city) |
+    | **Scaling cost** | Grows with database CPU/RAM | Very cheap (no egress fees on Cloudflare R2) |
+    | **Concurrency** | Limited by the *connection pool* (e.g. 50–200 connections) | Practically unlimited (handled by the CDN edge) |
   </Tab>
 
-  <Tab value="Kapan Menggunakan R2/S3">
-    - **Situs Berkecepatan Tinggi**: Landing page kampanye iklan, toko online Black Friday, atau portal berita dengan lonjakan trafik ekstrem.
-    - **Global Edge Delivery**: Pengunjung tersebar di seluruh dunia dan membutuhkan TTFB (*Time to First Byte*) di bawah 50ms.
-    - **Zero-Egress Cost**: Memanfaatkan Cloudflare R2 untuk menyajikan file dokumen `.stora` dan aset media tanpa biaya transfer data keluar.
+  <Tab value="When to Use R2/S3">
+    - **High-traffic sites**: ad campaign landing pages, Black Friday stores, or news portals with extreme traffic spikes.
+    - **Global edge delivery**: visitors worldwide who need a TTFB (*Time to First Byte*) under 50ms.
+    - **Zero egress cost**: use Cloudflare R2 to serve `.stora` documents and media assets without data-transfer fees.
   </Tab>
 
-  <Tab value="Kapan Menggunakan Postgres">
-    - **Draf Internal & Kolaborasi**: Dokumen yang sedang aktif diedit dan membutuhkan validasi skema serta optimistic locking.
-    - **Pencarian & Filtering**: Kueri pencarian halaman berdasarkan nama, tanggal, pembuat, atau token komponen di kolom JSONB.
-    - **Riwayat Revisi Terstruktur**: Rollback dan audit log perubahan melalui relasi kunci asing `page_id`.
+  <Tab value="When to Use Postgres">
+    - **Internal drafts & collaboration**: documents under active editing that need schema validation and optimistic locking.
+    - **Search & filtering**: query pages by name, date, author, or component tokens inside the JSONB column.
+    - **Structured revision history**: rollbacks and change audit logs through the `page_id` foreign key.
   </Tab>
 </Tabs>
 
-### Alur Kerja Penerbitan Dokumen (Publishing Pipeline)
+### Publishing Pipeline
 
-Ketika pengguna mengklik tombol **"Publish"**, backend mengeksekusi pipeline otomatis berikut:
+When the user clicks **"Publish"**, the backend runs this automated pipeline:
 
 <Steps>
   <Step>
-    **Validasi Skema Dokumen Lengkap**  
-    Backend memvalidasi draf dengan `PageDocumentSchema.safeParse` dan menjalankan audit keamanan (`validateDocumentSecurity`).
+    **Full document schema validation**  
+    The backend validates the draft with `PageDocumentSchema.safeParse` and runs a security audit (`validateDocumentSecurity`).
   </Step>
   <Step>
-    **Persistensi Database & Riwayat Revisi**  
-    Salin `draft_content` ke `published_content`, naikkan nomor revisi di tabel `page_revisions`, dan set status halaman menjadi `published`.
+    **Database persistence & revision history**  
+    Copy `draft_content` to `published_content`, bump the revision number in `page_revisions`, and set the page status to `published`.
   </Step>
   <Step>
     **Upload Snapshot ke S3 / Cloudflare R2**  
-    Serialize dokumen menjadi string JSON atau HTML statis, kemudian simpan ke bucket dengan *object key* yang deterministik: `pages/${tenantId}/${slug}.json`.
+    Serialize the document to a JSON string or static HTML, then store it in the bucket under a deterministic *object key*: `pages/${tenantId}/${slug}.json`.
   </Step>
   <Step>
-    **Invalidasi Cache Edge (CDN Purge)**  
-    Kirim panggilan API ke Cloudflare Purge Cache untuk menghapus cache URL publik lama di seluruh server edge global.
+    **Edge cache invalidation (CDN purge)**  
+    Call the Cloudflare Purge Cache API to remove the old public URL from every edge server worldwide.
   </Step>
 </Steps>
 
-### Contoh Implementasi Publishing API dengan AWS SDK v3 / R2
+### Publishing API Example with AWS SDK v3 / R2
 
-Berikut adalah contoh rute API Next.js yang mempublikasikan dokumen ke Cloudflare R2 menggunakan `@aws-sdk/client-s3`:
+A Next.js API route that publishes a document to Cloudflare R2 with `@aws-sdk/client-s3`:
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
@@ -634,7 +634,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { PageDocumentSchema } from '@kubuild/schema';
 import prisma from '@/lib/prisma';
 
-// Inisialisasi klien S3 yang kompatibel dengan Cloudflare R2 / AWS S3
+// Initialize an S3 client compatible with Cloudflare R2 / AWS S3
 const s3Client = new S3Client({
   region: 'auto',
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -651,27 +651,27 @@ export async function POST(
   try {
     const { id } = await params;
 
-    // 1. Ambil data draf halaman dari database
+    // 1. Load the page draft from the database
     const page = await prisma.page.findUnique({
       where: { id },
     });
 
     if (!page) {
-      return NextResponse.json({ error: 'Halaman tidak ditemukan' }, { status: 404 });
+      return NextResponse.json({ error: 'Page not found' }, { status: 404 });
     }
 
-    // 2. Validasi integritas dokumen draf
+    // 2. Validate the draft document's integrity
     const validation = PageDocumentSchema.safeParse(page.draftContent);
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Gagal publish: draf korup atau tidak valid', details: validation.error.format() },
+        { error: 'Publish failed: the draft is corrupted or invalid', details: validation.error.format() },
         { status: 422 }
       );
     }
 
     const documentData = validation.data;
 
-    // 3. Simpan revisi baru dan perbarui published_content dalam satu transaksi database
+    // 3. Save a new revision and update published_content in one database transaction
     const latestRevision = await prisma.pageRevision.findFirst({
       where: { pageId: id },
       orderBy: { revisionNumber: 'desc' },
@@ -699,7 +699,7 @@ export async function POST(
       }),
     ]);
 
-    // 4. Upload snapshot JSON ke Cloudflare R2 dengan Cache Headers Produksi
+    // 4. Upload the JSON snapshot to Cloudflare R2 with production cache headers
     const s3Key = `tenants/${page.tenantId}/pages/${page.slug}.json`;
     const jsonString = JSON.stringify(documentData);
 
@@ -709,7 +709,7 @@ export async function POST(
         Key: s3Key,
         Body: jsonString,
         ContentType: 'application/json; charset=utf-8',
-        // Strategi Cache CDN: Cache di edge hingga 1 tahun, revalidate di background
+        // CDN cache strategy: cache at the edge for up to 1 year, revalidate in the background
         CacheControl: 'public, max-age=60, s-maxage=31536000, stale-while-revalidate=86400',
         Metadata: {
           schemaVersion: documentData.version,
@@ -727,25 +727,25 @@ export async function POST(
     });
   } catch (error) {
     console.error('Publishing failed:', error);
-    return NextResponse.json({ error: 'Gagal menerbitkan halaman' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to publish the page' }, { status: 500 });
   }
 }
 ```
 
 ---
 
-## Praktik Terbaik & Rekomendasi Keamanan
+## Best Practices & Security Recommendations
 
 <Accordions>
-  <Accordion title="Bagaimana Menangani Migrasi Versi Skema Dokumen Lama?">
-    Dokumen KUBUILD menyertakan atribut `version` (misalnya `'1.3.0'`). Jika Anda memperbarui aplikasi builder ke versi mayor baru, gunakan pipeline migrasi deterministik di sisi server sebelum menyimpan dokumen ke database. Jika schema dokumen lawas (`'1.0.0'`) dibaca dari database, jalankan fungsi transformasi migrasi (`migrateDocument`) agar strukturnya sesuai dengan skema terbaru tanpa merusak data pengguna.
+  <Accordion title="How do I migrate documents with an older schema version?">
+    KUBUILD documents carry a `version` field (e.g. `'1.3.0'`). When you upgrade the builder to a new major version, run a deterministic server-side migration before saving documents to the database. If a legacy document (`'1.0.0'`) is read from the database, run `migrateDocument` so its structure matches the latest schema without damaging user data.
   </Accordion>
 
-  <Accordion title="Bagaimana Menghindari Serangan DoS pada Endpoint Auto-Save?">
-    Terapkan *Rate Limiting* (misalnya menggunakan Redis Upstash atau `@upstash/ratelimit`) pada endpoint `PATCH /api/pages/[id]/draft`. Batasi maksimal 30 request per menit per ID pengguna terautentikasi. Karena auto-save di sisi klien telah menerapkan debounce 1.5 detik, 30 request per menit sudah sangat mencukupi untuk penulisan normal.
+  <Accordion title="How do I protect the auto-save endpoint from DoS attacks?">
+    Apply *rate limiting* (for example with Upstash Redis or `@upstash/ratelimit`) on `PATCH /api/pages/[id]/draft`. Allow at most 30 requests per minute per authenticated user. Since client auto-save is already debounced by 1.5 seconds, 30 requests per minute is plenty for normal editing.
   </Accordion>
 
-  <Accordion title="Apakah Perlu Menyimpan Aset Gambar Langsung di Kolom JSONB?">
-    **Tidak disarankan.** Gambar base64 berukuran megabyte akan membengkakkan ukuran tabel database dan memperlambat waktu respons query. Selalu unggah aset gambar ke bucket S3/R2 terlebih dahulu, lalu simpan referensi aset URL atau `assetId` di dalam node pohon dokumen KUBUILD (`AssetReferenceSchema`).
+  <Accordion title="Should I store image assets directly in the JSONB column?">
+    **No.** Megabyte-sized base64 images bloat the database tables and slow down queries. Always upload images to an S3/R2 bucket first, then store the asset URL or `assetId` reference in the KUBUILD document tree (`AssetReferenceSchema`).
   </Accordion>
 </Accordions>

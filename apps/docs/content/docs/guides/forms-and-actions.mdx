@@ -10,25 +10,25 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { InteractiveRenderer } from '@/components/interactive-renderer';
 
-Formulir (*forms*) adalah jantung dari konversi pada landing page, situs pemasaran, dan aplikasi SaaS modern: mulai dari penangkapan prospek (*lead capture*), pendaftaran newsletter, checkout pesanan e-commerce, hingga survei interaktif.
+*Forms* are the heart of conversion on landing pages, marketing sites, and modern SaaS apps: *lead capture*, newsletter signups, e-commerce checkout, and interactive surveys.
 
-Membangun sistem formulir pada visual page builder tradisional sering kali menghasilkan arsitektur yang kaku (*tightly coupled*): logika pengiriman data terkunci ke penyedia pihak ketiga tertentu, pesan error server tidak sinkron dengan tampilan visual, dan aksesibilitas terabaikan.
+Forms in traditional visual page builders often end up *tightly coupled*: submission logic is locked to a specific third-party provider, server error messages are out of sync with the UI, and accessibility is neglected.
 
-**KUBUILD mengadopsi filosofi *decoupled host-first*:**
-1. **Schema Dokumen Portabel (`.stora`)**: Mendefinisikan struktur hierarki formulir, aturan validasi deklaratif (*required*, *email*, *regex*, *min_length*), dan transformasi data tanpa ketergantungan pada runtime tertentu.
-2. **Mesin Runtime Reaktif (`@kubuild/renderer`)**: Mengelola state formulir lokal (*values*, *errors*, *touched*, *isSubmitting*), mengevaluasi validasi otomatis, mengontrol aksesibilitas (`aria-invalid`, `aria-errormessage`), dan mengeksekusi pipeline action.
-3. **Kontrak Host API (`RenderContext.onFormSubmit`)**: Aplikasi induk (*host application*) memiliki kendali penuh atas rute backend, sanitasi database, autentikasi, serta dapat mengirimkan kembali error validasi server (*server-side errors*) yang langsung dirender secara visual di bawah input terkait.
+**KUBUILD follows a *decoupled, host-first* philosophy:**
+1. **Portable document schema (`.stora`)**: defines the form hierarchy, declarative validation rules (*required*, *email*, *regex*, *min_length*), and data transforms without depending on a specific runtime.
+2. **Reactive runtime engine (`@kubuild/renderer`)**: manages local form state (*values*, *errors*, *touched*, *isSubmitting*), evaluates validation automatically, handles accessibility (`aria-invalid`, `aria-errormessage`), and executes action pipelines.
+3. **Host API contract (`RenderContext.onFormSubmit`)**: the *host application* fully controls backend routes, database sanitization, and authentication, and can send *server-side errors* back to be rendered under the related inputs.
 
 ---
 
 ## Live Interactive Sandbox
 
-Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture lengkap dengan validasi multi-field, pencegahan submit tidak valid, penanganan server error, dan feedback toast otomatis.
+The interactive sandbox below shows a complete lead capture form with multi-field validation, blocking of invalid submits, server error handling, and automatic toast feedback.
 
-<Callout type="info" title="Skenario Pengujian Interaktif">
-- **Uji Validasi Client-Side**: Klik tombol **Kirim Formulir Inquiry** saat form masih kosong. Perhatikan pesan error merah yang seketika muncul di bawah setiap field yang wajib diisi.
-- **Uji Penolakan Server**: Masukkan email `error@example.com` bersama nama dan nomor telepon valid. Host hook `onFormSubmit` akan menolak email ini dan memicu feedback server-side error!
-- **Uji Submit Berhasil**: Masukkan nama Anda, email valid apa pun (misal `user@domain.com`), nomor telepon valid (8-15 digit), dan pesan minimal 10 karakter. Perhatikan animasi loading submit dan notifikasi sukses.
+<Callout type="info" title="Interactive Test Scenarios">
+- **Test client-side validation**: click **Send Inquiry** while the form is empty. Red error messages appear immediately under every required field.
+- **Test server rejection**: enter `error@example.com` with a valid name and phone number. The host `onFormSubmit` hook rejects this email and triggers server-side error feedback.
+- **Test a successful submit**: enter your name, any valid email (e.g. `user@domain.com`), a valid phone number (8–15 digits), and a message of at least 10 characters. Watch the submit loading state and success notification.
 </Callout>
 
 <InteractiveRenderer
@@ -41,7 +41,7 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
     version: "1.3.0",
     metadata: {
       title: "Interactive Lead Capture Form",
-      description: "Formulir interaktif dengan validasi client-side, host onFormSubmit, dan action pipeline.",
+      description: "Interactive form with client-side validation, a host onFormSubmit hook, and an action pipeline.",
       author: "KUBUILD Core Team",
       tags: ["forms", "validation", "actions", "pipeline"],
       category: "guides",
@@ -85,7 +85,7 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
               type: "heading",
               props: {
                 level: 3,
-                text: "Hubungi Tim Penjualan"
+                text: "Contact the Sales Team"
               },
               styles: {
                 base: {
@@ -101,7 +101,7 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
               id: "form-header-desc",
               type: "paragraph",
               props: {
-                text: "Lengkapi data kontak Anda untuk menjadwalkan konsultasi arsitektur KUBUILD enterprise."
+                text: "Fill in your contact details to schedule a KUBUILD enterprise architecture consultation."
               },
               styles: {
                 base: {
@@ -138,7 +138,7 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                     {
                       id: "name-label",
                       type: "paragraph",
-                      props: { "text": "Nama Lengkap *" },
+                      props: { "text": "Full Name *" },
                       styles: { "base": { "fontSize": "12px", "fontWeight": "600", "color": "#cbd5e1", "margin": "0" } }
                     },
                     {
@@ -147,12 +147,12 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                       props: {
                         name: "name",
                         type: "text",
-                        placeholder: "Contoh: Budi Santoso",
+                        placeholder: "e.g. Alex Morgan",
                         required: true,
                         transform: "trim",
                         rules: [
-                          { "type": "required", "message": "Nama lengkap wajib diisi." },
-                          { "type": "min_length", "value": 3, "message": "Nama minimal 3 karakter." }
+                          { "type": "required", "message": "Full name is required." },
+                          { "type": "min_length", "value": 3, "message": "Name must be at least 3 characters." }
                         ]
                       },
                       styles: {
@@ -180,7 +180,7 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                     {
                       id: "email-label",
                       type: "paragraph",
-                      props: { "text": "Alamat Email Kerja *" },
+                      props: { "text": "Work Email Address *" },
                       styles: { "base": { "fontSize": "12px", "fontWeight": "600", "color": "#cbd5e1", "margin": "0" } }
                     },
                     {
@@ -189,12 +189,12 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                       props: {
                         name: "email",
                         type: "email",
-                        placeholder: "nama@perusahaan.com (coba: error@example.com)",
+                        placeholder: "name@company.com (try: error@example.com)",
                         required: true,
                         transform: "lowercase",
                         rules: [
-                          { "type": "required", "message": "Alamat email wajib diisi." },
-                          { "type": "email", "message": "Format alamat email tidak valid." }
+                          { "type": "required", "message": "Email address is required." },
+                          { "type": "email", "message": "Invalid email address format." }
                         ]
                       },
                       styles: {
@@ -222,7 +222,7 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                     {
                       id: "phone-label",
                       type: "paragraph",
-                      props: { "text": "Nomor WhatsApp / Telepon *" },
+                      props: { "text": "WhatsApp / Phone Number *" },
                       styles: { "base": { "fontSize": "12px", "fontWeight": "600", "color": "#cbd5e1", "margin": "0" } }
                     },
                     {
@@ -235,8 +235,8 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                         required: true,
                         transform: "trim",
                         rules: [
-                          { "type": "required", "message": "Nomor telepon wajib diisi." },
-                          { "type": "custom_regex", "value": "^\\+?[0-9]{8,15}$", "message": "Nomor telepon harus 8-15 digit angka (opsional awalan +)." }
+                          { "type": "required", "message": "Phone number is required." },
+                          { "type": "custom_regex", "value": "^\\+?[0-9]{8,15}$", "message": "Phone number must be 8–15 digits (optional + prefix)." }
                         ]
                       },
                       styles: {
@@ -264,7 +264,7 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                     {
                       id: "inquiry-label",
                       type: "paragraph",
-                      props: { "text": "Kebutuhan Proyek / Pesan *" },
+                      props: { "text": "Project Needs / Message *" },
                       styles: { "base": { "fontSize": "12px", "fontWeight": "600", "color": "#cbd5e1", "margin": "0" } }
                     },
                     {
@@ -272,12 +272,12 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                       type: "textarea",
                       props: {
                         name: "message",
-                        placeholder: "Ceritakan estimasi traffic atau fitur builder yang ingin Anda bangun...",
+                        placeholder: "Tell us about your expected traffic or the builder features you want to build...",
                         rows: 3,
                         required: true,
                         rules: [
-                          { "type": "required", "message": "Pesan kebutuhan wajib diisi." },
-                          { "type": "min_length", "value": 10, "message": "Pesan minimal 10 karakter agar tim kami memahami konteks." }
+                          { "type": "required", "message": "Please describe your needs." },
+                          { "type": "min_length", "value": 10, "message": "Message must be at least 10 characters so our team understands the context." }
                         ]
                       },
                       styles: {
@@ -302,7 +302,7 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
                   id: "submit-btn",
                   type: "button",
                   props: {
-                    label: "Kirim Formulir Inquiry",
+                    label: "Send Inquiry",
                     buttonType: "submit"
                   },
                   styles: {
@@ -332,19 +332,19 @@ Sandbox interaktif di bawah mendemonstrasikan implementasi formulir lead capture
 
 ---
 
-## Arsitektur Formulir di KUBUILD
+## Form Architecture in KUBUILD
 
-Sistem formulir KUBUILD dibangun di atas prinsip pembagian tanggung jawab (*separation of concerns*) yang jelas antara struktur dokumen, eksekusi runtime, dan kontrol host.
+The KUBUILD form system is built on a clear *separation of concerns* between document structure, runtime execution, and host control.
 
-### 1. Hierarki Form Node
+### 1. Form Node Hierarchy
 
-Dalam skema `.stora`, sebuah formulir dibentuk melalui hierarki node bersarang (*nested node hierarchy*):
+In the `.stora` schema, a form is built from a *nested node hierarchy*:
 
 ```mermaid
 flowchart TD
-    FormNode["Form Container (type: 'form')<br/>Menyediakan FormRuntimeProvider & formConfig"]
+    FormNode["Form Container (type: 'form')<br/>Provides FormRuntimeProvider & formConfig"]
     
-    subgraph InputElements["Elemen Input & Field Binding"]
+    subgraph InputElements["Input Elements & Field Binding"]
         InputText["Input Node (type: 'input')<br/>text | email | tel | number"]
         TextareaNode["Textarea Node (type: 'textarea')<br/>multi-line text"]
         SelectNode["Select Node (type: 'select')<br/>dropdown options"]
@@ -359,26 +359,26 @@ flowchart TD
 ```
 
 1. **Form Container (`type: 'form'`)**:
-   - Membungkus seluruh input fields dan submit button.
-   - Menginisialisasi `FormRuntimeProvider` (`packages/renderer/src/form-context.tsx`).
-   - Menyimpan konfigurasi formulir (`FormConfig`), seperti `formId`, `resetOnSubmit`, `scrollToFirstError`, dan `validateOn`.
-2. **Elemen Input Terdaftar (`FormFieldBinding`)**:
-   - Setiap elemen input meregistrasikan dirinya ke context form runtime melalui `registerField()`.
-   - Mengikat nilai (*values*), status sentuh (*touched*), aturan validasi (*rules*), pemicu validasi (*validateOn*), dan transformasi (*transform*).
+   - Wraps all input fields and the submit button.
+   - Initializes `FormRuntimeProvider` (`packages/renderer/src/form-context.tsx`).
+   - Stores the form configuration (`FormConfig`), such as `formId`, `resetOnSubmit`, `scrollToFirstError`, and `validateOn`.
+2. **Registered input elements (`FormFieldBinding`)**:
+   - Every input registers itself with the form runtime context through `registerField()`.
+   - Binds *values*, *touched* state, validation *rules*, the validation trigger (*validateOn*), and *transform*.
 3. **Submit Button (`type: 'button'`)**:
-   - Dikonfigurasikan dengan `props.buttonType: 'submit'`.
-   - Menangani pencegahan submit ganda saat status `isSubmitting: true` (`aria-busy="true"`).
+   - Configured with `props.buttonType: 'submit'`.
+   - Prevents double submits while `isSubmitting: true` (`aria-busy="true"`).
 
 ---
 
-### 2. Siklus Hidup Form Submission Pipeline
+### 2. Form Submission Pipeline Lifecycle
 
-Ketika pengunjung menekan tombol submit, KUBUILD mengeksekusi pipeline bertahap yang deterministik dan aman:
+When a visitor presses submit, KUBUILD runs a deterministic, safe, staged pipeline:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Pengunjung / User
+    actor User as Visitor
     participant Button as Submit Button
     participant FormRuntime as FormRuntimeProvider
     participant Validator as Core Validation Engine
@@ -386,50 +386,50 @@ sequenceDiagram
     participant HostHook as RenderContext.onFormSubmit
     participant HostAPI as Host API / Database
 
-    User->>Button: Klik "Submit"
+    User->>Button: Click "Submit"
     Button->>FormRuntime: handleFormSubmit(event)
     FormRuntime->>FormRuntime: Mark all registered fields as touched
     FormRuntime->>Validator: validateForm(values)
     
-    alt Terdapat Kesalahan Validasi Client (Invalid)
+    alt Client Validation Errors (Invalid)
         Validator-->>FormRuntime: Return Record<fieldName, errorMessage>
         FormRuntime->>FormRuntime: setErrors(errors)
-        FormRuntime->>User: Auto-focus & scroll ke field error pertama (aria-errormessage)
-    else Seluruh Field Lolos Validasi (Valid)
+        FormRuntime->>User: Auto-focus & scroll to the first error field (aria-errormessage)
+    else All Fields Pass Validation (Valid)
         FormRuntime->>FormRuntime: setIsSubmitting(true) & aria-busy="true"
         
-        opt Ada Submit Action Pipelines
+        opt Submit Action Pipelines Exist
             FormRuntime->>ActionPipeline: execute(submitPipelines)
             ActionPipeline-->>FormRuntime: Pipeline result (Success / Diagnostic)
         end
         
-        opt Host Mendefinisikan onFormSubmit Hook
+        opt Host Defines an onFormSubmit Hook
             FormRuntime->>HostHook: onFormSubmit({ formId, nodeId, values }, helpers)
-            HostHook->>HostAPI: POST payload ke /api/...
-            alt Backend API Mengembalikan Error Validasi
+            HostHook->>HostAPI: POST payload to /api/...
+            alt Backend API Returns Validation Errors
                 HostAPI-->>HostHook: 422 Unprocessable Entity { errors: { email: '...' } }
                 HostHook->>FormRuntime: helpers.setErrors(apiErrors)
-                FormRuntime->>User: Tampilkan pesan merah server di bawah input field!
-            else Backend API Berhasil (200 OK)
+                FormRuntime->>User: Show server errors in red under the input fields
+            else Backend API Succeeds (200 OK)
                 HostAPI-->>HostHook: 200 OK { success: true }
                 HostHook->>FormRuntime: helpers.resetForm()
             end
         end
         
         FormRuntime->>FormRuntime: setIsSubmitting(false)
-        FormRuntime->>User: Eksekusi feedback sukses (Toast / Redirect)
+        FormRuntime->>User: Run success feedback (Toast / Redirect)
     end
 ```
 
 ---
 
-## Konfigurasi Field Validation Rules
+## Field Validation Rules
 
-KUBUILD menyediakan mesin validasi bawaan (`@kubuild/core/src/validation/validation-engine.ts`) tanpa dependensi pustaka validasi runtime eksternal di sisi browser client.
+KUBUILD ships a built-in validation engine (`@kubuild/core/src/validation/validation-engine.ts`) with no external runtime validation library in the browser.
 
-### Aturan Validasi Bawaan (*Built-in Rules*)
+### Built-in Rules
 
-Setiap aturan validasi dinyatakan sebagai objek deklaratif dengan antarmuka `ValidationRule`:
+Every validation rule is a declarative object implementing the `ValidationRule` interface:
 
 ```ts
 interface ValidationRule {
@@ -441,29 +441,29 @@ interface ValidationRule {
 
 <Cards>
   <Card title="required" icon="CheckSquare">
-    Memastikan field tidak kosong (bukan `null`, `undefined`, string kosong `""`, array kosong `[]`, atau boolean `false`).
+    Ensures the field isn't empty (not `null`, `undefined`, an empty string `""`, an empty array `[]`, or boolean `false`).
   </Card>
   <Card title="email" icon="Mail">
-    Memvalidasi format alamat email standar RFC menggunakan regular expression yang aman dari serangan ReDoS.
+    Validates a standard RFC email address with a ReDoS-safe regular expression.
   </Card>
   <Card title="url" icon="Globe">
-    Memastikan nilai merupakan URL yang valid dengan protokol aman `http://` atau `https://`.
+    Ensures the value is a valid URL with a safe `http://` or `https://` protocol.
   </Card>
   <Card title="min_length & max_length" icon="Ruler">
-    Membatasi panjang karakter minimum atau maksimum pada teks string atau jumlah item pada array input.
+    Limits the minimum or maximum character length of a string, or the number of items in an array input.
   </Card>
   <Card title="numeric_min & numeric_max" icon="Hash">
-    Menentukan batas nilai numerik terendah atau tertinggi untuk input angka (`type: 'number'`).
+    Sets the lowest or highest numeric value for number inputs (`type: 'number'`).
   </Card>
   <Card title="custom_regex / pattern" icon="Code">
-    Mengevaluasi nilai terhadap pola regular expression kustom (misalnya nomor telepon, format NIK, kode pos).
+    Checks the value against a custom regular expression (e.g. phone numbers, national ID formats, postal codes).
   </Card>
   <Card title="match_field" icon="Layers">
-    Memvalidasi kesamaan nilai dengan field lain (sangat ideal untuk input **Konfirmasi Password**).
+    Checks that the value matches another field (ideal for **Confirm Password** inputs).
   </Card>
 </Cards>
 
-#### Contoh Definisi Rules dalam Schema Node:
+#### Example Rule Definitions in a Schema Node:
 
 ```json
 {
@@ -472,17 +472,17 @@ interface ValidationRule {
   "props": {
     "name": "password_confirmation",
     "type": "password",
-    "placeholder": "Ulangi kata sandi Anda",
+    "placeholder": "Repeat your password",
     "required": true,
     "rules": [
       {
         "type": "required",
-        "message": "Konfirmasi password wajib diisi."
+        "message": "Please confirm your password."
       },
       {
         "type": "match_field",
         "value": "password",
-        "message": "Konfirmasi password tidak cocok dengan kata sandi."
+        "message": "Passwords do not match."
       }
     ]
   }
@@ -491,21 +491,21 @@ interface ValidationRule {
 
 ---
 
-### Pemicu Validasi (*validateOn Timing*)
+### Validation Trigger (*validateOn* Timing)
 
-Anda dapat mengontrol kapan evaluasi validasi field dijalankan melalui properti `validateOn`:
+Control when field validation runs with the `validateOn` property:
 
-| Nilai `validateOn` | Perilaku Evaluasi | Rekomendasi Kasus Penggunaan |
+| `validateOn` Value | Evaluation Behavior | Recommended Use Case |
 | :--- | :--- | :--- |
-| `'blur'` *(Default)* | Dievaluasi ketika pengguna memindahkan fokus keluar dari input field. | Pilihan terbaik untuk form panjang (mengurangi gangguan saat mengetik). |
-| `'change'` | Dievaluasi seketika pada setiap ketukan tombol (*keystroke*). | Cocok untuk indikator kekuatan password atau pencarian instan. |
-| `'submit'` | Hanya dievaluasi saat tombol submit ditekan. | Form sederhana 1-2 field (seperti newsletter footer). |
+| `'blur'` *(default)* | Evaluated when the user moves focus out of the field. | Best for long forms (less noise while typing). |
+| `'change'` | Evaluated on every *keystroke*. | Password strength meters or instant search. |
+| `'submit'` | Evaluated only when submit is pressed. | Simple 1–2 field forms (such as a footer newsletter). |
 
 ---
 
-### Transformasi Nilai Field (*field transformation*)
+### Field Value Transformation
 
-Sebelum divalidasi dan dikirim ke host, nilai field dapat ditransformasi secara otomatis menggunakan properti `transform`:
+Before validation and submission to the host, field values can be transformed automatically with the `transform` property:
 
 ```json
 {
@@ -513,37 +513,37 @@ Sebelum divalidasi dan dikirim ke host, nilai field dapat ditransformasi secara 
   "type": "input",
   "props": {
     "transform": "lowercase",
-    "rules": [{ "type": "email", "message": "Email tidak valid" }]
+    "rules": [{ "type": "email", "message": "Invalid email" }]
   }
 }
 ```
 
-- `'trim'`: Menghapus spasi kosong di awal dan akhir teks.
-- `'lowercase'`: Mengubah semua huruf menjadi huruf kecil (contoh: email, username).
-- `'uppercase'`: Mengubah huruf menjadi huruf besar (contoh: kode promo kupon, plat nomor kendaraan).
-- `'number'`: Mengonversi string input menjadi angka numerik murni.
+- `'trim'`: removes leading and trailing whitespace.
+- `'lowercase'`: converts all letters to lowercase (e.g. email, username).
+- `'uppercase'`: converts letters to uppercase (e.g. coupon codes, license plates).
+- `'number'`: converts the input string into a plain number.
 
 ---
 
-### Aksesibilitas & Tampilan Error Real-Time
+### Accessibility & Real-Time Error Display
 
-KUBUILD mengimplementasikan standar aksesibilitas WCAG 2.1 AA secara otomatis:
-- Ketika suatu field memiliki error validasi dan telah disentuh (`touched: true`), renderer menambahkan atribut:
+KUBUILD implements WCAG 2.1 AA accessibility automatically:
+- When a field has a validation error and has been touched (`touched: true`), the renderer adds these attributes:
   - `aria-invalid="true"`
   - `aria-errormessage="<fieldId>-error"`
-- Tepat di bawah elemen input, renderer menyuntikkan kontainer pesan error:
+- Directly below the input, the renderer injects an error message container:
   ```html
   <span id="email-input-error" role="alert" data-kubuild-field-error style="color: #dc2626; font-size: 12px;">
-    Format alamat email tidak valid.
+    Invalid email address format.
   </span>
   ```
-- Pembaca layar (*screen readers*) akan membacakan pesan error secara langsung berkat atribut `role="alert"`.
+- Screen readers announce the error immediately thanks to `role="alert"`.
 
 ---
 
 ## Host Integration via `RenderContext.onFormSubmit`
 
-Aplikasi induk (*host application*) menghubungkan formulir KUBUILD ke infrastruktur backend (seperti Next.js Server Actions, REST API route, database Supabase/Prisma, atau webhook CRM) menggunakan properti `onFormSubmit` pada `RenderContext`.
+The *host application* connects KUBUILD forms to its backend (Next.js Server Actions, REST API routes, a Supabase/Prisma database, or a CRM webhook) through the `onFormSubmit` property of `RenderContext`.
 
 ### 1. Tipe Data & Signature Hook
 
@@ -551,18 +551,18 @@ Aplikasi induk (*host application*) menghubungkan formulir KUBUILD ke infrastruk
 import type { FormSubmission, FormSubmitHelpers } from '@kubuild/core';
 
 export interface FormSubmission {
-  /** ID formulir (dari formConfig.formId atau node.id) */
+  /** Form ID (from formConfig.formId or node.id) */
   formId: string;
-  /** ID node form container pada dokumen AST */
+  /** Node ID of the form container in the document AST */
   nodeId?: string;
-  /** Nilai seluruh field yang telah ditransformasi */
+  /** Transformed values of every field */
   values: Record<string, unknown>;
 }
 
 export interface FormSubmitHelpers {
-  /** Memetakan error validasi server langsung ke field input */
+  /** Maps server validation errors directly onto input fields */
   setErrors: (errors: Record<string, string>) => void;
-  /** Mengembalikan state formulir ke initialValues */
+  /** Resets the form state to initialValues */
   resetForm: (nextInitialValues?: Record<string, unknown>) => void;
 }
 ```
@@ -570,7 +570,7 @@ export interface FormSubmitHelpers {
 ```ts
 const context = createRenderContext({
   onFormSubmit: async (submission: FormSubmission, helpers: FormSubmitHelpers) => {
-    // 1. Filter form berdasarkan formId jika halaman memiliki lebih dari satu form
+    // 1. Filter by formId if the page has more than one form
     if (submission.formId === 'checkout_form') {
       await handleCheckout(submission.values, helpers);
     } else {
@@ -584,9 +584,9 @@ const context = createRenderContext({
 
 ### 2. Server-Side Validation Feedback
 
-Sering kali validasi tidak dapat diselesaikan hanya di sisi browser client—seperti memeriksa apakah email sudah terdaftar di database, apakah kode kupon diskon sudah kadaluwarsa, atau apakah stok inventaris mencukupi.
+Often validation can't be completed in the browser alone — for example checking whether an email is already registered, a coupon code has expired, or inventory is sufficient.
 
-Ketika backend API mengembalikan pesan penolakan (*validation errors*), host cukup memanggil `helpers.setErrors(apiErrors)`:
+When the backend API returns *validation errors*, the host just calls `helpers.setErrors(apiErrors)`:
 
 ```ts
 onFormSubmit: async (submission, { setErrors, resetForm }) => {
@@ -599,46 +599,46 @@ onFormSubmit: async (submission, { setErrors, resetForm }) => {
   const data = await response.json();
 
   if (!response.ok && data.errors) {
-    // apiErrors berformat: { email: "Email sudah terdaftar", phone: "Nomor diblokir" }
+    // apiErrors looks like: { email: "Email is already registered", phone: "Number is blocked" }
     setErrors(data.errors);
     return;
   }
 
-  // Pengiriman sukses
+  // Submitted successfully
   resetForm();
 }
 ```
 
-<Callout type="warn" title="Sinkronisasi Nama Field">
-Key pada objek `errors` yang dioper ke `setErrors(errors)` **harus cocok persis** dengan properti `name` dari input field yang bersangkutan pada dokumen `.stora` (contoh: `{ email: 'Email sudah dipakai' }` untuk `<input name="email" />`).
+<Callout type="warn" title="Keep Field Names in Sync">
+The keys of the `errors` object passed to `setErrors(errors)` **must exactly match** the `name` property of the corresponding input field in the `.stora` document (e.g. `{ email: 'Email already in use' }` for `<input name="email" />`).
 </Callout>
 
 ---
 
-## Action Pipelines pada Submit
+## Action Pipelines on Submit
 
-Selain hook kode host, Anda dapat mendeklarasikan **Action Pipelines** langsung di dalam dokumen `.stora` untuk dieksekusi saat form berhasil divalidasi client-side.
+Besides host code hooks, you can declare **action pipelines** directly in the `.stora` document to run when the form passes client-side validation.
 
-Pipeline submit mendukung langkah-langkah (*steps*) modular:
+The submit pipeline supports modular *steps*:
 
 ```mermaid
 flowchart LR
-    Submit["Form Submit Trigger"] --> API["api_request<br/>(Kirim ke webhook)"]
-    API -->|Sukses| Toast["show_toast<br/>(Notifikasi Berhasil)"]
-    API -->|Gagal| ErrModal["open_modal<br/>(Dialog Maaf)"]
-    Toast --> Nav["navigate<br/>(Redirect ke /terima-kasih)"]
+    Submit["Form Submit Trigger"] --> API["api_request<br/>(Send to webhook)"]
+    API -->|Success| Toast["show_toast<br/>(Success notification)"]
+    API -->|Failure| ErrModal["open_modal<br/>(Apology dialog)"]
+    Toast --> Nav["navigate<br/>(Redirect to /thank-you)"]
 ```
 
-### Langkah Pipeline Bawaan yang Didukung:
+### Supported Built-in Pipeline Steps:
 
-1. **`api_request`**: Mengirimkan HTTP request (POST/GET) langsung ke URL endpoint webhook publik atau API eksternal dengan payload nilai form (`context.form`).
-2. **`show_toast`**: Menampilkan notifikasi banner (*success*, *error*, *warning*, *info*) dengan durasi kustom.
-3. **`open_modal` / `close_modal`**: Menampilkan modal pop-up konfirmasi atau penawaran tambahan (*upsell*).
-4. **`navigate`**: Melakukan pengalihan halaman (*URL redirect*) ke halaman terima kasih atau checkout gateway.
-5. **`copy_clipboard`**: Menyalin kode referal atau kupon ke papan klip pengunjung.
-6. **`custom_event`**: Memicu `CustomEvent` browser agar skrip pihak ketiga (Google Tag Manager, Meta Pixel) dapat menangkap konversi.
+1. **`api_request`**: sends an HTTP request (POST/GET) directly to a public webhook URL or external API with the form values (`context.form`).
+2. **`show_toast`**: shows a notification banner (*success*, *error*, *warning*, *info*) with a custom duration.
+3. **`open_modal` / `close_modal`**: shows a confirmation pop-up or an extra offer (*upsell*).
+4. **`navigate`**: redirects (*URL redirect*) to a thank-you page or checkout gateway.
+5. **`copy_clipboard`**: copies a referral or coupon code to the visitor's clipboard.
+6. **`custom_event`**: dispatches a browser `CustomEvent` so third-party scripts (Google Tag Manager, Meta Pixel) can capture the conversion.
 
-#### Contoh JSON Action Pipeline Submit Bersyarat (*Conditional Steps*):
+#### Example: Conditional Submit Action Pipeline JSON:
 
 ```json
 {
@@ -650,8 +650,8 @@ flowchart LR
       "id": "step-notify-toast",
       "type": "show_toast",
       "payload": {
-        "title": "Permintaan Diterima",
-        "message": "Tim sales kami akan menghubungi Anda dalam 1x24 jam.",
+        "title": "Request Received",
+        "message": "Our sales team will contact you within 24 hours.",
         "type": "success",
         "duration": 5000
       }
@@ -675,9 +675,9 @@ flowchart LR
 
 ---
 
-## Contoh Integrasi Penuh: Next.js App Router
+## Full Integration Example: Next.js App Router
 
-Berikut adalah arsitektur lengkap integrasi formulir KUBUILD pada Next.js App Router:
+The complete architecture for KUBUILD forms on the Next.js App Router:
 
 <Tabs items={["app/leads/page.tsx (Client Page)", "app/api/lead/route.ts (API Route)", "types/lead.ts (Zod Schema)"]}>
   <Tab value="app/leads/page.tsx (Client Page)">
@@ -698,7 +698,7 @@ export default function LeadsPage({ document }: LeadsPageProps) {
     return createRenderContext({
       onFormSubmit: async (submission: FormSubmission, helpers: FormSubmitHelpers) => {
         try {
-          // 1. Kirim data ke Next.js API Route
+          // 1. Send the data to a Next.js API route
           const response = await fetch('/api/lead', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -711,34 +711,34 @@ export default function LeadsPage({ document }: LeadsPageProps) {
 
           const result = await response.json();
 
-          // 2. Evaluasi respons API
+          // 2. Evaluate the API response
           if (!response.ok) {
             if (result.fieldErrors) {
-              // Umpan balik error server langsung ke input field terkait
+              // Feed server errors back to the related input fields
               helpers.setErrors(result.fieldErrors);
             }
 
             toastManager.showToast({
               type: 'error',
-              title: 'Pengiriman Gagal',
-              message: result.message || 'Harap periksa kembali isian formulir Anda.',
+              title: 'Submission Failed',
+              message: result.message || 'Please check the form and try again.',
             });
             return;
           }
 
-          // 3. Notifikasi Sukses & Reset Form
+          // 3. Success notification & form reset
           toastManager.showToast({
             type: 'success',
-            title: 'Berhasil!',
-            message: 'Terima kasih, data Anda telah berhasil kami simpan.',
+            title: 'Success!',
+            message: 'Thank you, your details have been saved.',
           });
 
           helpers.resetForm();
         } catch (error) {
           toastManager.showToast({
             type: 'error',
-            title: 'Kesalahan Jaringan',
-            message: 'Gagal terhubung ke server. Silakan coba beberapa saat lagi.',
+            title: 'Network Error',
+            message: 'Could not reach the server. Please try again in a moment.',
           });
         }
       },
@@ -765,10 +765,10 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const LeadPayloadSchema = z.object({
-  name: z.string().min(3, 'Nama minimal 3 karakter'),
-  email: z.string().email('Format email tidak valid'),
-  phone: z.string().regex(/^\+?[0-9]{8,15}$/, 'Nomor telepon tidak valid'),
-  message: z.string().min(10, 'Pesan minimal 10 karakter'),
+  name: z.string().min(3, 'Name must be at least 3 characters'),
+  email: z.string().email('Invalid email format'),
+  phone: z.string().regex(/^\+?[0-9]{8,15}$/, 'Invalid phone number'),
+  message: z.string().min(10, 'Message must be at least 10 characters'),
 });
 
 export async function POST(request: Request) {
@@ -776,7 +776,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { formId, data } = body;
 
-    // 1. Validasi Server-Side menggunakan Zod
+    // 1. Server-side validation with Zod
     const validationResult = LeadPayloadSchema.safeParse(data);
 
     if (!validationResult.success) {
@@ -789,37 +789,37 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json(
-        { message: 'Validasi server gagal', fieldErrors },
+        { message: 'Server validation failed', fieldErrors },
         { status: 422 }
       );
     }
 
     const validData = validationResult.data;
 
-    // 2. Simulasi Pengecekan Duplikasi Email di Database
+    // 2. Simulate a duplicate email check in the database
     if (validData.email === 'error@example.com') {
       return NextResponse.json(
         {
-          message: 'Email sudah terdaftar',
+          message: 'Email is already registered',
           fieldErrors: {
-            email: 'Email ini sudah pernah mengajukan inquiry sebelumnya.',
+            email: 'This email has already submitted an inquiry.',
           },
         },
         { status: 409 }
       );
     }
 
-    // 3. Simpan ke database / CRM (misal: Prisma, HubSpot, Supabase)
+    // 3. Save to the database / CRM (e.g. Prisma, HubSpot, Supabase)
     // await db.lead.create({ data: validData });
 
     return NextResponse.json({
       success: true,
       leadId: `lead_${Date.now()}`,
-      message: 'Data lead berhasil disimpan.',
+      message: 'Lead saved successfully.',
     });
   } catch (error) {
     return NextResponse.json(
-      { message: 'Terjadi kesalahan internal server' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -832,10 +832,10 @@ export async function POST(request: Request) {
 import { z } from 'zod';
 
 export const LeadSchema = z.object({
-  name: z.string().min(1, 'Nama lengkap wajib diisi').trim(),
-  email: z.string().email('Format email tidak valid').toLowerCase(),
-  phone: z.string().min(8, 'Nomor telepon minimal 8 digit').trim(),
-  message: z.string().min(10, 'Pesan minimal 10 karakter').trim(),
+  name: z.string().min(1, 'Full name is required').trim(),
+  email: z.string().email('Invalid email format').toLowerCase(),
+  phone: z.string().min(8, 'Phone number must be at least 8 digits').trim(),
+  message: z.string().min(10, 'Message must be at least 10 characters').trim(),
 });
 
 export type LeadInput = z.infer<typeof LeadSchema>;
@@ -845,36 +845,36 @@ export type LeadInput = z.infer<typeof LeadSchema>;
 
 ---
 
-## Referensi API & Spesifikasi Tipe Data
+## API Reference & Type Specifications
 
 ### 1. `FormConfig`
 
-Spesifikasi konfigurasi pada level kontainer form (`node.formConfig` atau `node.props`):
+Configuration at the form container level (`node.formConfig` or `node.props`):
 
 <TypeTable
   type={{
     formId: {
-      description: 'Pengidentifikasi unik formulir. Digunakan oleh host onFormSubmit untuk membedakan target formulir.',
+      description: 'Unique form identifier. Used by the host onFormSubmit to tell forms apart.',
       type: 'string',
       required: true,
     },
     resetOnSubmit: {
-      description: 'Apakah state input form harus di-reset kembali ke nilai awal setelah submit berhasil.',
+      description: 'Whether the form inputs reset to their initial values after a successful submit.',
       type: 'boolean',
       default: 'false',
     },
     scrollToFirstError: {
-      description: 'Apakah viewport browser otomatis menggulir dan memfokuskan input invalid pertama jika submit gagal.',
+      description: 'Whether the browser scrolls to and focuses the first invalid input when submit fails.',
       type: 'boolean',
       default: 'true',
     },
     validateOn: {
-      description: 'Waktu pemicu default evaluasi validasi untuk semua field di dalam form.',
+      description: 'Default validation trigger for every field in the form.',
       type: "'blur' | 'change' | 'submit'",
       default: "'blur'",
     },
     initialValues: {
-      description: 'Nilai awal untuk setiap field input yang dipetakan berdasarkan field name.',
+      description: 'Initial value for each input, keyed by field name.',
       type: 'Record<string, unknown>',
       required: false,
     },
@@ -885,22 +885,22 @@ Spesifikasi konfigurasi pada level kontainer form (`node.formConfig` atau `node.
 
 ### 2. `ValidationRule`
 
-Spesifikasi aturan validasi individual untuk setiap field input:
+Validation rule specification for each input field:
 
 <TypeTable
   type={{
     type: {
-      description: 'Tipe validasi primitif yang akan dievaluasi oleh mesin validasi core KUBUILD.',
+      description: 'Primitive validation type evaluated by the KUBUILD core validation engine.',
       type: "'required' | 'email' | 'url' | 'min_length' | 'max_length' | 'numeric_min' | 'numeric_max' | 'pattern' | 'custom_regex' | 'match_field'",
       required: true,
     },
     value: {
-      description: 'Nilai parameter pembanding untuk aturan validasi (misal angka batas minimum atau string regex).',
+      description: 'Comparison parameter for the rule (e.g. a minimum number or a regex string).',
       type: 'string | number | boolean',
       required: false,
     },
     message: {
-      description: 'Pesan kesalahan yang akan dirender tepat di bawah input field jika evaluasi aturan bernilai salah (invalid).',
+      description: 'Error message rendered directly under the input when the rule fails.',
       type: 'string',
       required: true,
     },
@@ -911,32 +911,32 @@ Spesifikasi aturan validasi individual untuk setiap field input:
 
 ### 3. `FormSubmission` & `FormSubmitHelpers`
 
-Argumen yang diterima oleh host callback `RenderContext.onFormSubmit`:
+Arguments received by the host callback `RenderContext.onFormSubmit`:
 
 <TypeTable
   type={{
     formId: {
-      description: 'ID dari formulir yang sedang disubmit.',
+      description: 'ID of the form being submitted.',
       type: 'string',
       required: true,
     },
     nodeId: {
-      description: 'Node ID dokumen AST dari Form Container terkait.',
+      description: 'Document AST node ID of the related form container.',
       type: 'string',
       required: false,
     },
     values: {
-      description: 'Key-value map berisi nilai input aktif yang telah ditransformasikan.',
+      description: 'Key-value map of the active, transformed input values.',
       type: 'Record<string, unknown>',
       required: true,
     },
     'helpers.setErrors': {
-      description: 'Fungsi untuk menampilkan error server-side langsung pada UI input field terkait.',
+      description: 'Function that shows server-side errors directly on the related input fields.',
       type: '(errors: Record<string, string>) => void',
       required: true,
     },
     'helpers.resetForm': {
-      description: 'Fungsi untuk me-reset nilai dan error state form kembali ke initialValues.',
+      description: 'Function that resets the form values and error state back to initialValues.',
       type: '(nextInitialValues?: Record<string, unknown>) => void',
       required: true,
     },
@@ -945,11 +945,11 @@ Argumen yang diterima oleh host callback `RenderContext.onFormSubmit`:
 
 ---
 
-## Praktik Terbaik (*Best Practices*)
+## Best Practices
 
 <Accordions>
   <Accordion title="1. Bot & Spam Protection (Honeypot Field)">
-    Untuk melindungi formulir publik dari bot otomatis tanpa mengorbankan kenyamanan pengunjung (tanpa captcha yang mengganggu), sertakan field tersembunyi (*honeypot*):
+    To protect public forms from bots without hurting visitors (no annoying captcha), add a hidden *honeypot* field:
     ```json
     {
       "id": "hp-field",
@@ -958,14 +958,14 @@ Argumen yang diterima oleh host callback `RenderContext.onFormSubmit`:
       "styles": { "base": { "display": "none", "tabIndex": -1 } }
     }
     ```
-    Pada server host, jika `submission.values._gotcha` terisi nilai apa pun, tolak request secara diam-diam tanpa memproses database.
+    On the host server, if `submission.values._gotcha` has any value, silently reject the request without touching the database.
   </Accordion>
 
-  <Accordion title="2. Sanitasi XSS & Payload Validation">
-    Jangan pernah mempercayai input klien tanpa sanitasi backend. Selalu verifikasi tipe data dan panjang string menggunakan library seperti **Zod** atau **Valibot** di sisi server API sebelum memasukkan data ke dalam database SQL/NoSQL.
+  <Accordion title="2. XSS Sanitization & Payload Validation">
+    Never trust client input without backend sanitization. Always verify data types and string lengths with a library such as **Zod** or **Valibot** on the server before writing to an SQL/NoSQL database.
   </Accordion>
 
-  <Accordion title="3. Umpan Balik Status Submitting">
-    Ketika `isSubmitting` bernilai `true`, submit button secara otomatis mendapatkan atribut `aria-busy="true"` dan `disabled`. Berikan styling visual pada CSS dokumen (misalnya opacity `0.7` dan kursor `not-allowed`) untuk mencegah pengguna menekan tombol secara berulang (*double-submit*).
+  <Accordion title="3. Submitting State Feedback">
+    While `isSubmitting` is `true`, the submit button automatically gets `aria-busy="true"` and `disabled`. Style it in the document CSS (e.g. opacity `0.7` and a `not-allowed` cursor) to prevent repeated clicks (*double submits*).
   </Accordion>
 </Accordions>

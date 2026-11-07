@@ -10,32 +10,32 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { InteractiveRenderer } from '@/components/interactive-renderer';
 
-Dalam lanskap pengembangan web dan *landing page builder* modern, adopsi Artificial Intelligence (AI) sering kali terbentur pada dua kutub ekstrem yang bermasalah:
-1. **Raw HTML Generation**: Sebagian besar AI generator menghasilkan string raw HTML/CSS bebas tanpa batasan skema. Pendekatan ini sangat rentan terhadap celah keamanan injeksi skrip (XSS), menghasilkan CSS class konflik yang merusak desain induk, serta menghasilkan kode *spaghetti* yang mustahil diedit kembali secara visual oleh desainer.
-2. **Kerapuhan Transaksi & Kebocoran Secret**: Banyak builder membebankan panggilan API AI langsung ke browser klien (*client-side SDK*). Akibatnya, API Key berbayar (OpenAI, Anthropic, Gemini) bocor di console DevTools, dan jika hasil generasi AI merusak layout, pengguna tidak memiliki mekanisme pembatalan atomik (*atomic rollback*) selain me-reload halaman dan kehilangan seluruh progres.
+In modern web development and *landing page builders*, AI adoption often runs into two problematic extremes:
+1. **Raw HTML generation**: most AI generators emit free-form HTML/CSS strings with no schema constraints. This is highly vulnerable to script injection (XSS), produces conflicting CSS classes that break the parent design, and creates *spaghetti* code designers can't edit visually.
+2. **Fragile transactions & leaked secrets**: many builders call AI APIs directly from the browser (*client-side SDK*). Paid API keys (OpenAI, Anthropic, Gemini) leak in DevTools, and if the AI output breaks the layout, users have no *atomic rollback* besides reloading the page and losing all progress.
 
-**KUBUILD mengatasi kendala tersebut melalui arsitektur AI Copilot generasi baru:**
-- **Deterministic AST Enforcement**: Model AI tidak pernah menulis string HTML mentah. AI hanya dapat memanggil *JSON Tool Functions* terstruktur (`insert_component`, `update_node_props`) yang divalidasi skema Zod sebelum menyentuh dokumen.
-- **Strict Anti-XSS Sanitizer**: Segala URI berbahaya (`javascript:`, `vbscript:`), manipulasi CSS kuno (`expression()`, `@import`), dan script injection otomatis ditolak di level normalizer.
-- **Zero-Secret Backend-Proxy Pattern**: Kunci API AI 100% aman di server host. Klien browser hanya mengirimkan pesan ke endpoint proxy host (misal `/api/ai`), lengkap dengan session auth dan rate limiting.
-- **Atomic Undo Transaction**: Ratusan mutasi node yang dihasilkan dari satu instruksi prompt dibundel dalam satu transaksi history engine (`beginTransaction` & `endTransaction`). Pengguna cukup menekan `Cmd+Z` (atau `Ctrl+Z`) sekali untuk membatalkan seluruh blok layout secara instan.
+**KUBUILD solves this with a new-generation AI Copilot architecture:**
+- **Deterministic AST enforcement**: the model never writes raw HTML strings. It can only call structured *JSON tool functions* (`insert_component`, `update_node_props`) that are validated with Zod schemas before touching the document.
+- **Strict anti-XSS sanitizer**: dangerous URIs (`javascript:`, `vbscript:`), legacy CSS tricks (`expression()`, `@import`), and script injection are rejected at the normalizer level.
+- **Zero-secret backend-proxy pattern**: AI API keys stay 100% on the host server. The browser only sends messages to a host proxy endpoint (e.g. `/api/ai`) with session auth and rate limiting.
+- **Atomic undo transactions**: the many node mutations produced by one prompt are bundled into a single history transaction (`beginTransaction` & `endTransaction`). Users press `Cmd+Z` (or `Ctrl+Z`) once to undo the whole layout block instantly.
 
 ---
 
 ## Live Interactive Sandbox
 
-Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan **AI Document Assistant & Prompt Emulator** di runtime KUBUILD. 
+Below is an interactive live sandbox demonstrating the **AI Document Assistant & Prompt Emulator** in the KUBUILD runtime.
 
-Uji coba eksekusi prompt untuk melihat bagaimana kanvas merespons secara *real-time* dengan indikator rekonsiliasi *streaming*, diikuti dengan kemampuan **Atomic Undo (Cmd+Z)** seketika.
+Run a prompt to see how the canvas responds in *real time* with *streaming* reconciliation indicators, followed by instant **atomic undo (Cmd+Z)**.
 
-<Callout type="info" title="Skenario Eksperimen AI Generator">
-- **Uji Rekomendasi Prompt**: Klik salah satu chip rekomendasi prompt di bawah:
-  1. *"Tambahkan modern SaaS Pricing Table 3 kolom"*
-  2. *"Generate Testimonial Section dengan rating bintang 5"*
-  3. *"Buat FAQ Accordion modern"*
-- **Perhatikan Streaming Indicator**: Perhatikan langkah-langkah rekonsiliasi yang ditampilkan saat proses berlangsung (`/api/ai proxy` $\rightarrow$ `Tool calling` $\rightarrow$ `Zod validation` $\rightarrow$ `AST Reconciliation`).
-- **Uji Atomic Undo**: Setelah komponen baru ditambahkan ke dokumen, klik tombol **Undo AI (Cmd+Z)** atau tekan tombol pintasan keyboard `Cmd+Z` (`Ctrl+Z` di Windows). Perhatikan bahwa seluruh section baru langsung dibatalkan dalam satu ketukan tanpa sisa artefak!
-- **Inspeksi JSON AST**: Beralih ke tab **JSON Schema** untuk melihat bahwa struktur yang dihasilkan adalah node JSON valid sesuai standar `.stora` v1.3.0.
+<Callout type="info" title="AI Generator Experiment Scenarios">
+- **Try a suggested prompt**: click one of the prompt chips below:
+  1. *"Add a modern 3-column SaaS pricing table"*
+  2. *"Generate a testimonial section with 5-star ratings"*
+  3. *"Create a modern FAQ accordion"*
+- **Watch the streaming indicator**: follow the reconciliation steps shown while it runs (`/api/ai proxy` → `Tool calling` → `Zod validation` → `AST Reconciliation`).
+- **Test atomic undo**: after the new component is added, click **Undo AI (Cmd+Z)** or press `Cmd+Z` (`Ctrl+Z` on Windows). The entire new section is removed in one keystroke with no leftover artifacts.
+- **Inspect the JSON AST**: switch to the **JSON Schema** tab to see that the generated structure is valid `.stora` v1.3.0 node JSON.
 </Callout>
 
 <InteractiveRenderer
@@ -45,16 +45,16 @@ Uji coba eksekusi prompt untuk melihat bagaimana kanvas merespons secara *real-t
   showJsonToggle={true}
   enableAiEmulator={true}
   aiPromptSuggestions={[
-    "Tambahkan modern SaaS Pricing Table 3 kolom",
-    "Generate Testimonial Section dengan rating bintang 5",
-    "Buat FAQ Accordion modern"
+    "Add a modern 3-column SaaS pricing table",
+    "Generate a testimonial section with 5-star ratings",
+    "Create a modern FAQ accordion"
   ]}
   document={{
     schema: "stora.page",
     version: "1.3.0",
     metadata: {
       title: "AI Copilot Landing Page Demo",
-      description: "Halaman interaktif dengan in-editor AI document generation dan atomic transaction.",
+      description: "Interactive page with in-editor AI document generation and atomic transactions.",
       author: "KUBUILD Core Team",
       tags: ["ai", "copilot", "prompt-engineering", "atomic-undo", "ast"],
       category: "guides",
@@ -118,7 +118,7 @@ Uji coba eksekusi prompt untuk melihat bagaimana kanvas merespons secara *real-t
               id: "hero-title",
               type: "heading",
               props: {
-                text: "Bangun Halaman Web Lebih Cepat dengan AI Terstruktur",
+                text: "Build Web Pages Faster with Structured AI",
                 level: 1
               },
               styles: {
@@ -136,7 +136,7 @@ Uji coba eksekusi prompt untuk melihat bagaimana kanvas merespons secara *real-t
               id: "hero-desc",
               type: "paragraph",
               props: {
-                text: "Ketik instruksi desain atau pilih salah satu prompt rekomendasi di atas. Mesin AI KUBUILD akan memvalidasi skema Zod dan menginjeksi AST ke kanvas secara atomik."
+                text: "Type a design instruction or pick one of the suggested prompts above. The KUBUILD AI engine validates the Zod schema and injects the AST into the canvas atomically."
               },
               styles: {
                 base: {
@@ -157,11 +157,11 @@ Uji coba eksekusi prompt untuk melihat bagaimana kanvas merespons secara *real-t
 
 ---
 
-## Konfigurasi `AiEditorConfig` pada `<KubuildEditor />`
+## Configuring `AiEditorConfig` on `<KubuildEditor />`
 
-Untuk mengaktifkan AI Copilot di dalam editor visual, Anda cukup menyuplai prop `ai` pada komponen `<KubuildEditor />`.
+To enable the AI Copilot in the visual editor, pass the `ai` prop to `<KubuildEditor />`.
 
-Sesuai filosofi KUBUILD, fitur AI bersifat **100% opt-in**: jika prop `ai` tidak disertakan atau seluruh fiturnya diset `false`, editor akan me-render antarmuka murni tanpa toolbar AI, tanpa floating bar, dan tanpa overhead bundle ekstra.
+In line with KUBUILD's philosophy, AI is **100% opt-in**: if the `ai` prop is omitted or every feature is `false`, the editor renders without the AI toolbar or floating bar.
 
 ```tsx title="src/components/MyEditor.tsx"
 import { KubuildEditor } from '@kubuild/react';
@@ -172,44 +172,44 @@ export function EditorView({ initialDocument }: { initialDocument: PageDocument 
     <KubuildEditor
       initialDocument={initialDocument}
       ai={{
-        // 1. Rute proxy backend host (Wajib untuk provider berbayar)
+        // 1. Host backend proxy route (required for paid providers)
         provider: {
           endpoint: '/api/ai',
           headers: {
             'X-Workspace-Id': 'ws_enterprise_991'
           }
         },
-        // 2. Fitur per-kapabilitas yang diaktifkan
+        // 2. Enabled capabilities
         features: {
-          chat: true,      // Panel tanya-jawab kontekstual & styling advice
+          chat: true,      // Contextual Q&A panel & styling advice
           generate: true,  // Prompt-to-section / prompt-to-page generation
           enhance: true,   // "Ask AI about this component" & selective refactoring
-          agent: false     // Multi-turn agent mode dengan autonomous patching
+          agent: false     // Multi-turn agent mode with autonomous patching
         },
-        // 3. Mode panel default saat editor dimuat: 'floating' | 'docked' | 'hidden'
+        // 3. Default panel mode when the editor loads: 'floating' | 'docked' | 'hidden'
         defaultPanelMode: 'floating',
-        // 4. Prefix prompt sistem untuk standarisasi brand & persona copywriting
-        systemPromptPrefix: 'Use high-conversion marketing copywriting in Indonesian. Always adhere strictly to minimalist modern design patterns.'
+        // 4. System prompt prefix for brand & copywriting persona
+        systemPromptPrefix: 'Use high-conversion marketing copywriting. Always adhere strictly to minimalist modern design patterns.'
       }}
     />
   );
 }
 ```
 
-### Mengapa Backend-Proxy Pattern Wajib untuk Provider Berbayar?
+### Why the Backend-Proxy Pattern Is Required for Paid Providers
 
-<Callout type="warn" title="Peringatan Kritis: Bahaya Client-Side API Key">
-Jangan pernah menginisialisasi adapter provider berbayar seperti `new OpenAiAdapter({ apiKey: 'sk-...' })` langsung di dalam kode komponen React sisi klien (*browser bundle*).
+<Callout type="warn" title="Critical Warning: Client-Side API Keys">
+Never initialize a paid provider adapter such as `new OpenAiAdapter({ apiKey: 'sk-...' })` inside client-side React component code (*browser bundle*).
 
-Kunci API yang berada di client bundle dapat dibaca oleh siapa saja melalui DevTools (`Sources` atau `Network`), memungkinkan pihak ketiga menyalahgunakan kuota API OpenAI / Anthropic / Gemini Anda.
+An API key in the client bundle can be read by anyone through DevTools (`Sources` or `Network`), letting third parties abuse your OpenAI / Anthropic / Gemini quota.
 </Callout>
 
-Pola **Backend-Proxy Pattern** adalah standar emas arsitektur integrasi AI pada KUBUILD:
-1. **Pemisahan Kredensial**: Variabel lingkungan `OPENAI_API_KEY` atau `ANTHROPIC_API_KEY` hanya dideklarasikan di environment server host (`process.env`), tidak pernah dipaparkan ke browser.
-2. **Pemeriksaan Otorisasi (*Session & Role*)**: Host dapat memverifikasi token JWT, cookies sesi, atau hak akses pengguna sebelum permintaan diteruskan ke model LLM.
-3. **Proteksi Rate Limiting & Kuota**: Host dapat membatasi jumlah token atau frekuensi eksekusi prompt per pengguna (*e.g. 20 generasi prompt per hari untuk paket gratis*).
+The **backend-proxy pattern** is the gold standard for AI integration in KUBUILD:
+1. **Credential separation**: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` is only declared in the host server environment (`process.env`) and never exposed to the browser.
+2. **Authorization checks (*session & role*)**: the host can verify JWTs, session cookies, or user permissions before the request reaches the LLM.
+3. **Rate limiting & quotas**: the host can limit tokens or prompt frequency per user (*e.g. 20 generations per day on the free plan*).
 
-Berikut adalah contoh implementasi rute Next.js App Router menggunakan helper resmi `@kubuild/ai/server`:
+A Next.js App Router route using the official `@kubuild/ai/server` helpers:
 
 <Tabs items={['app/api/ai/route.ts (Next.js)', 'lib/auth-check.ts']}>
   <Tab value="app/api/ai/route.ts (Next.js)">
@@ -217,40 +217,40 @@ Berikut adalah contoh implementasi rute Next.js App Router menggunakan helper re
 import { KubuildAiEngine, OpenAiAdapter, createAiHandler } from '@kubuild/ai/server';
 import { getSessionFromRequest, isRateLimited } from '@/lib/auth-check';
 
-// 1. Inisialisasi engine server-side dengan provider pilihan host
+// 1. Initialize the server-side engine with the host's chosen provider
 const engine = new KubuildAiEngine({
   adapter: new OpenAiAdapter({
-    apiKey: process.env.OPENAI_API_KEY!, // Aman di server
+    apiKey: process.env.OPENAI_API_KEY!, // Safe on the server
     model: 'gpt-4o',
     temperature: 0.3,
   }),
 });
 
-// 2. Buat HTTP handler standar Fetch API dengan middleware pengaman
+// 2. Create a standard Fetch API handler with guard middleware
 export const POST = createAiHandler(engine, {
-  // STORA-519: Guardrail hook dieksekusi sebelum request menyentuh LLM provider
+  // STORA-519: guardrail hook runs before the request reaches the LLM provider
   beforeRequest: async (request: Request) => {
-    // Verifikasi identitas pengguna dari session cookie
+    // Verify the user's identity from the session cookie
     const session = await getSessionFromRequest(request);
     if (!session) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: Harap login terlebih dahulu' }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized: please sign in first' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // Periksa batas kuota harian pengguna
+    // Check the user's daily quota
     const rateLimitExceeded = await isRateLimited(session.userId);
     if (rateLimitExceeded) {
-      return new Response(JSON.stringify({ error: 'Too Many Requests: Batas kuota AI harian tercapai' }), {
+      return new Response(JSON.stringify({ error: 'Too Many Requests: daily AI quota reached' }), {
         status: 429,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // Return undefined agar request diproses normal oleh engine
+    // Return undefined to let the engine process the request normally
   },
-  // Izinkan instruksi kustom dari prop editor (default: true, max 4000 karakter)
+  // Allow custom instructions from the editor prop (default: true, max 4000 characters)
   allowClientInstructions: true,
 });
 ```
@@ -261,13 +261,13 @@ export async function getSessionFromRequest(request: Request) {
   const authHeader = request.headers.get('authorization');
   const cookieHeader = request.headers.get('cookie');
   
-  // Validasi sesi pengguna di host database / JWT
+  // Validate the user session against the host database / JWT
   if (!authHeader && !cookieHeader) return null;
   return { userId: 'usr_premium_102', role: 'editor' };
 }
 
 export async function isRateLimited(userId: string): Promise<boolean> {
-  // Implementasi Redis / Memory sliding-window limiter
+  // Redis / in-memory sliding-window limiter implementation
   return false;
 }
 ```
@@ -276,13 +276,13 @@ export async function isRateLimited(userId: string): Promise<boolean> {
 
 ---
 
-## Keamanan & Deterministic AST Enforcement
+## Security & Deterministic AST Enforcement
 
-Salah satu pembeda utama KUBUILD dibanding visual website builder lainnya adalah perlindungan keamanan di tingkat kompilator AST (*Abstract Syntax Tree*).
+One of KUBUILD's key differentiators from other visual website builders is security enforced at the AST (*Abstract Syntax Tree*) compiler level.
 
 ```mermaid
 flowchart TD
-    Prompt["1. User Prompt (Bahasa Indonesia / Inggris)"] --> Route["2. Host Backend Proxy (/api/ai)"]
+    Prompt["1. User Prompt (any language)"] --> Route["2. Host Backend Proxy (/api/ai)"]
     Route --> LLM["3. LLM Processing (Structured Tool Calling)"]
     LLM --> ToolCall["4. Tool Call Payload: insert_component(nodeJson)"]
     
@@ -297,32 +297,32 @@ flowchart TD
     AtomicTx --> CanvasUpdate["9. Live Canvas Layout Reconciled"]
 ```
 
-### Mengapa AI di KUBUILD 100% Kebal terhadap XSS?
+### Why AI Output in KUBUILD Can't Inject XSS
 
-1. **Bukan String HTML Mentah**: AI tidak diinstruksikan untuk menulis `<div><script>alert(1)</script></div>`. AI KUBUILD diprogram dengan instruksi sistem ketat untuk memanggil fungsi tool call JSON (`insert_component`, `update_node_props`).
-2. **Validasi Skema Zod Komprehensif**: Setiap node JSON yang diterima dari streaming wajib lolos validasi `NodeSchema` dari `@kubuild/schema`. Jika terdapat *field* yang tidak terdaftar di katalog komponen atau tipe data tidak valid (misal `styles.base` berisi objek alih-alih nilai primitif string/number), parser otomatis membatalkan operasi.
-3. **Pembersihan URL & Protokol Berbahaya**:
-   - Protokol berbahaya seperti `javascript:`, `vbscript:`, atau `data:text/html` pada aksi navigasi tautan atau tombol otomatis ditolak oleh fungsi `isSafeActionUrl`.
-   - Hanya skema aman yang diperbolehkan: `https:`, `http:`, `mailto:`, `tel:`, dan anchor lokal `#section-id`.
-4. **Pencegahan Injeksi Gaya CSS Ekstrem**:
-   - Sintaks CSS warisan Internet Explorer yang mengeksekusi JavaScript seperti `expression(...)` otomatis dihapus.
-   - Aturan `@import` eksternal dan tag `<style>` yang berpotensi melakukan *CSS keylogger* atau *layout hijacking* dilarang di tingkat renderer.
+1. **No raw HTML strings**: the AI is not asked to write `<div><script>alert(1)</script></div>`. KUBUILD's system instructions make it call JSON tool functions (`insert_component`, `update_node_props`).
+2. **Comprehensive Zod schema validation**: every JSON node received from the stream must pass `NodeSchema` validation from `@kubuild/schema`. If a field isn't in the component catalog or a data type is invalid (e.g. `styles.base` contains an object instead of a primitive string/number), the operation is rejected.
+3. **Dangerous URL & protocol cleanup**:
+   - Dangerous protocols such as `javascript:`, `vbscript:`, or `data:text/html` in link or button navigation actions are rejected by `isSafeActionUrl`.
+   - Only safe schemes are allowed: `https:`, `http:`, `mailto:`, `tel:`, and local anchors like `#section-id`.
+4. **Blocking extreme CSS injection**:
+   - Legacy Internet Explorer CSS that executes JavaScript, such as `expression(...)`, is removed automatically.
+   - External `@import` rules and `<style>` tags that could enable a *CSS keylogger* or *layout hijacking* are blocked at the renderer level.
 
-<Callout type="danger" title="Atribut Berbahaya yang Otomatis Ditolak">
-- `javascript:...` pada link tombol, action href, atau iframe source.
-- Tag `<script>` di dalam properti teks atau heading (dirender sebagai string biasa yang di-*escape*, bukan executable DOM).
-- `expression(...)` atau `url(data:...)` pada properti CSS.
-- Komponen ilegal di luar katalog registri (`ComponentRegistryLike`).
+<Callout type="danger" title="Dangerous Attributes Rejected Automatically">
+- `javascript:...` in button links, action hrefs, or iframe sources.
+- `<script>` tags inside text or heading props (rendered as escaped plain strings, never executable DOM).
+- `expression(...)` or `url(data:...)` in CSS properties.
+- Components outside the registry catalog (`ComponentRegistryLike`).
 </Callout>
 
 ---
 
-## Alur Eksekusi & Atomic Undo
+## Execution Flow & Atomic Undo
 
-Ketika pengguna berinteraksi dengan AI Copilot di KUBUILD, seluruh pipeline mutasi dikelola oleh **Command History Engine**:
+When a user works with the AI Copilot in KUBUILD, the whole mutation pipeline is managed by the **command history engine**:
 
 ```
-[Prompt Pengguna] 
+[User Prompt] 
        ↓ 
 [Backend Proxy /api/ai] 
        ↓ 
@@ -332,47 +332,47 @@ Ketika pengguna berinteraksi dengan AI Copilot di KUBUILD, seluruh pipeline muta
        ↓ 
 [CommandEngine.beginTransaction()] 
        ↓ 
-[Mutasi Node 1, Node 2, ... Node N] 
+[Mutate Node 1, Node 2, ... Node N] 
        ↓ 
 [CommandEngine.endTransaction()] 
        ↓ 
-[Tersimpan sebagai 1 Entri Undo]
+[Stored as 1 Undo Entry]
 ```
 
-### Cara Kerja Atomic Undo (Satu Ketukan `Cmd+Z`)
+### How Atomic Undo Works (One `Cmd+Z`)
 
-Bayangkan sebuah prompt kompleks: *"Tambahkan modern SaaS Pricing Table 3 kolom lengkap dengan toggle dan badge populer"*. Prompt ini menghasilkan lebih dari 15 node baru (Section, Container, 3 Card Column, 3 Heading, 3 Price Badge, 3 Checklist Container, dan 3 Tombol CTA).
+Imagine a complex prompt: *"Add a modern 3-column SaaS pricing table with a billing toggle and a popular badge"*. It produces more than 15 new nodes (section, container, 3 card columns, 3 headings, 3 price badges, 3 checklist containers, and 3 CTA buttons).
 
-Jika perubahan tersebut dieksekusi tanpa transaksi atomik:
-- Membatalkan perubahan akan membutuhkan **15 kali penekanan tombol Undo** berturut-turut!
-- Jika pengguna berhenti di tengah jalan, halaman akan berada dalam *state* rusak (*corrupted partial layout*).
+Without an atomic transaction:
+- Undoing the change would take **15 Undo presses** in a row.
+- If the user stops halfway, the page is left in a *corrupted partial layout*.
 
-**Solusi KUBUILD Atomic Undo:**
-1. Sebelum potongan AST streaming pertama diaplikasikan ke dokumen aktif, engine memanggil `beginTransaction('ai-generation')`.
-2. Seluruh penambahan node, modifikasi style, dan rekonsiliasi layout dikelompokkan ke dalam satu grup ID transaksi.
-3. Setelah proses streaming selesai dan divalidasi, engine memanggil `endTransaction()`.
-4. Ketika pengguna menekan **`Cmd+Z`** (atau `Ctrl+Z` pada Windows), engine membalikkan seluruh transaksi tersebut sekaligus dalam waktu kurang dari 5 milidetik. Dokumen kembali persis ke kondisi awal sebelum AI dipanggil!
+**KUBUILD's atomic undo:**
+1. Before the first streamed AST chunk is applied to the active document, the engine calls `beginTransaction()`.
+2. Every node insertion, style change, and layout reconciliation is grouped into that one transaction.
+3. When streaming finishes and is validated, the engine calls `endTransaction()`.
+4. When the user presses **`Cmd+Z`** (or `Ctrl+Z` on Windows), the engine reverts the whole transaction at once. The document returns exactly to its state before the AI was invoked.
 
 ---
 
-## Prompt Engineering Recipes untuk Web Generation
+## Prompt Engineering Recipes for Web Generation
 
-Berikut adalah resep prompt (*prompt recipes*) yang telah dioptimalkan untuk menghasilkan struktur tata letak web berkualitas tinggi dengan estetika modern, konversi maksimal, dan struktur AST yang rapi.
+These *prompt recipes* are tuned to produce high-quality layouts with modern aesthetics, strong conversion, and a clean AST.
 
 <Accordions>
   <Accordion title="Recipe 1: High-Converting Hero Section (Headline, Dual CTA, Social Proof)">
-    **Instruksi Prompt:**
+    **Prompt instruction:**
     ```text
-    Buat modern Hero Section untuk produk AI Analytics SaaS. 
-    Struktur wajib mencakup:
-    1. Pill badge di atas: '🚀 Versi 2.0 Kini Tersedia' dengan aksen indigo.
-    2. Headline tebal: 'Ubah Data Mentah Menjadi Keputusan Bisnis Nyata'.
-    3. Paragraf sub-headline bernada persuasif dengan warna abu-abu netral (#94a3b8).
-    4. Dua tombol CTA sejajar: Tombol utama 'Mulai Uji Coba Gratis' (background indigo gradient) dan tombol sekunder 'Jadwalkan Demo' (border netral transparan).
-    5. Social proof bar di bagian bawah bertuliskan 'Dipercaya oleh 500+ perusahaan teknologi terkemuka'.
+    Create a modern hero section for an AI analytics SaaS product.
+    The structure must include:
+    1. A pill badge on top: '🚀 Version 2.0 Is Now Available' with an indigo accent.
+    2. A bold headline: 'Turn Raw Data into Real Business Decisions'.
+    3. A persuasive sub-headline paragraph in neutral gray (#94a3b8).
+    4. Two side-by-side CTA buttons: a primary 'Start Free Trial' button (indigo gradient background) and a secondary 'Book a Demo' button (transparent neutral border).
+    5. A social proof bar at the bottom reading 'Trusted by 500+ leading technology companies'.
     ```
 
-    **Hasil JSON AST yang Direkonsiliasi:**
+    **Reconciled JSON AST output:**
     ```json
     {
       "id": "hero-analytics-section",
@@ -388,7 +388,7 @@ Berikut adalah resep prompt (*prompt recipes*) yang telah dioptimalkan untuk men
         {
           "id": "hero-badge-pill",
           "type": "badge",
-          "props": { "text": "🚀 Versi 2.0 Kini Tersedia" },
+          "props": { "text": "🚀 Version 2.0 Is Now Available" },
           "styles": {
             "base": {
               "backgroundColor": "rgba(99, 102, 241, 0.15)",
@@ -401,7 +401,7 @@ Berikut adalah resep prompt (*prompt recipes*) yang telah dioptimalkan untuk men
         {
           "id": "hero-headline",
           "type": "heading",
-          "props": { "text": "Ubah Data Mentah Menjadi Keputusan Bisnis Nyata", "level": 1 },
+          "props": { "text": "Turn Raw Data into Real Business Decisions", "level": 1 },
           "styles": { "base": { "fontSize": "36px", "fontWeight": 800, "color": "#ffffff" } }
         }
       ]
@@ -410,42 +410,42 @@ Berikut adalah resep prompt (*prompt recipes*) yang telah dioptimalkan untuk men
   </Accordion>
 
   <Accordion title="Recipe 2: 3-Tier SaaS Pricing Table (Monthly/Annual Toggle, Feature Checklist, Recommended Badge)">
-    **Instruksi Prompt:**
+    **Prompt instruction:**
     ```text
-    Tambahkan SaaS Pricing Table 3 kolom dengan tema gelap:
-    1. Kolom 1: 'Starter' (Rp 199.000/bln) untuk solopreneur, tombol CTA standar.
-    2. Kolom 2: 'Pro Growth' (Rp 499.000/bln) dengan border aksen ungu neon, badge 'Paling Populer', dan tombol CTA gradient yang mencolok.
-    3. Kolom 3: 'Enterprise' (Hubungi Kami) untuk korporasi dengan kebutuhan dedicated server dan custom SLA.
-    Gunakan layout responsif grid 3 kolom pada desktop yang otomatis stack vertikal pada layar mobile.
+    Add a 3-column SaaS pricing table with a dark theme:
+    1. Column 1: 'Starter' ($19/mo) for solopreneurs, standard CTA button.
+    2. Column 2: 'Pro Growth' ($49/mo) with a neon purple accent border, a 'Most Popular' badge, and a bold gradient CTA button.
+    3. Column 3: 'Enterprise' (Contact Us) for corporations that need dedicated servers and a custom SLA.
+    Use a responsive 3-column grid on desktop that stacks vertically on mobile screens.
     ```
   </Accordion>
 
   <Accordion title="Recipe 3: Interactive FAQ Accordion">
-    **Instruksi Prompt:**
+    **Prompt instruction:**
     ```text
-    Buat FAQ Section modern dengan 4 pertanyaan paling penting seputar produk:
-    1. Apakah saya bisa membatalkan langganan kapan saja?
-    2. Bagaimana sistem penagihan tagihan tahunan?
-    3. Apakah tersedia uji coba gratis tanpa kartu kredit?
-    4. Bagaimana data keamanan kami dienkripsi?
-    Bungkus setiap item dalam container bergaya kartu dengan border halus (#1e293b) dan sudut melengkung 10px.
+    Create a modern FAQ section with the 4 most important product questions:
+    1. Can I cancel my subscription at any time?
+    2. How does annual billing work?
+    3. Is there a free trial without a credit card?
+    4. How is our data encrypted?
+    Wrap each item in a card-style container with a subtle border (#1e293b) and 10px rounded corners.
     ```
   </Accordion>
 
   <Accordion title="Recipe 4: Redesign & Copywriting Enhancement (In-Place Refactor)">
-    **Instruksi Prompt (Bekerja pada node yang sedang dipilih / selected node):**
+    **Prompt instruction (works on the currently selected node):**
     ```text
-    Ubah headline yang sedang saya pilih agar terdengar lebih mendesak dan berorientasi hasil bagi pengusaha e-commerce. Ubah warna tombol CTA di bawahnya dari warna abu-abu menjadi warna amber (#f59e0b) dengan hover state warna amber gelap (#d97706).
+    Rewrite the headline I have selected so it sounds more urgent and results-oriented for e-commerce founders. Change the CTA button below it from gray to amber (#f59e0b) with a dark amber hover state (#d97706).
     ```
 
-    **Respon Tool Call Model:**
+    **Model tool call response:**
     ```json
     {
       "tool": "update_node_props",
       "args": {
         "nodeId": "cta-primary-btn",
         "props": {
-          "text": "Klaim Diskon 50% Hari Ini Saja →"
+          "text": "Claim 50% Off Today Only →"
         },
         "styles": {
           "base": {
@@ -467,33 +467,33 @@ Berikut adalah resep prompt (*prompt recipes*) yang telah dioptimalkan untuk men
 
 ---
 
-## Spesifikasi API & Tipe TypeScript
+## API Specification & TypeScript Types
 
-Berikut adalah definisi tipe TypeScript resmi dari `@kubuild/editor` untuk konfigurasi integrasi AI:
+Official TypeScript type definitions from `@kubuild/editor` for configuring the AI integration:
 
 ### `AiEditorConfig`
 
 <TypeTable
   type={{
     provider: {
-      description: 'Adapter instance AI (server-only) atau objek konfigurasi HTTP endpoint proxy host.',
+      description: 'Server-only AI adapter instance, or a host proxy HTTP endpoint configuration object.',
       type: "AiProviderAdapter | { endpoint: string; headers?: Record<string, string>; credentials?: RequestCredentials }",
       required: true,
     },
     features: {
-      description: 'Daftar flag kemampuan AI yang diaktifkan (chat, generate, enhance, agent).',
+      description: 'Enabled AI capability flags (chat, generate, enhance, agent).',
       type: '{ chat?: boolean; generate?: boolean; enhance?: boolean; agent?: boolean }',
       default: '{ chat: false, generate: false, enhance: false, agent: false }',
       required: false,
     },
     defaultPanelMode: {
-      description: "Posisi panel AI saat editor pertama kali dimuat: 'floating' | 'docked' | 'hidden'.",
+      description: "AI panel position when the editor first loads: 'floating' | 'docked' | 'hidden'.",
       type: "'floating' | 'docked' | 'hidden'",
       default: "'hidden'",
       required: false,
     },
     systemPromptPrefix: {
-      description: 'Instruksi sistem tambahan spesifik host (branding, tone of voice, panduan copywriting).',
+      description: 'Extra host-specific system instructions (branding, tone of voice, copywriting guidelines).',
       type: 'string',
       required: false,
     },
@@ -502,32 +502,32 @@ Berikut adalah definisi tipe TypeScript resmi dari `@kubuild/editor` untuk konfi
 
 ### `ResolvedAiEditorConfig`
 
-Objek hasil normalisasi yang digunakan oleh internal hook `useAiEditor` di dalam `<KubuildEditor />`:
+The normalized object produced by `resolveAiEditorConfig()` and used internally by `<KubuildEditor />`:
 
 <TypeTable
   type={{
     enabled: {
-      description: 'Status aktifasi AI secara global (true jika provider disediakan dan minimal satu fitur bernilai true).',
+      description: 'Global AI activation state (true when a provider is supplied and at least one feature is true).',
       type: 'boolean',
       required: true,
     },
     provider: {
-      description: 'Provider adapter teresolusi atau konfigurasi endpoint proxy yang siap digunakan untuk fetch.',
+      description: 'The resolved provider adapter or proxy endpoint configuration, ready for fetch.',
       type: 'AiProviderAdapter | { endpoint: string; headers?: Record<string, string>; credentials?: RequestCredentials } | null',
       required: true,
     },
     features: {
-      description: 'Status final per kemampuan fitur AI yang sudah dinormalisasi tanpa nilai undefined.',
+      description: 'Final normalized per-capability flags with no undefined values.',
       type: '{ chat: boolean; generate: boolean; enhance: boolean; agent: boolean }',
       required: true,
     },
     defaultPanelMode: {
-      description: 'Mode tampilan panel default yang telah divalidasi.',
+      description: 'The validated default panel mode.',
       type: "'floating' | 'docked' | 'hidden'",
       required: true,
     },
     systemPromptPrefix: {
-      description: 'String prefix prompt sistem host yang siap dikompilasi.',
+      description: 'Host system prompt prefix, ready to be compiled.',
       type: 'string | undefined',
       required: false,
     },
@@ -539,22 +539,22 @@ Objek hasil normalisasi yang digunakan oleh internal hook `useAiEditor` di dalam
 ## FAQ & Troubleshooting
 
 <Accordions>
-  <Accordion title="Bagaimana cara mengatasi error CORS ketika host memisahkan frontend editor dan backend API AI?">
-    Jika aplikasi frontend editor Anda berada di domain berbeda dari endpoint `/api/ai` (misal `app.stora.page` ke `api.stora.page`), pastikan server backend menyertakan header CORS berikut pada response:
+  <Accordion title="How do I fix CORS errors when the editor frontend and the AI backend are on different domains?">
+    If your editor frontend lives on a different domain than the `/api/ai` endpoint (e.g. `app.stora.page` calling `api.stora.page`), make sure the backend includes these CORS headers in its response:
     ```http
     Access-Control-Allow-Origin: https://app.stora.page
     Access-Control-Allow-Methods: POST, OPTIONS
     Access-Control-Allow-Headers: Content-Type, Authorization, X-Workspace-Id
     Access-Control-Allow-Credentials: true
     ```
-    Dan sertakan `credentials: 'include'` pada properti provider di `AiEditorConfig`.
+    Then set `credentials: 'include'` on the provider in `AiEditorConfig`.
   </Accordion>
 
-  <Accordion title="Apakah AI dapat membuat komponen kustom yang saya daftarkan sendiri di ComponentRegistry?">
-    Ya! Fungsi `compileComponentCatalog` di `@kubuild/ai` secara dinamis membaca seluruh definisi komponen di `ComponentRegistry`, termasuk daftar `propFields`, tipe data, default value, dan batasan `acceptsChildren`. Seluruh metadata ini otomatis diinjeksikan ke dalam system prompt LLM sehingga AI mengenali dan dapat men-generate komponen kustom Anda secara akurat.
+  <Accordion title="Can the AI create custom components I registered in the ComponentRegistry?">
+    Yes. `compileComponentCatalog` in `@kubuild/ai` reads every component definition in the `ComponentRegistry`, including `propFields`, data types, default values, and `acceptsChildren` constraints. This metadata is injected into the LLM system prompt so the AI recognizes and generates your custom components accurately.
   </Accordion>
 
-  <Accordion title="Bagaimana cara membatasi panjang teks instruksi yang dikirimkan klien?">
-    Pada fungsi `createAiHandler(engine, options)`, Anda dapat menentukan batas karakter melalui opsi `maxClientInstructionsLength` (default: 4000 karakter). Jika pengguna mengirimkan teks melebihi batas, server akan menolak permintaan dengan status `400 Bad Request`.
+  <Accordion title="How do I limit the length of instructions sent by the client?">
+    In `createAiHandler(engine, options)`, set the character limit with the `maxClientInstructionsLength` option (default: 4000 characters). Requests exceeding the limit are rejected with `400 Bad Request`.
   </Accordion>
 </Accordions>

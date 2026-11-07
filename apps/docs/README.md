@@ -1,45 +1,39 @@
-# docs
+# KUBUILD Docs
 
-This is a Next.js application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
+Documentation site for KUBUILD, built with [Next.js](https://nextjs.org) and
+[Fumadocs](https://fumadocs.dev). It consumes the workspace packages (`@kubuild/*`) directly,
+so interactive demos and the `/playground` always run against the current source.
 
-Run development server:
+## Development
+
+From the repo root:
 
 ```bash
-npm run dev
-# or
-pnpm dev
-# or
-yarn dev
+pnpm install
+pnpm --filter docs dev      # http://localhost:3001
+pnpm --filter docs build    # production build (builds upstream @kubuild/* packages first via turbo)
+pnpm --filter docs typecheck
+pnpm --filter docs lint
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+## Layout
 
-## Explore
+| Path                          | Description                                                        |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `content/docs/**`             | MDX pages. Sidebar order is controlled by each folder's `meta.json`. |
+| `lib/source.ts`               | Content collection (Fumadocs MDX macro API) and MDX plugins.       |
+| `lib/shared.ts`               | Site URL, routes, GitHub repo info.                                |
+| `components/mdx.tsx`          | Components available in every MDX page.                            |
+| `components/interactive-renderer.tsx` | `<InteractiveRenderer />` live demo used inside pages.     |
+| `components/mermaid.tsx`      | Client-side renderer for ` ```mermaid ` code blocks.               |
+| `app/playground`              | Full editor playground with starter templates.                     |
+| `app/llms*.txt`, `app/llms.mdx` | Machine-readable docs for LLMs (`/llms.txt`, `/llms-full.txt`, `*.md`). |
+| `app/og`                      | Generated Open Graph images.                                       |
 
-In the project, you can see:
+## Writing docs
 
-- `lib/source.ts`: Code for content source adapter, [`loader()`](https://fumadocs.dev/docs/headless/source-api) provides the interface to access your content.
-- `lib/layout.shared.tsx`: Shared options for layouts, optional but preferred to keep.
-
-| Route                     | Description                                            |
-| ------------------------- | ------------------------------------------------------ |
-| `app/(home)`              | The route group for your landing page and other pages. |
-| `app/docs`                | The documentation layout and pages.                    |
-| `app/api/search/route.ts` | The Route Handler for search.                          |
-
-### Fumadocs MDX
-
-Collections are defined with the [Macro API](https://fumadocs.dev/docs/mdx/macro) in `lib/source.ts`.
-
-Read the [Introduction](https://fumadocs.dev/docs/mdx) for further details.
-
-## Learn More
-
-To learn more about Next.js and Fumadocs, take a look at the following
-resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js
-  features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [Fumadocs](https://fumadocs.dev) - learn about Fumadocs
+- Code samples must match the real package APIs. Import from the public entrypoints
+  (`@kubuild/schema`, `@kubuild/core`, `@kubuild/react`, …) and check signatures against
+  `packages/*/src` before publishing.
+- Diagrams: use ` ```mermaid ` code blocks; they are rendered client-side.
+- Write in English.

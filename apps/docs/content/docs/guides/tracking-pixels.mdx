@@ -10,30 +10,30 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { InteractiveRenderer } from '@/components/interactive-renderer';
 
-Dalam industri *growth marketing*, e-commerce, dan periklanan digital modern, akurasi pelacakan konversi (*conversion tracking*) adalah faktor penentu efektivitas kampanye, optimalisasi ROAS (*Return on Ad Spend*), serta penurunan CPA (*Cost per Acquisition*).
+In *growth marketing*, e-commerce, and modern digital advertising, *conversion tracking* accuracy determines campaign effectiveness, ROAS (*Return on Ad Spend*) optimization, and lower CPA (*Cost per Acquisition*).
 
-Namun, arsitektur pelacakan tradisional di web saat ini menghadapi tantangan besar:
-1. **Penyusutan Cookie Pihak Ketiga & Ad-Blockers**: Mekanisme privasi browser seperti Apple iOS Safari ITP (*Intelligent Tracking Prevention*), Firefox ETP, serta ekstensi ad-blocker memblokir script tracking client-side hingga 30%–45% dari total traffic.
-2. **Double-Counting (Penghitungan Ganda)**: Mengirimkan event secara serentak dari browser dan server tanpa ID deduplikasi yang sinkron menyebabkan platform iklan (seperti Meta dan Google) mencatat konversi dua kali lipat.
-3. **Kebocoran Kunci Rahasia (*Secret Leaks*)**: Builder konvensional sering kali menyimpan token API rahasia (seperti Meta Conversions API Access Token atau TikTok Access Token) langsung di dalam dokumen JSON halaman yang diekspor atau dikirim ke browser pengunjung.
-4. **Keterbatasan Single-Pixel**: Sebagian besar visual builder hanya mengizinkan 1 Pixel ID per platform, menyulitkan skenario agensi digital marketing yang membutuhkan pixel milik agensi berjalan beriringan dengan pixel milik klien.
+But traditional web tracking architectures face major challenges:
+1. **Shrinking third-party cookies & ad blockers**: browser privacy features such as Apple iOS Safari ITP (*Intelligent Tracking Prevention*), Firefox ETP, and ad-blocker extensions block client-side tracking scripts for 30%–45% of traffic.
+2. **Double counting**: sending events from both the browser and the server without synchronized deduplication IDs makes ad platforms (such as Meta and Google) record conversions twice.
+3. **Secret leaks**: conventional builders often store secret API tokens (such as the Meta Conversions API access token or TikTok access token) directly in the page JSON that is exported or sent to visitors' browsers.
+4. **Single-pixel limits**: most visual builders allow only one pixel ID per platform, which breaks agency scenarios where the agency's pixel must run alongside the client's pixel.
 
-**KUBUILD mengatasi seluruh tantangan tersebut melalui arsitektur tracking generasi baru (Stora Schema v1.3.0):**
-- **Zero-Secret Security Model**: Dokumen `.stora` bersifat portabel dan bebas rahasia (*zero-secret*). Token CAPI server-side 100% tersimpan di host backend dan diakses via identifier referensi (`credentialId`).
-- **Multi-Pixel per Provider**: Mendukung banyak pixel sekaligus per platform (misal 2 Meta Pixel + 1 GA4 + 1 TikTok Pixel pada halaman yang sama).
-- **Inherited Pixels dari Host**: Host application (funnel platform / e-commerce SaaS) dapat menurunkan pixel tingkat akun/organisasi ke setiap halaman, dengan opsi pengecualian per-halaman.
-- **Unified Hybrid Delivery & Deduplication**: Event browser dan server dikirimkan dengan pasangan `eventId` deterministik yang sama, memastikan deduplikasi akurat di sisi Meta, Google, dan TikTok.
+**KUBUILD solves all of these with a new-generation tracking architecture (Stora schema v1.3.0):**
+- **Zero-secret security model**: `.stora` documents are portable and *zero-secret*. Server-side CAPI tokens live 100% in the host backend and are referenced by an identifier (`credentialId`).
+- **Multiple pixels per provider**: run many pixels per platform at once (e.g. 2 Meta Pixels + 1 GA4 + 1 TikTok Pixel on the same page).
+- **Pixels inherited from the host**: the host application (a funnel platform or e-commerce SaaS) can pass account/organization-level pixels down to every page, with per-page exclusions.
+- **Unified hybrid delivery & deduplication**: browser and server events share the same deterministic `eventId`, so Meta, Google, and TikTok deduplicate accurately.
 
 ---
 
 ## Live Interactive Sandbox
 
-Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi **Multi-Pixel Tracking** dan **Server CAPI Relay Emulator** langsung di dalam runtime KUBUILD.
+Below is an interactive live sandbox that demonstrates **multi-pixel tracking** and a **server CAPI relay emulator** directly inside the KUBUILD runtime.
 
-<Callout type="info" title="Skenario Pengujian Tracking Emulator">
-- **Uji Event AddToCart**: Klik tombol **Beli Sekarang (AddToCart)** pada kartu produk. Perhatikan console log emulator di bawah: event `AddToCart` akan ditembakkan ke **Meta Pixel (Client & Agency)**, **Google Analytics 4**, dan **TikTok Pixel**, serta dikirimkan ke **Server CAPI Relay** dengan `event_id` yang identik!
-- **Uji Event Lead dengan Form Data**: Isi formulir **Daftar Webinar Gratis** lalu tekan tombol submit. Perhatikan bahwa event `Lead` otomatis mengekstrak nilai form (`email` dan `phone`) ke dalam payload `userData` yang siap di-hash untuk CAPI.
-- **Uji Filter Provider**: Gunakan tombol filter di console (*Meta*, *Google*, *TikTok*, *GTM*, *Server CAPI*) untuk memeriksa detail payload dan snippet fungsi masing-masing provider.
+<Callout type="info" title="Tracking Emulator Test Scenarios">
+- **Test the AddToCart event**: click **Buy Now (AddToCart)** on the product card. In the emulator console below, the `AddToCart` event fires to **Meta Pixel (client & agency)**, **Google Analytics 4**, and **TikTok Pixel**, and is sent to the **server CAPI relay** with an identical `event_id`.
+- **Test the Lead event with form data**: fill in the **Free Webinar Registration** form and submit it. The `Lead` event automatically extracts the form values (`email` and `phone`) into a `userData` payload ready to be hashed for CAPI.
+- **Test provider filters**: use the console filter buttons (*Meta*, *Google*, *TikTok*, *GTM*, *Server CAPI*) to inspect each provider's payload and function snippet.
 </Callout>
 
 <InteractiveRenderer
@@ -47,7 +47,7 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
     version: "1.3.0",
     metadata: {
       title: "Interactive Multi-Pixel Tracking Demo",
-      description: "Demonstrasi pelacakan konversi multi-pixel Meta, GA4, TikTok, dan Server CAPI Relay.",
+      description: "Multi-pixel conversion tracking demo for Meta, GA4, TikTok, and the server CAPI relay.",
       author: "KUBUILD Core Team",
       tags: ["tracking", "pixel", "capi", "analytics", "meta", "ga4", "tiktok"],
       category: "guides",
@@ -68,7 +68,7 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
         {
           id: "px_meta_store",
           provider: "meta",
-          label: "Meta Pixel - Toko Utama",
+          label: "Meta Pixel - Main Store",
           pixelId: "289104819204812",
           enabled: true,
           serverEnabled: true,
@@ -79,7 +79,7 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
         {
           id: "px_meta_agency",
           provider: "meta",
-          label: "Meta Pixel - Agensi Growth",
+          label: "Meta Pixel - Growth Agency",
           pixelId: "918230192840192",
           enabled: true,
           serverEnabled: true,
@@ -164,7 +164,7 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
             {
               id: "header-title",
               type: "heading",
-              props: { level: 2, text: "Uji Coba Tracking Multi-Pixel KUBUILD" },
+              props: { level: 2, text: "KUBUILD Multi-Pixel Tracking Test" },
               styles: {
                 base: {
                   fontSize: "24px",
@@ -178,7 +178,7 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
             {
               id: "header-desc",
               type: "paragraph",
-              props: { text: "Interaksi tombol dan formulir di bawah ini dikonfigurasikan dengan action runner track_event yang mengirimkan event ke browser pixel dan server relay secara serentak." },
+              props: { text: "The button and form below use the track_event action runner, which sends events to the browser pixels and the server relay at the same time." },
               styles: {
                 base: {
                   fontSize: "13px",
@@ -237,19 +237,19 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                     {
                       id: "prod-title",
                       type: "heading",
-                      props: { level: 3, text: "Lisensi KUBUILD Pro Enterprise" },
+                      props: { level: 3, text: "KUBUILD Pro Enterprise License" },
                       styles: { base: { fontSize: "18px", fontWeight: "700", color: "#ffffff", margin: "0 0 6px 0" } }
                     },
                     {
                       id: "prod-price",
                       type: "paragraph",
-                      props: { text: "Rp 499.000 / lisensi tahunan" },
+                      props: { text: "$29 / annual license" },
                       styles: { base: { fontSize: "15px", fontWeight: "600", color: "#10b981", margin: "0 0 12px 0" } }
                     },
                     {
                       id: "prod-desc",
                       type: "paragraph",
-                      props: { text: "Klik tombol AddToCart di bawah untuk menembakkan event keranjang belanja dengan parameter value: 499000, currency: 'IDR', dan content_name." },
+                      props: { text: "Click the AddToCart button below to fire a cart event with value: 29, currency: 'USD', and content_name." },
                       styles: { base: { fontSize: "12px", color: "#94a3b8", lineHeight: "1.5", margin: "0" } }
                     }
                   ]
@@ -258,7 +258,7 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                   id: "btn-cart-track",
                   type: "button",
                   props: {
-                    label: "Beli Sekarang (AddToCart)"
+                    label: "Buy Now (AddToCart)"
                   },
                   styles: {
                     base: {
@@ -288,11 +288,11 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                             provider: "all",
                             delivery: "both",
                             params: {
-                              content_name: "Lisensi KUBUILD Pro Enterprise",
+                              content_name: "KUBUILD Pro Enterprise License",
                               content_category: "Software Licenses",
                               content_type: "product",
-                              value: 499000,
-                              currency: "IDR",
+                              value: 29,
+                              currency: "USD",
                               quantity: 1
                             }
                           }
@@ -302,8 +302,8 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                           type: "show_toast",
                           payload: {
                             type: "success",
-                            title: "Event AddToCart Terkirim!",
-                            message: "Event berhasil dikirim ke Meta, GA4, TikTok & CAPI Relay."
+                            title: "AddToCart Event Sent!",
+                            message: "The event was sent to Meta, GA4, TikTok & the CAPI relay."
                           }
                         }
                       ]
@@ -341,13 +341,13 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                     {
                       id: "lead-title",
                       type: "heading",
-                      props: { level: 3, text: "Daftar Webinar Arsitektur CAPI" },
+                      props: { level: 3, text: "CAPI Architecture Webinar Registration" },
                       styles: { base: { fontSize: "18px", fontWeight: "700", color: "#ffffff", margin: "0 0 6px 0" } }
                     },
                     {
                       id: "lead-desc",
                       type: "paragraph",
-                      props: { text: "Form ini mengikat field input ke payload userData yang dikirim ke CAPI Relay." },
+                      props: { text: "This form binds its input fields to the userData payload sent to the CAPI relay." },
                       styles: { base: { fontSize: "12px", color: "#94a3b8", margin: "0" } }
                     }
                   ]
@@ -372,9 +372,9 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                           props: {
                             name: "name",
                             type: "text",
-                            placeholder: "Nama Lengkap Anda",
+                            placeholder: "Your full name",
                             required: true,
-                            rules: [{ type: "required", message: "Nama wajib diisi." }]
+                            rules: [{ type: "required", message: "Name is required." }]
                           },
                           styles: {
                             base: {
@@ -407,8 +407,8 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                             placeholder: "nama@perusahaan.com",
                             required: true,
                             rules: [
-                              { type: "required", message: "Email wajib diisi." },
-                              { type: "email", message: "Format email tidak valid." }
+                              { type: "required", message: "Email is required." },
+                              { type: "email", message: "Invalid email format." }
                             ]
                           },
                           styles: {
@@ -431,7 +431,7 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                       id: "btn-submit-lead",
                       type: "button",
                       props: {
-                        label: "Daftar Webinar (Lead)",
+                        label: "Register for the Webinar (Lead)",
                         buttonType: "submit"
                       },
                       styles: {
@@ -461,9 +461,9 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
                                 provider: "all",
                                 delivery: "both",
                                 params: {
-                                  content_name: "Webinar Arsitektur Tracking CAPI",
+                                  content_name: "CAPI Tracking Architecture Webinar",
                                   value: 0,
-                                  currency: "IDR"
+                                  currency: "USD"
                                 },
                                 userData: {
                                   email: "{{ form.email }}"
@@ -487,9 +487,9 @@ Di bawah ini adalah live sandbox interaktif yang mendemonstrasikan implementasi 
 
 ---
 
-## Arsitektur Tracking di KUBUILD
+## Tracking Architecture in KUBUILD
 
-Sistem tracking di KUBUILD dirancang dengan model **desentralisasi keamanan** (*decoupled security*) dan **kemandirian host** (*host-agnostic*). Struktur dokumen `.stora` tidak pernah terikat langsung dengan SDK pihak ketiga tertentu, melainkan mendefinisikan intent pelacakan secara deklaratif.
+KUBUILD tracking is designed around *decoupled security* and *host-agnostic* principles. The `.stora` document is never tied to a specific third-party SDK; it declares tracking intent declaratively.
 
 ```mermaid
 flowchart TD
@@ -519,22 +519,22 @@ flowchart TD
     RuntimeManager -- "delivery: 'both' / 'server_only'<br/>Shared event_id for Deduplication" --> RelayEndpoint
 ```
 
-### 1. Empat Provider Utama yang Didukung
+### 1. Four First-Class Providers
 
-KUBUILD mengintegrasikan 4 provider analitik dan periklanan digital secara *first-class*:
+KUBUILD integrates four analytics and digital advertising providers *first-class*:
 
 <Cards>
   <Card title="Meta Pixel & Conversions API (CAPI)" icon="Zap">
-    Mendukung tracking browser via `fbq('trackSingle', ...)` untuk multi-pixel dan sinkronisasi server-to-server ke Meta Graph API. Mendukung standard events (`AddToCart`, `Purchase`, `Lead`, `CompleteRegistration`, dll.), custom events, dan parameter `testEventCode`.
+    Browser tracking via `fbq('trackSingle', ...)` for multi-pixel setups and server-to-server sync with the Meta Graph API. Supports standard events (`AddToCart`, `Purchase`, `Lead`, `CompleteRegistration`, etc.), custom events, and the `testEventCode` parameter.
   </Card>
   <Card title="Google Analytics 4 (GA4)" icon="Activity">
-    Mendukung streaming data Google Analytics 4 via `gtag.js` client library (`send_to: 'G-XXXXX'`) dan GA4 Measurement Protocol untuk pencatatan transaksi server-side.
+    Streams Google Analytics 4 data via the `gtag.js` client library (`send_to: 'G-XXXXX'`) and the GA4 Measurement Protocol for server-side transaction recording.
   </Card>
   <Card title="Google Tag Manager (GTM)" icon="Layers">
-    Menyuntikkan GTM Container script (`GTM-XXXXXXX`) dan mem-push event ke `window.dataLayer`. GTM beroperasi secara murni di sisi client browser untuk distribusi data ke ribuan tag pihak ketiga.
+    Injects the GTM container script (`GTM-XXXXXXX`) and pushes events to `window.dataLayer`. GTM runs purely in the browser and distributes data to thousands of third-party tags.
   </Card>
   <Card title="TikTok Pixel & Events API" icon="Globe">
-    Mendukung tracking video ads via `ttq.instance(id).track(...)` multi-instance di browser serta pengiriman transaksi e-commerce langsung ke TikTok Events API v1.3.
+    Tracks video ads via multi-instance `ttq.instance(id).track(...)` in the browser and sends e-commerce transactions directly to TikTok Events API v1.3.
   </Card>
 </Cards>
 
@@ -542,49 +542,49 @@ KUBUILD mengintegrasikan 4 provider analitik dan periklanan digital secara *firs
 
 ### 2. Zero-Secret Security Model
 
-Salah satu kerentanan terbesar pada visual web builder adalah penyimpanan rahasia (*secret material*) di dalam file layout. File template `.stora` dirancang agar dapat diekspor, dibagikan sebagai open-source starter, atau disimpan di CDN publik tanpa risiko kebocoran data.
+One of the biggest weaknesses of visual web builders is storing *secret material* in layout files. `.stora` templates are designed to be exported, shared as open-source starters, or stored on a public CDN without any risk of leaking data.
 
-<Callout type="warn" title="Prinsip Keamanan Zero-Secret">
-Dokumen `.stora` **HANYA** menyimpan public identifier (`pixelId`, `measurementId`, `containerId`, `credentialId`, `testEventCode`). Kunci rahasia seperti **Meta CAPI Access Token**, **TikTok Access Token**, atau **GA4 API Secret** 100% **TIDAK PERNAH** disimpan di dokumen `.stora` dan **TIDAK PERNAH** dikirimkan ke browser client!
+<Callout type="warn" title="Zero-Secret Security Principle">
+`.stora` documents store **ONLY** public identifiers (`pixelId`, `measurementId`, `containerId`, `credentialId`, `testEventCode`). Secrets such as the **Meta CAPI access token**, **TikTok access token**, or **GA4 API secret** are **NEVER** stored in `.stora` documents and **NEVER** sent to the browser.
 </Callout>
 
-| Data Field | Lokasi Penyimpanan | Boleh Ada di Dokumen `.stora`? | Boleh Dikirim ke Browser? |
+| Data Field | Storage Location | Allowed in the `.stora` Document? | Allowed in the Browser? |
 | :--- | :--- | :---: | :---: |
-| **Pixel ID / Measurement ID / GTM ID** | Public Document | ✅ Ya (Public ID) | ✅ Ya (Diperlukan oleh script tag) |
-| **Credential ID (`credentialId`)** | Public Document | ✅ Ya (Opaque Pointer) | ✅ Ya (Hanya ID referensi acak) |
-| **Test Event Code (`testEventCode`)** | Public Document | ✅ Ya (Non-secret debug code) | ✅ Ya (Untuk testing di Event Manager) |
-| **Meta CAPI System User Access Token** | Host Server Database / KMS | ❌ **DILARANG KERAS** | ❌ **DILARANG KERAS** |
-| **TikTok Events API Access Token** | Host Server Database / KMS | ❌ **DILARANG KERAS** | ❌ **DILARANG KERAS** |
-| **GA4 Measurement Protocol Secret** | Host Server Environment | ❌ **DILARANG KERAS** | ❌ **DILARANG KERAS** |
+| **Pixel ID / Measurement ID / GTM ID** | Public document | ✅ Yes (public ID) | ✅ Yes (required by the script tag) |
+| **Credential ID (`credentialId`)** | Public document | ✅ Yes (opaque pointer) | ✅ Yes (random reference ID only) |
+| **Test Event Code (`testEventCode`)** | Public document | ✅ Yes (non-secret debug code) | ✅ Yes (for testing in Events Manager) |
+| **Meta CAPI System User Access Token** | Host server database / KMS | ❌ **STRICTLY FORBIDDEN** | ❌ **STRICTLY FORBIDDEN** |
+| **TikTok Events API Access Token** | Host server database / KMS | ❌ **STRICTLY FORBIDDEN** | ❌ **STRICTLY FORBIDDEN** |
+| **GA4 Measurement Protocol Secret** | Host server environment | ❌ **STRICTLY FORBIDDEN** | ❌ **STRICTLY FORBIDDEN** |
 
-Ketika dokumen versi lama (`<= 1.0.0`) yang sempat memuat token rahasia dibaca oleh parser KUBUILD modern, skema Zod `LEGACY_TRACKING_SECRET_KEYS` secara otomatis menghapus (*strip*) token tersebut demi melindungi privasi pengguna.
+When an older document (`<= 1.0.0`) that contained secret tokens is read by a modern KUBUILD parser, the importer's tracking sanitizer strips every key listed in `LEGACY_TRACKING_SECRET_KEYS` to protect users.
 
 ---
 
 ## Setup Pixel di Editor
 
-Penulis halaman (*authors*) dan pemasar dapat mengonfigurasi pixel melalui antarmuka visual terpadu pada **Page Settings -> Tracking Settings Modal**.
+Page authors and marketers configure pixels through a unified visual interface in **Page Settings → Tracking Settings modal**.
 
-### 1. Panel Pengaturan Umum (*General Policies*)
+### 1. General Policies Panel
 
-- **Master Toggle (`tracking.enabled`)**: Mengaktifkan atau mematikan seluruh operasi tracking di halaman secara instan tanpa perlu menghapus ID pixel yang sudah terpasang.
-- **Debug Mode (`tracking.debugMode`)**: Mencetak log seluruh event yang tertembak ke browser console (`[KUBUILD Tracking]`), mempermudah proses audit sebelum halaman dipublikasikan.
-- **Auto PageView (`tracking.autoPageView`)**: Mengaktifkan pelacakan impresi halaman awal secara otomatis saat dokumen dimuat.
-- **Default Delivery (`tracking.defaultDelivery`)**: Menentukan kanal default untuk setiap step event: `'both'` (Browser + CAPI), `'client_only'`, atau `'server_only'`.
+- **Master toggle (`tracking.enabled`)**: turns all tracking on the page on or off instantly without deleting configured pixel IDs.
+- **Debug mode (`tracking.debugMode`)**: logs every fired event to the browser console (`[KUBUILD Tracking]`), making audits before publishing easier.
+- **Auto PageView (`tracking.autoPageView`)**: automatically tracks the initial page impression when the document loads.
+- **Default delivery (`tracking.defaultDelivery`)**: the default channel for every event step: `'both'` (browser + CAPI), `'client_only'`, or `'server_only'`.
 
 ### 2. Multi-Pixel per Provider (v1.3.0+)
 
-Mulai schema versi `1.3.0`, array `tracking.pixels` mengizinkan jumlah pixel tanpa batas per provider:
+Since schema version `1.3.0`, the `tracking.pixels` array allows any number of pixels per provider:
 
 ```mermaid
 flowchart LR
     subgraph MetaPixels["Meta Pixel Provider"]
-        P1["Pixel 1: Toko Klien<br/>ID: 289104819204812<br/>serverEnabled: true"]
-        P2["Pixel 2: Agensi Marketing<br/>ID: 918230192840192<br/>disabledEvents: ['PageView']"]
+        P1["Pixel 1: Client Store<br/>ID: 289104819204812<br/>serverEnabled: true"]
+        P2["Pixel 2: Marketing Agency<br/>ID: 918230192840192<br/>disabledEvents: ['PageView']"]
     end
     
     subgraph GA4Pixels["Google Provider"]
-        G1["GA4 Property Produksi<br/>ID: G-KUB9938X12"]
+        G1["Production GA4 Property<br/>ID: G-KUB9938X12"]
     end
     
     subgraph TikTokPixels["TikTok Provider"]
@@ -592,20 +592,20 @@ flowchart LR
     end
 ```
 
-Di dalam modal editor:
-1. **Saved Pixels Picker (`trackingCredentials`)**: Host aplikasi dapat meneruskan daftar pixel tersimpan milik organisasi ke prop editor `<KubuildEditor trackingCredentials={credentials} />`. Penulis cukup memilih pixel yang diinginkan dari menu dropdown tanpa perlu mengetik ulang ID.
-2. **Manual Entry**: Penulis tetap dapat menambahkan pixel baru secara manual jika memiliki ID publik tersendiri.
+In the editor modal:
+1. **Saved pixels picker (`trackingCredentials`)**: the host app can pass the organization's saved pixels to the editor prop `<KubuildEditor trackingCredentials={credentials} />`. Authors pick a pixel from the dropdown without retyping IDs.
+2. **Manual entry**: authors can still add a new pixel manually if they have their own public ID.
 3. **Per-Pixel Configuration**:
-   - `label`: Nama alias yang mudah dikenali (misal: "Pixel Toko Cabang Surabaya").
-   - `serverEnabled`: Mengaktifkan pengiriman server-side CAPI untuk pixel ini.
-   - `disabledEvents`: Mematikan event tertentu khusus untuk pixel ini (contoh: pixel agensi hanya ingin menerima event `Purchase`, tetapi mengecualikan event `PageView`).
+   - `label`: an easy-to-recognize alias (e.g. "Downtown Branch Store Pixel").
+   - `serverEnabled`: enables server-side CAPI delivery for this pixel.
+   - `disabledEvents`: turns off specific events for this pixel only (e.g. an agency pixel that wants `Purchase` but not `PageView`).
 
-### 3. Inherited Pixels dari Host
+### 3. Pixels Inherited from the Host
 
-Pada aplikasi SaaS multi-tenant (seperti Funnel Builder atau E-commerce Platform), admin workspace sering kali menetapkan pixel global yang harus berlaku di seluruh halaman:
+In multi-tenant SaaS apps (such as funnel builders or e-commerce platforms), workspace admins often set global pixels that must apply to every page:
 
 ```tsx
-// Host meneruskan inheritedPixels ke runtime context
+// The host passes inheritedPixels to the runtime context
 <KubuildRenderer
   document={pageDoc}
   context={createRenderContext({
@@ -627,29 +627,29 @@ Pada aplikasi SaaS multi-tenant (seperti Funnel Builder atau E-commerce Platform
 />
 ```
 
-Penulis halaman dapat melihat pixel turunan ini di dalam Tracking Modal dengan label **"Pixels from Workspace"**, dan dapat menonaktifkan pixel tertentu secara spesifik untuk halaman tersebut melalui sakelar *"Use on this page"* (disimpan ke `tracking.inherit.excludedPixelIds`).
+Authors see these inherited pixels in the Tracking modal labeled **"Pixels from Workspace"**, and can turn a specific pixel off for one page with the *"Use on this page"* switch (stored in `tracking.inherit.excludedPixelIds`).
 
 ---
 
 ## Event Triggers & Node Bindings
 
-KUBUILD menyediakan integrasi tracking deklaratif melalui sistem **Action Pipelines**:
+KUBUILD provides declarative tracking through the **action pipeline** system:
 
-### 1. Auto PageView pada Initial Load
+### 1. Auto PageView on Initial Load
 
-Ketika halaman pertama kali dibuka, `@kubuild/renderer` otomatis menginisialisasi pustaka SDK dan menembakkan event `PageView`:
-- **Meta**: Memanggil `fbq('trackSingle', pixelId, 'PageView')` ke setiap Meta Pixel aktif.
-- **TikTok**: Memanggil `ttq.instance(pixelId).page()` untuk setiap TikTok Pixel.
-- **GA4**: Memanggil `gtag('event', 'page_view', { send_to: pixelId })`.
-- **GTM**: Ditangani otomatis oleh GTM Container yang disuntikkan.
+When the page first opens, `@kubuild/renderer` automatically initializes the SDKs and fires a `PageView` event:
+- **Meta**: calls `fbq('trackSingle', pixelId, 'PageView')` for every active Meta Pixel.
+- **TikTok**: calls `ttq.instance(pixelId).page()` for every TikTok Pixel.
+- **GA4**: calls `gtag('event', 'page_view', { send_to: pixelId })`.
+- **GTM**: handled automatically by the injected GTM container.
 
-Jika pixel tertentu mencantumkan `'PageView'` di dalam `disabledEvents`, event initial load untuk pixel tersebut akan dilewati secara otomatis.
+If a pixel lists `'PageView'` in `disabledEvents`, the initial-load event is skipped for that pixel.
 
 ---
 
 ### 2. Node Click Events (AddToCart / Purchase)
 
-Untuk menembakkan tracking saat tombol diklik, sematkan action step bertipe `track_event` pada node tombol:
+To track a button click, add a `track_event` action step to the button node:
 
 <Tabs items={["JSON Action Schema", "Inspector Preview"]}>
   <Tab value="JSON Action Schema">
@@ -657,7 +657,7 @@ Untuk menembakkan tracking saat tombol diklik, sematkan action step bertipe `tra
 {
   "id": "btn-checkout",
   "type": "button",
-  "props": { "label": "Beli Sekarang (Checkout)" },
+  "props": { "label": "Buy Now (Checkout)" },
   "actions": [
     {
       "id": "act-checkout-click",
@@ -671,10 +671,10 @@ Untuk menembakkan tracking saat tombol diklik, sematkan action step bertipe `tra
             "provider": "all",
             "delivery": "both",
             "params": {
-              "content_name": "Paket Belajar Frontend",
+              "content_name": "Frontend Learning Bundle",
               "content_type": "product",
-              "value": 750000,
-              "currency": "IDR",
+              "value": 49,
+              "currency": "USD",
               "num_items": 1
             }
           }
@@ -684,8 +684,8 @@ Untuk menembakkan tracking saat tombol diklik, sematkan action step bertipe `tra
           "type": "show_toast",
           "payload": {
             "type": "success",
-            "title": "Pesanan Diproses",
-            "message": "Mengarahkan Anda ke gateway pembayaran..."
+            "title": "Processing Your Order",
+            "message": "Redirecting you to the payment gateway..."
           }
         }
       ]
@@ -695,24 +695,24 @@ Untuk menembakkan tracking saat tombol diklik, sematkan action step bertipe `tra
 ```
   </Tab>
   <Tab value="Inspector Preview">
-    Di panel kanan editor (**Action Settings**):
+    In the editor's right panel (**Action Settings**):
     - **Trigger**: Click
     - **Step Type**: Track Event (`track_event`)
     - **Event Name**: `Purchase` (Standard Event)
     - **Provider**: All Providers (`all`)
     - **Delivery Channel**: Both (`both` — Browser Pixel + Server CAPI Relay)
     - **Parameters Table**:
-      - `content_name` -> `"Paket Belajar Frontend"`
-      - `value` -> `750000`
-      - `currency` -> `"IDR"`
+      - `content_name` -> `"Frontend Learning Bundle"`
+      - `value` -> `49`
+      - `currency` -> `"USD"`
   </Tab>
 </Tabs>
 
 ---
 
-### 3. Form Submit Events (Lead & Interpolasi Data)
+### 3. Form Submit Events (Lead & Data Interpolation)
 
-Pada formulir penangkapan prospek (*lead capture*), event tracking dapat mengekstrak nilai field input form secara dinamis menggunakan sintaks interpolasi `{{ form.<fieldName> }}`:
+On *lead capture* forms, tracking events can extract form field values dynamically with the `{{ form.<fieldName> }}` interpolation syntax:
 
 ```json
 {
@@ -723,9 +723,9 @@ Pada formulir penangkapan prospek (*lead capture*), event tracking dapat mengeks
     "provider": "meta",
     "delivery": "both",
     "params": {
-      "content_name": "Pendaftaran E-Book Gratis",
+      "content_name": "Free E-Book Signup",
       "value": 0,
-      "currency": "IDR"
+      "currency": "USD"
     },
     "userData": {
       "email": "{{ form.email }}",
@@ -735,82 +735,82 @@ Pada formulir penangkapan prospek (*lead capture*), event tracking dapat mengeks
 }
 ```
 
-Saat user menekan tombol submit:
-1. Validator memeriksa keabsahan seluruh field input.
-2. `trackEventRunner` mengevaluasi variabel `{{ form.email }}` menjadi email riil pengunjung (misal: `andi@gmail.com`).
-3. Browser pixel menembakkan `fbq('trackSingle', pixelId, 'Lead', params, { eventID })`.
-4. Server relay menerima payload `userData` dan secara aman melakukan hashing **SHA256** sebelum meneruskannya ke Meta CAPI (*Advanced Matching*), meningkatkan *Event Quality Score* hingga 9.0+/10!
+When the user submits:
+1. The validator checks every input field.
+2. `trackEventRunner` resolves `{{ form.email }}` to the visitor's real email (e.g. `jordan@example.com`).
+3. The browser pixel fires `fbq('trackSingle', pixelId, 'Lead', params, { eventID })`.
+4. The server relay receives the `userData` payload and hashes it with **SHA-256** before forwarding it to Meta CAPI (*Advanced Matching*), which improves the *Event Match Quality* score.
 
 ---
 
 ## Server-Side CAPI Relay & Event Deduplication
 
-### 1. Mengapa Butuh Server-Side CAPI?
+### 1. Why Server-Side CAPI?
 
-Pelacakan hanya melalui browser (*client-only*) kini tidak lagi mencukupi untuk bisnis yang mengandalkan iklan berbayar:
+Browser-only (*client-only*) tracking is no longer enough for businesses that depend on paid ads:
 
 <Accordions>
-  <Accordion title="1. Menembus Ad-Blockers & Ekstensi Anti-Pelacak">
-    Ekstensi seperti uBlock Origin atau browser seperti Brave memblokir DNS dan script `connect.facebook.net` secara total. Dengan Server-Side Relay, browser mengirimkan data ke endpoint domain sendiri (misal `https://yourdomain.com/api/tracking`), yang kemudian diteruskan server-to-server ke Meta/TikTok tanpa terhalang ad-blocker.
+  <Accordion title="1. Getting Past Ad Blockers & Anti-Tracking Extensions">
+    Extensions like uBlock Origin or browsers like Brave block the `connect.facebook.net` DNS and scripts entirely. With a server-side relay, the browser sends data to your own domain (e.g. `https://yourdomain.com/api/tracking`), which forwards it server-to-server to Meta/TikTok without being blocked.
   </Accordion>
-  <Accordion title="2. Mengatasi Pembatasan Apple iOS Safari ITP">
-    Apple Safari membatasi masa aktif cookie pihak pertama (*client-side cookie*) hingga maksimal 24 jam–7 hari jika berasal dari klik iklan (mengandung parameter URL `fbclid` atau `ttclid`). Relay server-side menjaga identifikasi visitor tetap persisten.
+  <Accordion title="2. Working Around Apple iOS Safari ITP">
+    Apple Safari limits first-party (*client-side*) cookie lifetime to 24 hours–7 days when the visit comes from an ad click (URLs with `fbclid` or `ttclid`). A server-side relay keeps visitor identification persistent.
   </Accordion>
-  <Accordion title="3. Melindungi Kunci API Rahasia">
-    Panggilan ke Meta Graph API membutuhkan Access Token jangka panjang. Mengirimkan token ini ke browser pengunjung adalah celah keamanan fatal. Relay bertindak sebagai gerbang terisolasi yang menginjeksi token rahasia secara aman di backend.
+  <Accordion title="3. Protecting Secret API Keys">
+    Calls to the Meta Graph API need a long-lived access token. Sending that token to visitors' browsers is a fatal security hole. The relay acts as an isolated gateway that injects the secret token safely on the backend.
   </Accordion>
 </Accordions>
 
 ---
 
-### 2. Mekanisme Event Deduplication
+### 2. Event Deduplication
 
-Ketika sebuah event dikonfigurasikan dengan `delivery: 'both'`, event tersebut ditembakkan melalui dua jalur:
-1. **Jalur Client**: Browser memanggil `fbq('trackSingle', ..., { eventID: 'evt_123' })`.
-2. **Jalur Server Relay**: Browser mengirimkan HTTP POST ke `/api/tracking` dengan payload `{ eventId: 'evt_123', ... }`.
+When an event is configured with `delivery: 'both'`, it is fired through two paths:
+1. **Client path**: the browser calls `fbq('trackSingle', ..., { eventID: 'evt_123' })`.
+2. **Server relay path**: the browser sends an HTTP POST to `/api/tracking` with the payload `{ eventId: 'evt_123', ... }`.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Visitor as Browser Pengunjung
+    actor Visitor as Visitor Browser
     participant ClientPixel as Browser Pixel (fbq / ttq)
     participant Relay as Host Relay (/api/tracking)
     participant MetaServer as Meta Graph API (CAPI)
 
     Visitor->>Visitor: Generate unique eventId ("evt_a9b8c7d6")
     
-    par Jalur Client (Browser)
+    par Client Path (Browser)
         Visitor->>ClientPixel: fbq('trackSingle', id, 'Purchase', params, { eventID: "evt_a9b8c7d6" })
-        ClientPixel-->>MetaServer: HTTP POST connect.facebook.net (membawa eventID)
-    and Jalur Server (Host CAPI Relay)
+        ClientPixel-->>MetaServer: HTTP POST connect.facebook.net (carries eventID)
+    and Server Path (Host CAPI Relay)
         Visitor->>Relay: POST /api/tracking { eventId: "evt_a9b8c7d6", ... }
-        Relay->>Relay: Ambil CAPI Token via credentialId & Hash user data
-        Relay->>MetaServer: POST /v19.0/{pixel_id}/events (membawa event_id: "evt_a9b8c7d6")
+        Relay->>Relay: Load CAPI token via credentialId & hash user data
+        Relay->>MetaServer: POST /v26.0/{pixel_id}/events (carries event_id: "evt_a9b8c7d6")
     end
 
-    Note over MetaServer: Meta mencocokkan (event_name: 'Purchase', event_id: 'evt_a9b8c7d6')<br/>Hanya 1 konversi yang dicatat (Deduplicated 100%)!
+    Note over MetaServer: Meta matches (event_name: 'Purchase', event_id: 'evt_a9b8c7d6')<br/>Only 1 conversion is recorded (deduplicated)
 ```
 
-Algoritma deduplikasi KUBUILD:
-- Runner mengevaluasi `generateTrackingEventId()` untuk menghasilkan ID alfanumerik acak berbasis timestamp jika author tidak menyediakan custom `eventId`.
-- ID ini dibagikan secara bersamaan ke `fireBrowserPixel` dan payload HTTP relay.
-- Meta dan TikTok menyimpan jendela deduplikasi selama **48 jam**. Jika kedua event tiba dalam rentang waktu tersebut dengan `event_name` dan `event_id` yang sama, platform iklan akan menggabungkannya menjadi 1 konversi terverifikasi!
+KUBUILD's deduplication algorithm:
+- The runner calls `generateTrackingEventId()` to produce a random timestamp-based alphanumeric ID when the author doesn't provide a custom `eventId`.
+- The same ID is shared with `fireBrowserPixel` and the HTTP relay payload.
+- Meta and TikTok keep a **48-hour** deduplication window. If both events arrive within that window with the same `event_name` and `event_id`, the ad platform merges them into one verified conversion.
 
 ---
 
-### 3. Implementasi Host Relay Route (`app/api/tracking/route.ts`)
+### 3. Host Relay Route (`app/api/tracking/route.ts`)
 
-KUBUILD menyediakan helper Web-standard `createTrackingRelayHandler` di dalam package `@kubuild/core`. Helper ini dapat langsung digunakan pada Next.js App Router, Hono, Bun, Cloudflare Workers, atau framework Node.js lainnya:
+KUBUILD provides the Web-standard `createTrackingRelayHandler` helper in `@kubuild/core`. It works directly with the Next.js App Router, Hono, Bun, Cloudflare Workers, or any other Node.js framework:
 
 ```ts title="app/api/tracking/route.ts"
 import { createTrackingRelayHandler } from '@kubuild/core';
-import { db } from '@/lib/db'; // Database host Anda
-import { decryptToken } from '@/lib/crypto'; // Enkripsi KMS host Anda
+import { db } from '@/lib/db'; // Your host database
+import { decryptToken } from '@/lib/crypto'; // Your host KMS decryption
 
 export const dynamic = 'force-dynamic';
 
 const handler = createTrackingRelayHandler({
-  // 1. Muat tracking config terpercaya dari database host (jangan percaya body client!)
+  // 1. Load the trusted tracking config from the host database (never trust the client body!)
   getConfig: async (ctx) => {
     if (!ctx.documentId) return null;
     const page = await db.pages.findUnique({
@@ -820,8 +820,9 @@ const handler = createTrackingRelayHandler({
     return page?.trackingConfig ?? null;
   },
 
-  // 2. Resolusi token rahasia server-side via credentialId
-  resolveSecrets: async (credentialId, provider) => {
+  // 2. Resolve server-side secrets via credentialId
+  resolveSecrets: async ({ credentialId, provider }) => {
+    if (!credentialId) return null;
     const cred = await db.credentials.findUnique({
       where: { id: credentialId },
     });
@@ -845,16 +846,16 @@ const handler = createTrackingRelayHandler({
     return null;
   },
 
-  // 3. Kebijakan Keamanan: Tolak event Purchase jika hanya ditembak dari browser nakal
+  // 3. Security policy: reject Purchase events fired only from a tampered browser
   isEventAllowed: (event, ctx) => {
-    // Contoh: Cegah manipulasi transaksi palsu dari console browser
+    // Example: prevent fake transactions injected from the browser console
     if (event.eventName === 'Purchase' && !event.params?.orderId) {
-      return false; // Mengembalikan 403 EVENT_NOT_ALLOWED
+      return false; // Returns 403 EVENT_NOT_ALLOWED
     }
     return true;
   },
 
-  // 4. Batasi asal domain pemanggil (CORS)
+  // 4. Restrict allowed caller origins (CORS)
   allowedOrigins: ['https://tokosaya.com', 'https://app.tokosaya.com'],
 });
 
@@ -867,9 +868,9 @@ export { handler as POST, handler as OPTIONS };
 
 ### 1. Google Consent Mode v2
 
-Untuk mematuhi regulasi privasi global (GDPR di Uni Eropa dan regulasi privasi data internasional), KUBUILD kompatibel dengan **Google Consent Mode v2**.
+To comply with global privacy regulations (the EU's GDPR and international data privacy rules), KUBUILD is compatible with **Google Consent Mode v2**.
 
-Sebelum user memberikan persetujuan, tetapkan consent default pada script head aplikasi induk:
+Before the user gives consent, set the default consent in the host app's head script:
 
 ```html
 <script>
@@ -884,10 +885,10 @@ Sebelum user memberikan persetujuan, tetapkan consent default pada script head a
 </script>
 ```
 
-Saat pengunjung menyetujui Cookie Banner (misal mengklik tombol *"Terima Semua Cookie"* pada modal persetujuan):
+When the visitor accepts the cookie banner (e.g. by clicking *"Accept All Cookies"* in the consent modal):
 
 ```ts
-// Update status consent secara dinamis
+// Update the consent status dynamically
 window.gtag?.('consent', 'update', {
   'ad_storage': 'granted',
   'ad_user_data': 'granted',
@@ -896,13 +897,13 @@ window.gtag?.('consent', 'update', {
 });
 ```
 
-SDK Google Analytics 4 dan GTM yang diinjeksi oleh KUBUILD akan otomatis menyesuaikan transmisi cookie sesuai status persetujuan tersebut.
+The Google Analytics 4 and GTM SDKs injected by KUBUILD automatically adjust cookie transmission to match the consent status.
 
 ---
 
 ### 2. Content Security Policy (CSP) Whitelist
 
-Jika host application menggunakan header keamanan HTTP `Content-Security-Policy`, tambahkan domain resmi berikut agar script tracking dan koneksi CAPI tidak diblokir oleh browser:
+If the host application uses an HTTP `Content-Security-Policy` header, add these official domains so tracking scripts and CAPI connections aren't blocked:
 
 ```http title="Content-Security-Policy Header Rekomendasi"
 Content-Security-Policy:
@@ -928,43 +929,43 @@ Content-Security-Policy:
 <TypeTable
   type={{
     "TrackingPixel": {
-      description: "Objek konfigurasi untuk 1 pixel tracking (v1.3.0+).",
+      description: "Configuration object for one tracking pixel (v1.3.0+).",
       type: "object",
       properties: {
-        id: { description: "ID unik pixel dalam config dokumen.", type: "string" },
-        provider: { description: "Penyedia tracking: 'meta' | 'google' | 'gtm' | 'tiktok' | 'custom'.", type: "string" },
-        label: { description: "Label deskriptif yang tampil di antarmuka editor.", type: "string?" },
-        enabled: { description: "Menyalakan atau mematikan pixel ini secara individual.", type: "boolean" },
-        pixelId: { description: "Public identifier: Meta Pixel ID, TikTok ID, GA4 Measurement ID, atau GTM Container ID.", type: "string" },
-        credentialId: { description: "ID referensi kredensial host untuk resolusi secret CAPI di backend.", type: "string?" },
-        serverEnabled: { description: "Apakah event pixel ini diteruskan ke Server CAPI Relay.", type: "boolean" },
-        testEventCode: { description: "Kode uji coba event Meta/TikTok dari Events Manager.", type: "string?" },
-        disabledEvents: { description: "Daftar event yang dikecualikan dari pixel ini (misal ['PageView']).", type: "string[]?" }
+        id: { description: "Unique pixel ID within the document config.", type: "string" },
+        provider: { description: "Tracking provider: 'meta' | 'google' | 'gtm' | 'tiktok' | 'custom'.", type: "string" },
+        label: { description: "Descriptive label shown in the editor UI.", type: "string?" },
+        enabled: { description: "Turns this pixel on or off individually.", type: "boolean" },
+        pixelId: { description: "Public identifier: Meta Pixel ID, TikTok ID, GA4 Measurement ID, or GTM Container ID.", type: "string" },
+        credentialId: { description: "Host credential reference ID used to resolve CAPI secrets on the backend.", type: "string?" },
+        serverEnabled: { description: "Whether this pixel's events are forwarded to the server CAPI relay.", type: "boolean" },
+        testEventCode: { description: "Meta/TikTok test event code from Events Manager.", type: "string?" },
+        disabledEvents: { description: "Events excluded for this pixel (e.g. ['PageView']).", type: "string[]?" }
       }
     },
     "TrackingConfig": {
-      description: "Konfigurasi tracking global pada level Dokumen Stora.",
+      description: "Document-level global tracking configuration.",
       type: "object",
       properties: {
-        enabled: { description: "Master switch untuk seluruh operasi tracking.", type: "boolean" },
-        debugMode: { description: "Aktifkan logging verbose ke console browser.", type: "boolean?" },
-        autoPageView: { description: "Otomatis menembak PageView saat halaman dimuat.", type: "boolean?" },
-        defaultDelivery: { description: "Metode default: 'both' | 'client_only' | 'server_only'.", type: "string?" },
-        pixels: { description: "Array daftar pixel aktif pada dokumen.", type: "TrackingPixel[]" },
-        inherit: { description: "Aturan pewarisan pixel dari host (enabled & excludedPixelIds).", type: "TrackingInheritConfig?" }
+        enabled: { description: "Master switch for all tracking.", type: "boolean" },
+        debugMode: { description: "Enable verbose logging to the browser console.", type: "boolean?" },
+        autoPageView: { description: "Automatically fire PageView when the page loads.", type: "boolean?" },
+        defaultDelivery: { description: "Default delivery: 'both' | 'client_only' | 'server_only'.", type: "string?" },
+        pixels: { description: "Array of active pixels in the document.", type: "TrackingPixel[]" },
+        inherit: { description: "Rules for inheriting host pixels (enabled & excludedPixelIds).", type: "TrackingInheritConfig?" }
       }
     },
     "TrackEventStepPayload": {
-      description: "Payload konfigurasi action step bertipe track_event.",
+      description: "Payload configuration for a track_event action step.",
       type: "object",
       properties: {
-        eventName: { description: "Nama event tracking (misal 'AddToCart', 'Purchase', 'Lead').", type: "string" },
+        eventName: { description: "Tracking event name (e.g. 'AddToCart', 'Purchase', 'Lead').", type: "string" },
         provider: { description: "Target provider: 'all' | 'meta' | 'google' | 'gtm' | 'tiktok'.", type: "string?" },
-        delivery: { description: "Kanal pengiriman: 'both' | 'client_only' | 'server_only'.", type: "string?" },
-        eventId: { description: "ID deduplikasi kustom opsional. Jika kosong, digenerate otomatis.", type: "string?" },
-        pixelIds: { description: "Target pixel ID tertentu (mempersempit cakupan).", type: "string[]?" },
-        params: { description: "Parameter event (value, currency, content_name, dll.). Mendukung {{ variables }}.", type: "Record<string, unknown>?" },
-        userData: { description: "Data user untuk Advanced Matching CAPI (email, phone, dll.).", type: "Record<string, unknown>?" }
+        delivery: { description: "Delivery channel: 'both' | 'client_only' | 'server_only'.", type: "string?" },
+        eventId: { description: "Optional custom deduplication ID. Generated automatically when empty.", type: "string?" },
+        pixelIds: { description: "Target specific pixel IDs (narrows the scope).", type: "string[]?" },
+        params: { description: "Event parameters (value, currency, content_name, etc.). Supports {{ variables }}.", type: "Record<string, unknown>?" },
+        userData: { description: "User data for CAPI Advanced Matching (email, phone, etc.).", type: "Record<string, unknown>?" }
       }
     }
   }}

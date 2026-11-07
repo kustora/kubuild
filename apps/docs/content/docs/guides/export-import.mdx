@@ -1,0 +1,175 @@
+---
+title: Export & Import .stora Packages
+description: Package a document with its assets into a portable .stora archive, then safely preflight, migrate, and import untrusted packages on another host.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+Export and import are the **Share** and **Import** steps of the KUBUILD lifecycle (`Create → Customize → Export → Share → Import → Customize → Publish`). A `.stora` file is a ZIP archive that carries everything another host needs to open a page:
+
+| Entry | Contents |
+| :--- | :--- |
+| `manifest.json` | Package version, builder compatibility range, required components and capabilities, and the asset list with sizes and SHA-256 checksums. |
+| `page.json` | The `PageDocument` itself. |
+| `metadata.json` | Title, description, author, tags, and other document metadata. |
+| `assets/` | Binary files referenced by the document (images, video, fonts). |
+
+<Callout type="warn" title="Treat every .stora file as untrusted input">
+  An imported package may come from anyone. Never parse `page.json` yourself; always go through `preflightPackage` / `importStoraPackage`, which enforce size limits, path safety, schema validation, and migration before anything reaches your app.
+</Callout>
+
+## Exporting
+
+`exportStoraPackage(document, options?)` validates the document, collects the assets it references, and builds the archive.
+
+```ts
+import { exportStoraPackage } from '@kubuild/core';
+import { createDefaultComponentRegistry } from '@kubuild/components';
+import type { PageDocument } from '@kubuild/schema';
+
+export async function exportPage(doc: PageDocument): Promise<Blob> {
+  const result = await exportStoraPackage(doc, {
+    componentRegistry: createDefaultComponentRegistry(),
+    // Supply asset bytes for every asset the document references
+    getAssetBytes: async (assetId) => {
+      const res = await fetch(`/api/assets/${assetId}`);
+      return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+    },
+    allowExternalFallback: true, // don't fail on assets that only have an external URL
+    metadata: { author: 'Acme Marketing' },
+  });
+
+  if (!result.success) {
+    // result.errors: DocumentValidationError[]
+    throw new Error(result.diagnosticMessage);
+  }
+
+  console.log(`${result.assetCount} assets packaged`);
+  return new Blob([new Uint8Array(result.archive)], { type: 'application/octet-stream' });
+}
+```
+
+Useful options:
+
+| Option | Purpose |
+| :--- | :--- |
+| `componentRegistry` / `knownComponentTypes` | Validate component types and record custom components the importer must provide. |
+| `assets` | A map of asset bytes keyed by asset ID, when you already hold them. |
+| `getAssetBytes(assetId, ref)` | Fetch asset bytes on demand. |
+| `assetProvider` | Fallback resolver when no bytes provider is given. |
+| `allowExternalFallback` | Don't fail for assets that have no local bytes but are hosted externally. |
+| `packageVersion` / `builderCompatibility` | Written to the manifest (defaults `"1.0.0"` and `">=0.1.0"`). |
+| `metadata` | Override metadata fields such as `author` or `tags`. |
+
+## Importing
+
+<Steps>
+<Step>
+
+### Preflight (optional but recommended)
+
+`preflightPackage` inspects the archive without importing it. Use it to show the user what will happen: missing components, required migration, or asset conflicts.
+
+```ts
+import { preflightPackage } from '@kubuild/core';
+
+const report = await preflightPackage(bytes, {
+  knownComponentTypes: ['custom.pricing-card'],
+  supportedCapabilities: ['assetProvider'],
+});
+
+report.valid; // archive is safe and well-formed
+report.canImport; // host supports what the package needs
+report.requiresMigration; // e.g. sourceVersion 1.1.0 -> targetVersion 1.3.0
+report.missingComponents; // ['custom.countdown-pro']
+report.diagnostics; // [{ code: 'MISSING_COMPONENTS', severity: 'error', message }]
+```
+
+</Step>
+<Step>
+
+### Import
+
+`importStoraPackage` runs the same checks, migrates the document to the current schema, and hands each asset to your storage.
+
+```ts
+import { importStoraPackage } from '@kubuild/core';
+
+const result = await importStoraPackage(bytes, {
+  dependencyPolicy: 'import-with-placeholder', // keep unknown components as placeholders
+  assetCollisionStrategy: 'rename', // don't overwrite existing host assets
+  existingAssetIds: await listAssetIds(),
+  // Persist each asset and return its host URL (or an AssetInfo)
+  onAssetImport: async (assetId, assetBytes, meta) => uploadAsset(assetId, assetBytes, meta.mimeType),
+});
+
+if (!result.success) {
+  showErrors(result.errors); // PreflightDiagnostic[]
+  return;
+}
+
+await saveDocument(result.document); // migrated, validated PageDocument
+result.renamedAssets; // { oldId: newId } when assets were renamed
+result.warnings; // e.g. TRACKING_SECRET_REMOVED
+```
+
+</Step>
+<Step>
+
+### Save as a new document
+
+Treat the imported document as a new draft in your storage. Node IDs are preserved; if you need fresh IDs (for example to merge the page into another document), clone it with `cloneTemplateAsPage`.
+
+</Step>
+</Steps>
+
+### Import options
+
+| Option | Values | Default |
+| :--- | :--- | :--- |
+| `dependencyPolicy` | `'cancel'`, `'import-with-placeholder'`, `'install-or-register-before-import'` | `'cancel'` |
+| `onMissingDependency` | Called with `{ components, capabilities }` when the policy is `'install-or-register-before-import'` | — |
+| `assetCollisionStrategy` | `'reject'`, `'rename'`, `'overwrite'`, `'reuse-existing'` | `'reject'` |
+| `existingAssetIds` | Array, `Set`, or checker function | — |
+| `onAssetConflict` | Per-asset resolution callback | — |
+| `onAssetImport` | Persist each extracted asset | — |
+| `targetSchemaVersion` / `migrationRegistry` | Control migration | current schema |
+| `securityLimits` | Override archive size, file count, and expansion limits | built-in defaults |
+
+### Diagnostic codes
+
+Preflight and import report problems as `PreflightDiagnostic` objects with a `code` and `severity`:
+
+| Category | Codes |
+| :--- | :--- |
+| Archive safety | `ARCHIVE_EMPTY`, `ARCHIVE_CORRUPT`, `SIZE_LIMIT_EXCEEDED`, `FILE_COUNT_EXCEEDED`, `ZIP_SLIP_DETECTED`, `EXECUTABLE_ASSET_DETECTED`, `PROTOTYPE_POLLUTION_DETECTED` |
+| Structure | `MISSING_MANIFEST`, `INVALID_MANIFEST`, `MISSING_PAGE_DOCUMENT`, `INVALID_PAGE_DOCUMENT` |
+| Versioning | `UNSUPPORTED_SCHEMA_VERSION`, `NO_MIGRATION_PATH`, `MIGRATION_FAILED` |
+| Assets | `ASSET_FILE_MISSING`, `ASSET_SIZE_MISMATCH`, `ASSET_CHECKSUM_MISMATCH`, `ASSET_LIMIT_EXCEEDED`, `ASSET_CONFLICT` |
+| Host compatibility | `MISSING_COMPONENTS`, `MISSING_CAPABILITIES`, `HOST_ADAPTER_ERROR` |
+| Sanitization | `TRACKING_SECRET_REMOVED` |
+
+## Verifying a Round Trip
+
+To prove that export and import lose nothing (for example in a test suite), compare the documents semantically. Transient fields such as timestamps are ignored, and renamed assets can be mapped back.
+
+```ts
+import { compareDocumentsSemantically, exportStoraPackage, importStoraPackage } from '@kubuild/core';
+
+const exported = await exportStoraPackage(original, { allowExternalFallback: true });
+if (!exported.success) throw new Error(exported.diagnosticMessage);
+
+const imported = await importStoraPackage(exported.archive);
+if (!imported.success) throw new Error(imported.diagnosticMessage);
+
+const { equivalent, differences } = compareDocumentsSemantically(original, imported.document, {
+  assetIdMap: imported.renamedAssets,
+});
+```
+
+## Related
+
+- [Security](/docs/integration/security) — archive limits and sanitization in depth
+- [Schema Migrations](/docs/reference/migrations)
+- [Backend Storage](/docs/integration/backend-storage)

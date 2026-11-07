@@ -178,7 +178,7 @@ KUBUILD is distributed as a suite of modular npm packages under the `@kubuild/*`
     import { useState } from 'react';
 
     export function PageBuilder() {
-      const [document, setDocument] = useState(() => createBlankDocument({ title: 'My Page' }));
+      const [document, setDocument] = useState(() => createBlankDocument('My Page'));
       const [isPreview, setIsPreview] = useState(false);
 
       if (isPreview) {

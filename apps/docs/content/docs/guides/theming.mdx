@@ -1,0 +1,127 @@
+---
+title: Theming & Design Tokens
+description: Store brand colors, fonts, radii, and spacing as document-level design tokens, reference them from node styles, and override them per tenant at render time.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+A KUBUILD document can carry a **theme**: a small set of design tokens in four groups. The renderer emits each token as a CSS custom property, and node styles reference tokens with `var(...)`. Changing a token restyles every node that uses it, without touching the node tree.
+
+## Token Groups
+
+| Group | CSS variable prefix | Example token | Emitted variable |
+| :--- | :--- | :--- | :--- |
+| `colors` | `--kb-color-` | `primary: '#2563eb'` | `--kb-color-primary` |
+| `fonts` | `--kb-font-` | `heading: "'Inter', sans-serif"` | `--kb-font-heading` |
+| `radii` | `--kb-radius-` | `md: '8px'` | `--kb-radius-md` |
+| `spacing` | `--kb-space-` | `section: '96px'` | `--kb-space-section` |
+
+The theme lives on the document next to `metadata`:
+
+```json
+{
+  "schema": "stora.page",
+  "version": "1.3.0",
+  "theme": {
+    "colors": { "primary": "#2563eb", "text": "#0f172a" },
+    "fonts": { "heading": "'Inter', sans-serif" },
+    "radii": { "md": "8px" },
+    "spacing": { "section": "96px" }
+  },
+  "document": { "id": "root", "type": "page", "children": [] }
+}
+```
+
+## Referencing Tokens in Styles
+
+Store a token reference as the style value. `themeTokenRef(group, key)` builds the canonical form, and `parseThemeTokenRef(value)` reads it back (useful for showing "uses token *primary*" in custom inspector UI).
+
+```ts
+import { parseThemeTokenRef, themeTokenRef } from '@kubuild/schema';
+
+const background = themeTokenRef('colors', 'primary'); // 'var(--kb-color-primary)'
+
+const buttonStyles = {
+  base: {
+    backgroundColor: background,
+    borderRadius: themeTokenRef('radii', 'md'),
+    fontFamily: themeTokenRef('fonts', 'heading'),
+  },
+};
+
+parseThemeTokenRef('var(--kb-color-primary)'); // { group: 'colors', key: 'primary' }
+parseThemeTokenRef('#2563eb'); // null — a literal value, not a token
+```
+
+`themeTokenRef` throws for invalid keys. Token keys are 1–64 characters of letters, digits, `-`, or `_`, starting with a letter or digit.
+
+## Updating the Theme
+
+Change tokens with the `updateTheme` command so the change goes through history like any other edit. By default each group is merged token by token, and setting a token to `null` removes it.
+
+```ts
+import { updateTheme } from '@kubuild/core';
+
+const { document: rebranded } = updateTheme(currentDoc, {
+  theme: {
+    colors: { primary: '#7c3aed', legacyAccent: null }, // set one token, remove another
+  },
+});
+```
+
+Pass `theme: null` to remove the whole theme.
+
+## Per-Tenant Overrides at Render Time
+
+A host can layer its own tokens over the document theme without changing the stored document, for example to apply each tenant's brand color to a shared template. Pass the override as `theme` in the render context:
+
+```tsx
+import { KubuildRenderer, createRenderContext } from '@kubuild/renderer';
+import type { PageDocument } from '@kubuild/schema';
+
+export function TenantPage({ doc, brandColor }: { doc: PageDocument; brandColor: string }) {
+  const context = createRenderContext({
+    theme: { colors: { primary: brandColor } },
+  });
+
+  return <KubuildRenderer document={doc} context={context} responsive="css" />;
+}
+```
+
+The renderer merges the layers with `mergeThemes(document.theme, context.theme)`: later layers win per token, and neither input is mutated.
+
+<Callout type="info" title="Unsafe tokens are dropped, not rendered">
+  Token values are emitted into CSS, so they are checked before use. A value is skipped when it is empty, longer than 512 characters, contains `;`, `{`, `}`, `<`, `>`, or `\`, or matches an injection pattern such as `url(`, `expression(`, `@import`, or `javascript:`. Because unsafe entries are skipped per token, a bad override never replaces a valid value from a lower layer. This makes it safe to pass an unvalidated host override.
+</Callout>
+
+## Using Tokens Outside the Renderer
+
+The helpers that the renderer uses are exported, so you can emit the same variables elsewhere, for example in a static HTML export or your app shell:
+
+```ts
+import { mergeThemes, themeToCssVariables } from '@kubuild/schema';
+import { themeToCssDeclarations, themeToCssProperties } from '@kubuild/renderer';
+
+const theme = mergeThemes(doc.theme, { colors: { primary: '#16a34a' } });
+
+themeToCssVariables(theme); // [['--kb-color-primary', '#16a34a'], ...]
+themeToCssProperties(theme); // { '--kb-color-primary': '#16a34a', ... } for a style prop
+const rootRule = `:root { ${themeToCssDeclarations(theme)} }`;
+```
+
+| Function | Package | Returns |
+| :--- | :--- | :--- |
+| `themeTokenRef(group, key)` | `@kubuild/schema` | `'var(--kb-…)'` reference string |
+| `parseThemeTokenRef(value)` | `@kubuild/schema` | `{ group, key }` or `null` |
+| `mergeThemes(...layers)` | `@kubuild/schema` | Merged `Theme`, unsafe tokens skipped |
+| `themeToCssVariables(theme)` | `@kubuild/schema` | `[name, value][]` pairs |
+| `isTheme(value)` | `@kubuild/schema` | Type guard via `ThemeSchema` |
+| `resolveRuntimeTheme(doc, context)` | `@kubuild/renderer` | Document theme with the context override applied |
+| `themeToCssProperties(theme)` | `@kubuild/renderer` | React inline-style object |
+| `themeToCssDeclarations(theme)` | `@kubuild/renderer` | `--kb-…: value;` declarations string |
+| `updateTheme(doc, params)` | `@kubuild/core` | `CommandResult` |
+
+## Related
+
+- [Responsive Cascade](/docs/guides/responsive-cascade) — how breakpoint styles combine with tokens
+- [Performance](/docs/integration/performance) — loading fonts referenced by `fonts` tokens

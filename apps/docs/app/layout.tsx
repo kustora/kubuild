@@ -2,13 +2,14 @@ import type { Metadata } from 'next';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
 import { Inter } from 'next/font/google';
+import { siteUrl } from '@/lib/shared';
 
 const inter = Inter({
   subsets: ['latin'],
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://kubuild.kustora.com'),
+  metadataBase: new URL(siteUrl),
   title: {
     template: '%s - KUBUILD',
     default: 'KUBUILD - Open & Portable Web Page Builder Engine',
@@ -58,7 +59,7 @@ export default function Layout({ children }: LayoutProps<'/'>) {
             },
             links: [
               ['Documentation Home', '/docs'],
-              ['Component Verification', '/docs/test'],
+              ['Quickstart', '/docs/getting-started/quickstart'],
               ['Interactive Playground', '/playground'],
             ],
           }}

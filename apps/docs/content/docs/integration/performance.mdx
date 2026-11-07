@@ -10,17 +10,17 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 import { InteractiveRenderer } from '@/components/interactive-renderer';
 
-Dalam ekosistem aplikasi web modern dan *e-commerce*, performa halaman bukan sekadar metrik teknis atau urusan kenyamanan pengembang (*developer ergonomics*)—**performa adalah faktor penentu pendapatan bisnis dan konversi**. Riset industri dari Google, Amazon, dan Deloitte secara konsisten membuktikan bahwa setiap keterlambatan 100 milidetik pada pemuatan halaman dapat menurunkan rasio konversi hingga **1%**, sementara lebih dari **53% pengunjung perangkat seluler** meninggalkan situs jika waktu muat melebihi 3 detik.
+In modern web apps and *e-commerce*, page performance is not just a technical metric or a matter of *developer ergonomics* — **performance drives revenue and conversion**. Industry research from Google, Amazon, and Deloitte consistently shows that every 100 ms of extra load time can cut conversion by up to **1%**, and more than **53% of mobile visitors** leave a site that takes longer than 3 seconds to load.
 
-Banyak visual builder konvensional (seperti WordPress page builders atau builder berbasis monolitik JavaScript) gagal memenuhi standar ini karena memaksakan seluruh runtime kanvas editor, pustaka CSS-in-JS dinamis yang rakus komputasi, dan ratusan dependensi berat ke dalam bundle yang dikonsumsi oleh pengunjung publik.
+Many conventional visual builders (WordPress page builders or monolithic JavaScript builders) miss this bar because they push the whole editor canvas runtime, compute-hungry CSS-in-JS libraries, and hundreds of heavy dependencies into the bundle that public visitors download.
 
-**KUBUILD dibangun dari awal dengan arsitektur *Zero-Cost Abstraction at Runtime*.** Pengguna admin dan desainer menikmati pengalaman visual builder kelas dunia yang ekspresif, sementara jutaan pengunjung publik menerima halaman dengan HTML dan CSS murni, bundle JavaScript ultra-ringan (**< 30KB gzipped**), serta skor Google Lighthouse **95–100/100**.
+**KUBUILD is built from the ground up around *zero-cost abstraction at runtime*.** Admins and designers get an expressive visual builder, while public visitors receive plain HTML and CSS plus a runtime that contains no editor code, aiming for Google Lighthouse scores of **95–100/100**.
 
 ---
 
-## Filosofi Performa & Target Core Web Vitals
+## Performance Philosophy & Core Web Vitals Targets
 
-Google menjadikan *Core Web Vitals* sebagai sinyal peringkat resmi dalam algoritma pencarian Google Search (*Page Experience Ranking Signal*). Halaman yang dibangun dengan KUBUILD dirancang untuk melampaui ambang batas "Good" (*Hijau*) dari Google:
+Google uses *Core Web Vitals* as an official ranking signal in Google Search (*Page Experience Ranking Signal*). Pages built with KUBUILD are designed to beat Google's "Good" (green) thresholds:
 
 ```mermaid
 flowchart LR
@@ -37,36 +37,36 @@ flowchart LR
     INP --> Score
 ```
 
-### Matriks Target Kinerja Produksi
+### Production Performance Target Matrix
 
-| Metrik Web Vitals | Ambang Batas Google ("Good") | Target Mesin KUBUILD | Strategi Implementasi KUBUILD |
+| Web Vitals Metric | Google Threshold ("Good") | KUBUILD Target | KUBUILD Strategy |
 | :--- | :--- | :--- | :--- |
-| **LCP** (*Largest Contentful Paint*) | `< 2.5 detik` | **`< 1.5 detik`** | Server-side rendering (SSR), `fetchpriority="high"` pada hero image, CDN Edge caching. |
-| **CLS** (*Cumulative Layout Shift*) | `< 0.10` | **`0.00`** *(Zero Shift)* | Kompilasi CSS breakpoint sebelum render, dimensi rasio aspek kontainer eksplisit, zero dynamic runtime style injection. |
-| **INP** (*Interaction to Next Paint*) | `< 200 milidetik` | **`< 50 milidetik`** | Isolasi dependensi runtime, arsitektur event delegation, tidak ada eksekusi AST parsing berat pada interaksi pengguna. |
-| **FCP** (*First Contentful Paint*) | `< 1.8 detik` | **`< 0.8 detik`** | Native CSS `<style>` diinjeksikan langsung pada HTML `<head>`, streaming HTML di Next.js App Router. |
-| **TTFB** (*Time to First Byte*) | `< 800 milidetik` | **`< 100 milidetik`** | Distribusi snapshot dokumen `.stora` melalui Cloudflare Edge CDN / Vercel Edge Network. |
-| **Lighthouse Score** | `> 90` | **`95 – 100`** | Audit Lighthouse kategori Performance pada emulasi Mobile Moto G4 & Desktop. |
+| **LCP** (*Largest Contentful Paint*) | `< 2.5 s` | **`< 1.5 s`** | Server-side rendering (SSR), `fetchpriority="high"` on the hero image, edge CDN caching. |
+| **CLS** (*Cumulative Layout Shift*) | `< 0.10` | **`0.00`** *(zero shift)* | Breakpoint CSS compiled before render, explicit container aspect ratios, no dynamic runtime style injection. |
+| **INP** (*Interaction to Next Paint*) | `< 200 ms` | **`< 50 ms`** | Isolated runtime dependencies, event delegation, no heavy AST parsing during user interaction. |
+| **FCP** (*First Contentful Paint*) | `< 1.8 s` | **`< 0.8 s`** | Native CSS `<style>` emitted in the server HTML, HTML streaming in the Next.js App Router. |
+| **TTFB** (*Time to First Byte*) | `< 800 ms` | **`< 100 ms`** | `.stora` document snapshots served from the Cloudflare edge CDN / Vercel Edge Network. |
+| **Lighthouse Score** | `> 90` | **`95 – 100`** | Lighthouse Performance audit on mobile (Moto G4) and desktop emulation. |
 
 <Callout type="info" title="Zero Runtime Overhead">
-Halaman publik yang dirender oleh `@kubuild/renderer` tidak menjalankan kalkulasi tata letak visual di sisi klien. Seluruh kalkulasi pohon komponen, resolusi variabel, dan aturan CSS breakpoint telah diselesaikan sebelum browser melakukan *paint* pertama.
+Public pages rendered by `@kubuild/renderer` don't compute visual layout on the client. Component tree resolution, variable resolution, and breakpoint CSS rules are all finished before the browser's first *paint*.
 </Callout>
 
 ---
 
 ## Bundle Splitting & Package Isolation
 
-Kunci utama tercapainya waktu muat kilat pada KUBUILD adalah **pemisahan paket secara tegas** (*strict package isolation*) dalam monorepo. Halaman publik pengunjung dan dasbor admin memiliki kebutuhan dependensi yang bertolak belakang secara fundamental.
+The key to fast loads with KUBUILD is **strict package isolation** in the monorepo. Public visitor pages and the admin dashboard have fundamentally opposite dependency needs.
 
-### Tabel Perbandingan Ukuran Bundle
+### Bundle Size Comparison
 
-| Paket KUBUILD | Ukuran Gzipped | Ukuran Minified | Ranah Penggunaan (*Target Surface*) | Dependensi Kunci |
-| :--- | :--- | :--- | :--- | :--- |
-| **`@kubuild/renderer`** | **~27 KB** | **~78 KB** | **Halaman Publik Pengunjung (Visitor Surface)** | React, `@kubuild/schema` (Zod ringan), core helpers murni. Tanpa drag-and-drop, tanpa editor controls! |
-| **`@kubuild/schema`** | **~4 KB** | **~12 KB** | Server, Client, Database, Worker | Zod validator, schema types, CSS variable resolvers. |
-| **`@kubuild/components`** | **~16 KB** | **~45 KB** | Shared (Registry & Traits) | Trait definitions, default props, icons metadata. |
-| **`@kubuild/editor`** | **~320 KB** | **~1.1 MB** | **Dasbor Admin / Visual Canvas (Authoring Only)** | Zustand store, dnd-kit, floating UI, canvas resize handles, Lucide icon suite, color picker, inspector panels. |
-| **`@kubuild/ai`** | **~45 KB** | **~140 KB** | Rute API Server / AI Chat Modal | AI provider adapters, stream readers, page generator pipeline. |
+| KUBUILD Package | Gzipped (approx.) | Target Surface | Key Dependencies |
+| :--- | :--- | :--- | :--- |
+| **`@kubuild/renderer`** | **~43 KB** | **Public visitor pages (visitor surface)** | React, `@kubuild/core`, `@kubuild/components`, `@kubuild/schema`. No drag-and-drop, no editor controls. |
+| **`@kubuild/schema`** | **~18 KB** (+ Zod) | Server, client, database, worker | Zod schemas, schema types, validation helpers. |
+| **`@kubuild/components`** | **~31 KB** | Shared (registry & traits) | Component definitions, traits, default props. |
+| **`@kubuild/editor`** | **~194 KB** | **Admin dashboard / visual canvas (authoring only)** | Zustand store, canvas interactions, resize handles, icon suite, color picker, inspector panels. |
+| **`@kubuild/ai`** (client entry) | **~10 KB** | AI API routes / AI chat modal | Prompt compiler, message helpers, skills. Provider adapters live in `@kubuild/ai/server`. |
 
 ```mermaid
 flowchart TD
@@ -93,23 +93,23 @@ flowchart TD
     end
 ```
 
-<Callout type="warn" title="Aturan Arsitektur Tegas">
-**Jangan pernah mengimpor `@kubuild/editor` atau `@kubuild/ai` di halaman publik pengunjung!**
-Mengimpor modul editor pada rute publik akan membengkakkan bundle JavaScript pengunjung sebesar **> 300KB**, merusak skor First Contentful Paint (FCP), dan memicu penalti SEO pada Google Mobile Usability.
+<Callout type="warn" title="Strict Architecture Rule">
+**Never import `@kubuild/editor` or `@kubuild/ai` on public visitor pages!**
+Importing editor modules on a public route adds roughly **200 KB gzipped** of JavaScript for every visitor, hurts First Contentful Paint (FCP), and can trigger Google Mobile Usability SEO penalties.
 </Callout>
 
-### Memverifikasi Bundle Client
+### Verifying the Client Bundle
 
-Pastikan bundle publik aplikasi Anda tidak terkontaminasi modul editor dengan melakukan audit bundle secara berkala:
+Audit your bundles regularly to make sure the public bundle is not contaminated by editor modules:
 
 <Tabs items={['Next.js (@next/bundle-analyzer)', 'Vite (rollup-plugin-visualizer)']}>
   <Tab value="Next.js (@next/bundle-analyzer)">
 ```bash
-# 1. Pasang paket bundle analyzer
+# 1. Install the bundle analyzer
 pnpm add -D @next/bundle-analyzer
 ```
 
-Perbarui file `next.config.mjs`:
+Update `next.config.mjs`:
 
 ```javascript title="next.config.mjs"
 import withBundleAnalyzer from '@next/bundle-analyzer';
@@ -121,7 +121,7 @@ const bundleAnalyzer = withBundleAnalyzer({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Pastikan tree-shaking berjalan optimal
+  // Make sure tree-shaking works optimally
   experimental: {
     optimizePackageImports: ['@kubuild/renderer', 'lucide-react'],
   },
@@ -130,13 +130,13 @@ const nextConfig = {
 export default bundleAnalyzer(nextConfig);
 ```
 
-Jalankan perintah analisis:
+Run the analysis:
 
 ```bash
 ANALYZE=true pnpm build
 ```
 
-Periksa laporan HTML yang dihasilkan di browser. Halaman rute publik (misal: `/app/[slug]/page.tsx`) harus **hanya** memuat chunk `@kubuild/renderer` sebesar ~27KB, sedangkan `@kubuild/editor` hanya boleh muncul di rute `/app/admin/builder/[id]/page.tsx`.
+Inspect the generated HTML report in the browser. Public routes (e.g. `/app/[slug]/page.tsx`) must load **only** the `@kubuild/renderer` chunk and its dependencies; `@kubuild/editor` may only appear on `/app/admin/builder/[id]/page.tsx`.
   </Tab>
 
   <Tab value="Vite (rollup-plugin-visualizer)">
@@ -145,7 +145,7 @@ Periksa laporan HTML yang dihasilkan di browser. Halaman rute publik (misal: `/a
 pnpm add -D rollup-plugin-visualizer
 ```
 
-Perbarui file `vite.config.ts`:
+Update `vite.config.ts`:
 
 ```typescript title="vite.config.ts"
 import { defineConfig } from 'vite';
@@ -175,11 +175,11 @@ export default defineConfig({
 });
 ```
 
-Jalankan build produksi:
+Run a production build:
 
 ```bash
 pnpm build
-# stats.html akan otomatis terbuka di browser Anda
+# stats.html opens automatically in your browser
 ```
   </Tab>
 </Tabs>
@@ -188,25 +188,25 @@ pnpm build
 
 ## Zero Layout Shift (CLS = 0) & Native Scoped CSS
 
-Salah satu penyebab terbesar skor *Cumulative Layout Shift* (CLS) yang buruk pada landing page berbasis builder adalah penggunaan pustaka **Runtime CSS-in-JS** (seperti Emotion, Styled-Components, atau Stitches).
+One of the biggest causes of poor *Cumulative Layout Shift* (CLS) on builder-made landing pages is **runtime CSS-in-JS** (Emotion, Styled-Components, or Stitches).
 
-### Mengapa KUBUILD Menolak Runtime CSS-in-JS?
+### Why KUBUILD Avoids Runtime CSS-in-JS
 
 <Cards>
   <Card title="1. Runtime Parsing Overhead" icon="AlertTriangle">
-    Pustaka CSS-in-JS mengharuskan browser mengunduh modul parser CSS JavaScript, melakukan komputasi hashing string di *main thread*, dan menyisipkan tag `<style>` secara dinamis saat komponen me-mount. Hal ini menunda proses rendering hingga ratusan milidetik.
+    CSS-in-JS libraries make the browser download a JavaScript CSS parser, hash strings on the *main thread*, and inject `<style>` tags dynamically while components mount. That delays rendering by up to hundreds of milliseconds.
   </Card>
   <Card title="2. Flash of Unstyled Content (FOUC)" icon="ZapOff">
-    Ketika HTML diterima oleh browser, elemen belum memiliki style karena JavaScript belum dieksekusi. Begitu skrip CSS-in-JS aktif, elemen tiba-tiba berubah ukuran dan melompat di layar, menghasilkan lonjakan CLS yang fatal.
+    When the browser receives the HTML, elements have no styles yet because JavaScript hasn't run. Once the CSS-in-JS script kicks in, elements suddenly resize and jump around, causing a severe CLS spike.
   </Card>
-  <Card title="3. Konflik SSR & Hydration Mismatch" icon="Cpu">
-    Perbedaan resolusi layar antara server (yang tidak mengetahui lebar layar klien) dan browser klien kerap memicu error *hydration mismatch* pada React 18 & 19.
+  <Card title="3. SSR Conflicts & Hydration Mismatches" icon="Cpu">
+    The server doesn't know the client's screen width, so differences between server and browser output often cause *hydration mismatch* errors in React 18 & 19.
   </Card>
 </Cards>
 
-### Solusi KUBUILD: Server-Side Native Scoped CSS Compiler
+### KUBUILD's Solution: Server-Side Native Scoped CSS
 
-KUBUILD memecahkan masalah ini secara radikal melalui fungsi native **`collectResponsiveStylesCss(document)`** yang berada di dalam paket `@kubuild/renderer`.
+KUBUILD solves this with the native **`collectResponsiveStylesCss(document)`** function in `@kubuild/renderer`.
 
 ```mermaid
 sequenceDiagram
@@ -224,10 +224,10 @@ sequenceDiagram
     Note over Client: Frame 1: Perfect Layout Rendered Instantly!<br/>Zero FOUC, Zero Layout Shift (CLS = 0.00)
 ```
 
-Fungsi `collectResponsiveStylesCss()` berjalan sepenuhnya di server (Node.js/Edge). Fungsi ini membaca pohon AST dokumen `.stora`, mengekstrak layer gaya `desktop`, `tablet`, dan `mobile`, lalu mengompilasinya menjadi aturan `@media` query native yang terisolasi dengan selektor atribut `[data-kubuild-node="..."]`:
+`collectResponsiveStylesCss()` runs entirely on the server (Node.js/Edge). It reads the `.stora` document tree, extracts the `desktop`, `tablet`, and `mobile` style layers, and compiles them into native `@media` rules scoped with `[data-kubuild-node="..."]` attribute selectors:
 
-```typescript title="Contoh Output CSS yang Dihasilkan Server"
-/* Diekstrak oleh collectResponsiveStylesCss() pada waktu SSR */
+```typescript title="Example Server-Generated CSS Output"
+/* Emitted by collectResponsiveStylesCss() during SSR */
 @media (max-width: 1024px) {
   [data-kubuild-node="hero-section"] { padding: 48px 24px !important; }
   [data-kubuild-node="features-grid"] { grid-template-columns: repeat(2, 1fr) !important; }
@@ -240,13 +240,13 @@ Fungsi `collectResponsiveStylesCss()` berjalan sepenuhnya di server (Node.js/Edg
 }
 ```
 
-### Menginjeksikan Scoped CSS di Next.js App Router
+### Scoped CSS in the Next.js App Router
 
-Berikut adalah pola implementasi server-side rendering di mana tag CSS diinjeksi langsung ke dalam HTML `<head>` atau container root:
+With `responsive="css"`, `<KubuildRenderer />` calls `collectResponsiveStylesCss()` (and `collectStateStylesCss()` for `:hover`/`:focus` states) itself and emits the `<style>` tags next to the markup, so a Server Component only needs to render it:
 
 ```tsx title="app/[slug]/page.tsx"
 import { notFound } from 'next/navigation';
-import { KubuildRenderer, collectResponsiveStylesCss, collectStateStylesCss } from '@kubuild/renderer';
+import { KubuildRenderer } from '@kubuild/renderer';
 import { getPublishedPageBySlug } from '@/lib/db';
 
 interface PageProps {
@@ -261,16 +261,9 @@ export default async function PublicPage({ params }: PageProps) {
     notFound();
   }
 
-  // 1. Kompilasi aturan CSS breakpoint dan state pseudo-class di server
-  const responsiveCss = collectResponsiveStylesCss(page.content);
-  const stateCss = collectStateStylesCss(page.content);
-
   return (
     <main className="min-h-screen bg-background">
-      {/* 2. Injeksi style native tepat di samping markup untuk SSR instan */}
-      <style dangerouslySetInnerHTML={{ __html: `${responsiveCss}\n${stateCss}` }} />
-
-      {/* 3. Render node tree dengan responsive="css" */}
+      {/* Emits <style data-kubuild-responsive-styles> and state styles alongside the markup */}
       <KubuildRenderer
         document={page.content}
         responsive="css"
@@ -281,23 +274,23 @@ export default async function PublicPage({ params }: PageProps) {
 }
 ```
 
-<Callout type="tip" title="Layout Stabil Sejak Frame Pertama">
-Karena aturan CSS diinjeksi langsung dalam markup awal HTML, browser mesin render (Blink/Gecko/WebKit) menerapkan aturan responsif segera setelah parser HTML membaca tag `<style>`. Tidak ada layout reflow saat JavaScript klien di-hydrate!
+<Callout type="tip" title="Stable Layout from the First Frame">
+Because the CSS rules are part of the initial HTML, the browser engine (Blink/Gecko/WebKit) applies the responsive rules as soon as the HTML parser reaches the `<style>` tag. No layout reflow happens when client JavaScript hydrates. Call `collectResponsiveStylesCss()` yourself only when you render outside `<KubuildRenderer />`, such as in a static HTML export.
 </Callout>
 
-### Pengaturan Dimensi Kontainer & Rasio Aspek (Aspect Ratio)
+### Container Dimensions & Aspect Ratio
 
-Untuk mencegah pergeseran layout saat elemen gambar atau media eksternal (YouTube/Vimeo) dimuat, KUBUILD menerapkan aturan ketat pada dimensi kontainer:
+To prevent layout shifts while images or external media (YouTube/Vimeo) load, KUBUILD applies strict container sizing rules:
 
-1. **Native CSS `aspect-ratio`**: Komponen media KUBUILD (`image`, `video`, `embed`) mendukung token rasio aspek (`16:9`, `4:3`, `1:1`, `9:16`) yang dikonversi menjadi deklarasi native `aspect-ratio: 16 / 9`.
-2. **Explicit Width & Height**: Atribut dimensi eksplisit selalu diteruskan ke tag `<img>` atau iframe pembungkus sehingga browser mereservasi ruang piksel sebelum konten aset berhasil diunduh.
-3. **CSS `content-visibility: auto`**: Bagian section yang berada di bawah lipatan layar (*below-the-fold*) dapat memanfaatkan optimasi browser untuk menunda proses rendering hingga pengguna menggulir mendekati section tersebut.
+1. **Native CSS `aspect-ratio`**: KUBUILD media components (`image`, `video`, `embed`) accept aspect-ratio tokens (`16:9`, `4:3`, `1:1`, `9:16`) that become native `aspect-ratio: 16 / 9` declarations.
+2. **Explicit width & height**: explicit dimension attributes are passed to the `<img>` tag or wrapping iframe so the browser reserves space before the asset downloads.
+3. **CSS `content-visibility: auto`**: sections *below the fold* can use this browser optimization to defer rendering until the user scrolls near them.
 
 ---
 
-## Optimasi Gambar & Media
+## Image & Media Optimization
 
-Media visual—terutama gambar resolusi tinggi—sering kali menyumbang lebih dari **70% dari total bobot data** pada halaman web. Optimasi media yang cerdas berdampak langsung pada metrik LCP (*Largest Contentful Paint*).
+Visual media — especially high-resolution images — often makes up more than **70% of a page's total weight**. Smart media optimization directly improves LCP (*Largest Contentful Paint*).
 
 ```mermaid
 flowchart LR
@@ -307,9 +300,9 @@ flowchart LR
     AVIF --> Browser["Visitor Browser\n(loading='lazy' + decoding='async')"]
 ```
 
-### Atribut Bawaan Komponen Gambar KUBUILD
+### Built-In Image Component Attributes
 
-Secara *out-of-the-box*, renderer bawaan KUBUILD (`renderMediaNode`) menerapkan praktik terbaik industri web pada elemen gambar:
+Out of the box, KUBUILD's built-in media renderer (`renderMediaNode`) applies web best practices to image elements:
 
 ```tsx
 <img
@@ -317,7 +310,7 @@ Secara *out-of-the-box*, renderer bawaan KUBUILD (`renderMediaNode`) menerapkan 
   src={safeSrc}
   alt={alt}
   role={alt === '' ? 'presentation' : undefined}
-  loading={loading} // Default 'lazy', dapat diatur ke 'eager'
+  loading={loading} // Defaults to 'lazy'; can be set to 'eager'
   width={width}
   height={height}
   style={imgStyles}
@@ -325,16 +318,16 @@ Secara *out-of-the-box*, renderer bawaan KUBUILD (`renderMediaNode`) menerapkan 
 />
 ```
 
-- **`loading="lazy"`**: Secara default, seluruh gambar di luar viewport awal dimuat secara *lazy* sehingga bandwidth jaringan difokuskan untuk resource kritis.
-- **`decoding="async"`**: Decoding gambar didelegasikan ke thread latar belakang, mencegah freeze sesaat pada *main thread* saat gambar besar didekompresi.
-- **`fetchpriority="high"` & `loading="eager"`**: Diterapkan khusus untuk gambar di Hero Section yang menjadi kandidat utama elemen LCP, memerintahkan browser mengunduhnya dengan prioritas tertinggi.
+- **`loading="lazy"`**: by default, every image outside the initial viewport is lazy-loaded so bandwidth goes to critical resources first.
+- **`decoding="async"`**: image decoding is moved off the *main thread*, avoiding brief freezes while large images decompress.
+- **`fetchpriority="high"` & `loading="eager"`**: applied to hero section images, the main LCP candidates, so the browser downloads them with the highest priority.
 
-### Integrasi dengan Custom `AssetProvider` (CDN Image Resizing)
+### Custom `AssetProvider` Integration (CDN Image Resizing)
 
-Melalui antarmuka `AssetProvider` di `@kubuild/core`, Anda dapat menghubungkan KUBUILD ke layanan pemrosesan gambar otomatis seperti Cloudflare Images, Imgproxy, Supabase Storage, atau AWS CloudFront Image Optimization:
+Through the `AssetProvider` interface in `@kubuild/core`, you can connect KUBUILD to image-processing services such as Cloudflare Images, Imgproxy, Supabase Storage, or AWS CloudFront Image Optimization:
 
 ```typescript title="lib/optimized-asset-provider.ts"
-import type { AssetProvider } from '@kubuild/core';
+import type { AssetInfo, AssetProvider } from '@kubuild/core';
 
 interface ImageTransformOptions {
   width?: number;
@@ -346,23 +339,23 @@ export class CloudflareImagesAssetProvider implements AssetProvider {
   constructor(private cdnBaseUrl: string) {}
 
   /**
-   * Mengubah ID aset atau URL mentah menjadi URL CDN Cloudflare yang dioptimalkan
-   * Contoh: https://cdn.example.com/cdn-cgi/image/width=800,format=auto,quality=85/image-uuid
+   * Turns an asset ID or raw URL into an optimized Cloudflare CDN URL
+   * Example: https://cdn.example.com/cdn-cgi/image/width=800,format=auto,quality=85/image-uuid
    */
   resolve(assetIdOrUri: string): string {
     if (!assetIdOrUri) return '';
 
-    // Jika sudah merupakan URL eksternal penuh dan bukan ID aset lokal
+    // Already a full external URL rather than a local asset ID
     if (assetIdOrUri.startsWith('http://') || assetIdOrUri.startsWith('https://')) {
-      // Bungkus dengan Cloudflare Image Resizing proxy
+      // Wrap it with the Cloudflare Image Resizing proxy
       return `${this.cdnBaseUrl}/cdn-cgi/image/width=1200,format=auto,quality=80/${encodeURIComponent(assetIdOrUri)}`;
     }
 
-    // Resolusi aset yang dikelola oleh storage internal
+    // Resolve assets managed by internal storage
     return `${this.cdnBaseUrl}/cdn-cgi/image/width=1200,format=auto,quality=80/assets/${assetIdOrUri}`;
   }
 
-  async upload(file: File | Blob): Promise<{ assetId: string; url: string }> {
+  async upload(file: File | Blob): Promise<AssetInfo> {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -372,15 +365,15 @@ export class CloudflareImagesAssetProvider implements AssetProvider {
     });
 
     if (!response.ok) {
-      throw new Error(`Gagal mengunggah gambar: ${response.statusText}`);
+      throw new Error(`Image upload failed: ${response.statusText}`);
     }
 
-    return response.json();
+    return (await response.json()) as AssetInfo; // { id, url, mimeType, size?, alt? }
   }
 }
 ```
 
-Menerapkan `AssetProvider` pada konteks render:
+Use the `AssetProvider` in the render context:
 
 ```tsx title="app/[slug]/page.tsx"
 import { CloudflareImagesAssetProvider } from '@/lib/optimized-asset-provider';
@@ -399,9 +392,9 @@ export default async function Page() {
 }
 ```
 
-### Integrasi dengan Next.js `<Image />` melalui Custom Component Registry
+### Next.js `<Image />` via a Custom Component Registry
 
-Jika Anda ingin memanfaatkan optimasi bawaan Next.js Image Optimizer (`next/image`) dengan dukungan otomatis `srcset`, blur placeholder, dan layout sizing:
+To use the built-in Next.js Image Optimizer (`next/image`) with automatic `srcset`, blur placeholders, and layout sizing:
 
 ```tsx title="components/custom-next-image.tsx"
 import React from 'react';
@@ -458,24 +451,24 @@ export const NextImageRenderer: React.FC<{
 
 ## Font & Typography Optimization
 
-Tipografi adalah elemen visual utama dari setiap halaman web. Namun, pemuatan font eksternal yang tidak teratur dapat menyebabkan dua masalah performa fatal:
-1. **FOIT (*Flash of Invisible Text*)**: Teks menghilang sama sekali sampai file font selesai diunduh oleh browser.
-2. **FOUT (*Flash of Unstyled Text*)**: Teks muncul dengan font sistem default, lalu tiba-tiba melompat ketika font web diterapkan, memicu lonjakan angka CLS.
+Typography is the main visual element of every page, but poorly managed external font loading causes two serious performance problems:
+1. **FOIT (*Flash of Invisible Text*)**: text disappears completely until the font file finishes downloading.
+2. **FOUT (*Flash of Unstyled Text*)**: text first renders in the default system font, then jumps when the web font applies, causing a CLS spike.
 
-### Mengintegrasikan Design Tokens dengan `next/font`
+### Design Tokens with `next/font`
 
-KUBUILD mengelola tipografi melalui sistem **Theme Design Tokens** (grup `fonts`), yang dipetakan langsung ke variabel CSS:
+KUBUILD manages typography through **theme design tokens** (the `fonts` group), mapped directly to CSS variables:
 - `fonts.body` $\rightarrow$ `--kb-font-body`
 - `fonts.heading` $\rightarrow$ `--kb-font-heading`
 - `fonts.monospace` $\rightarrow$ `--kb-font-monospace`
 
-Dengan Next.js 14 & 15, gunakan modul `next/font/google` dengan opsi **`display: 'swap'`** dan deklarasikan CSS custom properties pada elemen root:
+With Next.js 14+, use `next/font/google` with **`display: 'swap'`** and declare CSS custom properties on the root element:
 
 ```tsx title="app/layout.tsx"
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 
-// 1. Inisialisasi font Google dengan opsi display: 'swap' (mencegah FOIT)
+// 1. Initialize the Google font with display: 'swap' (prevents FOIT)
 const fontBody = Inter({
   subsets: ['latin'],
   display: 'swap',
@@ -501,7 +494,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```
 
 ```css title="app/globals.css"
-/* Menetapkan fallback font sistem dengan size-adjust agar layout metric identik (CLS = 0) */
+/* System fallback fonts with size-adjust so layout metrics match (CLS = 0) */
 @layer base {
   :root {
     --kb-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -518,15 +511,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-Ketika desainer memilih `"var(--kb-font-heading)"` di editor KUBUILD, browser akan segera menampilkan teks menggunakan font sistem lokal tanpa delay, lalu beralih secara mulus ke font Google tanpa pergeseran layout sedikit pun.
+When a designer picks `"var(--kb-font-heading)"` in the KUBUILD editor, the browser shows the text in a local system font immediately, then switches smoothly to the Google font without any layout shift.
 
 ---
 
 ## Live Interactive Preview
 
-Di bawah ini adalah simulasi langsung dari halaman KUBUILD yang menerapkan seluruh prinsip optimasi performa: native CSS grid responsif, scoped styles, explicit media aspect ratio, dan integrasi design token warna dan tipografi.
+Below is a live simulation of a KUBUILD page that applies all of these performance principles: a responsive native CSS grid, scoped styles, explicit media aspect ratios, and color and typography design tokens.
 
-Ubah ukuran perangkat pratinjau (Desktop, Tablet, Mobile) untuk mengamati transisi tata letak yang instan dan mulus tanpa jeda komputasi:
+Change the preview device (Desktop, Tablet, Mobile) to see the layout switch instantly:
 
 <InteractiveRenderer
   title="Zero Layout Shift & High-Performance Responsive Page"
@@ -733,57 +726,57 @@ Ubah ukuran perangkat pratinjau (Desktop, Tablet, Mobile) untuk mengamati transi
 
 ---
 
-## Checklist Praktis Menuju 95+ Google Lighthouse
+## Practical Checklist for 95+ Google Lighthouse
 
-Gunakan daftar periksa (*pre-flight audit checklist*) berikut sebelum meluncurkan landing page KUBUILD ke lingkungan produksi:
+Use this *pre-flight audit checklist* before launching a KUBUILD landing page to production:
 
 <Accordions>
   <Accordion title="1. Bundle & Runtime Isolation Audit">
-    - [ ] Halaman publik pengunjung **hanya** mengimpor `@kubuild/renderer` dan tidak memiliki referensi ke `@kubuild/editor` atau `@kubuild/ai`.
-    - [ ] Dynamic import dengan `{ ssr: false }` digunakan secara konsisten pada seluruh komponen authoring admin.
-    - [ ] Audit `@next/bundle-analyzer` mengonfirmasi total First Load JS rute publik berada di bawah **85 KB**.
-    - [ ] Tidak ada dependensi icon suite monolitik yang diimpor tanpa tree-shaking spesifik.
+    - [ ] Public visitor pages import **only** `@kubuild/renderer` and have no references to `@kubuild/editor` or `@kubuild/ai`.
+    - [ ] Dynamic imports with `{ ssr: false }` are used consistently for every admin authoring component.
+    - [ ] A `@next/bundle-analyzer` audit confirms the public routes' First Load JS contains no editor chunks.
+    - [ ] No monolithic icon suites are imported without targeted tree-shaking.
   </Accordion>
 
   <Accordion title="2. Layout Shift & CSS Delivery Audit">
-    - [ ] Fungsi `collectResponsiveStylesCss(document)` diinjeksi pada sisi server (SSR) ke dalam HTML `<head>` atau inline `<style>`.
-    - [ ] Parameter `responsive="css"` aktif pada `<KubuildRenderer />` rute publik.
-    - [ ] Seluruh kontainer gambar, video, dan iframe memiliki dimensi `width`/`height` eksplisit atau CSS `aspect-ratio`.
-    - [ ] Skor Cumulative Layout Shift (CLS) pada audit Lighthouse menghasilkan angka **0.00**.
+    - [ ] Public routes render `<KubuildRenderer responsive="css" />` so `collectResponsiveStylesCss(document)` output is emitted in the server HTML.
+    - [ ] `responsive="css"` is enabled on `<KubuildRenderer />` for public routes.
+    - [ ] Every image, video, and iframe container has explicit `width`/`height` or a CSS `aspect-ratio`.
+    - [ ] Lighthouse reports a Cumulative Layout Shift (CLS) of **0.00**.
   </Accordion>
 
   <Accordion title="3. Media & Image Optimization Audit">
-    - [ ] Gambar di atas lipatan layar (*hero image*) menggunakan `fetchpriority="high"` dan `loading="eager"`.
-    - [ ] Seluruh gambar di bawah lipatan layar (*below-the-fold*) memiliki `loading="lazy"` dan `decoding="async"`.
-    - [ ] Resolusi aset menggunakan format modern **AVIF** atau **WebP** dengan kompresi visual terkalibrasi (`q=80`).
-    - [ ] Resolusi dimensi gambar disesuaikan dengan viewport perangkat klien melalui CDN Resizing `AssetProvider`.
+    - [ ] Above-the-fold images (*hero images*) use `fetchpriority="high"` and `loading="eager"`.
+    - [ ] Every image *below the fold* uses `loading="lazy"` and `decoding="async"`.
+    - [ ] Assets are served as modern **AVIF** or **WebP** with calibrated compression (`q=80`).
+    - [ ] Image dimensions match the client viewport through a CDN-resizing `AssetProvider`.
   </Accordion>
 
   <Accordion title="4. Web Fonts & Typography Audit">
-    - [ ] Seluruh font web dimuat dengan `display: 'swap'` untuk menghindari *Flash of Invisible Text* (FOIT).
-    - [ ] Menggunakan `next/font` (Next.js) yang menyematkan font langsung secara self-hosted tanpa request tambahan ke server pihak ketiga Google Fonts.
-    - [ ] Fallback font sistem dikonfigurasi dengan metric override (`size-adjust`, `ascent-override`) untuk mencegah FOUT.
+    - [ ] All web fonts load with `display: 'swap'` to avoid *Flash of Invisible Text* (FOIT).
+    - [ ] `next/font` (Next.js) self-hosts the fonts, with no extra requests to Google Fonts servers.
+    - [ ] System fallback fonts use metric overrides (`size-adjust`, `ascent-override`) to prevent FOUT.
   </Accordion>
 
   <Accordion title="5. Edge Caching & Server Response Audit">
-    - [ ] Header HTTP Cache-Control untuk aset publik terkonfigurasi: `s-maxage=31536000, stale-while-revalidate`.
-    - [ ] Kompresi komputasi server **Brotli** atau **Gzip** aktif pada Edge CDN.
-    - [ ] Metrik Time to First Byte (TTFB) tercatat di bawah **150 milidetik** di seluruh lokasi geografis pengguna.
+    - [ ] Cache-Control headers for public assets are set: `s-maxage=31536000, stale-while-revalidate`.
+    - [ ] **Brotli** or **Gzip** compression is enabled on the edge CDN.
+    - [ ] Time to First Byte (TTFB) stays under **150 ms** across all user regions.
   </Accordion>
 </Accordions>
 
 ---
 
-## Ringkasan Arsitektur
+## Architecture Summary
 
 <Cards>
   <Card title="Next.js App Router Integration" href="/docs/integration/nextjs" icon="Globe">
-    Pelajari integrasi lengkap Server Components (RSC), generateMetadata SEO, dan Route Handlers.
+    Full guide to Server Components (RSC), SEO with generateMetadata, and Route Handlers.
   </Card>
   <Card title="Backend Storage & Document Lifecycle" href="/docs/integration/backend-storage" icon="Database">
-    Arsitektur basis data PostgreSQL JSONB, Cloudflare R2 snapshot freezing, dan optimistic locking.
+    PostgreSQL JSONB storage, Cloudflare R2 snapshot freezing, and optimistic locking.
   </Card>
   <Card title="Security & CSP Sanitization" href="/docs/integration/security" icon="Shield">
-    Panduan pengamanan dokumen, sanitasi XSS (DOMPurify), dan konfigurasi Content Security Policy.
+    Document hardening, built-in XSS sanitization, and Content Security Policy configuration.
   </Card>
 </Cards>

@@ -98,7 +98,7 @@ bun add @kubuild/core @kubuild/schema
 
 ## Document Tree Operations & Utilities
 
-A KUBUILD document (`PageDocument`) is a deterministic tree whose root node (`document.root`) branches into structural containers, layouts, and leaf elements. `@kubuild/core` provides comprehensive headless utilities to inspect, traverse, clone, and navigate this hierarchy.
+A KUBUILD document (`PageDocument`) is a deterministic tree whose root node (`doc.document`, a `RootPageNode` of type `page`) branches into structural containers, layouts, and leaf elements. `@kubuild/core` provides comprehensive headless utilities to inspect, traverse, clone, and navigate this hierarchy.
 
 ### Creating a Blank Document
 
@@ -111,8 +111,8 @@ import { createBlankDocument } from '@kubuild/core';
 const doc = createBlankDocument('Landing Page');
 
 console.log(doc.schema); // "stora.page"
-console.log(doc.version); // "1.0.0"
-console.log(doc.root.type); // "page"
+console.log(doc.version); // "1.3.0" (CURRENT_SCHEMA_VERSION)
+console.log(doc.document.type); // "page"
 ```
 
 ### Tree Traversal & Inspection
@@ -131,19 +131,19 @@ import {
 } from '@kubuild/core';
 
 // 1. Locate a node directly by unique ID
-const targetNode = findNodeById(doc.root, 'btn-cta');
+const targetNode = findNodeById(doc.document, 'btn-cta');
 
 // 2. Discover node location (parent reference, index in parent, and node itself)
-const location = findNodeLocation(doc.root, 'btn-cta');
+const location = findNodeLocation(doc.document, 'btn-cta');
 if (location) {
-  console.log(`Parent ID: ${location.parent.id}`);
+  console.log(`Parent ID: ${location.parent?.id ?? "(root)"}`);
   console.log(`Index in parent: ${location.index}`);
 }
 
 // 3. Ancestry inspection
-const ancestorIds = getAncestorChain(doc.root, 'btn-cta'); // ['root', 'section-hero', 'container-actions']
-const parentId = getParentNodeId(doc.root, 'btn-cta'); // 'container-actions'
-const ancestors = getNodeAncestors(doc.root, 'btn-cta'); // Node[]
+const ancestorIds = getAncestorChain(doc.document, 'btn-cta'); // ['root', 'section-hero', 'container-actions']
+const parentId = getParentNodeId(doc.document, 'btn-cta'); // 'container-actions'
+const ancestors = getNodeAncestors(doc.document, 'btn-cta'); // Node[]
 
 // 4. Hierarchical relationships
 const isInsideHero = isDescendantOf(heroSectionNode, 'btn-cta'); // true
@@ -160,14 +160,14 @@ Compute adjacent nodes across four spatial hierarchy directions (`parent`, `chil
 import { getNavigationTarget } from '@kubuild/core';
 
 // Navigate upwards to container
-const parentId = getNavigationTarget(doc.root, 'btn-cta', 'parent');
+const parentId = getNavigationTarget(doc.document, 'btn-cta', 'parent');
 
 // Navigate to sibling
-const prevSiblingId = getNavigationTarget(doc.root, 'btn-cta', 'previous-sibling');
-const nextSiblingId = getNavigationTarget(doc.root, 'btn-cta', 'next-sibling');
+const prevSiblingId = getNavigationTarget(doc.document, 'btn-cta', 'previous-sibling');
+const nextSiblingId = getNavigationTarget(doc.document, 'btn-cta', 'next-sibling');
 
 // Navigate to first child (if node is a container)
-const firstChildId = getNavigationTarget(doc.root, 'section-hero', 'child');
+const firstChildId = getNavigationTarget(doc.document, 'section-hero', 'child');
 ```
 
 ### Tree Cloning & Reference Remapping
@@ -177,8 +177,12 @@ When duplicating blocks, copying sections, or importing template snippets, node 
 ```typescript
 import { cloneNodeTreeWithFreshIds, remapNodeReferences } from '@kubuild/core';
 
-// Deep-clone a node and its descendants, generating new collision-free IDs
-const { clonedNode, idMap } = cloneNodeTreeWithFreshIds(sourceSection);
+// Deep-clone a node and its descendants. You supply the ID generator, so the
+// IDs stay collision-free against your own document.
+const { clonedNode, idMap } = cloneNodeTreeWithFreshIds(
+  sourceSection,
+  (oldId) => `${oldId}-${crypto.randomUUID().slice(0, 8)}`,
+);
 
 // idMap contains oldId -> newId mappings
 console.log(idMap.get('source-hero-id')); // 'node-a8f3b2...'
@@ -251,8 +255,9 @@ const { document: doc2, event } = duplicateNode(doc1, {
 
 // 3. Replace a placeholder node with a richer component
 const { document: doc3 } = replaceNode(doc2, {
-  targetNodeId: 'placeholder-widget',
-  replacementNode: enrichedWidgetNode,
+  nodeId: 'placeholder-widget',
+  // The replacement keeps the same id — identity is never silently changed.
+  node: { ...enrichedWidgetNode, id: 'placeholder-widget' },
 });
 
 // 4. Remove a node and its descendants
@@ -275,14 +280,14 @@ const { document: movedDoc } = moveNode(doc, {
 
 // Wrap one or more nodes into a container frame
 const { document: wrappedDoc } = wrapNodeIntoFrame(doc, {
-  nodeId: 'btn-cta',
-  frameType: 'container',
+  nodeId: 'btn-cta', // or nodeIds: ['btn-cta', 'btn-secondary']
+  frameId: 'container-temp',
   frameStyles: { base: { display: 'flex', gap: '1rem' } },
 });
 
 // Ungroup a frame, promoting its children up to the frame's parent
 const { document: ungroupedDoc } = ungroupNodeFrame(wrappedDoc, {
-  frameNodeId: 'container-temp',
+  nodeId: 'container-temp',
 });
 ```
 
@@ -343,7 +348,7 @@ let doc = createBlankDocument('E-Commerce Promo Page');
 
 // 2. Insert a Hero Section
 const heroInsert = insertNode(doc, {
-  parentId: doc.root.id,
+  parentId: doc.document.id,
   node: {
     id: 'section-hero',
     type: 'section',
@@ -429,7 +434,7 @@ sequenceDiagram
     loop Continuous Drag / Slider Scrubbing (60 FPS)
         Editor->>Mgr: execute(updateStyle)
         Mgr->>Engine: push(updatedDoc)
-        Note over Engine: Live state updates; undo stack NOT modified
+        Note over Engine: Live state updates, undo stack NOT modified
     end
 
     Editor->>Mgr: endTransaction()
@@ -449,12 +454,12 @@ const initialDoc = createBlankDocument('Interactive Page');
 const manager = new DocumentHistoryManager(initialDoc, { maxHistory: 50 });
 
 // Access current document
-console.log(manager.document.title);
+console.log(manager.document.metadata?.title);
 
 // Execute commands immutably and record history
 manager.execute((currentDoc) =>
   insertNode(currentDoc, {
-    parentId: currentDoc.root.id,
+    parentId: currentDoc.document.id,
     node: { id: 'card-1', type: 'container', props: {}, children: [] },
   })
 );
@@ -561,7 +566,7 @@ import {
 const isVisible = evaluateCondition(
   {
     field: 'variables.user.isSubscribed',
-    operator: 'eq',
+    operator: 'equals',
     value: true,
   },
   { variables: { user: { isSubscribed: true } } }
@@ -571,7 +576,7 @@ const isVisible = evaluateCondition(
 const group: ConditionGroup = {
   combinator: 'and',
   conditions: [
-    { field: 'form.billing.country', operator: 'eq', value: 'ID' },
+    { field: 'form.billing.country', operator: 'equals', value: 'ID' },
     { field: 'variables.cart.total', operator: 'gte', value: 500000 },
   ],
 };
@@ -583,13 +588,12 @@ const passesRules = evaluateConditionGroup(group, runtimeContext);
 
 | Operator | Meaning | Example Rule |
 | :--- | :--- | :--- |
-| `eq` / `neq` | Strict equality / inequality | `{ field: 'plan', operator: 'eq', value: 'pro' }` |
+| `equals` / `not_equals` | Equality / inequality | `{ field: 'plan', operator: 'equals', value: 'pro' }` |
 | `gt` / `gte` | Greater than / or equal | `{ field: 'cart.total', operator: 'gte', value: 100 }` |
 | `lt` / `lte` | Less than / or equal | `{ field: 'inventory', operator: 'lte', value: 5 }` |
 | `contains` / `not_contains` | Substring or array inclusion | `{ field: 'roles', operator: 'contains', value: 'admin' }` |
-| `starts_with` / `ends_with` | String prefix / suffix match | `{ field: 'email', operator: 'ends_with', value: '@acme.com' }` |
-| `is_empty` / `is_not_empty` | Null, undefined, empty string/array/object | `{ field: 'shippingAddress', operator: 'is_not_empty' }` |
-| `in` / `not_in` | Membership in target array | `{ field: 'status', operator: 'in', value: ['active', 'trial'] }` |
+| `is_truthy` / `is_falsy` | JavaScript truthiness of the field value | `{ field: 'shippingAddress', operator: 'is_truthy' }` |
+| `regex` | Field value matches a regular expression | `{ field: 'email', operator: 'regex', value: '@acme\\.com$' }` |
 
 ### Headless Action Pipeline Executor
 
@@ -599,28 +603,33 @@ User interactions (form submissions, button clicks, modal triggers) invoke decla
 import { ActionPipelineExecutor } from '@kubuild/core';
 
 const executor = new ActionPipelineExecutor({
-  defaultTimeoutMs: 5000,
+  defaultTimeout: 5000, // ms, applied to steps without their own `timeout`
   handlers: {
-    http_request: async (step, context) => {
-      const response = await fetch(step.params.url, {
-        method: step.params.method,
+    // Step-specific settings live in `step.payload`
+    api_request: async (step, context, signal) => {
+      const { url, method = 'POST' } = step.payload as { url: string; method?: string };
+      const response = await fetch(url, {
+        method,
         body: JSON.stringify(context.form),
+        signal,
       });
       return response.json();
     },
     navigate: async (step) => {
-      console.log(`Navigating to ${step.params.url}`);
+      console.log(`Navigating to ${String(step.payload?.url)}`);
     },
   },
 });
 
 const pipelineResult = await executor.execute(buttonActionPipeline, {
-  form: { email: 'developer@kustora.com' },
-  variables: { leadSource: 'organic' },
+  context: {
+    form: { email: 'developer@kustora.com' },
+    variables: { leadSource: 'organic' },
+  },
 });
 
-console.log(pipelineResult.success); // true
-console.log(pipelineResult.stepResults); // Details for each step
+console.log(pipelineResult.status); // 'completed' | 'failed' | 'cancelled'
+console.log(pipelineResult.stepResults); // StepExecutionResult[] for each step
 ```
 
 ### Server Tracking Relay & Zero-Secret Client Model
@@ -719,12 +728,15 @@ if (!preflight.valid) {
 
 // 2. Safely import document and extract embedded assets
 const result = await importStoraPackage(uploadedBuffer, {
-  assetDestination: 'memory',
+  // Optional: persist each asset to your own storage and return its host URL / AssetInfo
+  onAssetImport: async (assetId, bytes, meta) => uploadToBucket(assetId, bytes, meta.mimeType),
 });
 
 if (result.success) {
-  console.log('Imported document title:', result.document.title);
-  console.log('Extracted assets count:', result.assets.length);
+  console.log('Imported document title:', result.metadata.title);
+  console.log('Extracted assets count:', result.extractedAssets.size);
+} else {
+  console.error(result.diagnosticMessage, result.errors);
 }
 ```
 
@@ -738,14 +750,16 @@ import { migrateDocument, canMigrate, getMigrationPath } from '@kubuild/core';
 const rawLegacyDoc = JSON.parse(legacyJsonString);
 
 // Verify upgrade feasibility
-if (canMigrate(rawLegacyDoc.version, '1.0.0')) {
-  const path = getMigrationPath(rawLegacyDoc.version, '1.0.0');
+// The target version defaults to CURRENT_SCHEMA_VERSION (from @kubuild/schema)
+if (canMigrate(rawLegacyDoc.version)) {
+  const path = getMigrationPath(rawLegacyDoc.version);
   console.log('Migration steps to execute:', path);
 
-  const migrationResult = migrateDocument(rawLegacyDoc, '1.0.0');
-  if (migrationResult.success) {
-    console.log('Document successfully upgraded to v1.0.0');
-    const modernDoc = migrationResult.document;
+  const migrationResult = migrateDocument(rawLegacyDoc);
+  if (migrationResult.success && migrationResult.document) {
+    console.log('Document upgraded to', migrationResult.document.version);
+  } else {
+    console.error(migrationResult.diagnostic);
   }
 }
 ```
@@ -761,7 +775,7 @@ const comparison = compareDocumentsSemantically(originalDoc, deserializedDoc, {
   ignoreTimestamps: true,
 });
 
-if (comparison.identical) {
+if (comparison.equivalent) {
   console.log('Lossless round-trip verified!');
 } else {
   console.warn('Semantic differences detected:', comparison.differences);
@@ -823,7 +837,7 @@ if (!structuralCheck.valid) {
 // 2. Security validation: checks URL schemes and script injections
 const securityResult = validateDocumentSecurity(doc);
 if (!securityResult.safe) {
-  console.error('Security violations detected:', securityResult.violations);
+  console.error('Security violations detected:', securityResult.errors);
 }
 
 // 3. Sanitizing untrusted links

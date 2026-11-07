@@ -17,14 +17,8 @@ import {
   Sparkles,
   Sliders,
   RotateCcw,
-  Variable,
   Activity,
   Trash2,
-  Server,
-  Globe,
-  Radio,
-  ChevronDown,
-  ChevronRight,
   ShieldCheck,
   Bot,
   Wand2,
@@ -363,7 +357,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'pricing-badge',
         type: 'badge',
         props: {
-          text: 'PILIHAN PAKET SAAS',
+          text: 'SAAS PLANS',
         },
         styles: {
           base: {
@@ -383,7 +377,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'pricing-heading',
         type: 'heading',
         props: {
-          text: 'Pilih Paket yang Sesuai untuk Skala Bisnis Anda',
+          text: 'Pick the Plan That Fits Your Business',
           level: 2,
         },
         styles: {
@@ -399,7 +393,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'pricing-subheading',
         type: 'paragraph',
         props: {
-          text: 'Transparan tanpa biaya tersembunyi. Semua paket mencakup AI document assistant dan zero-secret security.',
+          text: 'Transparent pricing with no hidden fees. Every plan includes the AI document assistant and zero-secret security.',
         },
         styles: {
           base: {
@@ -433,10 +427,10 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
             type: 'custom.pricing-card',
             props: {
               planName: 'Starter',
-              price: 'Rp 199.000',
-              period: '/ bulan',
-              description: 'Cocok untuk individual developer dan eksperimen awal.',
-              ctaText: 'Mulai Uji Coba',
+              price: '$19',
+              period: '/ month',
+              description: 'Great for individual developers and early experiments.',
+              ctaText: 'Start Free Trial',
               popular: false,
             },
             styles: {
@@ -454,11 +448,11 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
             type: 'custom.pricing-card',
             props: {
               planName: 'Pro SaaS',
-              price: 'Rp 499.000',
-              period: '/ bulan',
-              description: 'Paling diminati tim berkembang dengan AI Copilot unlimited.',
+              price: '$49',
+              period: '/ month',
+              description: 'Most popular with growing teams, with unlimited AI Copilot.',
               badge: 'Paling Populer',
-              ctaText: 'Pilih Paket Pro',
+              ctaText: 'Choose Pro',
               popular: true,
             },
             styles: {
@@ -478,8 +472,8 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
             props: {
               planName: 'Enterprise',
               price: 'Custom',
-              period: '/ tahun',
-              description: 'Khusus organisasi berskala besar dengan custom proxy & SLA 99.9%.',
+              period: '/ year',
+              description: 'For large organizations, with a custom proxy & 99.9% SLA.',
               ctaText: 'Hubungi Sales',
               popular: false,
             },
@@ -516,7 +510,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'testimonial-badge',
         type: 'badge',
         props: {
-          text: 'TESTIMONI PENGGUNA',
+          text: 'CUSTOMER STORIES',
         },
         styles: {
           base: {
@@ -536,7 +530,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'testi-heading',
         type: 'heading',
         props: {
-          text: 'Dipercaya oleh 10.000+ Tim Kreatif & SaaS Host',
+          text: 'Trusted by Creative Teams & SaaS Hosts',
           level: 2,
         },
         styles: {
@@ -552,7 +546,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'testi-subheading',
         type: 'paragraph',
         props: {
-          text: 'Bagaimana AI Assistant di KUBUILD memangkas waktu delivery landing page dari hitungan hari menjadi hitungan menit.',
+          text: 'How the KUBUILD AI assistant cuts landing page delivery from days to minutes.',
         },
         styles: {
           base: {
@@ -588,7 +582,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
               author: 'Sarah Jenkins',
               role: 'VP of Engineering',
               company: 'NexaFlow Systems',
-              quote: 'KUBUILD memisahkan JSON AST dari runtime React. AI Copilot menghasilkan layout siap pakai tanpa pernah menghasilkan arbitrary script berbahaya.',
+              quote: 'KUBUILD separates the JSON AST from the React runtime. The AI Copilot produces ready-to-use layouts without ever emitting arbitrary scripts.',
               rating: 5,
               badge: 'Enterprise Host',
               verified: true,
@@ -607,10 +601,10 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
             id: 'testi-card-2',
             type: 'custom.testimonial-card',
             props: {
-              author: 'Budi Santoso',
+              author: 'Alex Morgan',
               role: 'Lead Product Designer',
               company: 'Stora Studio',
-              quote: 'Atomic undo adalah penyelamat! Setiap prompt AI yang dijalankan dibungkus ke dalam satu transaksi, cukup tekan Cmd+Z sekali untuk membatalkan seluruh blok.',
+              quote: 'Atomic undo is a lifesaver. Every AI prompt runs in one transaction, so a single Cmd+Z removes the whole block.',
               rating: 5,
               badge: 'SaaS Platform',
               verified: true,
@@ -629,10 +623,10 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
             id: 'testi-card-3',
             type: 'custom.testimonial-card',
             props: {
-              author: 'Ahmad Rifai',
+              author: 'Sam Rivera',
               role: 'Head of Performance Growth',
               company: 'Kuantum Media',
-              quote: 'Pola Backend Proxy menjamin API Key OpenAI/Claude tidak pernah bocor ke browser pengunjung. Integrasi Next.js sangat rapi.',
+              quote: 'The backend-proxy pattern keeps our OpenAI/Claude API keys out of visitors\' browsers. The Next.js integration is very clean.',
               rating: 5,
               badge: 'Growth Agency',
               verified: true,
@@ -670,7 +664,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'faq-badge',
         type: 'badge',
         props: {
-          text: 'PERTANYAAN UMUM',
+          text: 'FAQ',
         },
         styles: {
           base: {
@@ -690,7 +684,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'faq-heading',
         type: 'heading',
         props: {
-          text: 'Pertanyaan yang Sering Diajukan (FAQ)',
+          text: 'Frequently Asked Questions',
           level: 2,
         },
         styles: {
@@ -706,7 +700,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
         id: 'faq-subheading',
         type: 'paragraph',
         props: {
-          text: 'Pahami arsitektur keamanan, proteksi API key backend-proxy, dan sistem Atomic Undo di KUBUILD.',
+          text: 'Understand the KUBUILD security architecture, backend-proxy API key protection, and atomic undo.',
         },
         styles: {
           base: {
@@ -749,7 +743,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
                 id: 'faq-q-1',
                 type: 'heading',
                 props: {
-                  text: 'Bagaimana KUBUILD melindungi API Key OpenAI / Claude dari kebocoran?',
+                  text: 'How does KUBUILD keep OpenAI / Claude API keys from leaking?',
                   level: 4,
                 },
                 styles: {
@@ -765,7 +759,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
                 id: 'faq-a-1',
                 type: 'paragraph',
                 props: {
-                  text: 'KUBUILD mewajibkan pola Backend Proxy. Endpoint host (/api/ai) menyimpan API Key di server-side env. Klien browser tidak pernah menerima atau menyimpan credential sensitif.',
+                  text: 'KUBUILD requires the backend-proxy pattern. The host endpoint (/api/ai) keeps the API key in the server-side env; the browser never receives or stores sensitive credentials.',
                 },
                 styles: {
                   base: {
@@ -795,7 +789,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
                 id: 'faq-q-2',
                 type: 'heading',
                 props: {
-                  text: 'Mengapa output AI KUBUILD aman dari XSS dan arbitrary script injection?',
+                  text: 'Why is KUBUILD AI output safe from XSS and arbitrary script injection?',
                   level: 4,
                 },
                 styles: {
@@ -811,7 +805,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
                 id: 'faq-a-2',
                 type: 'paragraph',
                 props: {
-                  text: 'AI tidak menghasilkan string raw HTML. Model memanggil JSON Tool Functions terstruktur yang divalidasi skema Zod. Atribut berbahaya seperti javascript:, <script>, dan CSS expression otomatis ditolak.',
+                  text: 'The AI never produces raw HTML strings. The model calls structured JSON tool functions validated by Zod schemas, and dangerous attributes such as javascript:, <script>, and CSS expressions are rejected automatically.',
                 },
                 styles: {
                   base: {
@@ -841,7 +835,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
                 id: 'faq-q-3',
                 type: 'heading',
                 props: {
-                  text: 'Bagaimana cara kerja Atomic Undo jika hasil AI tidak sesuai?',
+                  text: 'How does atomic undo work if the AI result is wrong?',
                   level: 4,
                 },
                 styles: {
@@ -857,7 +851,7 @@ export const AI_PRESET_TEMPLATES: Record<string, Node> = {
                 id: 'faq-a-3',
                 type: 'paragraph',
                 props: {
-                  text: 'Semua perubahan dalam satu eksekusi prompt dibundel dalam satu transaksi history atomic. Cukup tekan tombol Undo atau Cmd+Z sekali untuk membatalkan seluruh blok seketika.',
+                  text: 'Every change from one prompt run is bundled into a single atomic history transaction. Press Undo or Cmd+Z once to remove the whole block instantly.',
                 },
                 styles: {
                   base: {
@@ -1123,9 +1117,9 @@ export function InteractiveRenderer({
   const defaultAiSuggestions = useMemo(() => {
     return (
       aiPromptSuggestions || [
-        'Tambahkan modern SaaS Pricing Table 3 kolom',
-        'Generate Testimonial Section dengan rating bintang 5',
-        'Buat FAQ Accordion modern',
+        'Add a modern 3-column SaaS pricing table',
+        'Generate a testimonial section with 5-star ratings',
+        'Create a modern FAQ accordion',
       ]
     );
   }, [aiPromptSuggestions]);
@@ -1136,16 +1130,16 @@ export function InteractiveRenderer({
       if (!trimmed || isAiGenerating) return;
 
       setIsAiGenerating(true);
-      setAiStreamingPhase('1/4: Menghubungi endpoint /api/ai proxy handler...');
+      setAiStreamingPhase('1/4: Calling the /api/ai proxy handler...');
       await new Promise((r) => setTimeout(r, 220));
 
       setAiStreamingPhase('2/4: LLM Tool Calling: insert_component(type="section")...');
       await new Promise((r) => setTimeout(r, 260));
 
-      setAiStreamingPhase('3/4: Memvalidasi skema Zod AST & safe attributes (anti-XSS)...');
+      setAiStreamingPhase('3/4: Validating the Zod AST schema & safe attributes (anti-XSS)...');
       await new Promise((r) => setTimeout(r, 240));
 
-      setAiStreamingPhase('4/4: Rekonsiliasi Node Tree & commit transaksi atomic...');
+      setAiStreamingPhase('4/4: Reconciling the node tree & committing the atomic transaction...');
       await new Promise((r) => setTimeout(r, 180));
 
       const lower = trimmed.toLowerCase();
@@ -1153,23 +1147,21 @@ export function InteractiveRenderer({
 
       if (
         lower.includes('pricing') ||
-        lower.includes('harga') ||
-        lower.includes('paket') ||
-        lower.includes('langganan')
+        lower.includes('price') ||
+        lower.includes('plan') ||
+        lower.includes('subscription')
       ) {
         newSection = JSON.parse(JSON.stringify(AI_PRESET_TEMPLATES.pricing));
       } else if (
         lower.includes('testimonial') ||
-        lower.includes('testimoni') ||
         lower.includes('rating') ||
         lower.includes('review')
       ) {
         newSection = JSON.parse(JSON.stringify(AI_PRESET_TEMPLATES.testimonials));
       } else if (
         lower.includes('faq') ||
-        lower.includes('tanya') ||
-        lower.includes('accordion') ||
-        lower.includes('pertanyaan')
+        lower.includes('question') ||
+        lower.includes('accordion')
       ) {
         newSection = JSON.parse(JSON.stringify(AI_PRESET_TEMPLATES.faq));
       } else {
@@ -1210,7 +1202,7 @@ export function InteractiveRenderer({
               id: `p-${uniqueSuffix}`,
               type: 'paragraph',
               props: {
-                text: 'Bagian ini di-generate secara real-time dari prompt melalui streaming LLM reconciliation.',
+                text: 'This section was generated in real time from the prompt through streaming LLM reconciliation.',
               },
               styles: {
                 base: {
@@ -1245,7 +1237,7 @@ export function InteractiveRenderer({
       toastManager.showToast({
         type: 'success',
         title: 'AI Layout Generated!',
-        message: 'Bagian baru berhasil direkonsiliasi ke dalam AST dokumen (Atomic undo aktif).',
+        message: 'The new section was reconciled into the document AST (atomic undo enabled).',
       });
     },
     [aiDocState, isAiGenerating]
@@ -1258,8 +1250,8 @@ export function InteractiveRenderer({
     setAiDocHistory((prev) => prev.slice(0, -1));
     toastManager.showToast({
       type: 'info',
-      title: 'Atomic Undo Berhasil',
-      message: 'Perubahan AI telah dibatalkan ke kondisi sebelumnya (1 transaksi dikembalikan).',
+      title: 'Atomic Undo Complete',
+      message: 'The AI change was reverted to the previous state (1 transaction undone).',
     });
   }, [aiDocHistory]);
 
@@ -1270,7 +1262,7 @@ export function InteractiveRenderer({
     toastManager.showToast({
       type: 'info',
       title: 'Reset Dokumen',
-      message: 'Dokumen dikembalikan ke layout awal.',
+      message: 'The document was restored to the initial layout.',
     });
   }, [initialNormalizedDoc]);
 
@@ -1596,12 +1588,12 @@ export function InteractiveRenderer({
           // Simulate server-side rejection for test email
           if (submission.values.email === 'error@example.com') {
             helpers.setErrors({
-              email: 'Alamat email ini sudah terdaftar di sistem kami (Server validation error).',
+              email: 'This email address is already registered in our system (server validation error).',
             });
             toastManager.showToast({
               type: 'error',
               title: 'Server Error',
-              message: 'Email error@example.com ditolak oleh server host.',
+              message: 'The host server rejected error@example.com.',
             });
             return;
           }
@@ -1609,8 +1601,8 @@ export function InteractiveRenderer({
           // Success notification
           toastManager.showToast({
             type: 'success',
-            title: 'Formulir Berhasil Dikirim!',
-            message: `Terima kasih ${submission.values.name || 'Pengunjung'}, data Anda berhasil diterima host!`,
+            title: 'Form Submitted!',
+            message: `Thank you ${submission.values.name || 'visitor'}, the host received your details!`,
           });
           helpers.resetForm();
         }),
@@ -1789,7 +1781,7 @@ export function InteractiveRenderer({
                   <button
                     type="button"
                     onClick={handleAiUndo}
-                    title="Batalkan perubahan AI terakhir (Cmd+Z)"
+                    title="Undo the last AI change (Cmd+Z)"
                     className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded bg-purple-900/40 text-purple-200 border border-purple-700/40 hover:bg-purple-800/50 transition-colors shadow-2xs"
                   >
                     <Undo2 className="h-3 w-3" />
@@ -1800,7 +1792,7 @@ export function InteractiveRenderer({
                   <button
                     type="button"
                     onClick={handleAiReset}
-                    title="Kembalikan ke layout awal"
+                    title="Restore the initial layout"
                     className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors"
                   >
                     <RotateCcw className="h-3 w-3" />
@@ -1824,7 +1816,7 @@ export function InteractiveRenderer({
                     }
                   }}
                   disabled={isAiGenerating}
-                  placeholder="Ketik instruksi prompt (e.g. 'Tambahkan modern SaaS Pricing Table 3 kolom')..."
+                  placeholder="Type a prompt (e.g. 'Add a modern 3-column SaaS pricing table')..."
                   className="w-full rounded-lg border border-purple-500/40 bg-slate-950/80 px-3 py-1.5 text-xs text-white placeholder:text-slate-400 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 disabled:opacity-50"
                 />
               </div>
@@ -1897,13 +1889,13 @@ export function InteractiveRenderer({
                 <Sliders className="h-3.5 w-3.5 text-sky-500" />
                 <span>Host Variable Simulator</span>
                 <span className="text-[10px] font-normal text-fd-muted-foreground">
-                  (Edit nilai di bawah untuk melihat live interpolation)
+                  (Edit the values below to see live interpolation)
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleResetVariables}
-                title="Reset ke nilai awal"
+                title="Reset to initial values"
                 className="inline-flex items-center gap-1 text-[11px] font-medium text-fd-muted-foreground hover:text-fd-foreground transition-colors"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -2041,10 +2033,10 @@ export function InteractiveRenderer({
             <div className="space-y-2 max-h-[260px] overflow-y-auto pt-1 font-mono text-xs pr-1">
               {filteredLogs.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-slate-800 p-4 text-center text-slate-400 text-xs font-sans">
-                  <p className="font-medium text-slate-300 mb-1">Belum ada event tracking yang tertembak.</p>
+                  <p className="font-medium text-slate-300 mb-1">No tracking events fired yet.</p>
                   <p className="text-[11px] text-slate-500">
-                    Klik tombol <strong className="text-sky-400">Beli Sekarang (AddToCart)</strong> atau submit formulir{' '}
-                    <strong className="text-emerald-400">Daftar Webinar (Lead)</strong> di canvas preview untuk melihat log event!
+                    Click <strong className="text-sky-400">Buy Now (AddToCart)</strong> or submit the{' '}
+                    <strong className="text-emerald-400">Register for the Webinar (Lead)</strong> form in the canvas preview to see the event log.
                   </p>
                 </div>
               ) : (

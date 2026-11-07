@@ -2,6 +2,9 @@
   "title": "API Reference",
   "pages": [
     "types",
-    "migrations"
-  ]
+    "migrations",
+    "faq",
+    "changelog"
+  ],
+  "defaultOpen": true
 }

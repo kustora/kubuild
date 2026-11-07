@@ -11,40 +11,40 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 import { File, Folder, Files } from 'fumadocs-ui/components/files';
 import { InteractiveRenderer } from '@/components/interactive-renderer';
 
-Mengintegrasikan visual web page builder ke dalam aplikasi Single-Page Application (SPA) berbasis **Vite + React** menawarkan alur kerja pengembangan (*developer experience*) yang instan berkat Hot Module Replacement (HMR) milidetik, bundle rollup yang sangat teroptimasi, serta kemudahan *deployment* ke infrastruktur static hosting seperti Cloudflare Pages, AWS S3, Vercel Static, maupun aplikasi desktop berbasis **Electron** atau **Tauri**.
+Embedding a visual page builder into a **Vite + React** single-page application (SPA) gives you an instant developer experience thanks to millisecond Hot Module Replacement (HMR), highly optimized Rollup bundles, and easy deployment to static hosting such as Cloudflare Pages, AWS S3, Vercel Static, or desktop apps built with **Electron** or **Tauri**.
 
-Berbeda dengan Next.js yang memprioritaskan Server-Side Rendering (SSR) dan Server Components untuk Core Web Vitals pada halaman publik masif, arsitektur Vite SPA sangat ideal untuk sistem di mana interaktivitas klien, manipulasi state lokal, dan kecepatan iterasi antarmuka admin menjadi prioritas utama.
+Unlike Next.js, which prioritizes Server-Side Rendering (SSR) and Server Components for Core Web Vitals on high-traffic public pages, a Vite SPA is ideal when client interactivity, local state manipulation, and fast iteration on admin interfaces are the top priorities.
 
 ---
 
-## Karakteristik & Use Cases Ideal
+## Characteristics & Ideal Use Cases
 
-Integrasi KUBUILD ke dalam Vite React SPA dirancang secara khusus untuk skenario-skenario berikut:
+Integrating KUBUILD into a Vite React SPA is designed for the following scenarios:
 
 <Cards>
   <Card title="Internal CMS & Dashboard Admin" icon="LayoutDashboard">
-    Portal admin SaaS multi-tenant atau back-office internal tim marketing untuk merancang *landing pages*, *checkout funnels*, dan *promo banners* tanpa memerlukan backend rendering server yang kompleks.
+    Multi-tenant SaaS admin portals or internal marketing back-offices for designing *landing pages*, *checkout funnels*, and *promo banners* without a complex server-rendering backend.
   </Card>
   <Card title="Desktop Apps (Tauri / Electron)" icon="Monitor">
-    Aplikasi *native desktop* mandiri untuk perancang halaman web offline. File `.stora` dapat dibaca dan disimpan langsung ke sistem file lokal pengguna melalui adapter I/O.
+    Standalone *native desktop* apps for offline page designers. `.stora` files can be read from and saved to the user's local file system through an I/O adapter.
   </Card>
   <Card title="Client-Only PWA / Offline-First" icon="WifiOff">
-    Aplikasi web progresif (PWA) yang beroperasi penuh di dalam browser pengguna dengan persistensi data berbasis `IndexedDB` dan kemampuan ekspor/impor paket `.stora` tanpa ketergantungan koneksi internet.
+    Progressive web apps (PWA) that run entirely in the user's browser, persisting data in `IndexedDB` and exporting/importing `.stora` packages without an internet connection.
   </Card>
   <Card title="Embedded Micro-Frontend Builder" icon="Component">
-    Sub-modul visual editor yang di-mount sebagai micro-frontend atau web component di dalam ekosistem aplikasi web enterprise yang sudah ada (React, Vue, Angular, atau legacy portals).
+    A visual editor sub-module mounted as a micro-frontend or web component inside an existing enterprise web ecosystem (React, Vue, Angular, or legacy portals).
   </Card>
 </Cards>
 
 ---
 
-## Arsitektur Vite SPA Integration
+## Vite SPA Integration Architecture
 
-Berikut adalah alur arsitektur interaksi antara bundler Vite, React Router, dan modul KUBUILD:
+This is how the Vite bundler, React Router, and the KUBUILD modules interact:
 
 ```mermaid
 flowchart TD
-    subgraph Browser["Klien Browser / Desktop Shell (Tauri / Electron)"]
+    subgraph Browser["Browser Client / Desktop Shell (Tauri / Electron)"]
         direction TB
 
         subgraph Router["React Router (createBrowserRouter)"]
@@ -77,15 +77,15 @@ flowchart TD
     IOEngine <-->|Download / Upload .stora| Disk["Local Disk (.stora files)"]
 ```
 
-<Callout type="info" title="Pemisahan Bundle Klien">
-  Meskipun aplikasi berjalan 100% di browser, kita **tidak boleh** memuat modul editor (`@kubuild/editor`) pada halaman daftar dashboard atau halaman live preview. Dengan memanfaatkan `React.lazy()` dan konfigurasi `manualChunks` di Vite, ukuran initial bundle tetap di bawah **60KB gzipped**, sementara modul editor sebesar ~280KB hanya diunduh saat pengguna membuka rute `/builder/:pageId`.
+<Callout type="info" title="Client Bundle Splitting">
+  Even though the app runs 100% in the browser, **do not** load the editor module (`@kubuild/editor`) on the dashboard list or live preview pages. With `React.lazy()` and Vite's `manualChunks`, the initial bundle stays small while the much larger editor module is only downloaded when the user opens the `/builder/:pageId` route.
 </Callout>
 
 ---
 
 ## Live Interactive Preview
 
-Di bawah ini adalah demonstrasi runtime `@kubuild/renderer` yang berjalan murni secara *client-side* di dalam browser Anda. Anda dapat beralih antara breakpoint desktop, tablet, dan ponsel secara instan:
+Below is a `@kubuild/renderer` runtime demo running purely *client-side* in your browser. Switch between the desktop, tablet, and mobile breakpoints instantly:
 
 <InteractiveRenderer
   title="Vite React Runtime Demonstration"
@@ -156,7 +156,7 @@ Di bawah ini adalah demonstrasi runtime `@kubuild/renderer` yang berjalan murni 
           id: "paragraph-vite",
           type: "paragraph",
           props: {
-            text: "KUBUILD menyediakan visual drag-and-drop editor dan high-performance renderer tanpa ketergantungan server runtime."
+            text: "KUBUILD provides a visual drag-and-drop editor and a high-performance renderer with no server runtime dependency."
           },
           styles: {
             base: {
@@ -192,15 +192,15 @@ Di bawah ini adalah demonstrasi runtime `@kubuild/renderer` yang berjalan murni 
 
 ---
 
-## Instalasi & Setup Proyek
+## Installation & Project Setup
 
-Ikuti panduan bertahap berikut untuk mengonfigurasi proyek Vite baru atau mengintegrasikan KUBUILD ke aplikasi yang sudah berjalan.
+Follow these steps to configure a new Vite project or add KUBUILD to an existing app.
 
 <Steps>
   <Step>
-    ### Buat Proyek Vite Baru
+    ### Create a New Vite Project
     
-    Inisialisasi aplikasi React dengan TypeScript menggunakan template resmi Vite:
+    Initialize a React + TypeScript app with the official Vite template:
 
     <Tabs items={['pnpm', 'npm', 'yarn', 'bun']}>
       <Tab value="pnpm">
@@ -231,9 +231,9 @@ Ikuti panduan bertahap berikut untuk mengonfigurasi proyek Vite baru atau mengin
   </Step>
 
   <Step>
-    ### Pasang Dependensi KUBUILD & Ekosistem
+    ### Install KUBUILD & Ecosystem Dependencies
     
-    Instal paket inti KUBUILD, ikon antarmuka, routing, dan pustaka persistensi client-side:
+    Install the core KUBUILD packages, UI icons, routing, and client-side persistence libraries:
 
     <Tabs items={['pnpm', 'npm', 'yarn', 'bun']}>
       <Tab value="pnpm">
@@ -266,7 +266,7 @@ Ikuti panduan bertahap berikut untuk mengonfigurasi proyek Vite baru atau mengin
   <Step>
     ### Setup Tailwind CSS
     
-    KUBUILD mendukung **Tailwind CSS v4** (menggunakan plugin resmi `@tailwindcss/vite`) maupun **Tailwind CSS v3**:
+    KUBUILD works with both **Tailwind CSS v4** (via the official `@tailwindcss/vite` plugin) and **Tailwind CSS v3**:
 
     <Tabs items={['Tailwind CSS v4 (Modern)', 'Tailwind CSS v3 (Legacy)']}>
       <Tab value="Tailwind CSS v4 (Modern)">
@@ -274,7 +274,7 @@ Ikuti panduan bertahap berikut untuk mengonfigurasi proyek Vite baru atau mengin
         pnpm add @tailwindcss/vite tailwindcss
         ```
 
-        Tambahkan plugin di `vite.config.ts`, lalu import di `src/index.css`:
+        Add the plugin to `vite.config.ts`, then import Tailwind in `src/index.css`:
         ```css title="src/index.css"
         @import "tailwindcss";
         ```
@@ -285,7 +285,7 @@ Ikuti panduan bertahap berikut untuk mengonfigurasi proyek Vite baru atau mengin
         npx tailwindcss init -p
         ```
 
-        Konfigurasikan content matcher di `tailwind.config.js`:
+        Configure the content matcher in `tailwind.config.js`:
         ```javascript title="tailwind.config.js"
         /** @type {import('tailwindcss').Config} */
         export default {
@@ -305,13 +305,13 @@ Ikuti panduan bertahap berikut untuk mengonfigurasi proyek Vite baru atau mengin
 
 ---
 
-## Konfigurasi `vite.config.ts`
+## Configuring `vite.config.ts`
 
-Konfigurasi Vite memegang peranan krusial dalam performa aplikasi visual builder. Dua aspek penting yang harus dikonfigurasi adalah:
-1. **Manual Chunking (`rollupOptions.output.manualChunks`)**: Memisahkan modul editor yang berat ke chunk terisolasi agar tidak membebani initial loading.
-2. **Path Aliasing**: Mempermudah impor modul internal dengan alias `@/`.
+Vite configuration plays a crucial role in visual builder performance. Two things should be configured:
+1. **Manual chunking (`rollupOptions.output.manualChunks`)**: split the heavy editor modules into an isolated chunk so they don't weigh down the initial load.
+2. **Path aliasing**: simplify internal imports with the `@/` alias.
 
-Berikut adalah konfigurasi produksi lengkap:
+The complete production configuration:
 
 ```typescript title="vite.config.ts"
 import { defineConfig } from 'vite';
@@ -333,12 +333,12 @@ export default defineConfig({
   build: {
     target: 'esnext',
     sourcemap: true,
-    // Batas peringatan ukuran chunk dinaikkan ke 600KB untuk modul rich editor
+    // Raise the chunk size warning limit to 600KB for the rich editor module
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // 1. Chunk Vendor Inti React & Routing
+          // 1. Core React & routing vendor chunk
           if (id.includes('node_modules/react') || 
               id.includes('node_modules/react-dom') || 
               id.includes('node_modules/react-router-dom')) {
@@ -357,7 +357,7 @@ export default defineConfig({
             return 'vendor-renderer';
           }
 
-          // 4. Utilitas penyimpanan & parsing
+          // 4. Storage & parsing utilities
           if (id.includes('idb-keyval') || id.includes('fflate')) {
             return 'vendor-storage';
           }
@@ -375,15 +375,15 @@ export default defineConfig({
 });
 ```
 
-<Callout type="warning" title="Peringatan Duplicate React Instance">
-  Jika Anda mengintegrasikan paket lokal melalui `pnpm link` atau monorepo workspaces, pastikan opsi `resolve.dedupe: ['react', 'react-dom']` ditambahkan ke `vite.config.ts` untuk mencegah error *"Invalid Hook Call"* akibat adanya dua instance React yang berbeda.
+<Callout type="warning" title="Duplicate React Instance Warning">
+  If you link local packages through `pnpm link` or monorepo workspaces, add `resolve.dedupe: ['react', 'react-dom']` to `vite.config.ts` to prevent *"Invalid Hook Call"* errors caused by two different React instances.
 </Callout>
 
 ---
 
-## Struktur Direktori Proyek
+## Project Directory Structure
 
-Struktur folder modular yang direkomendasikan untuk proyek Vite SPA:
+Recommended modular folder structure for a Vite SPA project:
 
 <Files>
   <Folder name="src" defaultOpen>
@@ -423,14 +423,14 @@ Struktur folder modular yang direkomendasikan untuk proyek Vite SPA:
 
 ---
 
-## Setup Routing dengan React Router
+## Routing with React Router
 
-Aplikasi dibagi menjadi tiga rute utama:
-- `/`: **Dashboard** untuk melihat daftar halaman yang tersimpan, mengimpor file `.stora`, atau membuat dokumen baru.
-- `/builder/:pageId`: **Visual Editor** tempat `<KubuildEditor />` dimuat secara lazy.
-- `/preview/:pageId`: **Live Preview** tempat `<KubuildRenderer />` menampilkan halaman secara akurat seperti di browser pengunjung.
+The app is split into three main routes:
+- `/`: **Dashboard** to list saved pages, import `.stora` files, or create new documents.
+- `/builder/:pageId`: **Visual Editor**, where `<KubuildEditor />` is lazy-loaded.
+- `/preview/:pageId`: **Live Preview**, where `<KubuildRenderer />` shows the page exactly as visitors see it.
 
-### 1. Inisialisasi Router di `App.tsx`
+### 1. Initialize the Router in `App.tsx`
 
 ```tsx title="src/App.tsx"
 import React, { Suspense, lazy } from 'react';
@@ -438,7 +438,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { DashboardPage } from './pages/DashboardPage';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 
-// Lazy loading modul editor dan preview untuk membagi bundle (Code Splitting)
+// Lazy-load the editor and preview modules to split the bundle (code splitting)
 const EditorPage = lazy(() => import('./pages/EditorPage'));
 const PreviewPage = lazy(() => import('./pages/PreviewPage'));
 
@@ -450,7 +450,7 @@ const router = createBrowserRouter([
   {
     path: '/builder/:pageId',
     element: (
-      <Suspense fallback={<LoadingSpinner label="Memuat Kanvas Editor KUBUILD..." />}>
+      <Suspense fallback={<LoadingSpinner label="Loading the KUBUILD editor canvas..." />}>
         <EditorPage />
       </Suspense>
     ),
@@ -458,7 +458,7 @@ const router = createBrowserRouter([
   {
     path: '/preview/:pageId',
     element: (
-      <Suspense fallback={<LoadingSpinner label="Menyiapkan Live Preview..." />}>
+      <Suspense fallback={<LoadingSpinner label="Preparing live preview..." />}>
         <PreviewPage />
       </Suspense>
     ),
@@ -480,17 +480,17 @@ export default App;
 
 ## State Persistence & Auto-Save
 
-Salah satu tantangan terbesar pada aplikasi SPA client-side adalah mengelola siklus hidup data dokumen tanpa kehilangan pekerjaan pengguna saat browser di-refresh atau koneksi terputus.
+One of the biggest challenges in a client-side SPA is managing the document lifecycle without losing the user's work when the browser refreshes or the connection drops.
 
-<Callout type="warn" title="Hindari localStorage untuk Dokumen Kompleks">
-  Penyimpanan `localStorage` memiliki kuota ketat (maksimal 5MB) dan bersifat sinkronik (*blocking* pada main thread). Dokumen visual builder yang memuat struktur node banyak atau *embedded assets* dapat melampaui kuota dan memicu error `QuotaExceededError`. Gunakan **IndexedDB** melalui pustaka ringan seperti `idb-keyval` yang asinkron dan berkapasitas ratusan megabyte.
+<Callout type="warn" title="Avoid localStorage for Complex Documents">
+  `localStorage` has a strict quota (about 5MB) and is synchronous (it *blocks* the main thread). Visual builder documents with large node trees or *embedded assets* can exceed the quota and throw `QuotaExceededError`. Use **IndexedDB** through a lightweight async library such as `idb-keyval`, which can store hundreds of megabytes.
 </Callout>
 
-### 1. Layer Penyimpanan IndexedDB (`src/lib/storage.ts`)
+### 1. IndexedDB Storage Layer (`src/lib/storage.ts`)
 
 ```typescript title="src/lib/storage.ts"
 import { get, set, del, keys } from 'idb-keyval';
-import type { PageDocument } from '@kubuild/schema';
+import { DocumentMetadataSchema, type PageDocument } from '@kubuild/schema';
 import { createBlankDocument } from '@kubuild/core';
 
 const STORAGE_PREFIX = 'kubuild_page_';
@@ -503,13 +503,13 @@ export interface PageMetadataSummary {
 }
 
 /**
- * Menyimpan atau memperbarui dokumen halaman di IndexedDB.
+ * Save or update a page document in IndexedDB.
  */
 export async function saveDocument(id: string, doc: PageDocument): Promise<void> {
   const docWithTimestamp: PageDocument = {
     ...doc,
     metadata: {
-      ...doc.metadata,
+      ...(doc.metadata ?? DocumentMetadataSchema.parse({})),
       updatedAt: new Date().toISOString(),
     },
   };
@@ -517,7 +517,7 @@ export async function saveDocument(id: string, doc: PageDocument): Promise<void>
 }
 
 /**
- * Mengambil dokumen berdasarkan pageId. Jika belum ada, kembalikan dokumen default baru.
+ * Load a document by pageId. If it doesn't exist yet, create and return a new default document.
  */
 export async function loadDocument(id: string): Promise<PageDocument> {
   const data = await get<PageDocument>(`${STORAGE_PREFIX}${id}`);
@@ -530,7 +530,7 @@ export async function loadDocument(id: string): Promise<PageDocument> {
 }
 
 /**
- * Mengambil ringkasan seluruh halaman yang tersimpan untuk dashboard.
+ * List summaries of all saved pages for the dashboard.
  */
 export async function listAllPages(): Promise<PageMetadataSummary[]> {
   const allKeys = await keys();
@@ -554,16 +554,16 @@ export async function listAllPages(): Promise<PageMetadataSummary[]> {
 }
 
 /**
- * Menghapus dokumen halaman dari IndexedDB.
+ * Delete a page document from IndexedDB.
  */
 export async function deleteDocument(id: string): Promise<void> {
   await del(`${STORAGE_PREFIX}${id}`);
 }
 ```
 
-### 2. Custom Hook `useAutoSave` dengan Debounce
+### 2. `useAutoSave` Custom Hook with Debounce
 
-Hook ini mendengarkan perubahan dokumen dari event `onChange` editor, melakukan *debounce* 500ms, serta mengelola status penyimpanan (`idle`, `saving`, `saved`, `error`):
+This hook listens for document changes from the editor's `onChange` event, debounces them by 500ms, and tracks the save status (`idle`, `saving`, `saved`, `error`):
 
 ```typescript title="src/hooks/useAutoSave.ts"
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -615,7 +615,7 @@ export function useAutoSave(pageId: string, debounceMs: number = 500) {
     [debounceMs, triggerSave]
   );
 
-  // Bersihkan timer dan simpan perubahan yang masih tertunda saat unmount
+  // Clear the timer and flush pending changes on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) {
@@ -643,9 +643,9 @@ export function useAutoSave(pageId: string, debounceMs: number = 500) {
 
 ---
 
-## Implementasi Halaman Visual Editor (`EditorPage.tsx`)
+## Visual Editor Page (`EditorPage.tsx`)
 
-Komponen `EditorPage` menghubungkan `<KubuildEditor />`, toolbar kustom, indikator status auto-save, tombol live preview, dan fungsi ekspor/impor `.stora`:
+The `EditorPage` component wires together `<KubuildEditor />`, a custom toolbar, an auto-save status indicator, a live preview button, and `.stora` export/import:
 
 ```tsx title="src/pages/EditorPage.tsx"
 import React, { useEffect, useState, useRef } from 'react';
@@ -705,13 +705,13 @@ export default function EditorPage() {
         },
       });
 
-      if (!result.success || !result.archive) {
-        alert('Gagal mengekspor file .stora: ' + result.diagnosticMessage);
+      if (!result.success) {
+        alert('Failed to export the .stora file: ' + result.diagnosticMessage);
         return;
       }
 
-      // Buat file Blob dan unduh otomatis
-      const blob = new Blob([result.archive], { type: 'application/octet-stream' });
+      // Create a Blob and trigger the download
+      const blob = new Blob([new Uint8Array(result.archive)], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -720,14 +720,14 @@ export default function EditorPage() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Export Error:', err);
-      alert('Terjadi kesalahan saat memproses ekspor .stora.');
+      alert('Something went wrong while exporting the .stora file.');
     }
   };
 
   if (isLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-zinc-950 text-zinc-100">
-        <p className="animate-pulse">Menyiapkan workspace kanvas...</p>
+        <p className="animate-pulse">Preparing the canvas workspace...</p>
       </div>
     );
   }
@@ -735,7 +735,7 @@ export default function EditorPage() {
   if (!document) {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-zinc-950 text-zinc-100">
-        <p>Halaman tidak ditemukan.</p>
+        <p>Page not found.</p>
         <button 
           onClick={() => navigate('/')} 
           className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-500"
@@ -769,19 +769,19 @@ export default function EditorPage() {
           {status === 'saving' && (
             <span className="flex items-center gap-1.5 text-amber-400">
               <Clock className="h-3.5 w-3.5 animate-spin" />
-              Menyimpan perubahan...
+              Saving changes...
             </span>
           )}
           {status === 'saved' && (
             <span className="flex items-center gap-1.5 text-emerald-400">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Tersimpan {lastSaved?.toLocaleTimeString()}
+              Saved {lastSaved?.toLocaleTimeString()}
             </span>
           )}
           {status === 'error' && (
             <span className="flex items-center gap-1.5 text-rose-400" title={error?.message}>
               <AlertCircle className="h-3.5 w-3.5" />
-              Gagal menyimpan
+              Save failed
             </span>
           )}
         </div>
@@ -824,9 +824,9 @@ export default function EditorPage() {
 
 ---
 
-## Implementasi Live Preview (`PreviewPage.tsx`)
+## Live Preview (`PreviewPage.tsx`)
 
-Komponen `PreviewPage` merender dokumen secara akurat menggunakan `<KubuildRenderer />` dengan mode responsif CSS scoped (`responsive="css"`):
+The `PreviewPage` component renders the document accurately with `<KubuildRenderer />` in scoped CSS responsive mode (`responsive="css"`):
 
 ```tsx title="src/pages/PreviewPage.tsx"
 import React, { useEffect, useState } from 'react';
@@ -850,7 +850,7 @@ export default function PreviewPage() {
   if (!document) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-zinc-950 text-zinc-100">
-        <p className="animate-pulse">Menyiapkan pratinjau halaman...</p>
+        <p className="animate-pulse">Preparing page preview...</p>
       </div>
     );
   }
@@ -928,14 +928,15 @@ export default function PreviewPage() {
 
 ## Import & Export File `.stora`
 
-File `.stora` adalah format arsip ZIP biner standar KUBUILD yang mengemas `manifest.json`, `page.json`, `metadata.json`, dan direktori `assets/`. Format ini menjamin portabilitas konten antara environment development, staging, dan production tanpa kebocoran data rahasia.
+A `.stora` file is KUBUILD's standard binary ZIP archive containing `manifest.json`, `page.json`, `metadata.json`, and an `assets/` directory. The format keeps content portable between development, staging, and production without leaking secrets.
 
-### 1. Ekspor Dokumen (`exportStoraPackage`)
+### 1. Export a Document (`exportStoraPackage`)
 
-Fungsi `exportStoraPackage` menerima `PageDocument` dan menghasilkan `archive` berupa `Uint8Array`:
+`exportStoraPackage` takes a `PageDocument` and, on success, returns the `archive` as a `Uint8Array`:
 
 ```typescript
 import { exportStoraPackage } from '@kubuild/core';
+import type { PageDocument } from '@kubuild/schema';
 
 async function downloadStoraFile(doc: PageDocument, filename = 'landing-page') {
   const result = await exportStoraPackage(doc, {
@@ -945,12 +946,12 @@ async function downloadStoraFile(doc: PageDocument, filename = 'landing-page') {
     },
   });
 
-  if (!result.success || !result.archive) {
-    throw new Error(result.diagnosticMessage || 'Gagal mengekspor paket .stora');
+  if (!result.success) {
+    throw new Error(result.diagnosticMessage || 'Failed to export the .stora package');
   }
 
-  // Bungkus ke dalam Blob dan buat link download sementara
-  const blob = new Blob([result.archive], { type: 'application/octet-stream' });
+  // Wrap it in a Blob and create a temporary download link
+  const blob = new Blob([new Uint8Array(result.archive)], { type: 'application/octet-stream' });
   const objectUrl = URL.createObjectURL(blob);
   
   const a = document.createElement('a');
@@ -963,9 +964,9 @@ async function downloadStoraFile(doc: PageDocument, filename = 'landing-page') {
 }
 ```
 
-### 2. Impor Dokumen via File Upload (`importStoraPackage`)
+### 2. Import a Document from a File Upload (`importStoraPackage`)
 
-Fungsi `importStoraPackage` menerima `Uint8Array` atau `ArrayBuffer` dari file yang diunggah pengguna, memvalidasi integritas skema dokumen, dan mengembalikan `PageDocument`:
+`importStoraPackage` takes the uploaded file as a `Uint8Array` or `ArrayBuffer`, validates the package and its document, and returns the `PageDocument` on success:
 
 ```typescript
 import { importStoraPackage } from '@kubuild/core';
@@ -974,15 +975,15 @@ import { saveDocument } from '@/lib/storage';
 async function handleFileUpload(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   
-  // Impor dan validasi paket
+  // Import and validate the package
   const result = await importStoraPackage(arrayBuffer);
 
-  if (!result.success || !result.page) {
-    throw new Error(result.diagnosticMessage || 'File .stora tidak valid atau rusak');
+  if (!result.success) {
+    throw new Error(result.diagnosticMessage || 'Invalid or corrupted .stora file');
   }
 
   const newPageId = `imported-${Date.now()}`;
-  await saveDocument(newPageId, result.page);
+  await saveDocument(newPageId, result.document);
 
   return newPageId;
 }
@@ -990,9 +991,9 @@ async function handleFileUpload(file: File): Promise<string> {
 
 ---
 
-## Implementasi Dashboard (`DashboardPage.tsx`)
+## Dashboard (`DashboardPage.tsx`)
 
-Dashboard menyediakan antarmuka pengguna untuk melihat daftar halaman yang tersimpan, membuat halaman kosong baru, dan mengunggah paket `.stora` melalui drag-and-drop:
+The dashboard lets users list saved pages, create a new blank page, and upload `.stora` packages via drag-and-drop:
 
 ```tsx title="src/pages/DashboardPage.tsx"
 import React, { useEffect, useState } from 'react';
@@ -1016,7 +1017,7 @@ export function DashboardPage() {
 
   const handleCreateNewPage = async () => {
     const id = `page-${Date.now().toString(36)}`;
-    const blankDoc = createBlankDocument('Halaman Baru');
+    const blankDoc = createBlankDocument('New Page');
     await saveDocument(id, blankDoc);
     navigate(`/builder/${id}`);
   };
@@ -1030,18 +1031,18 @@ export function DashboardPage() {
       const buffer = await file.arrayBuffer();
       const result = await importStoraPackage(buffer);
 
-      if (!result.success || !result.page) {
-        alert('Gagal mengimpor: ' + result.diagnosticMessage);
+      if (!result.success) {
+        alert('Import failed: ' + result.diagnosticMessage);
         return;
       }
 
       const newId = `imported-${Date.now().toString(36)}`;
-      await saveDocument(newId, result.page);
+      await saveDocument(newId, result.document);
       refreshPages();
       navigate(`/builder/${newId}`);
     } catch (err) {
       console.error(err);
-      alert('Terjadi kesalahan saat membaca file .stora');
+      alert('Something went wrong while reading the .stora file');
     } finally {
       setIsUploading(false);
     }
@@ -1049,7 +1050,7 @@ export function DashboardPage() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
-    if (confirm('Yakin ingin menghapus halaman ini?')) {
+    if (confirm('Delete this page?')) {
       await deleteDocument(id);
       refreshPages();
     }
@@ -1062,12 +1063,12 @@ export function DashboardPage() {
         <div className="flex items-center justify-between border-b border-zinc-800 pb-6 mb-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white">KUBUILD Pages Dashboard</h1>
-            <p className="text-sm text-zinc-400 mt-1">Kelola dan rancang halaman web interaktif berbasis Vite React SPA.</p>
+            <p className="text-sm text-zinc-400 mt-1">Manage and design interactive web pages in a Vite React SPA.</p>
           </div>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 hover:border-zinc-600 transition-colors">
               <Upload className="h-4 w-4" />
-              {isUploading ? 'Mengimpor...' : 'Import .stora'}
+              {isUploading ? 'Importing...' : 'Import .stora'}
               <input type="file" accept=".stora" onChange={handleImportFile} className="hidden" disabled={isUploading} />
             </label>
             <button
@@ -1075,7 +1076,7 @@ export function DashboardPage() {
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 transition-colors shadow-sm"
             >
               <Plus className="h-4 w-4" />
-              Buat Halaman Baru
+              Create New Page
             </button>
           </div>
         </div>
@@ -1084,10 +1085,10 @@ export function DashboardPage() {
         {pages.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 p-12 text-center">
             <FileText className="h-10 w-10 text-zinc-600 mb-3" />
-            <h3 className="text-base font-semibold text-zinc-300">Belum ada halaman</h3>
-            <p className="text-xs text-zinc-500 mt-1 max-w-sm">Mulai dengan membuat halaman baru atau impor arsip file .stora yang telah diekspor sebelumnya.</p>
+            <h3 className="text-base font-semibold text-zinc-300">No pages yet</h3>
+            <p className="text-xs text-zinc-500 mt-1 max-w-sm">Start by creating a new page or importing a previously exported .stora file.</p>
             <button onClick={handleCreateNewPage} className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500">
-              Buat Halaman Pertama
+              Create Your First Page
             </button>
           </div>
         ) : (
@@ -1099,7 +1100,7 @@ export function DashboardPage() {
                     <h3 className="font-semibold text-zinc-200 group-hover:text-blue-400 transition-colors line-clamp-1">
                       {p.title}
                     </h3>
-                    <button onClick={(e) => handleDelete(p.id, e)} className="text-zinc-500 hover:text-rose-400 p-1 rounded" title="Hapus Halaman">
+                    <button onClick={(e) => handleDelete(p.id, e)} className="text-zinc-500 hover:text-rose-400 p-1 rounded" title="Delete page">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -1113,7 +1114,7 @@ export function DashboardPage() {
                     <Edit3 className="h-3.5 w-3.5" />
                     Buka Editor
                   </Link>
-                  <Link to={`/preview/${p.id}`} className="flex items-center justify-center rounded bg-zinc-800/80 p-1.5 text-zinc-300 hover:bg-zinc-700 transition-colors" title="Pratinjau Halaman">
+                  <Link to={`/preview/${p.id}`} className="flex items-center justify-center rounded bg-zinc-800/80 p-1.5 text-zinc-300 hover:bg-zinc-700 transition-colors" title="Preview page">
                     <Eye className="h-4 w-4" />
                   </Link>
                 </div>
@@ -1131,17 +1132,17 @@ export function DashboardPage() {
 
 ## Production Deployment & SPA Rewrite Configuration
 
-Saat mendistribusikan aplikasi Vite SPA ke production server atau static hosting (seperti Nginx, Apache, Cloudflare Pages, atau Vercel), seluruh rute non-file harus diarahkan kembali (*fallback rewrite*) ke `index.html` agar React Router dapat menangani routing di sisi klien:
+When deploying a Vite SPA to a production server or static host (Nginx, Apache, Cloudflare Pages, or Vercel), every non-file route must fall back (*fallback rewrite*) to `index.html` so React Router can handle routing on the client:
 
 <Tabs items={['Cloudflare Pages', 'Vercel', 'Nginx', 'Netlify']}>
   <Tab value="Cloudflare Pages">
-    Buat file `_redirects` di direktori `public/`:
+    Create a `_redirects` file in the `public/` directory:
     ```txt title="public/_redirects"
     /*    /index.html   200
     ```
   </Tab>
   <Tab value="Vercel">
-    Tambahkan konfigurasi `vercel.json` di root proyek:
+    Add a `vercel.json` configuration at the project root:
     ```json title="vercel.json"
     {
       "rewrites": [
@@ -1151,7 +1152,7 @@ Saat mendistribusikan aplikasi Vite SPA ke production server atau static hosting
     ```
   </Tab>
   <Tab value="Nginx">
-    Konfigurasi blok server Nginx:
+    Nginx server block configuration:
     ```nginx title="/etc/nginx/conf.d/default.conf"
     server {
         listen 80;
@@ -1163,7 +1164,7 @@ Saat mendistribusikan aplikasi Vite SPA ke production server atau static hosting
             try_files $uri $uri/ /index.html;
         }
 
-        # Cache aset statis rollup secara agresif
+        # Cache static Rollup assets aggressively
         location /assets/ {
             expires 1y;
             add_header Cache-Control "public, immutable";
@@ -1172,7 +1173,7 @@ Saat mendistribusikan aplikasi Vite SPA ke production server atau static hosting
     ```
   </Tab>
   <Tab value="Netlify">
-    Buat file `_redirects` di direktori `public/`:
+    Create a `_redirects` file in the `public/` directory:
     ```txt title="public/_redirects"
     /*    /index.html   200
     ```
@@ -1181,22 +1182,22 @@ Saat mendistribusikan aplikasi Vite SPA ke production server atau static hosting
 
 ---
 
-## Pertanyaan Umum & Troubleshooting
+## FAQ & Troubleshooting
 
 <Accordions>
-  <Accordion title="Mengapa muncul error 404 saat melakukan refresh di rute /builder/:id pada server production?">
-    Ini adalah perilaku standar Single-Page Application (SPA). Web server statis mencari file fisik pada path `/builder/page-1/index.html` yang tidak ada di disk. Pastikan Anda telah mengonfigurasi *fallback rewrite rule* (seperti konfigurasi Nginx `try_files $uri /index.html;` atau `_redirects` di Cloudflare/Netlify) agar setiap permintaan non-file diarahkan ke `index.html`.
+  <Accordion title="Why do I get a 404 when refreshing /builder/:id in production?">
+    This is standard single-page application behavior. The static web server looks for a physical file at `/builder/page-1/index.html`, which doesn't exist on disk. Configure a *fallback rewrite rule* (such as Nginx `try_files $uri /index.html;` or `_redirects` on Cloudflare/Netlify) so every non-file request is served `index.html`.
   </Accordion>
 
-  <Accordion title="Bagaimana cara mencegah memory leak jika pengguna sering membuka dan menutup kanvas editor?">
-    Zustand store dan event listeners canvas dibersihkan secara otomatis saat komponen `<KubuildEditor />` di-unmount. Pastikan jika Anda menggunakan custom hooks atau interval auto-save, bersihkan seluruh timer via cleanup function `useEffect` seperti yang dicontohkan pada implementasi `useAutoSave`.
+  <Accordion title="How do I avoid memory leaks when users open and close the editor canvas often?">
+    The Zustand store and canvas event listeners are cleaned up automatically when `<KubuildEditor />` unmounts. If you use custom hooks or auto-save intervals, clear every timer in the `useEffect` cleanup function, as shown in `useAutoSave`.
   </Accordion>
 
-  <Accordion title="Apakah saya bisa mengemas aplikasi Vite ini menjadi installer Desktop offline?">
-    Tentu saja. Anda dapat menambahkan **Tauri v2** (`pnpm add -D @tauri-apps/cli`) atau **Electron**. Karena penyimpanan menggunakan `IndexedDB` dan ekspor/impor berkas menggunakan `Uint8Array`, aplikasi dapat berjalan 100% offline tanpa modifikasi kode runtime KUBUILD.
+  <Accordion title="Can I package this Vite app as an offline desktop installer?">
+    Yes. Add **Tauri v2** (`pnpm add -D @tauri-apps/cli`) or **Electron**. Because storage uses `IndexedDB` and file export/import uses `Uint8Array`, the app can run 100% offline without changing any KUBUILD runtime code.
   </Accordion>
 
-  <Accordion title="Bagaimana cara mengatasi gambar eksternal yang diblokir oleh browser saat di-render di Canvas?">
-    Canvas editor memerlukan akses ke gambar untuk *drag preview* dan *color sampling*. Jika gambar di-host di domain eksternal tanpa header CORS (`Access-Control-Allow-Origin: *`), browser akan memblokirnya. Solusinya: implementasikan `AssetProvider` kustom yang mengunggah gambar ke storage internal Anda atau gunakan reverse proxy media.
+  <Accordion title="How do I handle external images that the browser blocks on the canvas?">
+    The editor canvas needs image access for *drag preview* and *color sampling*. If images are hosted on an external domain without CORS headers (`Access-Control-Allow-Origin: *`), the browser blocks them. Fix it by implementing a custom `AssetProvider` that uploads images to your own storage, or use a media reverse proxy.
   </Accordion>
 </Accordions>
