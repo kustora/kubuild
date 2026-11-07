@@ -1329,7 +1329,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       style={{
         position: 'relative',
         width: '100%',
-        minHeight: '100%',
+        // 0, not 100%: the viewport is a flex item in the canvas column and must be able to
+        // shrink so the breadcrumb bar below it stays on screen.
+        minHeight: 0,
         height: '100%',
         overflow: 'hidden',
         cursor: cursorStyle,

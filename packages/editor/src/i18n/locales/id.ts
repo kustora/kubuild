@@ -238,4 +238,21 @@ export const id: TranslationSchema = {
     aiRunning: 'AI sedang bekerja…',
     busyNotice: 'Undo/redo dijeda selama AI bekerja.',
   },
+
+  pixelEvent: {
+    title: 'Event Pixel',
+    remove: 'Hapus',
+    removeTitle: 'Hapus event pixel',
+    eventType: 'Tipe event',
+    standard: 'Standar',
+    custom: 'Kustom',
+    eventName: 'Nama event',
+    selectStandardEvent: '— Pilih event standar —',
+    customEventPlaceholder: 'Contoh: ButtonClick, WhatsAppClick',
+    targetPlatform: 'Platform target',
+    allPlatforms: 'Semua platform',
+    save: 'Simpan event',
+    summary: (eventName, platform) =>
+      `Event ${eventName} dikirim ke ${platform} saat elemen ini diklik.`,
+  },
 };

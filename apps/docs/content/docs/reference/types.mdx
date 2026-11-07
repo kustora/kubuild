@@ -444,7 +444,7 @@ export type RenderContext = Readonly<{
       required: false,
     },
     assetProvider: {
-      description: 'Resolver for asset:// URLs, mapping asset IDs to CDN endpoints or signed URLs.',
+      description: 'Host media adapter. resolve() maps a stored src (asset ID or URL) to the rendered URL and must return synchronously; see the Assets guide.',
       type: 'AssetProvider',
       required: false,
     },

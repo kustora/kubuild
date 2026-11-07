@@ -101,6 +101,19 @@ export interface DeprecatedPropDiagnostic {
 }
 
 /**
+ * `AssetProvider.resolve()` returned a Promise while rendering. Media URLs are resolved
+ * synchronously during render, so the Promise is ignored and the renderer falls back to the
+ * asset reference's `fallbackUrl` (or the raw `src` string). Emitted once per provider + value.
+ */
+export interface AssetDiagnostic {
+  code: 'ASSET_RESOLVE_ASYNC';
+  nodeId?: string;
+  /** The asset id or URI that was passed to `resolve()`. */
+  assetIdOrUri: string;
+  message: string;
+}
+
+/**
  * Diagnostic for a whole document the editor refused to load (STORA-538): `replaceDocument`
  * (host `EditorHandle` or store) or `applyTemplate` ran `validateDocument` and the result was
  * invalid. The current document is left untouched; the same errors are also returned in the
@@ -127,7 +140,8 @@ export type Diagnostic =
   | AiGenerationDiagnostic
   | TrackingDiagnostic
   | DeprecatedPropDiagnostic
-  | DocumentValidationDiagnostic;
+  | DocumentValidationDiagnostic
+  | AssetDiagnostic;
 
 /**
  * Host-supplied runtime tracking options (NOT part of the document). Server-side delivery

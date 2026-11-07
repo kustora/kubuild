@@ -134,7 +134,7 @@ export function applyAgentOps(
           success: false,
           appliedOpIds,
           failedOpId: record.id,
-          error: result.error ?? `Gagal menerapkan: ${record.summary}`,
+          error: result.error ?? `Failed to apply: ${record.summary}`,
         };
       }
       appliedOpIds.push(record.id);

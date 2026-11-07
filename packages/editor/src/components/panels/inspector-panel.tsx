@@ -768,6 +768,7 @@ interface NodePixelEventSectionProps {
 }
 
 const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, actions = [], onUpdateActions }) => {
+  const { pixelEvent: tx } = useTranslation().t;
   const existing = actions.find((p) => p.label === PIXEL_PIPELINE_LABEL);
   const existingPayload = existing?.steps?.[0]?.type === 'track_event'
     ? (existing.steps[0].payload as { eventName?: string; eventType?: string; provider?: string })
@@ -828,7 +829,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
               <span className="text-slate-500 shrink-0">
                 <Radio className="w-3.5 h-3.5" />
               </span>
-              <span className="text-xs font-semibold text-slate-700 truncate">Event Pixel</span>
+              <span className="text-xs font-semibold text-slate-700 truncate">{tx.title}</span>
               {isConfigured && (
                 <span
                   title={`Event: ${existingPayload!.eventName}`}
@@ -855,7 +856,8 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
             <div className="absolute right-[29px] top-1/2 -translate-y-1/2 flex items-center">
               <button
                 type="button"
-                title="Hapus Event Pixel"
+                title={tx.removeTitle}
+                aria-label={tx.removeTitle}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleRemove();
@@ -872,7 +874,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
           <div className="p-3 border-t border-slate-100 bg-white flex flex-col gap-3 animate-fadeIn">
             {/* Type toggle */}
             <div className="flex flex-col gap-1">
-              <label className="block text-[11px] font-medium text-slate-600">Tipe Event</label>
+              <label className="block text-[11px] font-medium text-slate-600">{tx.eventType}</label>
               <div className="flex rounded border border-slate-300 bg-slate-100 p-0.5 shadow-2xs">
                 {(['standard', 'custom'] as const).map((t) => (
                   <button
@@ -885,7 +887,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                     }`}
                   >
-                    {t === 'standard' ? 'Standard' : 'Custom'}
+                    {t === 'standard' ? tx.standard : tx.custom}
                   </button>
                 ))}
               </div>
@@ -893,14 +895,14 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
 
             {/* Event Name */}
             <div className="flex flex-col gap-1">
-              <label className="block text-[11px] font-medium text-slate-600">Nama Event</label>
+              <label className="block text-[11px] font-medium text-slate-600">{tx.eventName}</label>
               {eventType === 'standard' ? (
                 <select
                   value={eventName}
                   onChange={(e) => setEventName(e.target.value)}
                   className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs cursor-pointer"
                 >
-                  <option value="">— Pilih event standard —</option>
+                  <option value="">{tx.selectStandardEvent}</option>
                   {META_STANDARD_EVENTS_LIST.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
                 </select>
               ) : (
@@ -908,7 +910,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
                   type="text"
                   value={eventName}
                   onChange={(e) => setEventName(e.target.value)}
-                  placeholder="Contoh: ButtonClick, WhatsAppClick"
+                  placeholder={tx.customEventPlaceholder}
                   className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs"
                 />
               )}
@@ -916,13 +918,13 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
 
             {/* Platform */}
             <div className="flex flex-col gap-1">
-              <label className="block text-[11px] font-medium text-slate-600">Platform Target</label>
+              <label className="block text-[11px] font-medium text-slate-600">{tx.targetPlatform}</label>
               <select
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
                 className="w-full text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 text-slate-900 shadow-2xs cursor-pointer"
               >
-                <option value="all">Semua Platform</option>
+                <option value="all">{tx.allPlatforms}</option>
                 <option value="meta">Meta (Facebook) Pixel</option>
                 <option value="google">Google Analytics (GA4)</option>
                 <option value="gtm">Google Tag Manager (dataLayer)</option>
@@ -938,7 +940,7 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
                 disabled={!eventName.trim()}
                 className="flex-1 py-1.5 px-3 text-xs font-medium bg-purple-600 hover:bg-purple-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded transition shadow-2xs cursor-pointer"
               >
-                Simpan Event
+                {tx.save}
               </button>
               {isConfigured && (
                 <button
@@ -946,15 +948,19 @@ const NodePixelEventSection: React.FC<NodePixelEventSectionProps> = ({ nodeId, a
                   onClick={handleRemove}
                   className="px-2.5 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition cursor-pointer"
                 >
-                  Hapus
+                  {tx.remove}
                 </button>
               )}
             </div>
 
             {isConfigured && (
               <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2 rounded border border-slate-200">
-                Event <code className="text-purple-600 font-mono font-semibold">{existingPayload!.eventName}</code> dikirim ke{' '}
-                <span className="font-medium text-slate-700">{existingPayload!.provider === 'all' ? 'semua platform' : existingPayload!.provider}</span> saat elemen ini diklik.
+                {tx.summary(
+                  existingPayload!.eventName ?? '',
+                  !existingPayload!.provider || existingPayload!.provider === 'all'
+                    ? tx.allPlatforms.toLowerCase()
+                    : existingPayload!.provider,
+                )}
               </p>
             )}
           </div>

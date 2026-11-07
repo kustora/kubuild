@@ -144,6 +144,26 @@ export interface TranslationSchema {
 
   // AI chat panel (and the toolbar's AI running indicator)
   aiChat: AiChatTranslations;
+
+  // Per-node click tracking ("Event Pixel" section in the inspector)
+  pixelEvent: PixelEventTranslations;
+}
+
+export interface PixelEventTranslations {
+  title: string;
+  remove: string;
+  removeTitle: string;
+  eventType: string;
+  standard: string;
+  custom: string;
+  eventName: string;
+  selectStandardEvent: string;
+  customEventPlaceholder: string;
+  targetPlatform: string;
+  allPlatforms: string;
+  save: string;
+  /** Summary shown once configured; `platform` is the localized platform name. */
+  summary: (eventName: string, platform: string) => string;
 }
 
 /** Strings for the image/media source controls (upload, gallery, manual URL). */

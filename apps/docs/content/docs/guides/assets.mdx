@@ -1,0 +1,236 @@
+---
+title: Assets & AssetProvider
+description: Connect the editor and renderer to your own media storage with an AssetProvider — uploads, the asset gallery, URL resolution, and how assets travel through .stora export and import.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+KUBUILD never stores media itself. Images and other files live in **your** storage (S3, Cloudflare R2, Supabase Storage, a CDN, …), and the host connects that storage through one interface: `AssetProvider` from `@kubuild/core`.
+
+The same provider is used in three places:
+
+| Where | What it does with the provider |
+| :--- | :--- |
+| **Editor** (`<KubuildEditor assetProvider={…} />`) | `upload()` for the Upload tab, the image inspector's **Replace** button, background images, traits, and AI chat attachments. `list()` fills the **Gallery** tab. |
+| **Renderer** (`createRenderContext({ assetProvider })`) | `resolve()` turns the stored `src` of media nodes into the URL that is rendered. |
+| **Export** (`exportStoraPackage(doc, { assetProvider })`) | Fallback for collecting asset bytes when no `assets` map or `getAssetBytes` is given. |
+
+<Screenshot
+  src="/screenshots/editor/editor-image-inspector.webp"
+  alt="Image Settings in the inspector with Replace and Gallery buttons"
+  caption="Selecting an image shows Image Settings: Replace uploads through assetProvider.upload(), Gallery opens the Asset Manager."
+/>
+
+## The Interface
+
+```ts
+// From @kubuild/core
+interface AssetInfo {
+  id: string;
+  url: string;
+  mimeType: string;
+  size?: number;
+  alt?: string;
+}
+
+interface AssetProvider {
+  resolve(assetIdOrUri: string): Promise<string> | string;
+  upload?(file: File | Blob, metadata?: Record<string, unknown>): Promise<AssetInfo>;
+  delete?(assetId: string): Promise<boolean>;
+  list?(): Promise<AssetInfo[]>;
+}
+```
+
+| Method | Required | Called by | Notes |
+| :--- | :--- | :--- | :--- |
+| `resolve` | Yes | Renderer, editor canvas | **Must return a string synchronously** for rendering — see the warning below. |
+| `upload` | No | Editor | Return the stored asset. The editor writes `info.url` into the node prop. |
+| `list` | No | Editor Asset Manager | Each item's `alt` (or `id`) is shown as its name; items are filtered by MIME type. |
+| `delete` | No | — | Part of the contract for host tooling; the editor does not call it. |
+
+<Callout type="warn" title="resolve() must be synchronous for rendering">
+  The type allows `resolve` to return a `Promise`, but the renderer resolves media synchronously during render. If `resolve` returns a Promise, its result is ignored and the image falls back to `fallbackUrl` (for asset references) or to the raw stored value. The renderer reports this once per value as an `ASSET_RESOLVE_ASYNC` diagnostic through `onDiagnostic`. Keep `resolve` synchronous — for example by building the URL from a CDN prefix, or by looking it up in a map you load before rendering.
+</Callout>
+
+## How Images Are Stored in a Document
+
+A media node's `src` prop holds one of two shapes:
+
+**1. A URL string** — what the editor writes after an upload, a gallery pick, or a pasted URL:
+
+```json
+{ "id": "hero-image", "type": "image", "props": { "src": "https://cdn.example.com/u/42/hero.webp", "alt": "Product shot" } }
+```
+
+**2. An asset reference** — a pointer to an asset by ID, optionally with a fallback:
+
+```json
+{
+  "id": "hero-image",
+  "type": "image",
+  "props": {
+    "src": {
+      "type": "asset",
+      "assetId": "img_8f2c1a",
+      "mimeType": "image/webp",
+      "fallbackUrl": "https://cdn.example.com/u/42/hero.webp"
+    },
+    "alt": "Product shot"
+  }
+}
+```
+
+At render time:
+
+- **Asset reference** → `resolve(assetId)`, or `fallbackUrl` when that returns nothing.
+- **String** → `resolve(src)`, or the string itself when that returns nothing. This lets one provider rewrite plain URLs too (for example, to add CDN resizing parameters).
+
+<Callout type="info" title="There is no built-in asset:// scheme">
+  The renderer passes whatever string is stored to `resolve()`. If you want short IDs such as `asset://img_8f2c1a` in your documents, that is a convention between your `upload()` and your `resolve()` — KUBUILD does not interpret the prefix.
+</Callout>
+
+## A Complete Provider
+
+This provider uploads through your own API (which writes to S3/R2 and returns the stored object), lists the tenant's assets for the gallery, and resolves URLs synchronously through a CDN with image resizing.
+
+```ts title="lib/asset-provider.ts"
+import type { AssetInfo, AssetProvider } from '@kubuild/core';
+
+const CDN = 'https://cdn.example.com';
+
+export function createHostAssetProvider(tenantId: string): AssetProvider {
+  return {
+    // Synchronous: IDs become CDN URLs, absolute URLs pass through with resizing.
+    resolve(assetIdOrUri: string): string {
+      if (assetIdOrUri.startsWith('data:')) return assetIdOrUri;
+      if (/^https?:\/\//.test(assetIdOrUri)) {
+        return assetIdOrUri.startsWith(CDN)
+          ? `${CDN}/cdn-cgi/image/width=1600,format=auto/${assetIdOrUri.slice(CDN.length + 1)}`
+          : assetIdOrUri;
+      }
+      return `${CDN}/cdn-cgi/image/width=1600,format=auto/${tenantId}/${assetIdOrUri}`;
+    },
+
+    async upload(file: File | Blob): Promise<AssetInfo> {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch(`/api/tenants/${tenantId}/assets`, { method: 'POST', body });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`); // shown in the editor
+      return (await res.json()) as AssetInfo; // { id, url, mimeType, size?, alt? }
+    },
+
+    async list(): Promise<AssetInfo[]> {
+      const res = await fetch(`/api/tenants/${tenantId}/assets`);
+      return res.ok ? ((await res.json()) as AssetInfo[]) : [];
+    },
+
+    async delete(assetId: string): Promise<boolean> {
+      const res = await fetch(`/api/tenants/${tenantId}/assets/${assetId}`, { method: 'DELETE' });
+      return res.ok;
+    },
+  };
+}
+```
+
+Errors thrown from `upload()` are shown to the author in the editor, so throw a readable message.
+
+## Wiring It Up
+
+Pass the **same** provider to the editor and the renderer, so what authors see on the canvas is what visitors get.
+
+```tsx
+import { KubuildEditor, KubuildRenderer, createRenderContext } from '@kubuild/react';
+import type { PageDocument } from '@kubuild/schema';
+import { createHostAssetProvider } from './lib/asset-provider';
+
+const assetProvider = createHostAssetProvider('tenant_42');
+
+export function Builder({ doc }: { doc: PageDocument }) {
+  // The editor forwards assetProvider into its canvas render context
+  // (an explicit context.assetProvider takes precedence).
+  return <KubuildEditor initialDocument={doc} assetProvider={assetProvider} />;
+}
+
+export function PublicPage({ doc }: { doc: PageDocument }) {
+  const context = createRenderContext({ assetProvider });
+  return <KubuildRenderer document={doc} context={context} responsive="css" />;
+}
+```
+
+## The Asset Manager
+
+The **Gallery** button in the image inspector (and the background-image control) opens the Asset Manager with three tabs:
+
+- **Gallery** — the assets returned by `list()`, filtered to the accepted MIME types.
+- **CDN URL** — paste an external URL.
+- **Upload** — drag and drop or pick files; each one goes through `upload()`.
+
+<Screenshot
+  src="/screenshots/editor/editor-asset-manager.webp"
+  alt="The Asset Manager modal with Gallery, CDN URL, and Upload tabs"
+  caption="The Asset Manager. Without an AssetProvider (as in the docs playground) the gallery is empty and uploads are stored inline."
+/>
+
+## Without an AssetProvider
+
+The editor still works without a provider, but uploads are **embedded in the document as base64 `data:` URLs**. That is fine for demos and the playground, but not for production:
+
+- Every image inflates the document JSON (and every save, history entry, and export).
+- `validateDocumentSecurity` limits each prop string to 100,000 characters by default, so an image larger than roughly 73 KB makes the document fail validation, and the whole document is capped at 10 MB.
+- Images can't be shared, cached, or resized by a CDN.
+
+Provide at least `resolve` and `upload` in production.
+
+## Assets in `.stora` Export and Import
+
+Only **asset references** (`{ type: 'asset', assetId }`) are packaged into a `.stora` archive. Plain URL strings stay as URLs and are not downloaded into the package, and `data:` URLs stay inline in `page.json`.
+
+```ts
+import { exportStoraPackage, importStoraPackage } from '@kubuild/core';
+import type { PageDocument } from '@kubuild/schema';
+
+export async function roundTrip(doc: PageDocument, archive: Uint8Array) {
+  // Export: supply bytes for each referenced assetId
+  const exported = await exportStoraPackage(doc, {
+    getAssetBytes: async (assetId) => {
+      const res = await fetch(`/api/assets/${assetId}/raw`);
+      return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+    },
+    allowExternalFallback: true, // tolerate references that only have a fallbackUrl
+  });
+
+  // Import: store each packaged asset and return its new URL / AssetInfo
+  const imported = await importStoraPackage(archive, {
+    assetCollisionStrategy: 'rename',
+    onAssetImport: async (assetId, bytes, meta) => {
+      const body = new FormData();
+      body.append('file', new Blob([new Uint8Array(bytes)], { type: meta.mimeType }), meta.path);
+      const res = await fetch('/api/assets', { method: 'POST', body });
+      return (await res.json()) as { id: string; url: string; mimeType: string };
+    },
+  });
+
+  return { exported, imported };
+}
+```
+
+If assets were renamed during import, `result.renamedAssets` maps old IDs to new ones and the document's references are already updated. To remap references yourself, use `remapDocumentAssetReferences(doc, idMap)`; to list them, `collectAssetReferences(doc.document)`.
+
+<Callout type="info" title="Making exports self-contained">
+  Because the editor stores uploads as URL strings, pages built in the editor export with their images as external URLs. If packages must carry their image files (for offline use or moving between hosts with separate storage), store asset references in the document — for example, convert URLs from your storage into `{ type: 'asset', assetId, fallbackUrl }` before exporting, keeping the original URL as `fallbackUrl`.
+</Callout>
+
+## Checklist
+
+- [ ] `resolve` returns a string synchronously and never throws for unknown input (watch for `ASSET_RESOLVE_ASYNC` diagnostics).
+- [ ] `upload` returns `{ id, url, mimeType }` and throws readable errors.
+- [ ] `list` is implemented so authors can reuse uploaded assets.
+- [ ] The same provider is passed to `<KubuildEditor />` and the render context.
+- [ ] User uploads are served from a separate domain with `X-Content-Type-Options: nosniff` (see [Security](/docs/integration/security)).
+- [ ] Exports that must be self-contained use asset references plus `getAssetBytes`.
+
+## Related
+
+- [Export & Import `.stora` Packages](/docs/guides/export-import)
+- [Performance: image optimization](/docs/integration/performance)
+- [Security](/docs/integration/security)

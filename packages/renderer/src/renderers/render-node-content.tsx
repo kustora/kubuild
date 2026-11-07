@@ -658,7 +658,15 @@ export function createPlaceholderImage(label?: string): string {
  * Media nodes: image, video, icon, html-embed
  */
 export function renderMediaNode(options: RenderNodeContentOptions): React.ReactElement | null {
-  const { node, domId, styles, resolvedProps, props, context, mode, handleClick, definition } = options;
+  const { node, domId, styles, resolvedProps, props, context, mode, handleClick, definition, onDiagnostic } =
+    options;
+  const reportAsyncResolve = (assetIdOrUri: string) =>
+    onDiagnostic?.({
+      code: 'ASSET_RESOLVE_ASYNC',
+      nodeId: node.id,
+      assetIdOrUri,
+      message: `AssetProvider.resolve("${assetIdOrUri}") returned a Promise. Media URLs are resolved synchronously during render, so the fallback was used instead. Make resolve() return a string.`,
+    });
 
   switch (node.type) {
     case 'image': {
@@ -672,9 +680,9 @@ export function renderMediaNode(options: RenderNodeContentOptions): React.ReactE
       let src: string | undefined;
 
       if (isAssetReference(rawSrc)) {
-        src = resolveAssetSync(context?.assetProvider, rawSrc.assetId) || rawSrc.fallbackUrl;
+        src = resolveAssetSync(context?.assetProvider, rawSrc.assetId, reportAsyncResolve) || rawSrc.fallbackUrl;
       } else if (typeof rawSrc === 'string' && rawSrc.trim().length > 0) {
-        src = resolveAssetSync(context?.assetProvider, rawSrc) || rawSrc;
+        src = resolveAssetSync(context?.assetProvider, rawSrc, reportAsyncResolve) || rawSrc;
       }
 
       // If resolved src is empty or missing, check author fallback or editor placeholder

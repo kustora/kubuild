@@ -251,7 +251,7 @@ export function PageBuilderPage({ initialDoc }: { initialDoc: PageDocument }) {
       required: false,
     },
     assetProvider: {
-      description: 'Asset management adapter providing upload endpoints, media browser modal integration, and asset:// URL resolution.',
+      description: 'Host media storage adapter: upload() for uploads, list() for the Asset Manager gallery, and resolve() for media URLs on the canvas. Without it, uploads are embedded as data: URLs. See the Assets guide.',
       type: 'AssetProvider',
       required: false,
     },
@@ -691,7 +691,7 @@ export default async function PageEditorRoute({
     Yes. Pass `config.sidebar.allowedComponents` or `config.sidebar.hiddenComponents` to the `<KubuildEditor />` component. You can also provide custom block collections via the `blocks` prop.
   </Accordion>
   <Accordion title="How do I integrate custom asset uploading (S3, Cloudinary, Supabase)?">
-    Supply a custom `assetProvider` prop adhering to the `AssetProvider` interface from `@kubuild/core`. The editor modal calls your provider's `upload()` and `list()` methods and resolves `asset://` IDs inside the canvas automatically.
+    Pass an `assetProvider` that implements the `AssetProvider` interface from `@kubuild/core`. The editor calls `upload()` for uploads and `list()` for the Asset Manager gallery, and forwards the provider to the canvas so `resolve()` maps stored values to URLs. Keep `resolve()` synchronous. See [Assets & AssetProvider](/docs/guides/assets).
   </Accordion>
 </Accordions>
 

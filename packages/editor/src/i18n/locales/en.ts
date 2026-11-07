@@ -237,4 +237,21 @@ export const en: TranslationSchema = {
     aiRunning: 'AI is working…',
     busyNotice: 'Undo/redo is paused while AI is working.',
   },
+
+  pixelEvent: {
+    title: 'Event Pixel',
+    remove: 'Remove',
+    removeTitle: 'Remove event pixel',
+    eventType: 'Event type',
+    standard: 'Standard',
+    custom: 'Custom',
+    eventName: 'Event name',
+    selectStandardEvent: '— Select a standard event —',
+    customEventPlaceholder: 'e.g. ButtonClick, WhatsAppClick',
+    targetPlatform: 'Target platform',
+    allPlatforms: 'All platforms',
+    save: 'Save event',
+    summary: (eventName, platform) =>
+      `Sends the ${eventName} event to ${platform} when this element is clicked.`,
+  },
 };

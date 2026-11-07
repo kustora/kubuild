@@ -148,17 +148,39 @@ export function useRenderContext(): RenderContext {
   return useContext(RenderContextReact);
 }
 
+const reportedAsyncResolves = new WeakMap<AssetProvider, Set<string>>();
+
 /**
  * Asset resolution helper.
- * Computes asset URLs synchronously for React render cycles.
+ * Computes asset URLs synchronously for React render cycles. A `resolve()` that returns a
+ * Promise can't be used during render: the result is ignored (callers fall back) and
+ * `onAsyncResolve` is called once per provider + value so hosts can find the problem.
  */
-export function resolveAssetSync(assetProvider?: AssetProvider, assetIdOrUri?: string): string | undefined {
+export function resolveAssetSync(
+  assetProvider?: AssetProvider,
+  assetIdOrUri?: string,
+  onAsyncResolve?: (assetIdOrUri: string) => void,
+): string | undefined {
   if (!assetProvider || !assetIdOrUri) {
     return undefined;
   }
   try {
     const result = assetProvider.resolve(assetIdOrUri);
-    return typeof result === 'string' ? result : undefined;
+    if (typeof result === 'string') return result;
+    if (result && typeof (result as PromiseLike<string>).then === 'function') {
+      // Swallow a later rejection; it would otherwise surface as an unhandled rejection.
+      Promise.resolve(result).catch(() => undefined);
+      let reported = reportedAsyncResolves.get(assetProvider);
+      if (!reported) {
+        reported = new Set();
+        reportedAsyncResolves.set(assetProvider, reported);
+      }
+      if (!reported.has(assetIdOrUri)) {
+        reported.add(assetIdOrUri);
+        onAsyncResolve?.(assetIdOrUri);
+      }
+    }
+    return undefined;
   } catch {
     return undefined;
   }
