@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, Play } from 'lucide-react';
 import { ServerCodeBlock } from 'fumadocs-ui/components/codeblock.rsc';
 import { gitConfig } from '@/lib/shared';
-import { HeroLayers, Mark } from './hero-layers';
+import { HeroLayers } from './hero-layers';
 import { InstallTabs } from './install-tabs';
 
 export const metadata: Metadata = {
@@ -115,6 +115,29 @@ const footerLinks: { title: string; links: [string, string][] }[] = [
 
 /* ---------- Building blocks ---------- */
 
+/** The Kustora mark (from stora-page/apps/web/public/brand/icon.svg), drawn in currentColor. */
+function KustoraMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={className}
+    >
+      <line x1="3" y1="16" x2="18" y2="16" />
+      <line x1="18" y1="5" x2="18" y2="27" />
+      <line x1="9.5" y1="7.5" x2="18" y2="16" />
+      <line x1="18" y1="16" x2="26.5" y2="24.5" />
+      <line x1="9.5" y1="24.5" x2="18" y2="16" />
+      <line x1="18" y1="16" x2="26.5" y2="7.5" />
+    </svg>
+  );
+}
+
 /** A dark editor/terminal window, identical in light and dark mode. */
 function Window({
   title,
@@ -127,23 +150,21 @@ function Window({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-md border border-white/10 bg-[#121218] font-mono text-[12.5px] leading-relaxed text-neutral-300 ${className}`}
+      className={`overflow-hidden rounded-md border border-white/10 bg-[#0f172a] font-mono text-[12.5px] leading-relaxed text-slate-300 ${className}`}
     >
       {title ? (
-        <div className="border-b border-white/10 px-4 py-2 text-[11px] text-neutral-500">
-          {title}
-        </div>
+        <div className="border-b border-white/10 px-4 py-2 text-[11px] text-slate-500">{title}</div>
       ) : null}
       <pre className="overflow-hidden px-4 py-3">{children}</pre>
     </div>
   );
 }
 
-/** The textured violet field that feature windows sit on. */
+/** The textured blue field that feature windows sit on. */
 function Field({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`overflow-hidden bg-violet-700 bg-[radial-gradient(120%_80%_at_15%_0%,rgba(255,255,255,0.22),transparent_55%),repeating-linear-gradient(115deg,rgba(255,255,255,0.05)_0_2px,transparent_2px_14px)] ${className}`}
+      className={`overflow-hidden bg-blue-600 bg-[radial-gradient(120%_80%_at_15%_0%,rgba(255,255,255,0.22),transparent_55%),repeating-linear-gradient(115deg,rgba(255,255,255,0.05)_0_2px,transparent_2px_14px)] ${className}`}
     >
       {children}
     </div>
@@ -151,10 +172,10 @@ function Field({ children, className = '' }: { children: ReactNode; className?: 
 }
 
 // Tiny syntax colouring helpers for the hand-written snippets.
-const kw = (t: string) => <span className="text-violet-400">{t}</span>;
+const kw = (t: string) => <span className="text-blue-400">{t}</span>;
 const str = (t: string) => <span className="text-emerald-300">{t}</span>;
-const cm = (t: string) => <span className="text-neutral-500">{t}</span>;
-const fn = (t: string) => <span className="text-sky-300">{t}</span>;
+const cm = (t: string) => <span className="text-slate-500">{t}</span>;
+const fn = (t: string) => <span className="text-slate-50">{t}</span>;
 
 function FeatureCell({
   title,
@@ -171,7 +192,7 @@ function FeatureCell({
     <div className="flex flex-col border-b md:[&:nth-child(odd)]:border-r">
       <div className="px-6 pt-8 sm:px-10 sm:pt-10">
         <h3 className="text-xl font-medium tracking-tight">
-          <Link href={href} className="group inline-flex items-center gap-2 hover:text-violet-500">
+          <Link href={href} className="group inline-flex items-center gap-2 hover:text-blue-500">
             {title}
             <ArrowRight className="size-4 -translate-x-1 opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100" />
           </Link>
@@ -206,7 +227,7 @@ export default function HomePage() {
             <div className="mt-10 flex flex-wrap gap-3">
               <Link
                 href="/docs/getting-started/quickstart"
-                className="rounded-md border-2 border-violet-500 px-5 py-2.5 font-medium shadow-[0_0_24px_-6px_rgba(139,92,246,0.8)] transition hover:bg-violet-500 hover:text-white"
+                className="rounded-md border-2 border-blue-500 px-5 py-2.5 font-medium shadow-[0_0_24px_-6px_rgba(59,130,246,0.8)] transition hover:bg-blue-500 hover:text-white"
               >
                 Get Started
               </Link>
@@ -237,7 +258,7 @@ export default function HomePage() {
                 key={`${step}-${i}`}
                 className="flex items-center justify-center gap-2 bg-fd-background py-6 text-lg font-medium last:col-span-2 md:last:col-span-1"
               >
-                <span className="font-mono text-xs text-violet-500">{i + 1}</span>
+                <span className="font-mono text-xs text-blue-500">{i + 1}</span>
                 {step}
               </li>
             ))}
@@ -289,7 +310,7 @@ export default function HomePage() {
             body="Admins load the full editor; visitors only get @kubuild/renderer. Public pages render in Server Components with no editor code."
             href="/docs/getting-started/architecture"
           >
-            <div className="absolute top-2 right-10 z-10 rounded-md border-2 border-violet-500 bg-fd-background px-3 py-1.5 font-mono text-xs text-violet-500 shadow-[0_0_20px_-6px_rgba(139,92,246,0.8)]">
+            <div className="absolute top-2 right-10 z-10 rounded-md border-2 border-blue-500 bg-fd-background px-3 py-1.5 font-mono text-xs text-blue-500 shadow-[0_0_20px_-6px_rgba(59,130,246,0.8)]">
               responsive=&quot;css&quot;
             </div>
             <Window className="absolute top-14 right-0 left-10 rounded-r-none border-r-0">
@@ -369,12 +390,12 @@ export default function HomePage() {
                 className="absolute top-10 left-8 w-[min(400px,82%)]"
               >
                 {'Welcome, '}
-                <span className="rounded bg-violet-500/25 px-1 text-violet-300">
+                <span className="rounded bg-blue-500/25 px-1 text-blue-300">
                   {'{{ user.name | Valued Customer }}'}
                 </span>
                 {'!'}
               </Window>
-              <div className="absolute right-8 bottom-10 rounded-md bg-white px-5 py-4 text-lg font-semibold text-neutral-900">
+              <div className="absolute right-8 bottom-10 rounded-md bg-white px-5 py-4 text-lg font-semibold text-slate-900">
                 Welcome, Aisyah!
               </div>
             </Field>
@@ -438,7 +459,7 @@ export default function HomePage() {
           <div className="mt-8 text-center">
             <Link
               href="/docs/integration/nextjs"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-500 hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-500 hover:underline"
             >
               Full Next.js integration <ArrowRight className="size-4" />
             </Link>
@@ -462,14 +483,14 @@ export default function HomePage() {
                 <span
                   className={`rounded-md border px-3 py-2 font-mono text-sm ${
                     name === 'core'
-                      ? 'border-violet-500 text-violet-500 shadow-[0_0_20px_-6px_rgba(139,92,246,0.8)]'
+                      ? 'border-blue-500 text-blue-500 shadow-[0_0_20px_-6px_rgba(59,130,246,0.8)]'
                       : 'bg-fd-card'
                   }`}
                 >
                   {name}
                 </span>
                 {i < chain.length - 1 ? (
-                  <span className="mx-1 hidden w-6 border-t border-dashed border-violet-500/60 sm:block" />
+                  <span className="mx-1 hidden w-6 border-t border-dashed border-blue-500/60 sm:block" />
                 ) : null}
               </div>
             ))}
@@ -481,7 +502,7 @@ export default function HomePage() {
                 href={pkg.href}
                 className="group bg-fd-background p-6 transition-colors hover:bg-fd-accent"
               >
-                <span className="font-mono text-sm font-medium group-hover:text-violet-500">
+                <span className="font-mono text-sm font-medium group-hover:text-blue-500">
                   {pkg.name}
                 </span>
                 <p className="mt-2 text-sm text-fd-muted-foreground">{pkg.body}</p>
@@ -489,7 +510,7 @@ export default function HomePage() {
             ))}
             <Link
               href="/docs"
-              className="flex items-center gap-2 bg-fd-background p-6 text-sm font-medium text-violet-500 transition-colors hover:bg-fd-accent"
+              className="flex items-center gap-2 bg-fd-background p-6 text-sm font-medium text-blue-500 transition-colors hover:bg-fd-accent"
             >
               All package docs <ArrowRight className="size-4" />
             </Link>
@@ -512,8 +533,8 @@ export default function HomePage() {
             </a>
           </div>
           <div className="flex items-center justify-center gap-6">
-            <div className="grid size-28 place-items-center rounded-2xl border border-violet-500/70 bg-[#17151f] text-violet-400 shadow-[0_6px_0_#4c1d95,0_30px_60px_-20px_rgba(124,58,237,0.6)]">
-              <Mark className="size-12" />
+            <div className="grid size-28 place-items-center rounded-2xl border border-blue-500/70 bg-[#05123E] text-[#E8EAFD] shadow-[0_6px_0_#1e40af,0_30px_60px_-20px_rgba(37,99,235,0.6)]">
+              <KustoraMark className="size-14" />
             </div>
             <div>
               <p className="font-mono text-xs text-fd-muted-foreground">Brought to you by</p>
@@ -523,7 +544,7 @@ export default function HomePage() {
         </section>
 
         {/* Final CTA */}
-        <section className="bg-violet-700 bg-[radial-gradient(70%_100%_at_50%_120%,rgba(255,255,255,0.35),transparent_60%),repeating-linear-gradient(100deg,rgba(255,255,255,0.05)_0_2px,transparent_2px_16px)] px-6 py-24 text-center text-white md:py-32">
+        <section className="bg-blue-600 bg-[radial-gradient(70%_100%_at_50%_120%,rgba(255,255,255,0.35),transparent_60%),repeating-linear-gradient(100deg,rgba(255,255,255,0.05)_0_2px,transparent_2px_16px)] px-6 py-24 text-center text-white md:py-32">
           <h2 className="text-4xl font-medium tracking-tight md:text-5xl">
             Start building with KUBUILD
           </h2>
@@ -533,7 +554,7 @@ export default function HomePage() {
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
               href="/playground"
-              className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-2.5 font-medium text-neutral-900 transition hover:bg-white/90"
+              className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-2.5 font-medium text-slate-900 transition hover:bg-white/90"
             >
               <Play className="size-4" /> Open the playground
             </Link>
@@ -557,7 +578,7 @@ export default function HomePage() {
                 <ul className="mt-4 space-y-2.5 text-sm">
                   {group.links.map(([label, href]) => (
                     <li key={href}>
-                      <Link href={href} className="hover:text-violet-500">
+                      <Link href={href} className="hover:text-blue-500">
                         {label}
                       </Link>
                     </li>
@@ -569,12 +590,12 @@ export default function HomePage() {
               <h2 className="font-mono text-xs text-fd-muted-foreground uppercase">Community</h2>
               <ul className="mt-4 space-y-2.5 text-sm">
                 <li>
-                  <a href={githubUrl} className="hover:text-violet-500">
+                  <a href={githubUrl} className="hover:text-blue-500">
                     GitHub
                   </a>
                 </li>
                 <li>
-                  <a href={`${githubUrl}/issues`} className="hover:text-violet-500">
+                  <a href={`${githubUrl}/issues`} className="hover:text-blue-500">
                     Issues
                   </a>
                 </li>

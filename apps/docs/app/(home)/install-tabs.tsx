@@ -39,7 +39,7 @@ export function InstallTabs() {
             onClick={() => setActive(i)}
             className={`relative px-3 py-3 text-sm transition-colors ${
               i === active
-                ? 'text-fd-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:bg-violet-500'
+                ? 'text-fd-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:bg-blue-500'
                 : 'text-fd-muted-foreground hover:text-fd-foreground'
             }`}
           >
@@ -49,7 +49,7 @@ export function InstallTabs() {
       </div>
       <div className="flex items-center gap-3 px-6 py-5">
         <code className="min-w-0 flex-1 overflow-x-auto font-mono text-sm whitespace-nowrap">
-          <span className="text-violet-500 select-none">$ </span>
+          <span className="text-blue-500 select-none">$ </span>
           {command}
         </code>
         <button

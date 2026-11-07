@@ -72,7 +72,7 @@ const layers: Layer[] = [
   ]
 }`,
     plate: 'border border-fd-muted-foreground/40 bg-fd-card',
-    face: <div className="absolute inset-5 rounded-xl border border-dashed border-violet-400/50" />,
+    face: <div className="absolute inset-5 rounded-xl border border-dashed border-blue-400/50" />,
   },
   {
     id: 'heading',
@@ -111,7 +111,7 @@ const layers: Layer[] = [
 }`,
     plate: 'border border-fd-muted-foreground/40 bg-fd-background/85',
     face: (
-      <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-violet-600 px-3 py-1.5 text-[11px] font-semibold whitespace-nowrap text-white">
+      <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-blue-600 px-3 py-1.5 text-[11px] font-semibold whitespace-nowrap text-white">
         Claim the discount
       </span>
     ),
@@ -129,8 +129,8 @@ const layers: Layer[] = [
   responsive="css"
 />`,
     plate:
-      'grid place-items-center border border-violet-500/70 bg-[#17151f] shadow-[0_1px_0_#6d28d9,0_2px_0_#6d28d9,0_3px_0_#6d28d9,0_4px_0_#5b21b6,0_5px_0_#5b21b6,0_6px_0_#4c1d95,0_7px_0_#4c1d95,0_8px_0_#3b0764,0_40px_60px_-20px_rgba(124,58,237,0.55)]',
-    face: <Mark className="size-12 rotate-45 text-violet-400" />,
+      'grid place-items-center border border-blue-500/70 bg-[#111a2e] shadow-[0_1px_0_#2563eb,0_2px_0_#2563eb,0_3px_0_#2563eb,0_4px_0_#1d4ed8,0_5px_0_#1d4ed8,0_6px_0_#1e40af,0_7px_0_#1e40af,0_8px_0_#1e3a8a,0_40px_60px_-20px_rgba(37,99,235,0.55)]',
+    face: <Mark className="size-12 rotate-45 text-blue-400" />,
   },
 ];
 
@@ -146,7 +146,7 @@ export function HeroLayers() {
     <div className="relative h-full min-h-[560px] [perspective:1400px]">
       {/* the spine every layer hangs on */}
       <div
-        className="absolute left-1/2 border-l border-dashed xl:left-[35%] border-violet-500/50"
+        className="absolute left-1/2 border-l border-dashed xl:left-[35%] border-blue-500/50"
         style={{ top: TOP, height: SPACING * (layers.length - 1) }}
         aria-hidden
       />
@@ -174,8 +174,8 @@ export function HeroLayers() {
                   onMouseEnter={() => setActive(layer.id)}
                   onFocus={() => setActive(layer.id)}
                   onClick={() => setActive(layer.id)}
-                  className={`absolute size-48 overflow-hidden rounded-[24px] text-left transition-colors duration-300 outline-none [transform:translate(-50%,-50%)_rotateX(58deg)_rotateZ(-45deg)] focus-visible:ring-2 focus-visible:ring-violet-500 ${layer.plate} ${
-                    on && layer.id !== 'engine' ? 'border-violet-500!' : ''
+                  className={`absolute size-48 overflow-hidden rounded-[24px] text-left transition-colors duration-300 outline-none [transform:translate(-50%,-50%)_rotateX(58deg)_rotateZ(-45deg)] focus-visible:ring-2 focus-visible:ring-blue-500 ${layer.plate} ${
+                    on && layer.id !== 'engine' ? 'border-blue-500!' : ''
                   }`}
                 >
                   {layer.face}
@@ -183,7 +183,7 @@ export function HeroLayers() {
                 {/* label with a leader line, kept flat like a callout */}
                 <span
                   className={`pointer-events-none absolute hidden -translate-y-1/2 xl:flex items-center gap-2 font-mono text-[11px] tracking-wider whitespace-nowrap uppercase transition-colors ${
-                    on ? 'text-violet-500' : 'text-fd-muted-foreground'
+                    on ? 'text-blue-500' : 'text-fd-muted-foreground'
                   }`}
                   style={{ right: 150 }}
                   aria-hidden
@@ -199,10 +199,10 @@ export function HeroLayers() {
 
       {/* the JSON of whichever layer is active */}
       <div
-        className="absolute top-14 right-4 hidden w-[min(300px,42%)] overflow-hidden xl:block rounded-md border border-white/10 bg-[#121218] font-mono text-[11.5px] leading-relaxed text-neutral-300"
+        className="absolute top-14 right-4 hidden w-[min(300px,42%)] overflow-hidden xl:block rounded-md border border-white/10 bg-[#0f172a] font-mono text-[11.5px] leading-relaxed text-slate-300"
         aria-live="polite"
       >
-        <div className="border-b border-white/10 px-4 py-2 text-[11px] text-violet-300">
+        <div className="border-b border-white/10 px-4 py-2 text-[11px] text-blue-300">
           {current.title}
         </div>
         <pre className="overflow-x-auto px-4 py-3">{current.code}</pre>
