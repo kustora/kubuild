@@ -1,0 +1,12 @@
+{
+  "title": "Guides & Recipes",
+  "pages": [
+    "figma-layout",
+    "responsive-cascade",
+    "custom-components",
+    "dynamic-variables",
+    "forms-and-actions",
+    "tracking-pixels",
+    "ai-assistant"
+  ]
+}

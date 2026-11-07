@@ -1,0 +1,805 @@
+---
+title: "Next.js App Router Integration"
+description: "Production guide for embedding KUBUILD in Next.js: Server Components, dynamic client-side editor loading, SEO metadata, and API routes."
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { File, Folder, Files } from 'fumadocs-ui/components/files';
+import { InteractiveRenderer } from '@/components/interactive-renderer';
+
+Mengintegrasikan visual web page builder ke dalam aplikasi web skala *enterprise* sering kali menghadirkan dilema arsitektur performa: bagaimana menyediakan kanvas interaktif *drag-and-drop* yang kaya fitur bagi tim desainer/admin, tanpa mengorbankan kecepatan muat (*Core Web Vitals*), ukuran bundle, dan peringkat SEO pada halaman publik yang dikunjungi jutaan pengguna?
+
+Visual builder konvensional umumnya menggabungkan kanvas editor dan runtime penampil ke dalam satu bundle monolitik client-side. Akibatnya:
+1. **Bundle Size Bengkak**: Pengunjung umum dipaksa mengunduh ratusan kilobyte script editor (Zustand store, drag handles, property inspectors, color pickers, modal dialogs) yang sama sekali tidak mereka butuhkan.
+2. **Hydration Mismatch**: Perbedaan dimensi layar perangkat antara server dan browser klien sering memicu error *"Text content does not match server-rendered HTML"* atau layout berkedip (*FOUC - Flash of Unstyled Content*).
+3. **SEO & Social Share Sub-optimal**: Search engine crawler dan bot media sosial (Facebook Open Graph, Twitter Cards, WhatsApp preview) menerima halaman kosong yang membutuhkan eksekusi JavaScript berat sebelum konten terlihat.
+
+**KUBUILD mengatasi seluruh dilema tersebut melalui Arsitektur Dual-Surface di Next.js App Router.**
+
+---
+
+## Arsitektur Dual-Surface
+
+KUBUILD membagi aplikasi host Next.js menjadi dua permukaan independen yang terisolasi secara tegas di level modul dan runtime:
+
+```mermaid
+flowchart TD
+    subgraph Host["Next.js App Router (Host Application)"]
+        direction TB
+
+        subgraph Surface1["Surface 1: Public Visitor Pages (/app/[slug])"]
+            RSC["Server Component (RSC)\napp/[slug]/page.tsx"]
+            Renderer["@kubuild/renderer\n(Pure SSR Runtime < 30KB)"]
+            CSS["Scoped Responsive CSS\n(Zero Hydration Mismatch)"]
+            SEO["Dynamic SEO Metadata\n(generateMetadata)"]
+            
+            RSC --> SEO
+            RSC --> Renderer
+            Renderer --> CSS
+        end
+
+        subgraph Surface2["Surface 2: Admin Visual Builder (/app/admin/builder/[id])"]
+            PageShell["Server Shell Auth Guard\napp/admin/builder/[id]/page.tsx"]
+            DynamicImport["next/dynamic (ssr: false)\nLazy Load Client Component"]
+            Editor["@kubuild/editor\nWYSIWYG Canvas + Drag & Drop"]
+            Store["Zustand Store + History Undo/Redo"]
+            
+            PageShell --> DynamicImport
+            DynamicImport --> Editor
+            Editor --> Store
+        end
+
+        subgraph API["Next.js Route Handlers (/app/api/...)"]
+            PagesAPI["/api/pages/[id]\n(Zod PageDocument Validation)"]
+            TrackingAPI["/api/tracking\n(Server CAPI / TikTok Relay)"]
+            AiAPI["/api/ai\n(createAiHandler with SSE)"]
+        end
+    end
+
+    DB[("Database\nPostgreSQL / Supabase / Prisma")] <--> RSC
+    DB <--> PagesAPI
+    Editor <--> PagesAPI
+    Renderer -.-> TrackingAPI
+    Editor -.-> AiAPI
+```
+
+<Cards>
+  <Card title="Surface 1: Public Visitor Pages" icon="Globe">
+    Berjalan 100% sebagai **React Server Component (RSC)** menggunakan paket ringan `@kubuild/renderer`. Menghasilkan HTML statis murni di server dengan injeksi CSS breakpoint scoped (`responsive="css"`), bundle ultra-ringan (< 30KB gzipped), dan skor Google Lighthouse 100/100.
+  </Card>
+  <Card title="Surface 2: Admin Visual Builder" icon="Layout">
+    Berjalan sebagai **Client Component** yang diimpor secara dinamis melalui `next/dynamic({ ssr: false })`. Mengisolasi seluruh dependensi drag-and-drop, Zustand state machine, AI assistant modal, dan inspector panel hanya untuk pengguna admin yang memiliki akses.
+  </Card>
+</Cards>
+
+---
+
+## Live Interactive Preview
+
+Berikut adalah demonstrasi live runtime `@kubuild/renderer` yang mensimulasikan hasil kompilasi server-side di Next.js. Coba ubah viewport perangkat untuk melihat bagaimana CSS responsive diterapkan secara instan tanpa *hydration mismatch*:
+
+<InteractiveRenderer
+  title="Next.js SSR Runtime Preview"
+  height="460px"
+  defaultViewport="desktop"
+  showJsonToggle={true}
+  document={{
+    schema: "stora.page",
+    version: "1.3.0",
+    metadata: {
+      title: "Enterprise Cloud Hosting",
+      description: "High-performance Next.js landing page built with KUBUILD.",
+      category: "hosting",
+      tags: ["nextjs", "server-components", "rsc", "performance"]
+    },
+    document: {
+      id: "root-nextjs",
+      type: "page",
+      props: {},
+      styles: {
+        base: {
+          backgroundColor: "#09090b",
+          color: "#fafafa",
+          minHeight: "100vh",
+          padding: "48px 24px",
+          fontFamily: "system-ui, -apple-system, sans-serif"
+        }
+      },
+      children: [
+        {
+          id: "hero-section",
+          type: "section",
+          props: {},
+          styles: {
+            base: {
+              maxWidth: "1000px",
+              margin: "0 auto",
+              textAlign: "center"
+            }
+          },
+          children: [
+            {
+              id: "badge",
+              type: "badge",
+              props: {
+                text: "🚀 Next.js App Router Ready"
+              },
+              styles: {
+                base: {
+                  display: "inline-block",
+                  padding: "6px 14px",
+                  borderRadius: "9999px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  backgroundColor: "#27272a",
+                  color: "#38bdf8",
+                  marginBottom: "20px"
+                }
+              }
+            },
+            {
+              id: "hero-title",
+              type: "typography",
+              props: {
+                text: "Build Faster. Scale Infinitely.",
+                variant: "h1"
+              },
+              styles: {
+                base: {
+                  fontSize: "44px",
+                  fontWeight: "800",
+                  lineHeight: "1.15",
+                  marginBottom: "16px",
+                  letterSpacing: "-0.03em"
+                },
+                mobile: {
+                  fontSize: "28px"
+                }
+              }
+            },
+            {
+              id: "hero-desc",
+              type: "typography",
+              props: {
+                text: "Render portable .stora pages inside Next.js Server Components with zero layout shift, automated SEO metadata, and sub-30KB client bundle.",
+                variant: "paragraph"
+              },
+              styles: {
+                base: {
+                  fontSize: "18px",
+                  color: "#a1a1aa",
+                  lineHeight: "1.6",
+                  maxWidth: "680px",
+                  margin: "0 auto 32px auto"
+                },
+                mobile: {
+                  fontSize: "15px"
+                }
+              }
+            },
+            {
+              id: "cta-btn",
+              type: "button",
+              props: {
+                text: "Deploy in 5 Minutes →"
+              },
+              styles: {
+                base: {
+                  backgroundColor: "#0284c7",
+                  color: "#ffffff",
+                  padding: "12px 28px",
+                  borderRadius: "8px",
+                  fontWeight: "600",
+                  fontSize: "15px",
+                  display: "inline-block",
+                  cursor: "pointer",
+                  border: "none"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }}
+/>
+
+---
+
+## Struktur Direktori Rekomendasi
+
+Berikut adalah arsitektur direktori standar produksi untuk aplikasi Next.js (App Router) yang mengintegrasikan KUBUILD:
+
+<Files>
+  <Folder name="app" defaultOpen>
+    <Folder name="(public)" defaultOpen>
+      <Folder name="[slug]" defaultOpen>
+        <File name="page.tsx" />
+        <File name="opengraph-image.tsx" />
+      </Folder>
+    </Folder>
+    <Folder name="admin" defaultOpen>
+      <Folder name="builder" defaultOpen>
+        <Folder name="[id]" defaultOpen>
+          <File name="page.tsx" />
+          <File name="builder-client.tsx" />
+          <File name="loading.tsx" />
+        </Folder>
+      </Folder>
+    </Folder>
+    <Folder name="api" defaultOpen>
+      <Folder name="pages" defaultOpen>
+        <Folder name="[id]" defaultOpen>
+          <File name="route.ts" />
+        </Folder>
+      </Folder>
+      <Folder name="tracking" defaultOpen>
+        <File name="route.ts" />
+      </Folder>
+      <Folder name="ai" defaultOpen>
+        <File name="route.ts" />
+      </Folder>
+    </Folder>
+    <File name="layout.tsx" />
+  </Folder>
+  <Folder name="lib" defaultOpen>
+    <File name="kubuild.ts" />
+    <File name="db.ts" />
+  </Folder>
+</Files>
+
+---
+
+## Permukaan 1: Halaman Pengunjung Publik (`app/[slug]/page.tsx`)
+
+Halaman pengunjung publik memanfaatkan kekuatan **React Server Components (RSC)**. Data `.stora` diambil langsung dari database server, metadata SEO diekstrak secara otomatis, dan `<KubuildRenderer />` me-render markup HTML lengkap sebelum dikirim ke browser.
+
+### 1. Dynamic SEO Metadata Generation
+
+Next.js App Router menyediakan fungsi `generateMetadata`. Karena dokumen `.stora` menyimpan informasi semantik di properti `metadata`, kita dapat memetakannya secara deterministik ke spesifikasi Open Graph, Twitter Cards, dan Canonical Tags:
+
+```tsx
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getPageBySlug } from '@/lib/db';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const page = await getPageBySlug(slug);
+
+  if (!page || !page.document) {
+    return {
+      title: 'Page Not Found',
+    };
+  }
+
+  const { metadata } = page.document;
+
+  return {
+    title: metadata?.title ?? page.title,
+    description: metadata?.description ?? '',
+    keywords: metadata?.tags ?? [],
+    openGraph: {
+      title: metadata?.title ?? page.title,
+      description: metadata?.description ?? '',
+      type: 'website',
+      images: metadata?.thumbnailUrl ? [{ url: metadata.thumbnailUrl }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: metadata?.title ?? page.title,
+      description: metadata?.description ?? '',
+      images: metadata?.thumbnailUrl ? [metadata.thumbnailUrl] : [],
+    },
+    robots: {
+      index: metadata?.published !== false,
+      follow: metadata?.published !== false,
+    },
+  };
+}
+```
+
+### 2. Implementasi Lengkap Server Component
+
+<Callout type="info" title="Penting: Mode Responsive CSS">
+Gunakan selalu prop `responsive="css"` pada `<KubuildRenderer />` di lingkungan Server Component. Mode ini mengompilasi breakpoint style (`desktop`, `tablet`, `mobile`) ke dalam tag `<style>` scoped dengan media query `@media`. Hal ini memastikan tampilan langsung menyesuaikan lebar layar perangkat seketika tanpa perlu mendeteksi user-agent atau mengeksekusi JavaScript!
+</Callout>
+
+```tsx
+// app/(public)/[slug]/page.tsx
+import { notFound } from 'next/navigation';
+import { KubuildRenderer } from '@kubuild/renderer';
+import { createDefaultComponentRegistry } from '@kubuild/components';
+import { getPageBySlug, getAllPublishedSlugs } from '@/lib/db';
+import type { RenderContext } from '@kubuild/renderer';
+
+// Opsional: Aktifkan Incremental Static Regeneration (ISR)
+export const revalidate = 60; // Revalidasi setiap 60 detik
+
+export async function generateStaticParams() {
+  const slugs = await getAllPublishedSlugs();
+  return slugs.map((slug) => ({ slug }));
+}
+
+interface PageProps {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function PublicPage({ params, searchParams }: PageProps) {
+  const { slug } = await params;
+  const rawSearchParams = await searchParams;
+  
+  // 1. Ambil dokumen .stora dari database
+  const pageRecord = await getPageBySlug(slug);
+  if (!pageRecord || !pageRecord.document) {
+    notFound();
+  }
+
+  // 2. Siapkan Context Runtime (variabel URL params, host env, user auth)
+  const context: RenderContext = {
+    variables: {
+      ...pageRecord.customVariables,
+      // Pass query parameters seperti UTM tags atau referral codes
+      utm_source: typeof rawSearchParams.utm_source === 'string' ? rawSearchParams.utm_source : '',
+      utm_campaign: typeof rawSearchParams.utm_campaign === 'string' ? rawSearchParams.utm_campaign : '',
+    },
+    tracking: {
+      // Inherited pixels dari host organization (opsional)
+      inheritedPixels: [
+        {
+          id: 'org-meta-pixel',
+          provider: 'meta',
+          pixelId: process.env.NEXT_PUBLIC_DEFAULT_META_PIXEL_ID || '',
+          enabled: true,
+        },
+      ],
+      // URL endpoint relay server-side tracking (CAPI)
+      serverRelayEndpoint: '/api/tracking',
+    },
+  };
+
+  // 3. Render komponen secara deterministik di server
+  return (
+    <main className="min-h-screen w-full bg-white dark:bg-zinc-950">
+      <KubuildRenderer
+        document={pageRecord.document}
+        responsive="css"
+        context={context}
+        showToastContainer={true}
+      />
+    </main>
+  );
+}
+```
+
+---
+
+## Permukaan 2: Admin Visual Builder (`app/admin/builder/[id]`)
+
+Halaman admin visual builder membutuhkan kanvas interaktif, drag-and-drop, inline text editing, dan Zustand store. Halaman ini **harus** diisolasi menggunakan Client Component.
+
+### Mengapa `ssr: false` Wajib untuk Canvas WYSIWYG?
+
+Mencoba me-render kanvas editor di server akan menyebabkan *severe hydration mismatch* karena alasan teknis berikut:
+
+<Accordions>
+  <Accordion title="1. Dimensi Viewport & Bounding Rect Real-Time">
+    Kanvas editor menghitung koordinat pixel, batas seleksi (*bounding box selection*), snapping guides, dan smart alignment menggunakan API browser seperti `window.innerWidth`, `getBoundingClientRect()`, dan `ResizeObserver`. Nilai-nilai ini bernilai `0` atau `undefined` di lingkungan Node.js server.
+  </Accordion>
+  <Accordion title="2. DOM Caret & Selection Range">
+    Fitur *inline typography editing* mengaktifkan atribut `contentEditable` pada elemen yang sedang dipilih oleh mouse desainer. Server tidak mengetahui elemen mana yang sedang memiliki fokus kursor aktif (`window.getSelection()`).
+  </Accordion>
+  <Accordion title="3. HTML5 Drag & Drop API & Zustand State Hydration">
+    Interaksi drag-and-drop menggunakan event browser native (`onDragOver`, `DataTransfer`). Selain itu, Zustand store editor menyimpan riwayat Undo/Redo di memory browser. Rendering di server hanya membuang siklus CPU tanpa manfaat.
+  </Accordion>
+  <Accordion title="4. Mencegah Kebocoran Bundle Editor ke Pengunjung">
+    Dengan membungkus editor di dalam `next/dynamic({ ssr: false })`, bundler Webpack/Turbopack secara otomatis memecah `@kubuild/editor` menjadi chunk terpisah yang hanya dimuat saat rute `/admin/builder/*` diakses.
+  </Accordion>
+</Accordions>
+
+### Implementasi Wrapper Dinamis & Debounced Auto-Save
+
+Pisahkan antara Server Component Shell (`page.tsx`) dan Client Component Editor (`builder-client.tsx`):
+
+<Tabs items={["app/admin/builder/[id]/page.tsx", "app/admin/builder/[id]/builder-client.tsx"]}>
+  <Tab value="app/admin/builder/[id]/page.tsx">
+```tsx
+// app/admin/builder/[id]/page.tsx
+import { notFound, redirect } from 'next/navigation';
+import { getPageById } from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
+import { BuilderClientWrapper } from './builder-client';
+
+interface BuilderPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function BuilderPage({ params }: BuilderPageProps) {
+  // 1. Validasi Autentikasi Pengguna di Server
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'admin') {
+    redirect('/login?from=/admin/builder');
+  }
+
+  const { id } = await params;
+  const pageRecord = await getPageById(id);
+
+  if (!pageRecord) {
+    notFound();
+  }
+
+  return (
+    <div className="h-screen w-screen overflow-hidden bg-zinc-900">
+      <BuilderClientWrapper pageId={id} initialDocument={pageRecord.document} />
+    </div>
+  );
+}
+```
+  </Tab>
+  <Tab value="app/admin/builder/[id]/builder-client.tsx">
+```tsx
+'use client';
+
+import dynamic from 'next/dynamic';
+import React, { useCallback, useRef } from 'react';
+import type { PageDocument } from '@kubuild/schema';
+import { Loader2 } from 'lucide-react';
+
+// 1. Loading Skeleton khusus saat editor sedang diunduh
+function EditorSkeleton() {
+  return (
+    <div className="flex h-screen w-screen flex-col items-center justify-center bg-zinc-950 text-zinc-400">
+      <Loader2 className="mb-4 h-8 w-8 animate-spin text-sky-500" />
+      <h3 className="text-sm font-semibold tracking-wide text-zinc-200">
+        Memuat KUBUILD Visual Studio...
+      </h3>
+      <p className="mt-1 text-xs text-zinc-500">
+        Menyiapkan kanvas drag-and-drop dan komponen desain.
+      </p>
+    </div>
+  );
+}
+
+// 2. Dynamic import dengan ssr: false
+const DynamicEditor = dynamic(
+  () => import('@kubuild/editor').then((mod) => mod.Editor),
+  {
+    ssr: false,
+    loading: () => <EditorSkeleton />,
+  }
+);
+
+interface BuilderClientWrapperProps {
+  pageId: string;
+  initialDocument: PageDocument;
+}
+
+export function BuilderClientWrapper({ pageId, initialDocument }: BuilderClientWrapperProps) {
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 3. Handler Auto-Save dengan Debounce 1500ms
+  const handleSave = useCallback(
+    async (updatedDocument: PageDocument) => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/pages/${pageId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedDocument),
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json();
+            console.error('Gagal menyimpan dokumen:', errorData);
+          }
+        } catch (err) {
+          console.error('Kesalahan jaringan saat menyimpan:', err);
+        }
+      }, 1500);
+    },
+    [pageId]
+  );
+
+  return (
+    <DynamicEditor
+      initialDocument={initialDocument}
+      onSave={handleSave}
+      config={{
+        enableAiCopilot: true,
+        aiEndpoint: '/api/ai',
+        enableMultiDevicePreview: true,
+      }}
+    />
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Next.js API Route Handlers
+
+Untuk mendukung operasi penyimpanan dokumen, pelacakan konversi server-side (*Meta CAPI & TikTok Relay*), serta asisten AI, Next.js App Router menyediakan Route Handlers berbasis standar Web API `Request` & `Response`.
+
+<Steps>
+  <Step>
+    ### Document CRUD API (`/api/pages/[id]/route.ts`)
+    
+    Handler ini melayani pembacaan (GET) dan pembaruan (PUT) dokumen `.stora`. Validasi skema Zod `PageDocumentSchema` dari `@kubuild/schema` memastikan data yang masuk tidak rusak sebelum disimpan ke database:
+
+    ```ts
+    // app/api/pages/[id]/route.ts
+    import { NextRequest, NextResponse } from 'next/server';
+    import { PageDocumentSchema } from '@kubuild/schema';
+    import { getPageById, updatePageDocument } from '@/lib/db';
+    import { getCurrentUser } from '@/lib/auth';
+
+    interface RouteParams {
+      params: Promise<{ id: string }>;
+    }
+
+    // GET /api/pages/[id] - Ambil dokumen .stora
+    export async function GET(request: NextRequest, { params }: RouteParams) {
+      const { id } = await params;
+      const page = await getPageById(id);
+
+      if (!page) {
+        return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+      }
+
+      return NextResponse.json(page.document);
+    }
+
+    // PUT /api/pages/[id] - Simpan update dokumen .stora
+    export async function PUT(request: NextRequest, { params }: RouteParams) {
+      const user = await getCurrentUser();
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const { id } = await params;
+      const body = await request.json().catch(() => null);
+
+      // 1. Validasi ketat menggunakan Zod PageDocumentSchema
+      const parseResult = PageDocumentSchema.safeParse(body);
+      if (!parseResult.success) {
+        return NextResponse.json(
+          {
+            error: 'Invalid .stora document structure',
+            details: parseResult.error.format(),
+          },
+          { status: 400 }
+        );
+      }
+
+      // 2. Simpan dokumen yang valid ke database
+      const updatedPage = await updatePageDocument(id, parseResult.data);
+
+      return NextResponse.json({
+        success: true,
+        version: updatedPage.document.version,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    ```
+  </Step>
+
+  <Step>
+    ### Server Tracking Relay Handler (`/api/tracking/route.ts`)
+    
+    Handler ini menerima payload event dari browser klien (seperti `AddToCart`, `Purchase`, atau `Lead`) lalu meneruskannya ke **Meta Conversions API (CAPI)** dan **TikTok Events API** dengan kredensial rahasia yang aman di sisi server:
+
+    ```ts
+    // app/api/tracking/route.ts
+    import { NextRequest, NextResponse } from 'next/server';
+
+    export async function POST(request: NextRequest) {
+      try {
+        const payload = await request.json();
+        const { eventName, eventId, userData, customData, provider, pixelId } = payload;
+
+        // Ambil data request browser pengunjung untuk CAPI match quality
+        const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+        const userAgent = request.headers.get('user-agent') || '';
+
+        if (provider === 'meta') {
+          const metaToken = process.env.META_CAPI_ACCESS_TOKEN;
+          if (!metaToken) {
+            return NextResponse.json({ error: 'Meta CAPI token missing' }, { status: 500 });
+          }
+
+          // Kirim ke Meta Graph API
+          await fetch(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${metaToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              data: [
+                {
+                  event_name: eventName,
+                  event_time: Math.floor(Date.now() / 1000),
+                  event_id: eventId, // Deduplication ID yang sama dengan client
+                  user_data: {
+                    client_ip_address: clientIp,
+                    client_user_agent: userAgent,
+                    em: userData?.emailHash,
+                    ph: userData?.phoneHash,
+                  },
+                  custom_data: customData,
+                  action_source: 'website',
+                },
+              ],
+            }),
+          });
+        }
+
+        return NextResponse.json({ success: true, eventId });
+      } catch (err: unknown) {
+        return NextResponse.json(
+          { error: 'Tracking relay failed', message: String(err) },
+          { status: 500 }
+        );
+      }
+    }
+    ```
+  </Step>
+
+  <Step>
+    ### AI Copilot Route Handler (`/api/ai/route.ts`)
+    
+    Handler AI memanfaatkan fungsi pembantu `createAiHandler()` dari paket `@kubuild/ai/server`. Fungsi ini mendukung *Streaming Server-Sent Events (SSE)* untuk pembuatan halaman atau section secara dinamis:
+
+    ```ts
+    // app/api/ai/route.ts
+    import { NextRequest } from 'next/server';
+    import {
+      createAiHandler,
+      KubuildAiEngine,
+      createOpenAiAdapter,
+    } from '@kubuild/ai/server';
+    import { getCurrentUser } from '@/lib/auth';
+
+    // 1. Inisialisasi Adapter AI & Engine
+    const adapter = createOpenAiAdapter({
+      apiKey: process.env.OPENAI_API_KEY || '',
+      model: 'gpt-4o',
+    });
+
+    const engine = new KubuildAiEngine({ adapter });
+
+    // 2. Buat Handler terintegrasi
+    const aiHandler = createAiHandler(engine, {
+      beforeRequest: async (req: Request) => {
+        // Cek autentikasi sebelum memanggil AI provider
+        const user = await getCurrentUser();
+        if (!user) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      },
+    });
+
+    export async function POST(request: NextRequest) {
+      return aiHandler(request);
+    }
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Shared Database & Storage Helper (`lib/kubuild.ts`)
+
+Untuk menjaga kode modular dan reusable di seluruh aplikasi Next.js, Anda dapat mendefinisikan utilitas pembantu dokumen `.stora` di `lib/kubuild.ts`:
+
+```ts
+// lib/kubuild.ts
+import { PageDocument, PageDocumentSchema } from '@kubuild/schema';
+
+/**
+ * Normalisasi dan validasi dokumen .stora mentah dari database
+ */
+export function validateDocument(data: unknown): PageDocument {
+  const result = PageDocumentSchema.safeParse(data);
+  if (!result.success) {
+    throw new Error(`Invalid .stora document: ${result.error.message}`);
+  }
+  return result.data;
+}
+
+/**
+ * Buat dokumen baru dengan template starter standar
+ */
+export function createEmptyDocument(title: string): PageDocument {
+  return {
+    schema: 'stora.page',
+    version: '1.3.0',
+    metadata: {
+      title,
+      description: '',
+      tags: [],
+      category: 'general',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    document: {
+      id: 'root',
+      type: 'page',
+      props: {},
+      styles: {
+        base: {
+          minHeight: '100vh',
+          backgroundColor: '#ffffff',
+        },
+      },
+      children: [],
+    },
+  };
+}
+```
+
+---
+
+## Production Checklist & Best Practices
+
+Gunakan tabel checklist berikut sebelum melakukan deployment aplikasi Next.js KUBUILD ke platform cloud (Vercel, AWS ECS, Railway, atau VPS Docker):
+
+| Kriteria | Rekomendasi Produksi | Mengapa Penting? |
+| :--- | :--- | :--- |
+| **Rendering Mode** | Gunakan `responsive="css"` pada public page | Mencegah layout shift (CLS) dan FOUC saat halaman dimuat. |
+| **Editor Isolation** | Selalu bungkus editor dengan `next/dynamic({ ssr: false })` | Mencegah pembengkakan bundle publik dan error hydration. |
+| **ISR Caching** | Terapkan `revalidate = 60` atau on-demand tags | Waktu respon server (TTFB) < 50ms untuk ribuan pengunjung serentak. |
+| **Schema Validation** | Validasi `PUT /api/pages/[id]` dengan Zod | Mencegah kerusakan integritas pohon node JSON di database. |
+| **Secret Management** | Simpan token AI dan CAPI di `.env` server saja | Menjaga keamanan API key berbayar dari inspeksi DevTools browser. |
+
+---
+
+## Pertanyaan Umum (FAQ) & Troubleshooting
+
+<Accordions>
+  <Accordion title="Bagaimana cara memperbarui cache halaman statis saat admin selesai menyimpan halaman?">
+    Next.js menyediakan fungsi `revalidatePath` dan `revalidateTag`. Panggil fungsi ini di dalam Route Handler `PUT /api/pages/[id]` setelah dokumen berhasil di-update:
+    ```ts
+    import { revalidatePath } from 'next/cache';
+
+    // Setelah update database sukses:
+    revalidatePath(`/${pageRecord.slug}`);
+    ```
+    Dengan begitu, pengunjung berikutnya akan langsung menerima versi terbaru tanpa perlu menunggu masa revalidasi kedaluwarsa.
+  </Accordion>
+
+  <Accordion title="Apakah saya bisa menambahkan Custom Component buatan sendiri di Next.js?">
+    Ya! Buat registry khusus dengan `createComponentRegistry()`, daftarkan komponen React Anda, lalu oper ke prop `registry` di `<KubuildRenderer />` dan `<Editor />`. Pastikan komponen custom yang menggunakan hook client-side (`useState`, `useEffect`) ditandai dengan directive `'use client'` di atas file komponen.
+  </Accordion>
+
+  <Accordion title="Bagaimana jika saya ingin menggunakan Tailwind CSS di dalam dokumen KUBUILD?">
+    KUBUILD mendukung class utilitas CSS Tailwind melalui properti `props.className` atau konfigurasi style. Pastikan file `tailwind.config.js` Anda menyertakan path paket `@kubuild/*` pada bagian `content` agar class CSS tidak terhapus oleh proses *PurgeCSS*:
+    ```js
+    // tailwind.config.js
+    module.exports = {
+      content: [
+        './app/**/*.{js,ts,jsx,tsx}',
+        './components/**/*.{js,ts,jsx,tsx}',
+        './node_modules/@kubuild/**/*.{js,mjs}',
+      ],
+    };
+    ```
+  </Accordion>
+</Accordions>

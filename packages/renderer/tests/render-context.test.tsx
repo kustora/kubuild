@@ -148,6 +148,18 @@ describe('STORA-031: Immutable RenderContext & Host Resolvers', () => {
       expect(text).toBe('Hello Alice, your role is Admin!');
     });
 
+    it('supports inline fallback syntax {{ key | Fallback Text }} in template strings', () => {
+      const context = createRenderContext({
+        variables: { known: 'Pelanggan VIP' },
+      });
+
+      const text = resolveVariable(
+        context,
+        'Halo {{ known | Tamu }}, selamat datang {{ missing.name | Pelanggan Setia }}!',
+      );
+      expect(text).toBe('Halo Pelanggan VIP, selamat datang Pelanggan Setia!');
+    });
+
     it('leaves unmapped template keys as-is if not found in variables', () => {
       const context = createRenderContext({
         variables: { known: 'Value' },

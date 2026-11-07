@@ -178,12 +178,15 @@ export function resolveVariable(context?: RenderContext, value?: unknown): unkno
     return resolveBinding(value, context).value;
   }
 
-  // Handle string interpolation: "Hello {{ site.name }}" — resolves nested paths
-  // the same way VariableBinding does, so both binding styles stay consistent.
+  // Handle string interpolation: "Hello {{ site.name }}" or "Hello {{ user.name | Pelanggan Setia }}"
+  // Resolves nested paths the same way VariableBinding does, so both binding styles stay consistent.
   if (typeof value === 'string' && value.includes('{{')) {
-    return value.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, key) => {
-      const outcome = resolveBinding({ key }, context);
-      if (outcome.status === 'resolved') {
+    return value.replace(/\{\{\s*([\w.-]+)(?:\s*\|\s*([^}]+?))?\s*\}\}/g, (match, key, inlineFallback) => {
+      const outcome = resolveBinding(
+        { key, fallback: inlineFallback !== undefined ? inlineFallback.trim() : undefined },
+        context,
+      );
+      if (outcome.status === 'resolved' || outcome.status === 'fallback') {
         return String(outcome.value);
       }
       return match;

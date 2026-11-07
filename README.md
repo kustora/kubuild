@@ -6,11 +6,12 @@
 
 [![CI Quality Gate](https://github.com/kustora/kubuild/actions/workflows/ci.yml/badge.svg)](https://github.com/kustora/kubuild/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-brightgreen.svg)](SECURITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Turborepo](https://img.shields.io/badge/Turborepo-enabled-purple)](https://turbo.build/repo)
 [![pnpm](https://img.shields.io/badge/pnpm-9.15-orange)](https://pnpm.io/)
 
-*Build once, render anywhere, export/import without losing editability.*
+_Build once, render anywhere, export/import without losing editability._
 
 </div>
 
@@ -45,6 +46,7 @@ kubuild/
     ├── components/            # @kubuild/components: Component definitions & registry
     ├── renderer/              # @kubuild/renderer: Pure recursive React renderer
     ├── editor/                # @kubuild/editor: Visual canvas, inspector, & Zustand store
+    ├── ai/                    # @kubuild/ai: AI provider adapters, streaming normalizer & document tools
     └── react/                 # @kubuild/react: Unified React integration entrypoint
 ```
 
@@ -73,6 +75,7 @@ Dependency flow strictly points inward toward `@kubuild/core` and `@kubuild/sche
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - **Node.js**: `v20.x` or later
 - **pnpm**: `v9.x` (`corepack enable pnpm` or `npm i -g pnpm`)
 
@@ -132,9 +135,9 @@ export function BuilderApp() {
   return (
     <div style={{ height: '100vh', width: '100%' }}>
       {/* Visual Editor */}
-      <KubuildEditor 
-        initialDocument={myDocument} 
-        onChange={(updatedDoc) => console.log('Document changed:', updatedDoc)} 
+      <KubuildEditor
+        initialDocument={myDocument}
+        onChange={(updatedDoc) => console.log('Document changed:', updatedDoc)}
       />
     </div>
   );
@@ -157,6 +160,20 @@ Detailed specifications and architectural guides are available in `/docs`:
 - **[PRD (Product Requirements Document)](file:///Users/riziq/Code/some_projects/kustora/KUBUILD%20%7C%20BUILDER-01/docs/PRD.md)**: Product vision, user personas, runtime variables, and `.stora` package format.
 - **[Architecture Document](file:///Users/riziq/Code/some_projects/kustora/KUBUILD%20%7C%20BUILDER-01/docs/ARCHITECTURE.md)**: Monorepo conventions, dependency graphs, styling policy, and command system.
 - **[TODO & Roadmap](file:///Users/riziq/Code/some_projects/kustora/KUBUILD%20%7C%20BUILDER-01/docs/todo.md)**: MVP breakdown across phases 0 to 9 (`STORA-###` tasks).
+
+---
+
+## 🛡️ Security
+
+Security is foundational to KUBUILD. All `.stora` document packages, community templates, and AI provider outputs are treated as untrusted inputs:
+
+- **Strict Schema Validation**: Validated via Zod (`PageDocumentSchema`, `Node`) before touching the engine.
+- **Resource Exhaustion Defense**: Built-in tree depth limits, node count limits, payload size caps, and zip bomb expansion checks via `validateDocumentSecurity`.
+- **Prototype Pollution Prevention**: Key sanitization against `__proto__`, `constructor`, `prototype`, and setter overrides.
+- **XSS & Protocol Whitelisting**: Strict URL protocol filtering (allowing only `http:`, `https:`, `mailto:`, `tel:`, `#`, relative, `data:image/`) and zero arbitrary JavaScript `eval` execution.
+- **Secret Isolation**: Host credentials and tracking tokens never enter document JSON trees; they are resolved host-side using opaque `credentialId`s.
+
+For detailed threat models and responsible vulnerability reporting instructions, please review our **[Security Policy](SECURITY.md)**.
 
 ---
 

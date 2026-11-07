@@ -1,0 +1,1008 @@
+---
+title: "TypeScript API Reference"
+description: "Comprehensive TypeScript types, interfaces, schemas, and property signatures for all KUBUILD packages."
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+This reference manual documents the complete TypeScript type system, interfaces, Zod schema contracts, and runtime signatures across all official KUBUILD packages.
+
+<Cards num={2}>
+  <Card title="@kubuild/schema" href="#document-ast-types-kubuildschema">
+    Deterministic AST specifications (`PageDocument`, `Node`, `StyleDefinition`, `ResponsiveStyles`).
+  </Card>
+  <Card title="@kubuild/renderer" href="#renderer-types-kubuildrenderer">
+    Runtime props, execution context (`KubuildRendererProps`, `RenderContext`), and event handlers.
+  </Card>
+  <Card title="@kubuild/editor" href="#editor-types-kubuildeditor">
+    Visual editor props, imperative ref handle (`EditorHandle`), and AI configuration (`AiEditorConfig`).
+  </Card>
+  <Card title="@kubuild/components" href="#component-specification-kubuildcomponents">
+    Component registry metadata (`ComponentDefinition`), property inspectors (`ComponentFieldDefinition`), and traits.
+  </Card>
+</Cards>
+
+---
+
+## Document AST Types (`@kubuild/schema`)
+
+The `@kubuild/schema` package contains the zero-dependency canonical AST specifications. Every document authored in the editor, stored in database records, or streamed over APIs adheres to these schemas.
+
+### `PageDocument`
+
+The root container representing a complete `.stora` single-page document.
+
+```typescript
+export interface PageDocument {
+  schema: 'stora.page';
+  version: string;
+  metadata?: DocumentMetadata;
+  tracking?: TrackingConfig;
+  theme?: Theme;
+  document: RootPageNode;
+}
+```
+
+<TypeTable
+  type={{
+    schema: {
+      description: 'Discriminator literal identifying the document type. Strictly "stora.page".',
+      type: '"stora.page"',
+      required: true,
+    },
+    version: {
+      description: 'Semantic version of the schema format (e.g. "1.3.0"). Used by migrations and validators.',
+      type: 'string',
+      default: '"1.3.0"',
+      required: true,
+    },
+    metadata: {
+      description: 'Authoring and document metadata (title, author, tags, SEO attributes, audit timestamps).',
+      type: 'DocumentMetadata',
+      required: false,
+    },
+    tracking: {
+      description: 'Document-level analytics tracking configuration (Meta Pixel, TikTok, GA4, GTM, CAPI).',
+      type: 'TrackingConfig',
+      required: false,
+    },
+    theme: {
+      description: 'Design system tokens (colors, typography, radii, spacing) emitted as scoped CSS custom properties.',
+      type: 'Theme',
+      required: false,
+    },
+    document: {
+      description: 'The root AST element. Must have type="page" and contains the recursive child hierarchy.',
+      type: 'RootPageNode',
+      required: true,
+    },
+  }}
+/>
+
+---
+
+### `Node`
+
+The fundamental recursive building block representing every visual element, container, or interactive component in the document tree.
+
+```typescript
+export type Node = {
+  id: string;
+  type: string;
+  props?: Record<string, unknown>;
+  styles?: ResponsiveStyles;
+  animation?: AnimationConfig;
+  actions?: ActionPipeline[];
+  formConfig?: FormConfig;
+  children?: Node[];
+};
+```
+
+<TypeTable
+  type={{
+    id: {
+      description: 'Deterministic, unique identifier for the node within the document tree.',
+      type: 'string',
+      required: true,
+    },
+    type: {
+      description: 'Component registration key matching a known component definition (e.g. "button", "section", "card").',
+      type: 'string',
+      required: true,
+    },
+    props: {
+      description: 'Functional component properties and content attributes (e.g. text, href, src, alt).',
+      type: 'Record<string, unknown>',
+      default: '{}',
+      required: false,
+    },
+    styles: {
+      description: 'Responsive styling layers divided across base, desktop, tablet, mobile breakpoints and pseudo-states.',
+      type: 'ResponsiveStyles',
+      default: '{}',
+      required: false,
+    },
+    animation: {
+      description: 'Entrance scroll animations (AOS), durations, easing functions, and hover/loop effects.',
+      type: 'AnimationConfig',
+      required: false,
+    },
+    actions: {
+      description: 'List of event action pipelines triggered by user interactions (e.g. click, hover, form submit).',
+      type: 'ActionPipeline[]',
+      required: false,
+    },
+    formConfig: {
+      description: 'Form container lifecycle configuration, field validation rules, and submission pipelines.',
+      type: 'FormConfig',
+      required: false,
+    },
+    children: {
+      description: 'Nested child node hierarchy. Container components recursively render these nodes.',
+      type: 'Node[]',
+      default: '[]',
+      required: false,
+    },
+  }}
+/>
+
+<Callout type="info">
+  Node IDs are purely deterministic and independent of React internal keys. They survive serialization, round-trip editing, and undo/redo operations.
+</Callout>
+
+---
+
+### `DocumentMetadata`
+
+Metadata attributes associated with a `PageDocument` or `ProjectDocument`.
+
+```typescript
+export interface DocumentMetadata {
+  title: string;
+  description?: string;
+  author?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  tags?: string[];
+  category?: string;
+  version?: string;
+  custom?: Record<string, unknown>;
+  tracking?: TrackingConfig;
+}
+```
+
+<TypeTable
+  type={{
+    title: {
+      description: 'Primary human-readable title of the document or page.',
+      type: 'string',
+      default: '"Untitled Page"',
+      required: true,
+    },
+    description: {
+      description: 'Brief summary or SEO meta description for search engines and social sharing cards.',
+      type: 'string',
+      default: '""',
+      required: false,
+    },
+    author: {
+      description: 'Name, email, or identifier of the document creator or team.',
+      type: 'string',
+      default: '""',
+      required: false,
+    },
+    createdAt: {
+      description: 'ISO 8601 timestamp string representing when the document was initially created.',
+      type: 'string',
+      required: false,
+    },
+    updatedAt: {
+      description: 'ISO 8601 timestamp string representing the last modification time.',
+      type: 'string',
+      required: false,
+    },
+    tags: {
+      description: 'Taxonomy tags for categorization, filtering, and template organization.',
+      type: 'string[]',
+      default: '[]',
+      required: false,
+    },
+    category: {
+      description: 'Top-level group or archetype (e.g. "landing-page", "portfolio", "ecommerce").',
+      type: 'string',
+      default: '"general"',
+      required: false,
+    },
+    version: {
+      description: 'Semantic or user-defined revision version of this document content.',
+      type: 'string',
+      default: '"1.0.0"',
+      required: false,
+    },
+    custom: {
+      description: 'Host-specific arbitrary JSON payload for domain metadata (e.g. tenant IDs, CMS relations).',
+      type: 'Record<string, unknown>',
+      required: false,
+    },
+    tracking: {
+      description: 'Legacy or document-specific analytics tracking settings.',
+      type: 'TrackingConfig',
+      required: false,
+    },
+  }}
+/>
+
+---
+
+### `StyleDefinition` & `ResponsiveStyles`
+
+KUBUILD enforces safe, serializable CSS styling contracts. Style properties are mapped to CSS-safe primitives and screened against injection vectors.
+
+```typescript
+export type StyleValue = string | number | boolean | null | undefined;
+
+export interface StyleDefinition extends Record<string, StyleValue> {
+  display?: string;
+  flexDirection?: 'row' | 'row-reverse' | 'column' | 'column-reverse' | (string & {});
+  justifyContent?: string;
+  alignItems?: string;
+  gap?: string | number;
+  width?: string | number;
+  height?: string | number;
+  minWidth?: string | number;
+  maxWidth?: string | number;
+  minHeight?: string | number;
+  maxHeight?: string | number;
+  padding?: string | number;
+  margin?: string | number;
+  backgroundColor?: string;
+  color?: string;
+  fontSize?: string | number;
+  fontWeight?: string | number;
+  borderRadius?: string | number;
+  boxShadow?: string;
+  border?: string;
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+}
+
+export interface ResponsiveStyles {
+  base?: StyleDefinition;
+  desktop?: StyleDefinition;
+  tablet?: StyleDefinition;
+  mobile?: StyleDefinition;
+  states?: Record<string, StyleDefinition>;
+}
+```
+
+<TypeTable
+  type={{
+    base: {
+      description: 'Universal fallback styles applied across all screen sizes and viewports.',
+      type: 'StyleDefinition',
+      required: false,
+    },
+    desktop: {
+      description: 'Desktop-specific style overrides (min-width: 1025px).',
+      type: 'StyleDefinition',
+      required: false,
+    },
+    tablet: {
+      description: 'Tablet breakpoint style overrides (max-width: 1024px).',
+      type: 'StyleDefinition',
+      required: false,
+    },
+    mobile: {
+      description: 'Mobile breakpoint style overrides (max-width: 640px).',
+      type: 'StyleDefinition',
+      required: false,
+    },
+    states: {
+      description: 'Interactive pseudo-class style layers (e.g. ":hover", ":focus", ":active", ":disabled").',
+      type: 'Record<string, StyleDefinition>',
+      required: false,
+    },
+  }}
+/>
+
+<Callout type="warn">
+  All `StyleValue` strings are screened by `DANGEROUS_STYLE_VALUE_PATTERN`. Patterns containing `javascript:`, `expression()`, `@import`, `<script`, or `data:text/html` are rejected at the schema validation boundary.
+</Callout>
+
+---
+
+## Renderer Types (`@kubuild/renderer`)
+
+The `@kubuild/renderer` package executes the AST into React components with zero runtime CSS-in-JS overhead.
+
+### `KubuildRendererProps`
+
+The primary props accepted by the `<KubuildRenderer />` component.
+
+```typescript
+export interface KubuildRendererProps {
+  document: PageDocument;
+  registry?: ComponentRegistry;
+  context?: RenderContext;
+  viewport?: 'desktop' | 'tablet' | 'mobile';
+  mode?: 'editor' | 'runtime';
+  responsive?: 'css' | 'viewport';
+  className?: string;
+  showToastContainer?: boolean;
+  selectedNodeId?: string | null;
+  onNodeClick?: (nodeId: string, event: React.MouseEvent) => void;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  onActionDispatch?: (actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void;
+  onNodePropChange?: (nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void;
+}
+```
+
+<TypeTable
+  type={{
+    document: {
+      description: 'The portable .stora PageDocument AST object containing metadata, theme, and root node hierarchy.',
+      type: 'PageDocument',
+      required: true,
+    },
+    registry: {
+      description: 'Component registry instance. Defaults to createDefaultComponentRegistry() containing all native KUBUILD elements.',
+      type: 'ComponentRegistry',
+      required: false,
+    },
+    context: {
+      description: 'Runtime execution context holding variables, asset providers, action registries, and submit hooks.',
+      type: 'RenderContext',
+      required: false,
+    },
+    viewport: {
+      description: 'Target preview viewport ("desktop" | "tablet" | "mobile"). Automatically sets responsive="viewport" unless responsive is explicitly passed.',
+      type: '"desktop" | "tablet" | "mobile"',
+      default: '"desktop"',
+      required: false,
+    },
+    mode: {
+      description: 'Rendering environment. "runtime" produces optimized markup; "editor" exposes contentEditable hooks and diagnostic badges.',
+      type: '"editor" | "runtime"',
+      default: '"runtime"',
+      required: false,
+    },
+    responsive: {
+      description: 'Strategy for applying responsive breakpoint layers: "css" emits scoped @media tags (SSR-safe); "viewport" merges layers inline for device preview.',
+      type: '"css" | "viewport"',
+      default: 'runtime: "css", editor: "viewport"',
+      required: false,
+    },
+    showToastContainer: {
+      description: 'Whether to render the built-in ToastContainer for action runners (e.g. show_toast, copy_to_clipboard).',
+      type: 'boolean',
+      default: 'true',
+      required: false,
+    },
+    className: {
+      description: 'Additional CSS class names applied to the root container div (.kubuild-canvas-root).',
+      type: 'string',
+      required: false,
+    },
+    selectedNodeId: {
+      description: 'Id of the currently-selected node (editor mode only). Allows inline editing on secondary selection.',
+      type: 'string | null',
+      required: false,
+    },
+    onNodeClick: {
+      description: 'Callback fired when any node within the rendered hierarchy is clicked.',
+      type: '(nodeId: string, event: React.MouseEvent) => void',
+      required: false,
+    },
+    onDiagnostic: {
+      description: 'Telemetry and warning listener for missing components, deprecated props, and validation errors.',
+      type: '(diagnostic: Diagnostic) => void',
+      required: false,
+    },
+    onActionDispatch: {
+      description: 'Callback fired when an interactive node triggers an action binding or pipeline.',
+      type: '(actionType: string, payload: Record<string, unknown> | undefined, nodeId: string) => void',
+      required: false,
+    },
+    onNodePropChange: {
+      description: 'Callback fired when inline contentEditable elements update a canonical prop.',
+      type: '(nodeId: string, propName: string, value: unknown, isBlur?: boolean) => void',
+      required: false,
+    },
+  }}
+/>
+
+---
+
+### `RenderContext`
+
+The immutable runtime context passed down the component tree. Created via `createRenderContext()`.
+
+```typescript
+export type RenderContext = Readonly<{
+  variables?: Readonly<Record<string, unknown>>;
+  assetProvider?: AssetProvider;
+  actionRegistry?: ActionRegistry;
+  onDiagnostic?: (diagnostic: Diagnostic) => void;
+  resolveArtboard?: (triggerId: string) => Artboard | undefined;
+  componentArtboards?: readonly Artboard[];
+  artboardSurface?: 'page' | 'component';
+  tracking?: RuntimeTrackingOptions;
+  theme?: Readonly<Partial<Theme>>;
+  onFormSubmit?: (submission: FormSubmission, helpers: FormSubmitHelpers) => Promise<void> | void;
+}>;
+```
+
+<TypeTable
+  type={{
+    variables: {
+      description: 'Key-value map of dynamic runtime data available for mustache interpolation (e.g. {{ user.name }}).',
+      type: 'Readonly<Record<string, unknown>>',
+      required: false,
+    },
+    assetProvider: {
+      description: 'Resolver for asset:// URLs, mapping asset IDs to CDN endpoints or signed URLs.',
+      type: 'AssetProvider',
+      required: false,
+    },
+    actionRegistry: {
+      description: 'Custom action runner registry executing host business logic (e.g. open_checkout, trigger_zapier).',
+      type: 'ActionRegistry',
+      required: false,
+    },
+    onDiagnostic: {
+      description: 'Host diagnostic and telemetry hook receiving warnings during render execution.',
+      type: '(diagnostic: Diagnostic) => void',
+      required: false,
+    },
+    resolveArtboard: {
+      description: 'Resolves component artboards targeted by open_modal or drawer actions in multi-artboard projects.',
+      type: '(triggerId: string) => Artboard | undefined',
+      required: false,
+    },
+    componentArtboards: {
+      description: 'List of detached component artboards available for runtime overlay portals.',
+      type: 'readonly Artboard[]',
+      required: false,
+    },
+    artboardSurface: {
+      description: 'Surface mode. "component" suppresses full-bleed page backdrops when authoring modals in isolation.',
+      type: '"page" | "component"',
+      required: false,
+    },
+    tracking: {
+      description: 'Runtime tracking options (e.g. relay endpoint URL, test mode, disabled pixel providers).',
+      type: 'RuntimeTrackingOptions',
+      required: false,
+    },
+    theme: {
+      description: 'Host theme override merged token-by-token over PageDocument.theme at render time (e.g. per-tenant branding).',
+      type: 'Readonly<Partial<Theme>>',
+      required: false,
+    },
+    onFormSubmit: {
+      description: 'Async hook awaited on form submission after client-side validation passes. Receives submission values and helpers.',
+      type: '(submission: FormSubmission, helpers: FormSubmitHelpers) => Promise<void> | void',
+      required: false,
+    },
+  }}
+/>
+
+---
+
+## Editor Types (`@kubuild/editor`)
+
+The `@kubuild/editor` package delivers the full-featured, zero-config visual builder shell with drag-and-drop, inspector controls, AI copilot, and undo/redo history.
+
+### `KubuildEditorProps`
+
+Props passed to the `<KubuildEditor />` component.
+
+```typescript
+export interface KubuildEditorProps {
+  initialDocument?: PageDocument;
+  onChange?: (doc: PageDocument) => void;
+  mode?: 'simple' | 'advance';
+  defaultMode?: 'simple' | 'advance';
+  onModeChange?: (mode: 'simple' | 'advance') => void;
+  selectedNodeId?: string | null;
+  onSelectionChange?: (nodeId: string | null) => void;
+  locale?: 'id' | 'en';
+  onLocaleChange?: (locale: 'id' | 'en') => void;
+  translations?: TranslationOverrides;
+  onSave?: EditorSaveHandler;
+  onDirtyChange?: (isDirty: boolean) => void;
+  autosave?: EditorAutosaveOptions;
+  warnOnUnsavedChanges?: boolean;
+  config?: EditorConfig;
+  variableCatalog?: VariableCatalog;
+  ai?: AiEditorConfig;
+  trackingCredentials?: PixelCredentialOption[];
+  onManageCredentials?: () => void;
+  onSaveTrackingSecret?: SaveTrackingSecretHandler;
+  assetProvider?: AssetProvider;
+  blocks?: BlockDefinition[];
+  blocksMode?: 'append' | 'replace';
+  templates?: TemplateRecord[];
+  onApplyTemplate?: (template: TemplateRecord, doc: PageDocument) => void;
+  registry?: ComponentRegistry;
+  context?: RuntimeContext;
+  className?: string;
+}
+```
+
+<TypeTable
+  type={{
+    initialDocument: {
+      description: 'Initial PageDocument loaded into the editor store on mount.',
+      type: 'PageDocument',
+      required: false,
+    },
+    onChange: {
+      description: 'Change listener fired whenever any tree mutation, style update, or property change occurs.',
+      type: '(doc: PageDocument) => void',
+      required: false,
+    },
+    mode: {
+      description: 'Controlled editing mode. "simple" shows simplified controls; "advance" exposes full CSS properties.',
+      type: '"simple" | "advance"',
+      required: false,
+    },
+    defaultMode: {
+      description: 'Uncontrolled initial editing mode. Defaults to "advance".',
+      type: '"simple" | "advance"',
+      default: '"advance"',
+      required: false,
+    },
+    onModeChange: {
+      description: 'Callback fired when the user toggles between Simple and Advance editing modes.',
+      type: '(mode: "simple" | "advance") => void',
+      required: false,
+    },
+    selectedNodeId: {
+      description: 'Controlled selection ID. Syncs selection between host UI and builder canvas.',
+      type: 'string | null',
+      required: false,
+    },
+    onSelectionChange: {
+      description: 'Fired when the user selects or deselects a node on the canvas or layer tree.',
+      type: '(nodeId: string | null) => void',
+      required: false,
+    },
+    locale: {
+      description: 'Active UI localization ("id" for Indonesian, "en" for English).',
+      type: '"id" | "en"',
+      default: '"en"',
+      required: false,
+    },
+    onLocaleChange: {
+      description: 'Fired when the user changes UI language from the language switcher.',
+      type: '(locale: "id" | "en") => void',
+      required: false,
+    },
+    translations: {
+      description: 'Deep-merged translation dictionary overrides for custom terminology or extra languages.',
+      type: 'TranslationOverrides',
+      required: false,
+    },
+    onSave: {
+      description: 'Async persistence handler. Enables the Save button, Cmd/Ctrl+S shortcuts, and dirty-state management.',
+      type: '(doc: PageDocument) => Promise<void> | void',
+      required: false,
+    },
+    onDirtyChange: {
+      description: 'Fires whenever the editor dirty status transitions (has unsaved edits vs saved).',
+      type: '(isDirty: boolean) => void',
+      required: false,
+    },
+    autosave: {
+      description: 'Debounced background autosave options ({ debounceMs: number }). Requires onSave.',
+      type: 'EditorAutosaveOptions',
+      required: false,
+    },
+    warnOnUnsavedChanges: {
+      description: 'Prompt browser beforeunload dialog when navigating away with unsaved edits.',
+      type: 'boolean',
+      default: 'true',
+      required: false,
+    },
+    variableCatalog: {
+      description: 'Catalog of bindable variables and preview sample values displayed in the variable picker.',
+      type: 'VariableCatalog',
+      required: false,
+    },
+    ai: {
+      description: 'Opt-in AI provider configuration (OpenAI, Anthropic, Gemini, or custom proxy endpoint).',
+      type: 'AiEditorConfig',
+      required: false,
+    },
+    blocks: {
+      description: 'Host-provided block library for the Blocks panel and canvas drag-and-drop.',
+      type: 'BlockDefinition[]',
+      required: false,
+    },
+    blocksMode: {
+      description: '"append" adds host blocks alongside starters; "replace" shows only host blocks.',
+      type: '"append" | "replace"',
+      default: '"append"',
+      required: false,
+    },
+    templates: {
+      description: 'List of pre-built page templates available in the Templates modal.',
+      type: 'TemplateRecord[]',
+      required: false,
+    },
+    assetProvider: {
+      description: 'Host asset provider for file uploads, gallery browsing, and image URLs.',
+      type: 'AssetProvider',
+      required: false,
+    },
+  }}
+/>
+
+---
+
+### `EditorHandle`
+
+The imperative API exposed by `<KubuildEditor />` when providing a React `ref`.
+
+```typescript
+export interface EditorHandle {
+  getDocument: () => PageDocument;
+  replaceDocument: (
+    doc: PageDocument,
+    options?: { keepHistory?: boolean },
+  ) => ReplaceDocumentResult;
+  insertBlock: (
+    block: BlockDefinition | string,
+    targetId?: string,
+    index?: number,
+  ) => InsertComponentResult;
+  applyTemplate: (template: TemplateRecord) => ApplyTemplateResult;
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  isDirty: () => boolean;
+  save: () => Promise<boolean>;
+}
+```
+
+<TypeTable
+  type={{
+    getDocument: {
+      description: 'Returns the current in-memory PageDocument AST including all pending edits.',
+      type: '() => PageDocument',
+      required: true,
+    },
+    replaceDocument: {
+      description: 'Validates and replaces the active document. Set keepHistory=true to make the replacement a single undo step.',
+      type: '(doc: PageDocument, options?: { keepHistory?: boolean }) => ReplaceDocumentResult',
+      required: true,
+    },
+    insertBlock: {
+      description: 'Inserts a block definition or registered block ID into targetId (defaults to selected node or page root).',
+      type: '(block: BlockDefinition | string, targetId?: string, index?: number) => InsertComponentResult',
+      required: true,
+    },
+    applyTemplate: {
+      description: 'Replaces the entire page with a cloned template document (records an undo step).',
+      type: '(template: TemplateRecord) => ApplyTemplateResult',
+      required: true,
+    },
+    undo: {
+      description: 'Steps backward one state in the undo history stack.',
+      type: '() => void',
+      required: true,
+    },
+    redo: {
+      description: 'Steps forward one state in the redo history stack.',
+      type: '() => void',
+      required: true,
+    },
+    canUndo: {
+      description: 'Returns true if there are actions in the undo stack.',
+      type: '() => boolean',
+      required: true,
+    },
+    canRedo: {
+      description: 'Returns true if there are actions in the redo stack.',
+      type: '() => boolean',
+      required: true,
+    },
+    isDirty: {
+      description: 'Returns true if there are unpersisted edits since the last successful onSave.',
+      type: '() => boolean',
+      required: true,
+    },
+    save: {
+      description: 'Imperatively triggers the onSave handler immediately (equivalent to Cmd/Ctrl+S). Returns true on success.',
+      type: '() => Promise<boolean>',
+      required: true,
+    },
+  }}
+/>
+
+---
+
+### `AiEditorConfig`
+
+Configuration object for integrating AI assistant capabilities into the editor.
+
+```typescript
+export interface AiEditorConfig {
+  provider:
+    | AiProviderAdapter
+    | {
+        endpoint: string;
+        headers?: Record<string, string>;
+        credentials?: RequestCredentials;
+      };
+  features?: {
+    chat?: boolean;
+    generate?: boolean;
+    enhance?: boolean;
+    agent?: boolean;
+  };
+  defaultPanelMode?: 'docked' | 'floating' | 'hidden';
+  systemPromptPrefix?: string;
+}
+```
+
+<TypeTable
+  type={{
+    provider: {
+      description: 'Direct AI provider adapter instance (e.g. createOpenAiAdapter) or HTTP endpoint configuration pointing to host createAiHandler().',
+      type: 'AiProviderAdapter | { endpoint: string; headers?: Record<string, string>; credentials?: RequestCredentials }',
+      required: true,
+    },
+    features: {
+      description: 'Granular feature toggles for AI capabilities: chat (sidebar copilot), generate (prompt-to-page), enhance (copy refinement), and agent (multi-step tool execution).',
+      type: '{ chat?: boolean; generate?: boolean; enhance?: boolean; agent?: boolean }',
+      default: '{ chat: false, generate: false, enhance: false, agent: false }',
+      required: false,
+    },
+    defaultPanelMode: {
+      description: 'Initial state of the AI assistant panel upon editor mount: "docked" in sidebar, "floating", or "hidden".',
+      type: '"docked" | "floating" | "hidden"',
+      default: '"hidden"',
+      required: false,
+    },
+    systemPromptPrefix: {
+      description: 'Custom instructions, branding rules, or safety guidelines prepended to all system prompts.',
+      type: 'string',
+      required: false,
+    },
+  }}
+/>
+
+---
+
+## Component Specification (`@kubuild/components`)
+
+The `@kubuild/components` package manages the metadata, validation, and property inspector schemas for all native and custom components.
+
+### `ComponentDefinition<TRenderer>`
+
+The specification interface for registering any component into the `ComponentRegistry`.
+
+```typescript
+export interface ComponentDefinition<TRenderer = unknown> {
+  type: string;
+  label: string;
+  category: ComponentCategory;
+  description?: string;
+  icon?: string;
+  acceptsChildren?: boolean;
+  allowedChildren?: string[];
+  disallowedParents?: string[];
+  defaultProps?: Record<string, unknown>;
+  defaultStyles?: ResponsiveStyles;
+  defaultChildren?: ComponentDefaultChildSpec[];
+  propFields?: ComponentFieldDefinition[];
+  traits?: ComponentTraits;
+  validateProps?: (props: Record<string, unknown>) => boolean | string[];
+  renderer?: TRenderer;
+  capabilities?: string[];
+  canonicalTextProp?: string;
+  deprecatedPropAliases?: Record<string, string>;
+}
+```
+
+<TypeTable
+  type={{
+    type: {
+      description: 'Unique string identifier for this component type in the registry (e.g. "button", "hero-banner").',
+      type: 'string',
+      required: true,
+    },
+    label: {
+      description: 'Human-readable display name shown in the Component Library and Layers tree.',
+      type: 'string',
+      required: true,
+    },
+    category: {
+      description: 'Component classification bucket: "layout", "typography", "media", "form", "interactive", "data", or "custom".',
+      type: 'ComponentCategory',
+      required: true,
+    },
+    description: {
+      description: 'Brief documentation string displayed in tooltips and component insertion panels.',
+      type: 'string',
+      required: false,
+    },
+    icon: {
+      description: 'Icon identifier or Lucide icon name representing the component in toolbars.',
+      type: 'string',
+      required: false,
+    },
+    acceptsChildren: {
+      description: 'Whether other nodes can be dropped or appended inside this component.',
+      type: 'boolean',
+      default: 'false',
+      required: false,
+    },
+    allowedChildren: {
+      description: 'Whitelist array of component types permitted as direct children. If omitted, all types are allowed.',
+      type: 'string[]',
+      required: false,
+    },
+    disallowedParents: {
+      description: 'Blacklist array of component types where this component cannot be nested.',
+      type: 'string[]',
+      required: false,
+    },
+    defaultProps: {
+      description: 'Initial property values populated when a new instance of this component is created.',
+      type: 'Record<string, unknown>',
+      required: false,
+    },
+    defaultStyles: {
+      description: 'Initial responsive style overrides applied when instantiated on the canvas.',
+      type: 'ResponsiveStyles',
+      required: false,
+    },
+    propFields: {
+      description: 'Field specifications consumed by the visual Inspector to render property controls.',
+      type: 'ComponentFieldDefinition[]',
+      required: false,
+    },
+    traits: {
+      description: 'Semantic HTML traits and accessible attributes (href, target, alt, placeholder, aria-label).',
+      type: 'ComponentTraits',
+      required: false,
+    },
+    validateProps: {
+      description: 'Validator function returning true/[] if props are valid, or an array of error messages.',
+      type: '(props: Record<string, unknown>) => boolean | string[]',
+      required: false,
+    },
+    renderer: {
+      description: 'Framework-specific rendering component specialized by consumer packages (e.g. React.ComponentType).',
+      type: 'TRenderer',
+      required: false,
+    },
+    capabilities: {
+      description: 'Host runtime capabilities required by this component (e.g. ["assetProvider", "actionRegistry"]).',
+      type: 'string[]',
+      required: false,
+    },
+    canonicalTextProp: {
+      description: 'The primary prop containing visible text (e.g. "text" for typography, "label" for button) for inline editing.',
+      type: 'string',
+      required: false,
+    },
+  }}
+/>
+
+---
+
+### `ComponentFieldDefinition`
+
+Metadata defining an editable property control inside the visual Inspector panel.
+
+```typescript
+export interface ComponentFieldDefinition {
+  name: string;
+  label: string;
+  type:
+    | 'string'
+    | 'textarea'
+    | 'number'
+    | 'boolean'
+    | 'select'
+    | 'color'
+    | 'image'
+    | 'action'
+    | 'json'
+    | 'datetime';
+  defaultValue?: unknown;
+  options?: Array<{ label: string; value: unknown }>;
+  description?: string;
+}
+```
+
+<TypeTable
+  type={{
+    name: {
+      description: 'Key corresponding to the property name in the node\'s props dictionary.',
+      type: 'string',
+      required: true,
+    },
+    label: {
+      description: 'Label displayed beside the property field in the Inspector panel.',
+      type: 'string',
+      required: true,
+    },
+    type: {
+      description: 'Control type widget rendered: single-line string, multi-line textarea, number stepper, boolean toggle, select dropdown, color picker, image picker, action builder, json editor, or datetime picker.',
+      type: '"string" | "textarea" | "number" | "boolean" | "select" | "color" | "image" | "action" | "json" | "datetime"',
+      required: true,
+    },
+    defaultValue: {
+      description: 'Default fallback value assigned when the prop is unset or cleared.',
+      type: 'unknown',
+      required: false,
+    },
+    options: {
+      description: 'Selectable options array used when type="select". Each item contains a display label and actual value.',
+      type: 'Array<{ label: string; value: unknown }>',
+      required: false,
+    },
+    description: {
+      description: 'Helper tooltip or explanatory text shown beneath the input field.',
+      type: 'string',
+      required: false,
+    },
+  }}
+/>
+
+---
+
+## Utility Type Guards & Zod Schemas
+
+`@kubuild/schema` exposes runtime type guards and parsing schemas to validate raw untrusted inputs:
+
+<Tabs items={['Type Guards', 'Zod Schemas']}>
+  <Tab value="Type Guards">
+```typescript
+import {
+  isAssetReference,
+  isVariableBinding,
+  isActionBinding,
+  isAnimationConfig,
+  isProjectDocument,
+} from '@kubuild/schema';
+
+if (isVariableBinding(propValue)) {
+  console.log('Resolving runtime variable:', propValue.key);
+}
+
+if (isAssetReference(propValue)) {
+  console.log('Fetching asset:', propValue.assetId);
+}
+```
+  </Tab>
+  <Tab value="Zod Schemas">
+```typescript
+import {
+  PageDocumentSchema,
+  ProjectDocumentSchema,
+  NodeSchema,
+  DocumentMetadataSchema,
+} from '@kubuild/schema';
+
+// Validate or throw
+const validDoc = PageDocumentSchema.parse(untrustedJson);
+
+// Safe parsing without exceptions
+const result = PageDocumentSchema.safeParse(untrustedJson);
+if (!result.success) {
+  console.error('Validation errors:', result.error.issues);
+}
+```
+  </Tab>
+</Tabs>

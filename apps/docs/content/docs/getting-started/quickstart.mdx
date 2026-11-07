@@ -1,0 +1,602 @@
+---
+title: Quickstart (5 Minutes)
+description: Learn how to install and embed KUBUILD in your React application in 5 minutes.
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+
+Welcome to KUBUILD! In this quickstart tutorial, you will learn how to install KUBUILD, initialize a `.stora` document, embed the visual drag-and-drop editor into your React application, and render the resulting page with zero vendor lock-in.
+
+---
+
+## Prerequisites
+
+Before starting, ensure your project meets the following requirements:
+- **Node.js**: `v20.x` or later
+- **React**: `^18.2.0` or `^19.0.0`
+- **TypeScript**: `^5.0.0` (strongly recommended)
+
+---
+
+## Step-by-Step Guide
+
+Follow these four steps to embed the visual builder and renderer into your application.
+
+<Steps>
+  <Step>
+    ### 1. Installation
+
+    Install `@kubuild/react` (which bundles the editor, runtime renderer, and component catalog) and `@kubuild/schema` (which contains Zod schemas and TypeScript AST definitions).
+
+    <Tabs items={['pnpm', 'npm', 'yarn', 'bun']}>
+      <Tab value="pnpm">
+```bash
+pnpm add @kubuild/react @kubuild/schema lucide-react
+```
+      </Tab>
+      <Tab value="npm">
+```bash
+npm install @kubuild/react @kubuild/schema lucide-react
+```
+      </Tab>
+      <Tab value="yarn">
+```bash
+yarn add @kubuild/react @kubuild/schema lucide-react
+```
+      </Tab>
+      <Tab value="bun">
+```bash
+bun add @kubuild/react @kubuild/schema lucide-react
+```
+      </Tab>
+    </Tabs>
+
+    <Callout type="info" title="Modular vs Unified Packages">
+      `@kubuild/react` is the high-level umbrella package designed for rapid integration. If you need a lightweight headless runtime for edge SSR without the visual editor bundle, you can install `@kubuild/renderer` independently.
+    </Callout>
+  </Step>
+
+  <Step>
+    ### 2. Initialize a Blank Document
+
+    KUBUILD uses pure JSON documents conforming to the `.stora` specification. Use the `createBlankDocument()` helper to bootstrap a clean, valid document AST with standard page metadata and a root artboard node.
+
+    ```typescript title="lib/document.ts"
+    import { createBlankDocument } from '@kubuild/react';
+    import type { PageDocument } from '@kubuild/schema';
+
+    // Creates an empty PageDocument with default metadata, root node, and viewport settings
+    export const initialDocument: PageDocument = createBlankDocument('Landing Page');
+    ```
+
+    The generated document looks like this:
+
+    ```json title="sample.stora.json"
+    {
+      "schema": "stora.page",
+      "version": "1.3.0",
+      "metadata": {
+        "title": "Landing Page",
+        "description": "Created with KUBUILD",
+        "createdAt": "2026-01-01T00:00:00.000Z"
+      },
+      "document": {
+        "id": "root-page-landing-page",
+        "type": "page",
+        "props": { "title": "Landing Page" },
+        "styles": {
+          "base": {
+            "minHeight": "100vh",
+            "backgroundColor": "#ffffff"
+          }
+        },
+        "children": []
+      }
+    }
+    ```
+  </Step>
+
+  <Step>
+    ### 3. Embed the Visual Editor
+
+    Embed `<KubuildEditor />` into your component or page. Provide the `initialDocument`, an `onChange` callback to capture document modifications, and specify the `mode` (`simple` or `advance`).
+
+    ```tsx title="components/Builder.tsx"
+    'use client';
+
+    import React, { useState } from 'react';
+    import { KubuildEditor } from '@kubuild/react';
+    import type { PageDocument } from '@kubuild/schema';
+    import { initialDocument } from '../lib/document';
+
+    export function Builder() {
+      const [document, setDocument] = useState<PageDocument>(initialDocument);
+
+      return (
+        <div className="h-screen w-full">
+          <KubuildEditor
+            initialDocument={document}
+            onChange={(updatedDoc) => {
+              setDocument(updatedDoc);
+              // You can persist to localStorage, database, or API here
+            }}
+            mode="simple"
+          />
+        </div>
+      );
+    }
+    ```
+
+    <Callout type="warn" title="Next.js App Router & SSR">
+      Because `<KubuildEditor />` uses browser APIs (canvas direct manipulation, drag-and-drop, bounding rect measurements), always import it dynamically with `ssr: false` when using Next.js App Router:
+      
+      ```tsx
+      import dynamic from 'next/dynamic';
+
+      const KubuildEditor = dynamic(
+        () => import('@kubuild/react').then((mod) => mod.KubuildEditor),
+        { ssr: false }
+      );
+      ```
+    </Callout>
+  </Step>
+
+  <Step>
+    ### 4. Render Production Output
+
+    When you are ready to publish or display the finished page to end users, render it using `<KubuildRenderer />`. The renderer is a lightweight, pure React component that renders semantic HTML, injects scoped responsive CSS, and supports dynamic variable interpolation without loading any visual editor chrome.
+
+    ```tsx title="components/PublishedPage.tsx"
+    import React from 'react';
+    import { KubuildRenderer, createRenderContext } from '@kubuild/react';
+    import type { PageDocument } from '@kubuild/schema';
+
+    interface PublishedPageProps {
+      document: PageDocument;
+      userName?: string;
+    }
+
+    export function PublishedPage({ document, userName = 'Alex' }: PublishedPageProps) {
+      // Optional: Inject runtime variables for dynamic interpolation (e.g. {{user.name}})
+      const context = createRenderContext({
+        variables: {
+          user: { name: userName }
+        }
+      });
+
+      return (
+        <main className="min-h-screen w-full">
+          <KubuildRenderer
+            document={document}
+            context={context}
+            mode="runtime"
+          />
+        </main>
+      );
+    }
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Complete TypeScript Example
+
+Here is a complete, self-contained `BuilderPage.tsx` file that you can copy and paste directly into your project. It includes a toggle to switch between the **Visual Editor** and the **Production Renderer**, state persistence, and mock dynamic variables.
+
+```tsx title="src/BuilderPage.tsx"
+'use client';
+
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  KubuildEditor,
+  KubuildRenderer,
+  createBlankDocument,
+  createRenderContext,
+} from '@kubuild/react';
+import type { PageDocument } from '@kubuild/schema';
+
+// 1. Prepare sample initial document with hero content
+function createInitialPage(): PageDocument {
+  const doc = createBlankDocument('Product Launch Page');
+  
+  // You can customize root styles or insert starter nodes
+  doc.document.children = [
+    {
+      id: 'hero-section',
+      type: 'section',
+      props: {},
+      styles: {
+        base: {
+          padding: '64px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          gap: '16px',
+          maxWidth: '720px',
+          margin: '0 auto',
+        },
+      },
+      children: [
+        {
+          id: 'hero-title',
+          type: 'heading',
+          props: {
+            level: 1,
+            text: 'Welcome to KUBUILD, {{user.name}}!',
+          },
+          styles: {
+            base: {
+              fontSize: '36px',
+              fontWeight: '800',
+              letterSpacing: '-0.025em',
+              color: '#0f172a',
+            },
+          },
+        },
+        {
+          id: 'hero-description',
+          type: 'paragraph',
+          props: {
+            text: 'Visual editing on top of pure, versioned .stora AST schemas. Zero vendor lock-in.',
+          },
+          styles: {
+            base: {
+              fontSize: '18px',
+              color: '#475569',
+              lineHeight: '1.6',
+            },
+          },
+        },
+        {
+          id: 'hero-cta',
+          type: 'button',
+          props: {
+            text: 'Explore Documentation',
+            variant: 'primary',
+          },
+          styles: {
+            base: {
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              padding: '12px 28px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              border: 'none',
+            },
+            states: {
+              ':hover': {
+                backgroundColor: '#1d4ed8',
+              },
+            },
+          },
+        },
+      ],
+    },
+  ];
+
+  return doc;
+}
+
+export default function BuilderPage() {
+  const [document, setDocument] = useState<PageDocument>(() => createInitialPage());
+  const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
+  const [editorMode, setEditorMode] = useState<'simple' | 'advance'>('simple');
+
+  // Handle document changes from the visual editor
+  const handleDocumentChange = useCallback((updatedDoc: PageDocument) => {
+    setDocument(updatedDoc);
+    console.log('[KUBUILD] Document updated:', updatedDoc.metadata?.title);
+  }, []);
+
+  // Runtime context with dynamic variable resolution
+  const renderContext = useMemo(
+    () =>
+      createRenderContext({
+        variables: {
+          user: { name: 'Developer' },
+          company: { name: 'Acme Corp' },
+        },
+      }),
+    [],
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+      {/* Top Application Bar */}
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 20px',
+          borderBottom: '1px solid #e2e8f0',
+          backgroundColor: '#ffffff',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <strong style={{ fontSize: '16px' }}>KUBUILD App</strong>
+          <span style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>
+            {document.metadata?.title}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {viewMode === 'editor' && (
+            <button
+              onClick={() => setEditorMode(editorMode === 'simple' ? 'advance' : 'simple')}
+              style={{
+                fontSize: '13px',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#f8fafc',
+                cursor: 'pointer',
+              }}
+            >
+              Mode: <strong>{editorMode === 'simple' ? 'Simple' : 'Advance'}</strong>
+            </button>
+          )}
+
+          <button
+            onClick={() => setViewMode(viewMode === 'editor' ? 'preview' : 'editor')}
+            style={{
+              fontSize: '13px',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              backgroundColor: viewMode === 'editor' ? '#2563eb' : '#0f172a',
+              color: '#ffffff',
+              border: 'none',
+              fontWeight: '500',
+              cursor: 'pointer',
+            }}
+          >
+            {viewMode === 'editor' ? '👁 Preview Production Render' : '✏️ Back to Editor'}
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        {viewMode === 'editor' ? (
+          <KubuildEditor
+            initialDocument={document}
+            onChange={handleDocumentChange}
+            mode={editorMode}
+            onModeChange={setEditorMode}
+          />
+        ) : (
+          <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#f8fafc', padding: '24px' }}>
+            <div style={{ maxWidth: '960px', margin: '0 auto', background: '#ffffff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <KubuildRenderer
+                document={document}
+                context={renderContext}
+                mode="runtime"
+              />
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+```
+
+---
+
+## Live Interactive Preview
+
+Try out the live component below! This interactive sandbox renders a `.stora` document using `<InteractiveRenderer />`. You can preview the rendered output across different viewports (Desktop, Tablet, Mobile) and inspect the compiled JSON AST in real time:
+
+<InteractiveRenderer
+  title="KUBUILD Quickstart Demo"
+  height="420px"
+  defaultViewport="desktop"
+  showJsonToggle={true}
+  document={{
+    schema: "stora.page",
+    version: "1.3.0",
+    metadata: {
+      title: "Quickstart Landing Page",
+      description: "Live interactive preview created in 5 minutes with KUBUILD",
+      author: "KUBUILD Docs",
+      tags: ["quickstart", "demo"],
+      category: "landing",
+      version: "1.0.0",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z"
+    },
+    document: {
+      id: "root-quickstart-page",
+      type: "page",
+      props: { "title": "Quickstart Landing Page" },
+      styles: {
+        base: {
+          backgroundColor: "#ffffff",
+          color: "#0f172a",
+          padding: "48px 24px",
+          fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+          minHeight: "100%",
+          boxSizing: "border-box"
+        }
+      },
+      children: [
+        {
+          id: "hero-section",
+          type: "section",
+          props: {},
+          styles: {
+            base: {
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+              gap: "16px",
+              maxWidth: "640px",
+              margin: "0 auto"
+            }
+          },
+          children: [
+            {
+              id: "badge-quickstart",
+              type: "paragraph",
+              props: {
+                text: "⚡️ Embedded in 5 Minutes"
+              },
+              styles: {
+                base: {
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "#2563eb",
+                  backgroundColor: "#eff6ff",
+                  padding: "4px 14px",
+                  borderRadius: "9999px",
+                  margin: "0"
+                }
+              }
+            },
+            {
+              id: "heading-hero",
+              type: "heading",
+              props: {
+                level: 1,
+                text: "Build Visually. Ship Pure Schema."
+              },
+              styles: {
+                base: {
+                  fontSize: "30px",
+                  fontWeight: "800",
+                  letterSpacing: "-0.03em",
+                  color: "#0f172a",
+                  margin: "0",
+                  lineHeight: "1.2"
+                }
+              }
+            },
+            {
+              id: "desc-hero",
+              type: "paragraph",
+              props: {
+                text: "Zero backend lock-in. Every page is compiled to portable .stora JSON validated by Zod."
+              },
+              styles: {
+                base: {
+                  fontSize: "16px",
+                  color: "#64748b",
+                  lineHeight: "1.6",
+                  margin: "0"
+                }
+              }
+            },
+            {
+              id: "btn-cta",
+              type: "button",
+              props: {
+                text: "Get Started Now",
+                variant: "primary"
+              },
+              styles: {
+                base: {
+                  backgroundColor: "#2563eb",
+                  color: "#ffffff",
+                  padding: "10px 24px",
+                  borderRadius: "8px",
+                  fontWeight: "600",
+                  border: "none",
+                  cursor: "pointer",
+                  marginTop: "8px"
+                },
+                states: {
+                  ":hover": {
+                    backgroundColor: "#1d4ed8"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }}
+/>
+
+---
+
+## Core Props Reference
+
+### `<KubuildEditor />` Props
+
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `initialDocument` | `PageDocument` | `createBlankDocument()` | Initial `.stora` document to load into the visual editor canvas. |
+| `onChange` | `(doc: PageDocument) => void` | `undefined` | Callback invoked whenever the user modifies nodes, styles, or properties. |
+| `mode` | `'simple' \| 'advance'` | `'simple'` | Editor complexity mode. Controls which panels, controls, and property sectors are revealed. |
+| `onModeChange` | `(mode: EditorMode) => void` | `undefined` | Callback invoked when the user switches between Simple and Advance modes. |
+| `readOnly` | `boolean` | `false` | When `true`, disables editing tools, canvas manipulation, and inspectors while showing the document preview. |
+| `locale` | `'en' \| 'id'` | `'en'` | Active interface language for editor labels, tooltips, and inspectors. |
+| `onSave` | `(doc: PageDocument) => Promise<void>` | `undefined` | Asynchronous save handler. Enables `Cmd+S` / `Ctrl+S` keyboard shortcuts and save indicators. |
+
+#### Simple vs Advance Mode
+
+KUBUILD includes an intuitive dual-mode system designed to serve both non-technical creators and advanced frontend designers:
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+  <div className="p-4 rounded-xl border border-border bg-card/40">
+    <div className="font-semibold text-foreground text-sm flex items-center gap-2 mb-2">
+      <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+      Simple Mode
+    </div>
+    <p className="text-xs text-muted-foreground leading-relaxed">
+      Curated properties only: basic text formatting, high-level layout presets, colors, and direct asset replacements. Perfect for content creators, marketers, and rapid copywriting without design system drift.
+    </p>
+  </div>
+  <div className="p-4 rounded-xl border border-border bg-card/40">
+    <div className="font-semibold text-foreground text-sm flex items-center gap-2 mb-2">
+      <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+      Advance Mode
+    </div>
+    <p className="text-xs text-muted-foreground leading-relaxed">
+      Full Figma-grade inspector: complete CSS Box Model (margins/paddings with scrubbing handles), Flexbox / CSS Grid, responsive viewport cascading, pseudo-states (<code>:hover</code>, <code>:focus</code>), keyframe animations, and custom action pipelines.
+    </p>
+  </div>
+</div>
+
+---
+
+### `<KubuildRenderer />` Props
+
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `document` | `PageDocument` | *Required* | The `.stora` document AST to render. |
+| `context` | `RenderContext` | `DEFAULT_RENDER_CONTEXT` | Runtime context containing dynamic variable bindings, asset resolvers, and custom action handlers. |
+| `mode` | `'runtime' \| 'editor'` | `'runtime'` | When set to `'runtime'`, compiles responsive styles as SSR-safe CSS `@media` rules with zero editor overhead. |
+| `viewport` | `'desktop' \| 'tablet' \| 'mobile'` | `undefined` | Optional forced viewport breakpoint for device mockups and frame previews. |
+| `className` | `string` | `undefined` | Additional CSS class applied to the root rendered container. |
+| `showToastContainer` | `boolean` | `true` | Whether to automatically render the toast notification container for action feedback. |
+
+---
+
+## Next Steps
+
+Now that you have embedded KUBUILD, explore the following deep dives to master the ecosystem:
+
+<Cards>
+  <Card title="Monorepo Architecture" href="/docs/getting-started/architecture">
+    Learn how KUBUILD enforces strict dependency boundaries and clean modularity.
+  </Card>
+  <Card title=".stora Document Anatomy" href="/docs/getting-started/stora-document">
+    Understand the JSON structure, Zod schemas, and tree serialization format.
+  </Card>
+  <Card title="Core Engine & Commands" href="/docs/packages/core">
+    Manipulate documents programmatically with pure immutable command functions.
+  </Card>
+  <Card title="Component Registry" href="/docs/packages/components">
+    Register custom React components and declare bindable props.
+  </Card>
+</Cards>

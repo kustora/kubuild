@@ -1,0 +1,12 @@
+{
+  "title": "Packages",
+  "pages": [
+    "schema",
+    "core",
+    "components",
+    "renderer",
+    "editor",
+    "ai",
+    "react"
+  ]
+}

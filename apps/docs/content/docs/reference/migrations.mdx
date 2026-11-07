@@ -1,0 +1,657 @@
+---
+title: "Migrations & Release Workflow"
+description: "Schema upgrade migrations (v1.0.0 through v1.3.0), backward compatibility, and Changesets monorepo release workflow."
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { TypeTable } from 'fumadocs-ui/components/type-table';
+
+KUBUILD adheres to a strict zero-data-loss and deterministic backward compatibility contract. Every single-page or multi-page `.stora` document created in any historical release (from initial `0.1.0` through `1.0.0`, `1.1.0`, `1.2.0`, and the current `1.3.0` specification) can be safely ingested, validated, and programmatically migrated to the latest schema version.
+
+This guide details the schema evolution timeline, programmatic migration APIs in `@kubuild/core`, contributor workflows via Changesets, and our strict Semantic Versioning and API deprecation policies.
+
+<Cards num={2}>
+  <Card title=".stora Schema Migrations" href="#stora-schema-migrations">
+    Evolution from v1.0.0 to v1.3.0, secret isolation, canonical text props, and multi-pixel pipelines.
+  </Card>
+  <Card title="Programmatic Migration API" href="#programmatic-migration-api-kubuildcore">
+    `migrateDocument()`, shortest-path BFS traversal, diagnostics, dry-run simulation, and custom registries.
+  </Card>
+  <Card title="Changesets Release Workflow" href="#changesets-monorepo-release-workflow">
+    Contributor guide for creating changesets, bumping synchronized packages, and automated publishing.
+  </Card>
+  <Card title="SemVer & Deprecation Policy" href="#semantic-versioning--deprecation-policy">
+    Versioning rules for monorepo packages, deprecation grace periods, and non-fatal runtime warnings.
+  </Card>
+</Cards>
+
+---
+
+## `.stora` Schema Migrations
+
+The `.stora` file format is the canonical single-source-of-truth document model for KUBUILD pages. As the visual builder engine expands with features like responsive styles, server-side tracking relays, and multi-pixel attribution, the schema schema versions gracefully transition without breaking existing customer documents.
+
+### Migration Philosophy
+
+<Callout type="info" title="Backward Compatibility Guarantee">
+  Any `.stora` document authored on an earlier schema version is guaranteed to be executable by newer versions of `@kubuild/renderer` and `@kubuild/editor`. When opened or imported, the document is migrated non-destructively through a sequence of deterministic version steps.
+</Callout>
+
+1. **Lossless Transformation**: Migrations only rewrite deprecated syntax into modern equivalents or inject required structural defaults. Node IDs, hierarchy, custom CSS values, and user content are never discarded.
+2. **Deterministic Step Sequence**: Version upgrades are executed as atomic, composable steps (`1.0.0 -> 1.1.0 -> 1.2.0 -> 1.3.0`) discovered via breadth-first search (BFS).
+3. **Dry-Run Auditing**: Hosts can preview migration changes, inspecting modified object paths and emitted warnings without altering persisted data.
+4. **Zero-Secret Isolation**: Sensitive infrastructure credentials (such as Meta CAPI tokens or TikTok secret keys) are stripped from client documents to eliminate client-side token leakage.
+
+---
+
+### Schema Version Evolution (v1.0.0 to v1.3.0)
+
+| Transition | Primary Changes | Emitted Warning Code |
+| :--- | :--- | :--- |
+| **`0.1.0 -> 1.0.0`** | Migrated root key `root` to `document`, initialized default metadata, and normalized flat CSS objects (`{ color: 'red' }`) into responsive cascade breakpoints (`{ base: { color: 'red' } }`). | N/A |
+| **`0.2.0 -> 1.0.0`** | Normalized styles and root document structure from beta prototypes. | N/A |
+| **`0.9.0 -> 1.0.0`** | Formalized metadata schema (`title`, `description`, `version`) and finalized v1 AST specs. | N/A |
+| **`1.0 -> 1.0.0`** | Normalized two-digit version string `'1.0'` to semver `'1.0.0'`. | N/A |
+| **`1.0.0 -> 1.1.0`** | **Zero-Secret Tracking**: Removed client-side secrets (`capiAccessToken`, `accessToken`, `measurementProtocolSecret`, `serverRelayUrl`, custom `endpointUrl`/`headers`) in favor of host-resolved `credentialId`. | `TRACKING_SECRET_REMOVED` |
+| **`1.1.0 -> 1.2.0`** | **Canonical Text Props & Theme Schema** (STORA-550, STORA-551): Consolidated ambiguous text prop aliases (`content`, `quote`, `label`) onto canonical `text` and `label`. Added first-class `theme` tokens. Support for detached artboards and multi-page projects. | `PROP_ALIAS_MIGRATED` |
+| **`1.2.0 -> 1.3.0`** | **Multi-Pixel Attribution**: Converted single-provider dictionary `tracking.providers` into an extensible array `tracking.pixels[]` with automatic `legacy-<provider>` ID generation. Added inheritance support. | `TRACKING_PROVIDERS_CONVERTED` |
+
+---
+
+### Deep Dive: Version Transition Details
+
+<Accordions>
+  <Accordion title="v1.0.0 → v1.1.0: Zero-Secret Tracking Architecture">
+    In version 1.0.0, server-side tracking credentials (such as Meta Conversions API Access Tokens or Google Measurement Protocol Secrets) were stored directly inside the document's `tracking.providers` object. While convenient, this posed a security risk if public visitors inspected the page document JSON payload.
+
+    In version 1.1.0, KUBUILD adopted a **Zero-Secret Tracking** architecture:
+    - All token values and private server relay URLs are permanently stripped from the `.stora` payload.
+    - The client retains only a public `credentialId`, which the host backend resolves against secure environment variables or a vault when executing server relays.
+
+    <Tabs items={["Before (v1.0.0)", "After (v1.1.0)"]}>
+      <Tab value="Before (v1.0.0)">
+```json
+{
+  "schema": "stora.page",
+  "version": "1.0.0",
+  "tracking": {
+    "providers": {
+      "meta": {
+        "enabled": true,
+        "pixelId": "9876543210",
+        "capiAccessToken": "EAABs8...SECRET_TOKEN...xyz",
+        "serverRelayUrl": "https://api.example.com/relay"
+      }
+    }
+  },
+  "document": { "id": "root", "type": "page", "children": [] }
+}
+```
+      </Tab>
+      <Tab value="After (v1.1.0)">
+```json
+{
+  "schema": "stora.page",
+  "version": "1.1.0",
+  "tracking": {
+    "providers": {
+      "meta": {
+        "enabled": true,
+        "pixelId": "9876543210",
+        "credentialId": "cred_meta_production"
+      }
+    }
+  },
+  "document": { "id": "root", "type": "page", "children": [] }
+}
+```
+      </Tab>
+    </Tabs>
+
+    When `migrateDocument()` processes this transition, it generates a non-fatal `TRACKING_SECRET_REMOVED` diagnostic warning informing the host that the credential should be re-associated via `credentialId`.
+  </Accordion>
+
+  <Accordion title="v1.1.0 → v1.2.0: Canonical Text Props & Theme Specification">
+    Prior to v1.2.0, different text-rendering components utilized disparate property names to represent their primary textual label:
+    - `paragraph`: `content` or `text`
+    - `heading`: `text` or `content`
+    - `badge`: `label` or `text`
+    - `link`: `label` or `text`
+    - `blockquote`: `quote` or `text`
+    - `button`: `text`, `label`, or `content`
+
+    Version 1.2.0 standardized all text elements to use `text`, and interactive action triggers (`button`) to use `label` (Ticket STORA-550). When migrating:
+    1. If a legacy `text` node only defined `content`, the migrator preserves backward rendering semantics by setting `as: 'p'` so that block margins remain identical.
+    2. Any conflicting aliases are cleaned up, leaving only canonical properties.
+    3. Document themes (`theme`) became formal top-level schema members (STORA-551).
+    4. Detached artboards, placeholder elements, and multi-page projects gained native AST representation.
+
+    <Tabs items={["Before (v1.1.0)", "After (v1.2.0)"]}>
+      <Tab value="Before (v1.1.0)">
+```json
+{
+  "schema": "stora.page",
+  "version": "1.1.0",
+  "document": {
+    "id": "root",
+    "type": "page",
+    "children": [
+      { "id": "h1", "type": "heading", "props": { "content": "Header Text", "level": 1 } },
+      { "id": "p1", "type": "paragraph", "props": { "content": "Body description" } },
+      { "id": "t1", "type": "text", "props": { "content": "Standalone text block" } },
+      { "id": "btn", "type": "button", "props": { "text": "Get Started" } }
+    ]
+  }
+}
+```
+      </Tab>
+      <Tab value="After (v1.2.0)">
+```json
+{
+  "schema": "stora.page",
+  "version": "1.2.0",
+  "document": {
+    "id": "root",
+    "type": "page",
+    "children": [
+      { "id": "h1", "type": "heading", "props": { "text": "Header Text", "level": 1 } },
+      { "id": "p1", "type": "paragraph", "props": { "text": "Body description" } },
+      { "id": "t1", "type": "text", "props": { "text": "Standalone text block", "as": "p" } },
+      { "id": "btn", "type": "button", "props": { "label": "Get Started" } }
+    ]
+  }
+}
+```
+      </Tab>
+    </Tabs>
+  </Accordion>
+
+  <Accordion title="v1.2.0 → v1.3.0: Multi-Pixel Attribution & Pixels Array">
+    In modern marketing and growth engineering, a single website frequently requires multiple tracking pixels for the same advertising network (e.g., an agency pixel, a corporate parent pixel, and a regional performance pixel).
+
+    Schema 1.3.0 restructured `tracking` from a single provider dictionary into a flexible array of pixel definitions (`tracking.pixels[]`). When migrating from v1.2.0:
+    - Each active provider in `tracking.providers` is transformed into an entry in `tracking.pixels[]`.
+    - Generated entries receive deterministic legacy IDs (`legacy-meta`, `legacy-google`, `legacy-tiktok`).
+    - Multi-page projects can configure `tracking.inherit = true` to inherit workspace-level tracking configurations.
+
+    <Tabs items={["Before (v1.2.0)", "After (v1.3.0)"]}>
+      <Tab value="Before (v1.2.0)">
+```json
+{
+  "schema": "stora.page",
+  "version": "1.2.0",
+  "tracking": {
+    "enabled": true,
+    "providers": {
+      "meta": { "enabled": true, "pixelId": "111111111" },
+      "google": { "enabled": true, "measurementId": "G-ABCXYZ" }
+    }
+  },
+  "document": { "id": "root", "type": "page", "children": [] }
+}
+```
+      </Tab>
+      <Tab value="After (v1.3.0)">
+```json
+{
+  "schema": "stora.page",
+  "version": "1.3.0",
+  "tracking": {
+    "enabled": true,
+    "inherit": false,
+    "pixels": [
+      {
+        "id": "legacy-meta",
+        "provider": "meta",
+        "enabled": true,
+        "pixelId": "111111111"
+      },
+      {
+        "id": "legacy-google",
+        "provider": "google",
+        "enabled": true,
+        "measurementId": "G-ABCXYZ"
+      }
+    ]
+  },
+  "document": { "id": "root", "type": "page", "children": [] }
+}
+```
+      </Tab>
+    </Tabs>
+  </Accordion>
+</Accordions>
+
+---
+
+## Programmatic Migration API (`@kubuild/core`)
+
+The `@kubuild/core` package provides full programmatic access to the migration engine. It enables automated database schema updates, import filters, and dry-run linting before committing changes.
+
+### Core Functions & Types
+
+```typescript
+import {
+  migrateDocument,
+  canMigrate,
+  getMigrationPath,
+  defaultMigrationRegistry,
+  MigrationRegistry,
+  type MigrationResult,
+  type MigrationDiagnostic,
+  type MigrationWarning,
+  type MigrationError,
+  type MigrateOptions
+} from '@kubuild/core';
+```
+
+#### `migrateDocument(rawDocument, options?)`
+
+Executes the sequence of migrations necessary to transition a document from its current schema version to the target schema version (defaulting to `CURRENT_SCHEMA_VERSION = '1.3.0'`).
+
+```typescript
+export interface MigrateOptions {
+  /** Target schema version. Defaults to CURRENT_SCHEMA_VERSION ('1.3.0'). */
+  targetVersion?: string;
+  /** If true, simulates migration without returning the modified document. */
+  dryRun?: boolean;
+  /** Custom migration registry. Defaults to defaultMigrationRegistry. */
+  registry?: MigrationRegistry;
+  /** Validate document against PageDocumentSchema after migration (default: true). */
+  validate?: boolean;
+}
+
+export interface MigrationResult {
+  success: boolean;
+  document?: PageDocument;
+  diagnostic: MigrationDiagnostic;
+}
+```
+
+<TypeTable
+  type={{
+    success: {
+      description: 'Boolean flag indicating whether the entire migration path succeeded.',
+      type: 'boolean',
+      required: true,
+    },
+    document: {
+      description: 'The final validated PageDocument AST. Undefined if success is false or if dryRun is true.',
+      type: 'PageDocument | undefined',
+      required: false,
+    },
+    diagnostic: {
+      description: 'Complete audit report containing applied steps, path traversal, errors, and warnings.',
+      type: 'MigrationDiagnostic',
+      required: true,
+    },
+  }}
+/>
+
+---
+
+### Migration Diagnostics & Error Reporting
+
+The `MigrationDiagnostic` structure provides rich telemetry regarding the migration execution:
+
+```typescript
+export interface MigrationDiagnostic {
+  success: boolean;
+  sourceVersion: string;
+  targetVersion: string;
+  migrationPath: string[];
+  stepsApplied: number;
+  dryRun: boolean;
+  errors?: MigrationError[];
+  warnings?: MigrationWarning[];
+}
+
+export interface MigrationWarning {
+  code: 'TRACKING_SECRET_REMOVED' | 'PROP_ALIAS_MIGRATED' | 'TRACKING_PROVIDERS_CONVERTED' | string;
+  message: string;
+  step?: string;
+  paths?: string[];
+}
+
+export interface MigrationError {
+  code: 'NO_MIGRATION_PATH' | 'UNSUPPORTED_SCHEMA_VERSION' | 'INVALID_SOURCE_DOCUMENT' | 'MIGRATION_EXECUTION_FAILED';
+  message: string;
+  sourceVersion: string;
+  targetVersion: string;
+  details?: Record<string, unknown>;
+}
+```
+
+<TypeTable
+  type={{
+    NO_MIGRATION_PATH: {
+      description: 'No registered sequence of steps exists between the source and target version.',
+      type: 'MigrationErrorCode',
+    },
+    INVALID_SOURCE_DOCUMENT: {
+      description: 'The provided document is null, not an object, or failed pre-migration AST structure checks.',
+      type: 'MigrationErrorCode',
+    },
+    MIGRATION_EXECUTION_FAILED: {
+      description: 'A registered step threw an uncaught error or the final document failed Zod schema validation.',
+      type: 'MigrationErrorCode',
+    },
+    UNSUPPORTED_SCHEMA_VERSION: {
+      description: 'The document specifies an unparseable or unrecognized version tag.',
+      type: 'MigrationErrorCode',
+    },
+  }}
+/>
+
+---
+
+### Real-World Integration Recipes
+
+#### Recipe 1: Transparent Database Read-Through Migration
+
+When fetching legacy documents from PostgreSQL (via Prisma, Drizzle, or raw JSONB) or MongoDB, migrate the payload in-memory. If changes occurred, asynchronously persist the upgraded document back to the database.
+
+```typescript title="lib/storage/page-loader.ts"
+import { prisma } from '@/lib/db';
+import { migrateDocument, CURRENT_SCHEMA_VERSION } from '@kubuild/core';
+import type { PageDocument } from '@kubuild/schema';
+
+export async function loadPageWithAutoMigration(pageId: string): Promise<PageDocument> {
+  const record = await prisma.page.findUniqueOrThrow({
+    where: { id: pageId },
+  });
+
+  const rawDoc = record.contentJson as Record<string, unknown>;
+
+  // Check if document needs migration
+  if (rawDoc.version === CURRENT_SCHEMA_VERSION) {
+    return rawDoc as unknown as PageDocument;
+  }
+
+  // Execute migration
+  const result = migrateDocument(rawDoc);
+
+  if (!result.success || !result.document) {
+    console.error('Migration failed:', result.diagnostic.errors);
+    throw new Error(`Failed to migrate document: ${result.diagnostic.errors?.[0]?.message}`);
+  }
+
+  // Log non-fatal diagnostic warnings
+  if (result.diagnostic.warnings?.length) {
+    console.warn(`[Migration Warning] Document ${pageId}:`, result.diagnostic.warnings);
+  }
+
+  // Asynchronously save updated document back to the database
+  prisma.page
+    .update({
+      where: { id: pageId },
+      data: {
+        contentJson: result.document,
+        version: CURRENT_SCHEMA_VERSION,
+        updatedAt: new Date(),
+      },
+    })
+    .catch((err) => console.error(`Failed to persist auto-migration for page ${pageId}:`, err));
+
+  return result.document;
+}
+```
+
+#### Recipe 2: File Upload / Import Validator with Dry-Run Audit
+
+Before importing a `.stora` file exported from another workspace or older project, run a dry-run migration to inform the user of deprecations and renames.
+
+```typescript title="lib/import/import-handler.ts"
+import { migrateDocument } from '@kubuild/core';
+
+export function inspectUploadedDocument(fileContentString: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fileContentString);
+  } catch {
+    return { valid: false, error: 'Invalid JSON file format.' };
+  }
+
+  // 1. Dry run simulation
+  const dryRun = migrateDocument(parsed, { dryRun: true });
+  if (!dryRun.success) {
+    return {
+      valid: false,
+      error: dryRun.diagnostic.errors?.[0]?.message || 'Unsupported schema version.',
+    };
+  }
+
+  // 2. Perform real migration
+  const migration = migrateDocument(parsed, { validate: true });
+  if (!migration.success || !migration.document) {
+    return {
+      valid: false,
+      error: 'Document validation failed post-migration.',
+      details: migration.diagnostic.errors,
+    };
+  }
+
+  return {
+    valid: true,
+    document: migration.document,
+    warnings: migration.diagnostic.warnings || [],
+    stepsApplied: migration.diagnostic.stepsApplied,
+    migrationPath: migration.diagnostic.migrationPath,
+  };
+}
+```
+
+#### Recipe 3: Registering Custom Migration Steps
+
+Organizations extending the AST with custom plugins or bespoke enterprise schema attributes can instantiate or extend `MigrationRegistry`.
+
+```typescript title="lib/migrations/custom-registry.ts"
+import { MigrationRegistry, defaultMigrationRegistry, type MigrationStep } from '@kubuild/core';
+
+export const enterpriseRegistry = new MigrationRegistry();
+
+// Register custom migration step
+enterpriseRegistry.register({
+  fromVersion: '1.3.0',
+  toVersion: '2.0.0-custom',
+  description: 'Migrate enterprise telemetry tokens and custom CDN asset domains',
+  migrate: (doc, { warn }) => {
+    const copy = JSON.parse(JSON.stringify(doc));
+    copy.version = '2.0.0-custom';
+
+    if (copy.metadata?.customDomain) {
+      copy.metadata.cdnUrl = `https://cdn.${copy.metadata.customDomain}`;
+      warn({
+        code: 'CDN_URL_GENERATED',
+        message: 'Synthesized cdnUrl from legacy customDomain.',
+      });
+    }
+
+    return copy;
+  },
+});
+```
+
+---
+
+## Changesets Monorepo Release Workflow
+
+KUBUILD utilizes [Changesets](https://github.com/changesets/changesets) combined with [pnpm workspaces](https://pnpm.io/workspaces) and [Turborepo](https://turbo.build/repo) to manage versioning, changelog generation, and npm package publishing.
+
+### Monorepo Architecture & Synchronized Versioning
+
+All official packages in `packages/*` belong to a **fixed version group** configured in `.changeset/config.json`. This guarantees that whenever any package receives a release, all sibling packages are bumped together in lock-step, eliminating internal dependency mismatch bugs.
+
+```json title=".changeset/config.json"
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "kustora/kubuild" }
+  ],
+  "commit": false,
+  "fixed": [
+    [
+      "@kubuild/ai",
+      "@kubuild/components",
+      "@kubuild/core",
+      "@kubuild/editor",
+      "@kubuild/react",
+      "@kubuild/renderer",
+      "@kubuild/schema"
+    ]
+  ],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch"
+}
+```
+
+---
+
+### Step-by-Step Contributor Release Workflow
+
+Follow these steps whenever submitting a pull request or cutting a new release.
+
+<Steps>
+  <Step>
+    #### Step 1: Implement Changes & Run Test Suites
+    Ensure your implementation is covered with comprehensive unit and integration tests. Run all workspace checks before generating changesets.
+
+    ```bash
+    # Run test suites across all packages
+    pnpm test
+
+    # Verify TypeScript type integrity
+    pnpm typecheck
+
+    # Lint source code and schemas
+    pnpm lint
+    ```
+  </Step>
+
+  <Step>
+    #### Step 2: Create a Changeset (`pnpm changeset`)
+    Execute the Changeset interactive CLI to document your changes.
+
+    ```bash
+    pnpm changeset
+    ```
+
+    The CLI prompts you for three pieces of information:
+    1. **Target Packages**: Select which `@kubuild/*` packages are affected by your modifications using arrow keys and the spacebar.
+    2. **SemVer Increment**: Specify whether the changes constitute a `patch`, `minor`, or `major` version bump.
+    3. **Summary Message**: Provide a clear, developer-facing summary. Reference Jira issue tickets (e.g. `KU-603`) or GitHub PR numbers.
+
+    This generates a temporary markdown file in `.changeset/<unique-name>.md`:
+
+    ```markdown title=".changeset/bright-foxes-sing.md"
+    ---
+    "@kubuild/core": minor
+    "@kubuild/schema": minor
+    ---
+
+    Introduce multi-pixel tracking migration step (1.2.0 -> 1.3.0) and export `MigrationDiagnostic` warning codes.
+    ```
+  </Step>
+
+  <Step>
+    #### Step 3: Bump Versions (`pnpm version-packages`)
+    Before a release is published, the accumulated changeset markdown files are consumed to update package versions and update `CHANGELOG.md` files.
+
+    ```bash
+    pnpm version-packages
+    ```
+
+    This command runs `changeset version`, which:
+    - Bumps the `version` field across all packages in the fixed version group in `package.json`.
+    - Updates inter-package dependency ranges in each `package.json`.
+    - Generates or updates the `CHANGELOG.md` in each package directory.
+    - Deletes the consumed `.changeset/*.md` files.
+  </Step>
+
+  <Step>
+    #### Step 4: Build & Publish Packages (`pnpm release`)
+    Once version bumping is committed to `main`, publish the build artifacts to npm.
+
+    ```bash
+    pnpm release
+    ```
+
+    Under the hood, this script executes:
+    ```bash
+    turbo run build && changeset publish
+    ```
+    This rebuilds all ESM/CJS bundles, verifies declaration output, and publishes public packages to the npm registry with standard 2FA verification.
+  </Step>
+</Steps>
+
+---
+
+## Semantic Versioning & Deprecation Policy
+
+KUBUILD strictly adheres to [Semantic Versioning 2.0.0](https://semver.org/) across all published packages (`@kubuild/*`).
+
+### SemVer Rules for `@kubuild/*`
+
+```
+  v  1  .  3  .  0
+     │     │     │
+     │     │     └── PATCH: Bug fixes, performance optimizations, TypeScript docstring improvements
+     │     └──────── MINOR: New components, non-breaking schema additions, new editor tools
+     └────────────── MAJOR: Incompatible API breaks, deleted schema fields, major runtime engine rewrites
+```
+
+<Cards num={3}>
+  <Card title="MAJOR (X.0.0)">
+    Triggered when breaking architectural changes occur. Examples include modifying non-optional AST requirements, dropping support for a major Node.js/React runtime version, or removing previously deprecated APIs.
+  </Card>
+  <Card title="MINOR (1.X.0)">
+    Triggered when backwards-compatible functionality is added. Examples include adding new component types (`accordion`, `video-player`), new animation properties, or non-breaking schema migrations.
+  </Card>
+  <Card title="PATCH (1.0.X)">
+    Triggered for bug fixes, sanitization hardening, canvas drag-and-drop calculation corrections, and non-breaking internal optimizations.
+  </Card>
+</Cards>
+
+---
+
+### Deprecation Policy & Grace Periods
+
+To ensure long-term stability for enterprise deployments, KUBUILD maintains a structured API deprecation lifecycle:
+
+1. **One Full Minor Cycle Minimum**: Any public API or schema field planned for obsolescence must be marked as deprecated for at least **one full minor release cycle** before removal. For example, if a prop is marked `@deprecated` in `1.1.0`, it cannot be removed prior to `2.0.0`.
+2. **Non-Fatal Diagnostics**: Deprecated props or schemas emit non-fatal warnings (e.g. `MigrationWarning` with code `PROP_ALIAS_MIGRATED`) rather than throwing fatal runtime errors.
+3. **Automated Migration Codemods**: Every deprecated property must have an automated transformation registered in `MigrationRegistry` so that running `migrateDocument()` automatically upgrades documents without manual intervention.
+4. **Compile-Time Notice**: TypeScript definitions are annotated with JSDoc `@deprecated` tags, directing developers to the modern alternative directly within IDE autocompletion popups.
+
+```typescript
+export interface LegacyButtonProps {
+  /**
+   * @deprecated Since v1.2.0. Use `label` instead.
+   * Scheduled for removal in v2.0.0.
+   */
+  text?: string;
+  /**
+   * Canonical text label for the button component.
+   */
+  label?: string;
+}
+```
+
+---
+
+## Related Documentation
+
+<Cards num={2}>
+  <Card title="TypeScript API Reference" href="/docs/reference/types">
+    Inspect the full TypeScript type declarations, Zod schemas, and runtime contracts for all KUBUILD packages.
+  </Card>
+  <Card title="Backend Storage & Persistence" href="/docs/integration/backend-storage">
+    Learn how to store `.stora` documents in PostgreSQL JSONB, MongoDB, or S3 with optimistic concurrency control.
+  </Card>
+</Cards>

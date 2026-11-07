@@ -1,0 +1,10 @@
+{
+  "title": "Host Integration",
+  "pages": [
+    "nextjs",
+    "vite",
+    "backend-storage",
+    "performance",
+    "security"
+  ]
+}
