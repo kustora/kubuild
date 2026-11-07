@@ -24,7 +24,6 @@ import {
   Layout,
   Eye,
   Code2,
-  Sparkles,
   Download,
   Upload,
   Plus,
@@ -342,9 +341,18 @@ export function App() {
       <header className="flex items-center justify-between px-3 py-2 sm:px-6 sm:py-3 bg-slate-950 border-b border-slate-800 gap-2">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 font-bold text-white shadow-lg shadow-blue-500/30 shrink-0">
-              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
+            {/* KUBUILD brand mark — assets/brand/kubuild-simbol-a-blok.svg */}
+            <svg
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+              className="w-6 h-6 sm:w-7 sm:h-7 text-blue-500 shrink-0"
+            >
+              <rect x="0.75" y="0.75" width="6.5" height="22.5" rx="1.25" />
+              <rect x="8.75" y="8.75" width="6.5" height="6.5" rx="1.25" />
+              <rect x="16.75" y="0.75" width="6.5" height="6.5" rx="1.25" />
+              <rect x="16.75" y="16.75" width="6.5" height="6.5" rx="1.25" />
+            </svg>
             <div className="hidden sm:block">
               <h1 className="font-bold text-sm text-slate-100 flex items-center gap-2">
                 KUBUILD{' '}

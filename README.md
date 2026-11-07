@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="assets/brand/kubuild-simbol-a-blok.svg" alt="KUBUILD logo" width="72" height="72" />
+
 **Open, portable, and backend-agnostic web page builder engine.**
 
 [![CI Quality Gate](https://github.com/kustora/kubuild/actions/workflows/ci.yml/badge.svg)](https://github.com/kustora/kubuild/actions)

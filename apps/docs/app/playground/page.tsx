@@ -21,6 +21,7 @@ import {
   CREATOR_BIO_DOC,
   MINIMAL_PORTFOLIO_DOC,
 } from './templates';
+import { KubuildMark } from '@/components/kubuild-logo';
 
 // Dynamic import with ssr: false to prevent SSR hydration mismatches
 const KubuildEditor = dynamic(
@@ -120,22 +121,7 @@ export default function PortablePage() {
             className="flex items-center gap-2.5 transition hover:opacity-85 focus:outline-hidden"
             title="KUBUILD Home"
           >
-            <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-600 via-violet-600 to-pink-500 text-white shadow-sm shadow-indigo-500/25 ring-1 ring-white/20">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="size-4"
-              >
-                <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                <rect x="14" y="3" width="7" height="5" rx="1" />
-                <rect x="14" y="11" width="7" height="10" rx="1.5" />
-                <rect x="3" y="13" width="7" height="8" rx="1.5" />
-              </svg>
-            </div>
+            <KubuildMark className="size-6 text-blue-500" />
             <span className="text-base font-extrabold tracking-tight text-white">KUBUILD</span>
           </Link>
           <span className="flex items-center gap-1 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[11px] font-semibold text-indigo-400">
