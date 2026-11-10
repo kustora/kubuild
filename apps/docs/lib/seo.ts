@@ -4,7 +4,7 @@ import { appName, gitConfig, siteUrl } from './shared';
 export const siteTitle = 'KUBUILD — Open & Portable Web Page Builder Engine';
 export const siteTagline = 'The page builder for your app';
 export const siteDescription =
-  'KUBUILD is an open-source (MIT) page builder engine for React. Embed a visual editor in your app, store every page as a portable .stora JSON document in your own database, and render it on the server with no vendor lock-in.';
+  'KUBUILD is an open-source (Apache-2.0) page builder engine for React. Embed a visual editor in your app, store every page as a portable .stora JSON document in your own database, and render it on the server with no vendor lock-in.';
 export const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
 export const defaultOgImage = '/og/home.png';
 
@@ -86,7 +86,7 @@ export const softwareLd = {
   operatingSystem: 'Any (Node.js, browser, edge runtimes)',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   isAccessibleForFree: true,
-  license: 'https://opensource.org/licenses/MIT',
+  license: 'https://www.apache.org/licenses/LICENSE-2.0',
   codeRepository: githubUrl,
   programmingLanguage: ['TypeScript', 'React'],
   author: { '@id': organizationLd['@id'] },

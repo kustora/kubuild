@@ -100,7 +100,7 @@ export function renderOgImage({
         }}
       >
         <span>{host}</span>
-        <span>Open source · MIT · by Kustora</span>
+        <span>Open source · Apache-2.0 · by Kustora</span>
       </div>
     </div>,
     ogSize,

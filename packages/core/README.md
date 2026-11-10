@@ -1,7 +1,7 @@
 # @kubuild/core
 
 [![npm version](https://img.shields.io/npm/v/@kubuild/core.svg)](https://www.npmjs.com/package/@kubuild/core)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 
 Framework-agnostic engine for **KUBUILD**: document tree utilities, command engine, history stack (undo/redo), Action Pipeline Executor, Runtime State Store, Validation Engine, template interpolation, migration, and export/import.
@@ -119,4 +119,4 @@ const importedDocument = await importStoraArchive(storaBuffer);
 
 ## 📄 License
 
-MIT © [KUBUILD](https://github.com/kustora/kubuild)
+Apache-2.0 © [Kustora](https://github.com/kustora/kubuild)

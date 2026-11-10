@@ -1,7 +1,7 @@
 # @kubuild/components
 
 [![npm version](https://img.shields.io/npm/v/@kubuild/components.svg)](https://www.npmjs.com/package/@kubuild/components)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 
 Component registry, schema definitions, traits, prop types, and starter form/layout block templates for **KUBUILD**.
@@ -107,4 +107,4 @@ componentRegistry.register(customCardDef);
 
 ## 📄 License
 
-MIT © [KUBUILD](https://github.com/kustora/kubuild)
+Apache-2.0 © [Kustora](https://github.com/kustora/kubuild)

@@ -216,7 +216,7 @@ export default function HomePage() {
         <section className="grid grid-cols-1 border-b lg:grid-cols-2">
           <div className="flex min-w-0 flex-col px-6 pt-14 pb-10 sm:px-10 lg:border-r lg:pt-20">
             <p className="text-sm text-fd-muted-foreground">
-              Open source · MIT · by{' '}
+              Open source · Apache-2.0 · by{' '}
               <span className="font-semibold text-fd-foreground">Kustora</span>
             </p>
             <h1 className="mt-5 text-4xl font-medium tracking-[-0.04em] text-balance sm:text-6xl">
@@ -524,7 +524,7 @@ export default function HomePage() {
           <div>
             <h2 className="text-3xl font-medium tracking-tight">Free &amp; open source</h2>
             <p className="mt-4 max-w-md text-fd-muted-foreground">
-              KUBUILD is MIT licensed and will always be free and open source, with no lock-in: the documents are yours.
+              KUBUILD is Apache-2.0 licensed and will always be free and open source, with no lock-in: the documents are yours.
             </p>
             <a
               href={githubUrl}
@@ -604,7 +604,7 @@ export default function HomePage() {
             </nav>
           </div>
           <p className="border-t px-6 py-5 text-xs text-fd-muted-foreground sm:px-10">
-            © {new Date().getFullYear()} Kustora · MIT License
+            © {new Date().getFullYear()} Kustora · Apache-2.0 License
           </p>
         </footer>
       </div>

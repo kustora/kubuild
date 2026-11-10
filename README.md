@@ -7,7 +7,7 @@
 **Open, portable, and backend-agnostic web page builder engine.**
 
 [![CI Quality Gate](https://github.com/kustora/kubuild/actions/workflows/ci.yml/badge.svg)](https://github.com/kustora/kubuild/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-brightgreen.svg)](SECURITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Turborepo](https://img.shields.io/badge/Turborepo-enabled-purple)](https://turbo.build/repo)
@@ -181,4 +181,6 @@ For detailed threat models and responsible vulnerability reporting instructions,
 
 ## 📄 License
 
-MIT License © 2026 KUBUILD Team.
+[Apache License 2.0](LICENSE) © 2026 Kustora. See [NOTICE](NOTICE).
+
+Versions up to and including `0.12.0` were released under MIT and stay MIT.

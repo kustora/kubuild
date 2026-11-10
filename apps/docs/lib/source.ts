@@ -37,7 +37,7 @@ export const docsLlms = llms(source, {
   },
   renderDescription: (item) => {
     if (item.type === undefined || item.type === 'root') {
-      return "KUBUILD is an open-source (MIT) page builder engine for React apps by Kustora. It provides a visual editor (@kubuild/editor), a lightweight server-renderable renderer (@kubuild/renderer), a framework-free TypeScript core (@kubuild/core), and Zod schemas (@kubuild/schema) for a portable JSON page format called .stora. Pages are stored in the host app's own database and rendered anywhere, with no vendor lock-in.";
+      return "KUBUILD is an open-source (Apache-2.0) page builder engine for React apps by Kustora. It provides a visual editor (@kubuild/editor), a lightweight server-renderable renderer (@kubuild/renderer), a framework-free TypeScript core (@kubuild/core), and Zod schemas (@kubuild/schema) for a portable JSON page format called .stora. Pages are stored in the host app's own database and rendered anywhere, with no vendor lock-in.";
     }
     if (item.type === 'page') return source.getNodePage(item)?.data.description ?? '';
     return typeof item.description === 'string' ? item.description : '';

@@ -1,7 +1,7 @@
 # @kubuild/schema
 
 [![npm version](https://img.shields.io/npm/v/@kubuild/schema.svg)](https://www.npmjs.com/package/@kubuild/schema)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 
 Zod schemas and inferred TypeScript definitions for the **KUBUILD** portable page document format (`.stora`), Action Pipeline, Form Configuration, and JSON Schema generation utilities.
@@ -138,4 +138,4 @@ and styles reference them as `var(--kb-color-primary)` (see `themeTokenRef`).
 
 ## 📄 License
 
-MIT © [KUBUILD](https://github.com/kustora/kubuild)
+Apache-2.0 © [Kustora](https://github.com/kustora/kubuild)
