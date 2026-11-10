@@ -1,0 +1,139 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`security fixtures (STORA-620) > file fixtures are sanitized and pass validateDocumentSecurity > css-injection.html 1`] = `
+{
+  "diagnostics": {
+    "CSS_UNSUPPORTED_PROPERTY": 7,
+    "ELEMENT_DROPPED": 1,
+    "URL_BLOCKED": 14,
+  },
+  "maxTreeDepth": 3,
+  "nodeTypes": {
+    "container": 12,
+    "page": 1,
+    "text": 21,
+  },
+  "stats": {
+    "droppedCount": 1,
+    "fallbackCount": 0,
+    "fidelityScore": 97.1,
+    "nodeCount": 34,
+  },
+  "success": true,
+}
+`;
+
+exports[`security fixtures (STORA-620) > file fixtures are sanitized and pass validateDocumentSecurity > embeds.html 1`] = `
+{
+  "diagnostics": {
+    "ELEMENT_DROPPED": 10,
+    "ELEMENT_FALLBACK_EMBED": 1,
+  },
+  "maxTreeDepth": 3,
+  "nodeTypes": {
+    "heading": 1,
+    "html-embed": 1,
+    "page": 1,
+    "paragraph": 1,
+    "section": 1,
+  },
+  "stats": {
+    "droppedCount": 10,
+    "fallbackCount": 1,
+    "fidelityScore": 30,
+    "nodeCount": 5,
+  },
+  "success": true,
+}
+`;
+
+exports[`security fixtures (STORA-620) > file fixtures are sanitized and pass validateDocumentSecurity > xss-attributes.html 1`] = `
+{
+  "diagnostics": {
+    "ELEMENT_FALLBACK_EMBED": 1,
+    "URL_BLOCKED": 20,
+  },
+  "maxTreeDepth": 4,
+  "nodeTypes": {
+    "button-submit": 2,
+    "container": 1,
+    "form": 1,
+    "heading": 1,
+    "html-embed": 1,
+    "image": 2,
+    "input": 1,
+    "page": 1,
+    "paragraph": 1,
+    "section": 1,
+    "text": 2,
+    "video": 2,
+  },
+  "stats": {
+    "droppedCount": 0,
+    "fallbackCount": 1,
+    "fidelityScore": 96.9,
+    "nodeCount": 16,
+  },
+  "success": true,
+}
+`;
+
+exports[`security fixtures (STORA-620) > file fixtures are sanitized and pass validateDocumentSecurity > xss-svg.html 1`] = `
+{
+  "diagnostics": {
+    "CSS_UNSUPPORTED_PROPERTY": 1,
+    "ELEMENT_DROPPED": 6,
+    "URL_BLOCKED": 7,
+  },
+  "maxTreeDepth": 3,
+  "nodeTypes": {
+    "heading": 1,
+    "icon": 2,
+    "image": 1,
+    "page": 1,
+    "paragraph": 1,
+    "section": 1,
+    "text": 2,
+  },
+  "stats": {
+    "droppedCount": 6,
+    "fallbackCount": 0,
+    "fidelityScore": 60,
+    "nodeCount": 9,
+  },
+  "success": true,
+}
+`;
+
+exports[`security fixtures (STORA-620) > file fixtures are sanitized and pass validateDocumentSecurity > xss-urls.html 1`] = `
+{
+  "diagnostics": {
+    "ASSET_UNRESOLVED": 1,
+    "ELEMENT_DROPPED": 5,
+    "ELEMENT_FALLBACK_EMBED": 2,
+    "URL_BLOCKED": 20,
+  },
+  "maxTreeDepth": 5,
+  "nodeTypes": {
+    "blockquote": 1,
+    "button": 1,
+    "form": 1,
+    "html-embed": 2,
+    "image": 3,
+    "link": 15,
+    "page": 1,
+    "section": 2,
+    "table": 1,
+    "table-cell": 1,
+    "table-row": 1,
+    "text": 16,
+  },
+  "stats": {
+    "droppedCount": 5,
+    "fallbackCount": 2,
+    "fidelityScore": 88,
+    "nodeCount": 45,
+  },
+  "success": true,
+}
+`;

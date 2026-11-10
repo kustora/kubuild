@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Northwind Analytics — Know your numbers</title>
+  <meta name="description" content="Dashboards your whole team understands.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --brand: #0f766e; --brand-dark: #115e59; --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --radius: 12px; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); line-height: 1.6; background: #fff; }
+    a { color: inherit; text-decoration: none; }
+    ul { list-style: none; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+    .topbar { position: sticky; top: 0; background: rgba(255, 255, 255, 0.92); border-bottom: 1px solid var(--line); z-index: 10; }
+    .topbar .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+    .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--brand); }
+    .links { display: flex; gap: 28px; }
+    .links a { color: var(--muted); font-weight: 600; }
+    .links a:hover { color: var(--brand); }
+    .btn { display: inline-block; padding: 12px 22px; border-radius: var(--radius); font-weight: 600; background: var(--brand); color: #fff; }
+    .btn:hover { background: var(--brand-dark); }
+    .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    .hero { padding: 96px 0 72px; text-align: center; }
+    .hero h1 { font-size: 56px; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 16px; }
+    .hero h1 em { color: var(--brand); font-style: normal; }
+    .hero p { color: var(--muted); font-size: 20px; max-width: 640px; margin: 0 auto 32px; }
+    .hero-actions { display: flex; justify-content: center; gap: 12px; }
+    .shot { margin-top: 56px; border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 30px 60px -20px rgba(15, 23, 42, 0.25); width: 100%; }
+    .features { padding: 80px 0; background: #f8fafc; }
+    .features h2 { text-align: center; font-size: 36px; margin-bottom: 48px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; }
+    .card h3 { font-size: 18px; margin-bottom: 8px; }
+    .card p { color: var(--muted); }
+    .pricing { padding: 80px 0; }
+    .pricing table { width: 100%; border-collapse: collapse; }
+    .pricing th, .pricing td { padding: 14px; border-bottom: 1px solid var(--line); text-align: left; }
+    .faq { padding: 80px 0; background: #f8fafc; }
+    .faq li { padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .signup { padding: 80px 0; text-align: center; }
+    .signup form { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
+    .signup input { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); min-width: 280px; }
+    footer { padding: 40px 0; color: var(--muted); border-top: 1px solid var(--line); font-size: 14px; }
+    @media (max-width: 1023px) { .grid { grid-template-columns: repeat(2, 1fr); } .hero h1 { font-size: 44px; } }
+    @media (max-width: 767px) { .grid { grid-template-columns: 1fr; } .links { display: none; } .hero h1 { font-size: 34px; } .signup form { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="/"><span class="brand-mark"></span>Northwind</a>
+      <nav class="links">
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="btn" href="#signup">Start free</a>
+    </div>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <h1>Know your numbers, <em>every morning</em></h1>
+        <p>Northwind turns raw events into dashboards your whole team understands — no SQL required.</p>
+        <div class="hero-actions">
+          <a class="btn" href="#signup">Start free trial</a>
+          <a class="btn btn-ghost" href="#features">See features</a>
+        </div>
+        <img class="shot" src="images/dashboard.png" srcset="images/dashboard.png 1x, images/dashboard@2x.png 2x" alt="Northwind dashboard screenshot">
+      </div>
+    </section>
+    <section class="features" id="features">
+      <div class="wrap">
+        <h2>Everything in one place</h2>
+        <div class="grid">
+          <article class="card"><h3>Live dashboards</h3><p>Charts refresh as events arrive.</p></article>
+          <article class="card"><h3>Alerts</h3><p>Slack and email when a metric moves.</p></article>
+          <article class="card"><h3>Sharing</h3><p>Public links with row-level permissions.</p></article>
+        </div>
+      </div>
+    </section>
+    <section class="pricing" id="pricing">
+      <div class="wrap">
+        <h2>Pricing</h2>
+        <table>
+          <thead><tr><th>Plan</th><th>Seats</th><th>Price</th></tr></thead>
+          <tbody>
+            <tr><td>Starter</td><td>3</td><td>$0</td></tr>
+            <tr><td>Team</td><td>20</td><td>$49</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="faq" id="faq">
+      <div class="wrap">
+        <h2>FAQ</h2>
+        <ul>
+          <li><strong>Is there a free plan?</strong> Yes, up to three seats.</li>
+          <li><strong>Can I export data?</strong> CSV and Parquet, anytime.</li>
+        </ul>
+      </div>
+    </section>
+    <section class="signup" id="signup">
+      <div class="wrap">
+        <h2>Try it free for 14 days</h2>
+        <form action="https://example.com/subscribe" method="post">
+          <input type="email" name="email" placeholder="you@company.com" required>
+          <button type="submit">Create account</button>
+        </form>
+      </div>
+    </section>
+  </main>
+  <footer><div class="wrap">&copy; 2026 Northwind Analytics</div></footer>
+</body>
+</html>

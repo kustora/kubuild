@@ -14,9 +14,11 @@ import {
   type Parse5Element,
 } from '../cascade.js';
 import { buildResponsiveStyles } from '../responsive.js';
+import { getTextContent } from '../parser.js';
 import {
   getElementLocation,
   isElement,
+  isSafeStyleValue,
   PROHIBITED_TAGS,
   SVG_PROHIBITED_TAGS,
   sanitizeElement,
@@ -73,6 +75,32 @@ export function isElementSafeForEmbed(
 }
 
 /**
+ * Removes nested `<style>` elements whose CSS is unsafe (`@import`, `expression()`,
+ * `javascript:` URLs, ...). Embedded markup is serialized verbatim into the html-embed
+ * `html` prop, bypassing the stylesheet pipeline that strips such rules from page CSS.
+ */
+function removeUnsafeEmbeddedStyles(element: Parse5Element, report: HtmlImportReport): void {
+  const children = element.childNodes ?? [];
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!isElement(child)) continue;
+    if (child.tagName.toLowerCase() === 'style' && !isSafeStyleValue(getTextContent(child))) {
+      addDiagnostic(report, {
+        code: 'ELEMENT_DROPPED',
+        severity: 'warning',
+        message: 'Embedded <style> element with unsafe CSS was removed for security',
+        location: getElementLocation(child),
+        details: { tagName: child.tagName },
+      });
+      children.splice(i, 1);
+      i--;
+      continue;
+    }
+    removeUnsafeEmbeddedStyles(child, report);
+  }
+}
+
+/**
  * Sanitizes an unmapped element's attributes and subtree, then serializes its outerHTML.
  * Returns null if the element cannot be safely sanitized or produces empty markup.
  *
@@ -95,6 +123,8 @@ export function sanitizeAndSerializeElement(
   if (!keep) {
     return null;
   }
+
+  removeUnsafeEmbeddedStyles(element, report);
 
   const serialized = serialize({
     nodeName: '#document-fragment',

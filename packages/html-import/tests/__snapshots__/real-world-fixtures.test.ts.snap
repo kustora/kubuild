@@ -1,0 +1,157 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`real-world HTML fixtures (STORA-620) > ai-tailwind.html imports into a safe, schema-valid document 1`] = `
+{
+  "diagnostics": {
+    "ELEMENT_DROPPED": 3,
+    "URL_BLOCKED": 1,
+  },
+  "maxTreeDepth": 5,
+  "nodeTypes": {
+    "blockquote": 1,
+    "button": 1,
+    "container": 9,
+    "heading": 4,
+    "link": 4,
+    "page": 1,
+    "paragraph": 6,
+    "section": 5,
+    "text": 6,
+  },
+  "stats": {
+    "droppedCount": 3,
+    "fallbackCount": 0,
+    "fidelityScore": 92.5,
+    "nodeCount": 37,
+  },
+  "success": true,
+}
+`;
+
+exports[`real-world HTML fixtures (STORA-620) > bootstrap.html imports into a safe, schema-valid document 1`] = `
+{
+  "diagnostics": {
+    "ASSET_UNRESOLVED": 1,
+    "ELEMENT_DROPPED": 1,
+  },
+  "maxTreeDepth": 7,
+  "nodeTypes": {
+    "button": 1,
+    "container": 11,
+    "flex": 4,
+    "heading": 4,
+    "image": 3,
+    "link": 3,
+    "list": 1,
+    "list-item": 2,
+    "page": 1,
+    "paragraph": 4,
+    "section": 1,
+    "text": 1,
+  },
+  "stats": {
+    "droppedCount": 1,
+    "fallbackCount": 0,
+    "fidelityScore": 97.3,
+    "nodeCount": 36,
+  },
+  "success": true,
+}
+`;
+
+exports[`real-world HTML fixtures (STORA-620) > framer-export.html imports into a safe, schema-valid document 1`] = `
+{
+  "diagnostics": {
+    "CSS_MEDIA_APPROXIMATED": 2,
+    "ELEMENT_DROPPED": 2,
+  },
+  "maxTreeDepth": 8,
+  "nodeTypes": {
+    "button": 1,
+    "container": 11,
+    "flex": 3,
+    "heading": 4,
+    "page": 1,
+    "paragraph": 4,
+  },
+  "stats": {
+    "droppedCount": 2,
+    "fallbackCount": 0,
+    "fidelityScore": 92.3,
+    "nodeCount": 24,
+  },
+  "success": true,
+}
+`;
+
+exports[`real-world HTML fixtures (STORA-620) > landing-plain-css.html imports into a safe, schema-valid document 1`] = `
+{
+  "diagnostics": {
+    "ASSET_UNRESOLVED": 1,
+    "CSS_UNSUPPORTED_SELECTOR": 2,
+    "URL_BLOCKED": 1,
+  },
+  "maxTreeDepth": 7,
+  "nodeTypes": {
+    "button": 3,
+    "button-submit": 1,
+    "container": 7,
+    "flex": 2,
+    "form": 1,
+    "grid": 1,
+    "heading": 8,
+    "image": 1,
+    "input": 1,
+    "link": 4,
+    "list": 1,
+    "list-item": 2,
+    "page": 1,
+    "paragraph": 4,
+    "section": 12,
+    "table": 1,
+    "table-cell": 9,
+    "table-row": 3,
+    "text": 6,
+  },
+  "stats": {
+    "droppedCount": 0,
+    "fallbackCount": 0,
+    "fidelityScore": 100,
+    "nodeCount": 68,
+  },
+  "success": true,
+}
+`;
+
+exports[`real-world HTML fixtures (STORA-620) > webflow-export.html imports into a safe, schema-valid document 1`] = `
+{
+  "diagnostics": {
+    "ASSET_UNRESOLVED": 3,
+    "CSS_MEDIA_APPROXIMATED": 2,
+    "ELEMENT_DROPPED": 2,
+  },
+  "maxTreeDepth": 6,
+  "nodeTypes": {
+    "button": 1,
+    "button-submit": 1,
+    "container": 9,
+    "form": 1,
+    "grid": 1,
+    "heading": 1,
+    "image": 3,
+    "input": 2,
+    "link": 4,
+    "page": 1,
+    "paragraph": 1,
+    "section": 4,
+    "text": 4,
+  },
+  "stats": {
+    "droppedCount": 2,
+    "fallbackCount": 0,
+    "fidelityScore": 94.3,
+    "nodeCount": 33,
+  },
+  "success": true,
+}
+`;

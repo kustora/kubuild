@@ -261,6 +261,24 @@ export function sanitizeElement(
     return false;
   }
 
+  // 2b. SVG <style> is serialized verbatim into the icon `svg` prop (it never reaches the
+  // stylesheet pipeline that strips `@import`/dangerous declarations), so drop it when unsafe.
+  if (isSvg && tagName === 'style') {
+    const cssText = (element.childNodes ?? [])
+      .map((child) => ('value' in child && typeof child.value === 'string' ? child.value : ''))
+      .join('');
+    if (!isSafeStyleValue(cssText)) {
+      addDiagnostic(report, {
+        code: 'ELEMENT_DROPPED',
+        severity: 'warning',
+        message: `SVG <style> element with unsafe CSS (e.g. @import, expression(), javascript: URL) was removed for security`,
+        location: getElementLocation(element),
+        details: { tagName: element.tagName },
+      });
+      return false;
+    }
+  }
+
   // 3. Conditional: remove <meta> if it has http-equiv
   if (tagName === 'meta') {
     const hasHttpEquiv = element.attrs?.some(

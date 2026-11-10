@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FitTrack - Your Personal Fitness Companion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { primary: '#10b981' } } } }
+  </script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+  <!-- Navigation -->
+  <nav class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+      <div class="text-2xl font-bold text-primary">FitTrack</div>
+      <div class="hidden md:flex space-x-8">
+        <a href="#features" class="text-gray-600 hover:text-primary transition">Features</a>
+        <a href="#testimonials" class="text-gray-600 hover:text-primary transition">Testimonials</a>
+      </div>
+      <button class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition" onclick="alert('Coming soon!')">Get Started</button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="py-20 px-4">
+    <div class="max-w-4xl mx-auto text-center">
+      <h1 class="text-5xl md:text-6xl font-extrabold mb-6">Transform Your Body, <span class="text-primary">Transform Your Life</span></h1>
+      <p class="text-xl text-gray-600 mb-8">Track workouts, monitor progress, and achieve your fitness goals with AI-powered insights.</p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="#" class="bg-primary text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-emerald-600">Start Free Trial</a>
+        <a href="#features" class="border border-gray-300 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-gray-100">Learn More</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="py-16 bg-white">
+    <div class="max-w-6xl mx-auto px-4 grid md:grid-cols-3 gap-8">
+      <div class="p-6 rounded-xl bg-gray-50">
+        <div class="text-4xl mb-4">🏋️</div>
+        <h3 class="text-xl font-bold mb-2">Workout Logging</h3>
+        <p class="text-gray-600">Log sets, reps and weights in seconds.</p>
+      </div>
+      <div class="p-6 rounded-xl bg-gray-50">
+        <div class="text-4xl mb-4">📈</div>
+        <h3 class="text-xl font-bold mb-2">Progress Charts</h3>
+        <p class="text-gray-600">Visualize strength gains over time.</p>
+      </div>
+      <div class="p-6 rounded-xl bg-gray-50">
+        <div class="text-4xl mb-4">🤖</div>
+        <h3 class="text-xl font-bold mb-2">AI Coach</h3>
+        <p class="text-gray-600">Personalized plans that adapt to you.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section id="testimonials" class="py-16 px-4">
+    <div class="max-w-3xl mx-auto">
+      <blockquote class="text-2xl italic text-center">"I lost 10kg in 3 months. FitTrack kept me accountable!"</blockquote>
+      <p class="text-center mt-4 text-gray-500">— Sarah M., Marathon Runner</p>
+    </div>
+  </section>
+
+  <footer class="bg-gray-900 text-gray-400 py-8 text-center">
+    <p>&copy; 2026 FitTrack. All rights reserved.</p>
+  </footer>
+
+  <script>
+    document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); }));
+  </script>
+</body>
+</html>

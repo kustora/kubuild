@@ -69,6 +69,11 @@ export function isDangerousDeclaration(property: string, value: string): boolean
   if (!isSafeStyleValue(`${property}: ${value}`)) {
     return true;
   }
+  // css-tree turns comments into whitespace (`ex/**/pression(` → `ex pression(`), so also
+  // check the value with whitespace collapsed to catch comment-split keywords.
+  if (!isSafeStyleValue(value.replace(/\s+/g, ''))) {
+    return true;
+  }
   return false;
 }
 
