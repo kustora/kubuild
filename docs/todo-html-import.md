@@ -385,7 +385,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Fixture HTML nyata + security fixture
 - **Description:** Kumpulkan fixture: landing page CSS biasa, Bootstrap, export Webflow/Framer statis, HTML hasil AI. Snapshot `HtmlImportReport` dan statistik. Tambahkan fixture serangan: XSS atribut/URL/SVG, CSS injection, nesting sangat dalam, node sangat banyak, input sangat besar.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-614
 - **Acceptance Criteria:**
   - Semua security fixture ditolak/disanitasi dan lolos `validateDocumentSecurity`.
@@ -563,6 +563,115 @@ Temuan dari simulasi fixture nyata `landing_page_pure_html_css.html` (264 node, 
 - **Dependencies:** STORA-620
 - **Acceptance Criteria:**
   - `<div>A</div><div>B</div>` menghasilkan dua node text block.
+
+## Epic: HTML Import Hardening
+
+Temuan suite fixture STORA-620.
+
+### STORA-635
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-635
+- **Type:** Task
+- **Summary:** Kebijakan iframe pada fallback `html-embed`
+- **Description:** `<iframe>` ke domain https mana pun menjadi `html-embed` dan mempertahankan `sandbox` milik author (mis. `allow-scripts allow-same-origin`). Butuh keputusan kebijakan: allowlist domain embed dan/atau memaksa sandbox ketat.
+- **Priority:** Highest
+- **Status:** To Do
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Kebijakan diputuskan dan didokumentasikan.
+  - Iframe hasil import tidak pernah membawa `allow-scripts` + `allow-same-origin` bersamaan tanpa izin host.
+
+### STORA-636
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-636
+- **Type:** Bug
+- **Summary:** Buang sisa kosong setelah URL berbahaya dihapus
+- **Description:** Setelah `src="javascript:..."` dihapus, importer masih menghasilkan embed `<iframe></iframe>` kosong dan `image` dengan `src: ""`.
+- **Priority:** Medium
+- **Status:** To Do
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Elemen media/embed tanpa sumber aman dibuang dan dilaporkan.
+
+### STORA-637
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-637
+- **Type:** Bug
+- **Summary:** Sanitasi inline style per deklarasi
+- **Description:** Satu deklarasi berbahaya di `style=""` membuang seluruh atribut, sehingga deklarasi aman (mis. `color: green`) ikut hilang.
+- **Priority:** Medium
+- **Status:** To Do
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Deklarasi aman dipertahankan, hanya yang berbahaya dibuang dan dilaporkan.
+
+### STORA-638
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-638
+- **Type:** Bug
+- **Summary:** Buang `var(--x)` yang menggantung
+- **Description:** Bila nilai custom property dibuang karena tidak aman, `var(--evil)` yang merujuknya tetap tersimpan di document tanpa resolve.
+- **Priority:** Low
+- **Status:** To Do
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Deklarasi yang merujuk custom property terhapus ikut dibuang atau di-fallback.
+
+### STORA-639
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-639
+- **Type:** Task
+- **Summary:** Kurangi noise selector reset
+- **Description:** `*::before`/`*::after` pada reset umum selalu menghasilkan `CSS_UNSUPPORTED_SELECTOR`. Abaikan senyap bila rule hanya mereset `box-sizing`/`margin`/`padding`.
+- **Priority:** Low
+- **Status:** To Do
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Reset standar tidak menghasilkan diagnostic.
+
+### STORA-640
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-640
+- **Type:** Task
+- **Summary:** Fidelity score tidak menghukum penghapusan `<script>`
+- **Description:** `<script>` selalu dibuang by design, tetapi tetap menurunkan fidelity score (Framer 92.3, Tailwind 92.5).
+- **Priority:** Medium
+- **Status:** To Do
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Penghapusan elemen yang memang selalu dilarang tidak menurunkan score; tetap tercatat di report.
+
+### STORA-641
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-641
+- **Type:** Task
+- **Summary:** Strategi stylesheet eksternal default di playground/editor
+- **Description:** Tanpa `fetchStylesheet`, CSS Bootstrap/Webflow tidak dimuat sehingga sebagian besar styling hilang. Sediakan contoh handler di playground dan/atau opsi CSS bundel.
+- **Priority:** Medium
+- **Status:** To Do
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Playground dapat mengimpor fixture Bootstrap dengan stylesheet CDN ter-fetch lewat handler host.
+
+### STORA-642
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-642
+- **Type:** Task
+- **Summary:** Diagnostic form action eksternal bukan `URL_BLOCKED`
+- **Description:** Form action eksternal biasa dilaporkan `URL_BLOCKED` sehingga tampak seperti kejadian keamanan. Gunakan kode/pesan info yang sesuai (action perlu dikonfigurasi host).
+- **Priority:** Low
+- **Status:** To Do
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Form action https biasa tidak lagi tercatat sebagai `URL_BLOCKED`.
 
 ---
 
