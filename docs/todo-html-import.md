@@ -144,7 +144,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Selector matching + specificity cascade per elemen
 - **Description:** Untuk tiap elemen, match semua rule (css-select) lalu resolve deklarasi berdasarkan specificity, source order, `!important`, dan inline style. Konversi property ke camelCase `StyleDefinition`. Resolve `var(--x)` dari custom property `:root` bila nilainya statis. Inheritance hanya untuk property teks (color, font-*, line-height, text-align, letter-spacing) dan hanya bila nilai berbeda dari parent node hasil mapping.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-604
 - **Acceptance Criteria:**
   - Test cascade: specificity, `!important`, inline vs stylesheet, source order.
