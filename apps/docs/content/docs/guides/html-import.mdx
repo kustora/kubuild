@@ -7,7 +7,7 @@ import { Callout } from 'fumadocs-ui/components/callout';
 
 `@kubuild/html-import` compiles static HTML (a string, an `.html` file, or a `.zip` with HTML, CSS and assets) into a regular, validated `PageDocument`. The result is a normal KUBUILD page: it opens in the editor, renders with `@kubuild/renderer`, and exports as `.stora` like any page built from scratch.
 
-The importer is a **compiler, not a browser**. It never runs scripts and never touches the DOM; it parses HTML with `parse5`, resolves the CSS cascade statically, and maps each element to a built-in component. It runs the same way in Node, in a worker, and in the browser.
+The importer is a **compiler, not a browser**. It never runs scripts and never touches the DOM; it parses HTML with `parse5`, resolves the CSS cascade statically, and maps each element to a built-in component. It runs the same way in Node, in a worker, and in the browser. Pages styled with Tailwind utility classes from the Play CDN are [mapped without running Tailwind](#tailwind-utility-classes), and the editor can optionally [measure styles in an inert browser frame](#browser-snapshot-styles) instead of using the static cascade.
 
 <Callout type="warn" title="HTML is untrusted input">
   Treat every imported page like an imported `.stora` package: it may come from anyone. The importer strips scripts, event handlers and unsafe URLs, and the final document must pass `PageDocumentSchema` and `validateDocumentSecurity` before it is returned. Still run imports where a failure cannot hurt (a worker or a server job with limits), and keep your own [security checklist](/docs/integration/security) in place.
@@ -35,7 +35,7 @@ Every entry point runs the same steps:
 | :--- | :--- |
 | 1. **Parse** | `parse5` builds an AST. Input over `limits.maxDocumentSizeBytes` (default 5 MB) is rejected with `LIMIT_EXCEEDED`. Full documents (`<!doctype>`, `<html>`, `<head>` or `<body>`) and fragments are both accepted. |
 | 2. **Sanitize** | Allowlist-based AST sanitizer: drops dangerous elements, `on*` handlers, `srcdoc`, `formaction`, unsafe URLs and dangerous inline styles. |
-| 3. **Cascade** | Collects `<style>`, `<link rel="stylesheet">` and `options.stylesheets` in source order, then resolves specificity, `!important`, inline styles, custom properties and inheritance per element. `@media` rules become breakpoint overrides and `:hover`-style rules become `states`. |
+| 3. **Cascade** | Collects `<style>`, `<link rel="stylesheet">` and `options.stylesheets` in source order, appends the rules for [Tailwind utility classes](#tailwind-utility-classes) when Tailwind is detected, then resolves specificity, `!important`, inline styles, custom properties and inheritance per element. `@media` rules become breakpoint overrides and `:hover`-style rules become `states`. An optional [`styleOverride`](#overriding-computed-styles) hook can replace the result per element. |
 | 4. **Map** | The rule registry turns each element into a node (`heading`, `image`, `flex`, …). Elements no rule handles become sanitized `html-embed` nodes (or are dropped). |
 | 5. **Normalize** | Removes style values that equal what the node already inherits, collapses unstyled single-child wrappers, merges adjacent text with identical styles, flattens branches deeper than `limits.maxTreeDepth`, and assigns deterministic IDs (`root-page`, `node-1`, `node-1-2`, …). |
 | 6. **Assets** | Resolves relative URLs against `baseUrl`, blocks executable files, calls `assetResolver` for images, videos and fonts, and collects web fonts into `theme.fonts`. |
@@ -71,6 +71,8 @@ None of these functions throw. Malformed input, limit violations, failing resolv
 | `theme` | `Partial<Theme>` | Initial theme tokens. Fonts found in the page are merged into `theme.fonts`. |
 | `fallback` | `'embed' \| 'drop'` | What to do with elements no rule matches. `'embed'` (default) keeps them as sanitized `html-embed` nodes; `'drop'` removes them. |
 | `preserveButtonLinks` | `boolean` | Keep button-styled `<a>` elements as `link` nodes instead of converting them to `button`. |
+| `tailwind` | `'auto' \| true \| false` | [Tailwind utility class](#tailwind-utility-classes) mapping. `'auto'` (default) maps classes when Tailwind is detected; `true` always maps, `false` never does. |
+| `styleOverride` | `(element, computed) => ComputedElementStyles \| null \| undefined` | Replaces the statically computed styles of an element. See [Overriding Computed Styles](#overriding-computed-styles). |
 
 A typical server-side setup:
 
@@ -156,13 +158,78 @@ Rules ending in `:hover`, `:focus`, `:active`, `:focus-visible`, `:disabled` or 
 | `@keyframes` animations | Not converted to KUBUILD animations. |
 | `@supports`, `@container`, `@layer` | Their conditions are not evaluated: the rules inside apply as if they were top-level. |
 | Dangerous values (`expression()`, `javascript:`/`vbscript:` URLs, `behavior`, `-moz-binding`, …) | The declaration is dropped (`URL_BLOCKED` or `CSS_UNSUPPORTED_PROPERTY`). |
-| Tailwind utility classes without a compiled stylesheet | No styles. Compile the CSS and pass it through `stylesheets`. |
+| Tailwind utility classes | A common subset is [mapped by the importer](#tailwind-utility-classes). For exact fidelity, compile the CSS and pass it through `stylesheets`. |
+
+## Tailwind Utility Classes
+
+Many AI-generated landing pages load Tailwind from the Play CDN and have no stylesheet at all: the CSS is generated at runtime by a script that the sanitizer removes. The importer therefore ships its own mapper (`tailwind.ts`) that turns the common subset of **Tailwind v3** utilities (default theme scale) into ordinary CSS class rules. Those rules go through the normal cascade, so the document only ever stores plain style values per breakpoint and state; no class names, `--tw-*` variables or Tailwind runtime end up in it.
+
+<include meta='title="tailwind.ts"'>../../../examples/html-import/tailwind.ts</include>
+
+For this input the `section` becomes a column `flex` with `gap: 1rem` and `flexDirection: row` on `tablet` and `desktop`, the heading gets `fontSize: 2.25rem` with a `3rem` override, `bg-brand` resolves through the inline config to `#10b981`, `hover:bg-emerald-700` lands in `styles.states.hover`, and `ring-2` is reported.
+
+### Detection
+
+`options.tailwind` controls when classes are mapped:
+
+| Value | Behavior |
+| :--- | :--- |
+| `'auto'` (default) | Map when the page has a Tailwind Play CDN or `@tailwindcss/browser` script, an inline `tailwind.config = …` script, or a `<style type="text/tailwindcss">`, **or** when at least 5 distinct classes carry a clear Tailwind signature (`md:`/`hover:`-style variants, palette shades such as `bg-gray-50`). Bootstrap, Webflow and plain-CSS pages do not trigger it. |
+| `true` | Always map. |
+| `false` | Never map. |
+
+Detection runs on the raw HTML, before the sanitizer removes the scripts. Classes that the page's own CSS or `options.stylesheets` already define are left to that CSS, so passing a compiled Tailwind stylesheet still takes precedence and nothing is mapped twice.
+
+<Callout type="info" title="tailwind.config is never executed">
+  An inline `tailwind.config` is read **statically**, and only when it is a plain object literal (strings, numbers, booleans, objects, arrays). Functions, spreads, references, calls or `__proto__` keys make the whole config unsupported (`CSS_UNSUPPORTED_PROPERTY`, warning). Only `theme.colors`, `theme.fontFamily` and their `theme.extend` counterparts are applied; other keys such as `spacing` are reported (`CSS_UNSUPPORTED_PROPERTY`, info) and the default scale is used.
+</Callout>
+
+### Variants
+
+- **Responsive prefixes** become `min-width` queries (`sm` 640px, `md` 768px, `lg` 1024px, `xl` 1280px, `2xl` 1536px; `max-md:`-style prefixes become `max-width`) and are mapped through the [breakpoint table](#media-queries--breakpoints) like any other query. Because KUBUILD breakpoints are coarser than Tailwind screens, `sm:` behaves like `md:` (tablet and desktop) and `xl:`/`2xl:` fold into `desktop`; these are reported as `CSS_MEDIA_APPROXIMATED`.
+- **State prefixes** `hover:`, `focus:`, `active:`, `focus-visible:` and `disabled:` become pseudo-classes and land in `styles.states`.
+- Rules are ordered by variant and then by an approximation of Tailwind's utility order, so combinations such as `p-6 px-4` or `border border-gray-300` resolve the way Tailwind would.
+
+### Supported utilities
+
+Spacing (`p*`, `m*`, negative margins, `gap*`, `space-x/y`), sizing (`w`, `h`, `size`, `min/max-w/h`, fractions, `screen`), layout (`display`, `position`, inset, `z`, `overflow`, `container`, `order`), flexbox (direction, wrap, `flex-1`, grow/shrink, basis, `items`, `justify`, `self`, `content`, `place-*`), grid (`grid-cols/rows-N`, `col/row-span`, `col-start`, `grid-flow`), typography (sizes with their paired line-heights, weights, families, alignment, color, `leading`, `tracking`, transform, decoration, `italic`, whitespace, `truncate`), colors (the full v3 palette with 50–950 shades, `white`/`black`/`transparent`/`current`, `/NN` opacity), backgrounds (color, gradients via `bg-gradient-to-*` with `from`/`via`/`to`, size/position/repeat), borders (width, per-side width, style, color), radius, shadows, opacity, transitions/duration/ease, and simple `scale`/`translate`/`rotate`.
+
+Arbitrary values (`p-[13px]`, `bg-[#123456]`) are accepted only from a strict character allowlist and must fit the property type. Every generated declaration passes the same safety check as stylesheet CSS; a class with an unsafe value is dropped and reported.
+
+### Not mapped
+
+| Class | Reason reported |
+| :--- | :--- |
+| `group-*`, `peer-*`, `dark:`, `before:`/`after:`, `first:`/`last:` | `unsupported variant` |
+| Stacked responsive + state variants (`md:hover:underline`) | `responsive and state variants cannot be combined` (the style format has no per-breakpoint states) |
+| `ring-*`, `divide-*`, filters and `backdrop-*`, `animate-*`, plugin utilities | `unknown utility or unsupported value` |
+| Arbitrary properties (`[mask-type:luminance]`) | `arbitrary properties are not supported` |
+
+Each unmapped class is reported **once per import** as `CSS_UNSUPPORTED_SELECTOR` (severity `info`) with `location.selector = ".<class>"` and `details: { source: 'tailwind', className, reason }`; filter on `details.source` to tell them apart from regular selector diagnostics. Transforms are not composed either: `scale-105` and `-translate-y-1` on the same element override each other. The full rationale, including why the `tailwindcss` package is not used, is in the decision record `docs/adr-002-tailwind-utility-classes.md` in the repository.
+
+## Overriding Computed Styles
+
+`styleOverride` lets a host replace the statically computed cascade of individual elements with styles it measured some other way (the editor's [browser-snapshot mode](#browser-snapshot-styles) is built on it). The importer itself stays DOM-free: it computes the static result first and then routes it through the hook.
+
+```ts
+type HtmlStyleOverride = (
+  element: DefaultTreeAdapterMap['element'], // sanitized parse5 element
+  computed: ComputedElementStyles, // the static result: { base, mediaQueries, pseudoStates }
+) => ComputedElementStyles | null | undefined;
+```
+
+- The hook is called synchronously for every element the rules convert (including `<body>`, a sole `<main>` and fallback embeds), in every entry point.
+- Return a full `ComputedElementStyles` to replace the static result. `mediaQueries` entries are CSS query strings and go through the same [breakpoint mapping](#media-queries--breakpoints); `pseudoStates` keys are selectors such as `':hover'`.
+- Return `null` or `undefined` to keep the static styles. A hook that **throws** also falls back to the static styles for that element, silently, so a broken provider never fails the import.
+- Match elements with `getElementPath(element)`, which returns a deterministic structural path such as `html:0/body:1/section:0/h1:0` (tag name plus index among the parent's element children). Two parses of the same input with the same options give the same paths, so measurements taken on the sanitized tree line up with the elements the hook receives. Also compare the tag name to guard against mismatches.
+
+<include meta='title="style-override.ts"'>../../../examples/html-import/style-override.ts</include>
 
 ## Limitations
 
 - **No JavaScript.** `<script>` is removed, inline handlers are stripped, and nothing is executed. Content rendered by JavaScript (SPAs, client-side templates, lazy-loaded sections) will be missing; import the server-rendered or exported HTML instead.
 - **One page per import.** A `.zip` provides one entry HTML file plus its CSS and assets; links to other pages stay plain links.
-- **Static cascade.** Styles are resolved without layout, so anything that depends on viewport measurement, `calc()` against the real viewport, or JavaScript-toggled classes is approximated.
+- **Static cascade.** Styles are resolved without layout, so anything that depends on viewport measurement, `calc()` against the real viewport, or JavaScript-toggled classes is approximated. In the editor, [browser-snapshot styles](#browser-snapshot-styles) can measure the computed values instead.
 - **Form actions are not wired.** `<form action>` is kept as a prop and reported; connect real submission through your host (`onFormSubmit`) or action pipelines.
 - **Node budget.** Imports stop at `limits.maxNodeCount` (default 1000 nodes) with `LIMIT_EXCEEDED`; raise it for large pages.
 
@@ -267,9 +334,9 @@ interface HtmlImportReport {
 | :--- | :--- | :--- |
 | `ELEMENT_DROPPED` | warning | An element was removed: prohibited for security, unsafe for an embed, a rule threw or emitted a disallowed type, or `fallback: 'drop'`. |
 | `ELEMENT_FALLBACK_EMBED` | warning | No rule matched; the element was kept as a sanitized `html-embed`. |
-| `CSS_UNSUPPORTED_SELECTOR` | info | A selector could not be matched (pseudo-elements, `:has()`, invalid syntax). Reported once per selector. |
-| `CSS_UNSUPPORTED_PROPERTY` | warning | `@import`, or a dangerous property such as `behavior` / `-moz-binding`, was dropped. |
-| `CSS_MEDIA_APPROXIMATED` | info | A media query was mapped to breakpoints whose edges it does not match exactly. Reported once per query. |
+| `CSS_UNSUPPORTED_SELECTOR` | info | A selector could not be matched (pseudo-elements, `:has()`, invalid syntax). Reported once per selector. Also used for [Tailwind classes](#not-mapped) the mapper could not translate, once per class, with `details.source = 'tailwind'`, `className` and `reason`. |
+| `CSS_UNSUPPORTED_PROPERTY` | warning / info | `@import`, or a dangerous property such as `behavior` / `-moz-binding`, was dropped. Also used (with `details.source = 'tailwind'`) for a `tailwind.config` that is not a static object literal (warning) or has keys other than colors and fonts (info). |
+| `CSS_MEDIA_APPROXIMATED` | info | A media query was mapped to breakpoints whose edges it does not match exactly, including Tailwind's `sm:` (640px) and `xl:`/`2xl:` screens. Reported once per query. |
 | `ASSET_UNRESOLVED` | warning / info | An external stylesheet was not fetched, a resolver returned `null` or threw, or a `.zip` has no usable entry HTML (error). |
 | `URL_BLOCKED` | warning | An unsafe URL, event handler, `srcdoc`/`formaction`, dangerous inline style, or executable asset was removed. Also used (severity `info`) for a `<form action>` the host must wire. |
 | `DEPTH_FLATTENED` | warning | A branch deeper than `limits.maxTreeDepth` was flattened. |
@@ -303,8 +370,39 @@ Embeds count half, dropped elements count zero. Because dropped elements include
 | `options` | `Partial<HtmlImportOptions>` | Passed to the importer (resolvers, rules, limits, …). |
 | `initialHtml` | `string` | Opens the paste tab prefilled. |
 | `presets` | `HtmlImportPreset[]` | Sample snippets (`{ id?, name, html, description? }`) the user can load into the paste tab. |
+| `defaultStyleMode` | `'static' \| 'snapshot'` | Initial state of the **Browser snapshot styles** checkbox (default `'static'`). See [Browser snapshot styles](#browser-snapshot-styles). |
 
 The editor toolbar also has a built-in **Import HTML** button that opens the same dialog with default options and loads the result as a new document (history is reset). Render your own `HtmlImportModal`, as above, when you need resolvers, custom rules or an undoable import through `replaceDocument(doc, { keepHistory: true })`.
+
+### Browser snapshot styles
+
+The static cascade cannot know what a browser would actually compute for complex layouts. As an opt-in, the editor can import with **browser-snapshot styles**: it rebuilds the sanitized HTML in hidden measurement iframes at one viewport width per breakpoint (by default 1280px desktop, 896px tablet, 375px mobile), reads `getComputedStyle` for a curated property set, keeps only values that differ from the browser's defaults (measured in an extra reference frame) and from breakpoint to breakpoint, and feeds the result back into `importHtml` through [`styleOverride`](#overriding-computed-styles). Mapping, normalization, assets and validation are identical to static mode.
+
+In `HtmlImportModal` this is the **Browser snapshot styles** checkbox (preselect it with `defaultStyleMode="snapshot"`). In code, use `importHtmlWithBrowserSnapshot` from `@kubuild/editor` (also re-exported by `@kubuild/react`). It is browser-only and takes the normal import options plus optional `widths` (each must lie inside its breakpoint's range) and a per-frame `timeoutMs` (default 5000):
+
+<include meta='title="browser-snapshot.ts"'>../../../examples/html-import/browser-snapshot.ts</include>
+
+The lower-level pieces are exported too: `captureBrowserSnapshot(html, options)` returns the raw measurements keyed by [element path](#overriding-computed-styles), and `createSnapshotStyleOverride(snapshot)` turns them into a `styleOverride` hook.
+
+**When the snapshot wins.** Only the measured properties take part: `display`, `position`, `zIndex`, flex and alignment properties, `gridAutoFlow`, color and `backgroundColor`, font family/size/weight/style, `lineHeight`, `letterSpacing`, text alignment/transform/decoration, `whiteSpace`, `opacity`, `boxShadow`, `objectFit`, `visibility`, min/max sizes, `listStyleType`, `verticalAlign`, and the `padding`, `border`, `borderRadius`, `gap` and `overflow` families. For each of them the static value is kept when the author wrote it as:
+
+- a **relative or dynamic value** (`em`, `rem`, `%`, `vw`/`vh`, `calc()`, `clamp()`, `min()`/`max()`, `var()`, a unitless `line-height`), which a computed pixel value would freeze to one viewport, or
+- a **shorthand the snapshot cannot reproduce** (`font`, `flex`, `flex-flow`, `background`, `place-*`, `grid`, `list-style`).
+
+Otherwise the measured value replaces the static one in every layer. Everything outside the catalog (`width`, `height`, `margin`, grid tracks, background images, transforms, …) and all `:hover`/`:focus` states keep their static values, as do elements that are never recreated in the frame (`iframe`, `object`, `embed`, `template`, SVG `foreignObject`/animation elements, …).
+
+<Callout type="warn" title="Tailwind pages: keep static mode">
+  The measurement frames only contain the page's own `<style>`/linked CSS and `options.stylesheets`. The rules generated by the [Tailwind mapper](#tailwind-utility-classes) are not injected and the Tailwind CDN script never runs there, so for a page styled only by Tailwind classes the frames measure unstyled elements and can override mapped values. Use static mode for those pages.
+</Callout>
+
+**Fallback.** When measuring is impossible (no DOM, a frame cannot be created or times out, the parse fails), the import silently falls back to the static cascade: the result has `snapshotApplied: false` and the reason in `snapshotError`, and the dialog shows "Browser snapshot unavailable, static styles were used." The `.zip` upload in the dialog and [paste onto the canvas](#paste-html-onto-the-canvas) always use static mode for now.
+
+**Security model.** The untrusted HTML is never handed to the browser's HTML parser:
+
+- Each frame has `sandbox="allow-same-origin"` **only**. `allow-scripts` is never granted, so no `<script>`, `on*` handler or `javascript:` URL can run even if something slipped through; same-origin is what lets the editor read computed styles from outside. (A fully opaque `sandbox=""` frame would make computed styles unreadable; the full reasoning is in the header comment of `packages/editor/src/html-snapshot/frame.ts`.)
+- The frame document is a fixed `srcdoc` shell whose first element is a CSP (`default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; …`), so the frame cannot make any network request: no images, fonts, `@import`, frames or prefetches.
+- The HTML is parsed and sanitized by `@kubuild/html-import` (`parseHtml` + `sanitizeAst`) and the resulting tree is rebuilt node by node with `createElementNS`/`setAttribute`/`createTextNode`, never `innerHTML`. Executable and network-capable tags are skipped, `on*` and URL-bearing attributes are dropped, links become `href="#"`, and `url()`, `@import`, `image-set()` and `src()` are neutralized in CSS text.
+- Frames are off-screen, `inert`, `aria-hidden` and `pointer-events: none`, and are removed as soon as measuring finishes.
 
 ### Paste HTML onto the canvas
 
