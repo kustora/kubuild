@@ -258,7 +258,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Normalisasi tree
 - **Description:** Collapse wrapper `div` tanpa style bermakna dengan satu child, gabungkan text berurutan, buang style yang identik dengan `defaultStyles` component atau nilai default CSS, generate ID deterministik (pakai util ID core), dan flatten saat kedalaman mendekati `maxTreeDepth`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-608
 - **Acceptance Criteria:**
   - Tree hasil import dari fixture nyata tidak melebihi `maxTreeDepth` (32) dan `maxNodeCount`.

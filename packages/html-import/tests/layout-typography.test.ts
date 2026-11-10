@@ -113,11 +113,11 @@ describe('Layout and Typography Mapping Rules (STORA-608)', () => {
     });
 
     it('maps div with display:block or without display to container component', async () => {
-      const htmlBlock = '<div style="display: block"><p>Block</p></div>';
+      const htmlBlock = '<div style="display: block"><p>Block 1</p><p>Block 2</p></div>';
       const resultBlock = await htmlToNodes(htmlBlock);
       expect(resultBlock.nodes[0].type).toBe('container');
 
-      const htmlDefault = '<div><p>Default</p></div>';
+      const htmlDefault = '<div><p>Default 1</p><p>Default 2</p></div>';
       const resultDefault = await htmlToNodes(htmlDefault);
       expect(resultDefault.nodes[0].type).toBe('container');
     });
@@ -217,28 +217,28 @@ describe('Layout and Typography Mapping Rules (STORA-608)', () => {
     });
 
     it('maps non-empty bare text node in container to text component with as: span', async () => {
-      const html = '<div>Bare text in container</div>';
+      const html = '<div><p>Lead</p>Bare text in container</div>';
       const result = await htmlToNodes(html);
 
       expect(result.nodes).toHaveLength(1);
       const container = result.nodes[0];
       expect(container.type).toBe('container');
-      expect(container.children).toHaveLength(1);
+      expect(container.children).toHaveLength(2);
 
-      const textNode = container.children?.[0];
+      const textNode = container.children?.[1];
       expect(textNode?.type).toBe('text');
       expect(textNode?.props?.text).toBe('Bare text in container');
       expect(textNode?.props?.as).toBe('span');
     });
 
     it('trims whitespace adjacent to block edges while preserving spacing between inline elements', async () => {
-      const html = '<div>\n  <span>Left</span> and <span>Right</span>\n</div>';
+      const html = '<div>\n  <span style="color: blue">Left</span> and <span style="color: red">Right</span>\n</div>';
       const result = await htmlToNodes(html);
 
       const container = result.nodes[0];
-      // 1. span 'Left'
+      // 1. span 'Left' (color: blue)
       // 2. bare text ' and ' (spaces between inline spans preserved!)
-      // 3. span 'Right'
+      // 3. span 'Right' (color: red)
       expect(container.children).toHaveLength(3);
       expect(container.children?.[0].props?.text).toBe('Left');
       expect(container.children?.[1].type).toBe('text');

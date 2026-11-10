@@ -9,9 +9,7 @@ import {
   type PageDocument,
   type ResponsiveStyles,
 } from '@kubuild/schema';
-import { DEFAULT_DOCUMENT_SECURITY_LIMITS } from '@kubuild/core';
 import {
-  addDiagnostic,
   computeFidelityScore,
   createEmptyReport,
   type HtmlImportOptions,
@@ -25,6 +23,7 @@ import { collectAndParseStylesheets } from './stylesheet.js';
 import { computeElementStyles } from './cascade.js';
 import { buildResponsiveStyles } from './responsive.js';
 import { createRuleRegistry } from './rules/index.js';
+import { countTotalNodes, normalizeNodeTree } from './normalizer.js';
 
 export const HTML_IMPORT_VERSION = '0.1.0';
 
@@ -35,20 +34,7 @@ export * from './stylesheet.js';
 export * from './cascade.js';
 export * from './responsive.js';
 export * from './rules/index.js';
-
-/**
- * Counts total nodes across a PageNode hierarchy.
- */
-function countTotalNodes(nodes: PageNode[]): number {
-  let count = 0;
-  for (const node of nodes) {
-    count += 1;
-    if (node.children && Array.isArray(node.children) && node.children.length > 0) {
-      count += countTotalNodes(node.children);
-    }
-  }
-  return count;
-}
+export * from './normalizer.js';
 
 /**
  * Imports an untrusted HTML string (document or fragment) and compiles it into a valid KUBUILD PageDocument.
@@ -128,6 +114,9 @@ export async function importHtml(
       children: childrenNodes,
     };
 
+    const normalizedNodes = normalizeNodeTree([rootPageNode], options, report);
+    const normalizedRoot = (normalizedNodes[0] ?? rootPageNode) as PageNode & { type: 'page' };
+
     const document: PageDocument = {
       schema: SCHEMA_NAME,
       version: CURRENT_SCHEMA_VERSION,
@@ -143,19 +132,13 @@ export async function importHtml(
         ...(options?.metadata?.custom ? { custom: options.metadata.custom } : {}),
         ...(options?.metadata?.tracking ? { tracking: options.metadata.tracking } : {}),
       },
-      document: rootPageNode,
+      document: normalizedRoot,
     };
 
-    const nodeCount = countTotalNodes([rootPageNode]);
+    const nodeCount = countTotalNodes([normalizedRoot]);
     const maxNodeCount =
-      options?.limits?.maxNodeCount ?? DEFAULT_DOCUMENT_SECURITY_LIMITS.maxNodeCount;
+      options?.limits?.maxNodeCount ?? 1000;
     if (maxNodeCount !== undefined && nodeCount > maxNodeCount) {
-      addDiagnostic(report, {
-        code: 'LIMIT_EXCEEDED',
-        severity: 'error',
-        message: `Document node count (${nodeCount}) exceeds maximum allowed node count (${maxNodeCount})`,
-        details: { count: nodeCount, limit: maxNodeCount },
-      });
       report.stats.nodeCount = nodeCount;
       report.stats.fidelityScore = computeFidelityScore(report.stats);
       report.stats.durationMs = Date.now() - startTime;
@@ -234,14 +217,26 @@ export async function htmlToNodes(
     });
 
     const targetContainer = parseResult.bodyElement ?? parseResult.rootElement;
-    const nodes: PageNode[] = targetContainer
+    const rawNodes: PageNode[] = targetContainer
       ? registry.convertChildren(targetContainer, context)
       : [];
+
+    const nodes = normalizeNodeTree(rawNodes, options, report);
 
     const nodeCount = countTotalNodes(nodes);
     report.stats.nodeCount = nodeCount;
     report.stats.fidelityScore = computeFidelityScore(report.stats);
     report.stats.durationMs = Date.now() - startTime;
+
+    const maxNodeCount = options?.limits?.maxNodeCount ?? 1000;
+    if (maxNodeCount !== undefined && nodeCount > maxNodeCount) {
+      return {
+        success: false,
+        nodes,
+        report,
+        error: `Node count limit exceeded: ${nodeCount} exceeds limit of ${maxNodeCount}`,
+      };
+    }
 
     return {
       success: true,
