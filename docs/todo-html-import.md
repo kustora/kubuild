@@ -796,7 +796,7 @@ Temuan suite fixture STORA-620.
 - **Summary:** Browser-snapshot mode menyertakan rule Tailwind hasil mapping
 - **Description:** Frame pengukuran snapshot (STORA-623) hanya menerima CSS halaman dan `options.stylesheets`, bukan rule yang dihasilkan mapper Tailwind (STORA-622). Pada halaman yang hanya bergaya class Tailwind, frame mengukur elemen tanpa style dan nilai terukur menimpa nilai statis hasil mapping (mis. `color`, `font-weight`).
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-622, STORA-623
 - **Acceptance Criteria:**
   - Rule Tailwind hasil mapping ikut dimuat di frame pengukuran (atau snapshot dilewati dengan diagnostic yang jelas bila tidak memungkinkan).

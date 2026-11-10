@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import {
   buildResponsiveStyles,
@@ -201,11 +202,13 @@ function authorStyles(el: FakeElement, width: number): RawStyleMap {
   return s;
 }
 
-function computeFake(el: FakeElement, width: number, withAuthor: boolean): RawStyleMap {
+type AuthorStyles = (el: FakeElement, width: number) => RawStyleMap;
+
+function computeFake(el: FakeElement, width: number, author: AuthorStyles | null): RawStyleMap {
   const tag = el.tagName.toLowerCase();
   const ua = uaDefaults(tag);
-  const author = withAuthor ? authorStyles(el, width) : {};
-  const parent = el.parentNode instanceof FakeElement ? computeFake(el.parentNode, width, withAuthor) : undefined;
+  const authored = author ? author(el, width) : {};
+  const parent = el.parentNode instanceof FakeElement ? computeFake(el.parentNode, width, author) : undefined;
   const result: RawStyleMap = { ...ua };
   if (parent) {
     for (const prop of INHERITED) {
@@ -214,8 +217,8 @@ function computeFake(el: FakeElement, width: number, withAuthor: boolean): RawSt
       if (ua[prop] === generic && parent[prop] !== undefined) result[prop] = parent[prop];
     }
   }
-  Object.assign(result, author);
-  if (prop('border-top-color', result) && !author['border-top-color']) {
+  Object.assign(result, authored);
+  if (prop('border-top-color', result) && !authored['border-top-color']) {
     for (const side of ['top', 'right', 'bottom', 'left']) result[`border-${side}-color`] = result.color;
   }
   return result;
@@ -225,8 +228,58 @@ function prop(name: string, map: RawStyleMap): boolean {
   return name in map;
 }
 
+/** Text of every `<style>` element in a fake frame document, in tree order. */
+function frameCssText(doc: FakeDocument): string[] {
+  const out: string[] = [];
+  const walk = (node: FakeNode) => {
+    if (node instanceof FakeElement && node.tagName.toLowerCase() === 'style') {
+      out.push(node.childNodes.map((c) => (c instanceof FakeText ? c.data : '')).join(''));
+    }
+    node.childNodes.forEach(walk);
+  };
+  walk(doc.documentElement);
+  return out;
+}
+
+function toComputedValue(value: string): string {
+  const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value);
+  if (hex) return `rgb(${parseInt(hex[1], 16)}, ${parseInt(hex[2], 16)}, ${parseInt(hex[3], 16)})`;
+  const rem = /^(-?[\d.]+)rem$/.exec(value);
+  if (rem) return `${Number(rem[1]) * 16}px`;
+  return value;
+}
+
+/**
+ * Mini "browser cascade" for the frame's own CSS: applies plain `[class~="x"]` rules
+ * (optionally inside `@media (min-width: Npx)`) in source order. Pseudo-class and
+ * combinator rules are ignored, which is enough for Tailwind-generated utilities.
+ */
+function frameStylesheetAuthor(doc: FakeDocument): AuthorStyles {
+  return (el, width) => {
+    const out: RawStyleMap = {};
+    const rule = /(?:@media \(min-width: (\d+)px\) \{ )?\[class~="([^"]+)"\] \{ ([^}]*) \}/g;
+    for (const css of frameCssText(doc)) {
+      for (const match of css.matchAll(rule)) {
+        if (match[1] && width < Number(match[1])) continue;
+        if (!hasClass(el, match[2])) continue;
+        for (const decl of match[3].split(';')) {
+          const idx = decl.indexOf(':');
+          if (idx < 0) continue;
+          const name = decl.slice(0, idx).trim();
+          if ((SNAPSHOT_LONGHANDS as readonly string[]).includes(name)) {
+            out[name] = toComputedValue(decl.slice(idx + 1).replace('!important', '').trim());
+          }
+        }
+      }
+    }
+    return out;
+  };
+}
+
 /** Host document whose iframes "load" into fake documents with mocked getComputedStyle. */
-function createFakeHost(): { host: FakeDocument; attached: FakeElement[] } {
+function createFakeHost(
+  authorFor?: (doc: FakeDocument) => AuthorStyles,
+): { host: FakeDocument; attached: FakeElement[] } {
   const attached: FakeElement[] = [];
   const host = new FakeDocument((iframe) => {
     attached.push(iframe);
@@ -237,11 +290,15 @@ function createFakeHost(): { host: FakeDocument; attached: FakeElement[] } {
     let hasAuthorContent = false;
     iframe.contentWindow = {
       getComputedStyle: (el) => {
+        if (authorFor) {
+          const computed = computeFake(el, width, authorFor(doc));
+          return { getPropertyValue: (p: string) => computed[p] ?? '' };
+        }
         // The reference frame never receives author content (only bare reference elements).
         hasAuthorContent ||= doc.body.childNodes.some(
           (c) => c instanceof FakeElement && (c.getAttribute('class') ?? '') !== '',
         );
-        const computed = computeFake(el, width, hasAuthorContent);
+        const computed = computeFake(el, width, hasAuthorContent ? authorStyles : null);
         return { getPropertyValue: (p: string) => computed[p] ?? '' };
       },
     };
@@ -545,5 +602,80 @@ describe('importHtmlWithBrowserSnapshot (mocked getComputedStyle)', () => {
     });
     const el = (parseHtml('<div></div>').rootElement as unknown as { childNodes: Parse5Element[] }).childNodes[0];
     expect(override(el, { base: {}, mediaQueries: [], pseudoStates: {} })).toBeUndefined();
+  });
+});
+
+describe('browser snapshot with Tailwind mapping (STORA-649)', () => {
+  const TAILWIND_FIXTURE = readFileSync(
+    new URL('../../html-import/tests/fixtures/real-world/ai-tailwind.html', import.meta.url),
+    'utf8',
+  );
+
+  const heroOf = (root: PageNode) =>
+    findNode([root], (n) => n.type === 'heading' && String(n.props?.text ?? '').startsWith('Transform'));
+  const ctaOf = (root: PageNode) =>
+    findNode([root], (n) => n.type === 'button' && n.props?.label === 'Get Started');
+
+  it('measures the Tailwind-mapped rules instead of unstyled elements', async () => {
+    const { host, attached } = createFakeHost(frameStylesheetAuthor);
+    const result = await importHtmlWithBrowserSnapshot(TAILWIND_FIXTURE, undefined, {
+      hostDocument: host as unknown as Document,
+    });
+    expect(result.success).toBe(true);
+    expect(result.snapshotApplied).toBe(true);
+    const root = result.document!.document as PageNode;
+
+    // Font weight is a non-relative value, so the snapshot owns it: it must be the mapped 800,
+    // not the UA 700 an unstyled frame would report (and drop as default).
+    expect(heroOf(root)?.styles?.base).toMatchObject({ fontWeight: '800' });
+    const cta = ctaOf(root);
+    expect(JSON.stringify(cta?.styles?.base ?? {})).toMatch(/16, 185, 129|#10b981/i);
+    expect(cta?.styles?.states?.hover).toEqual({ backgroundColor: '#059669' });
+
+    // The Tailwind rules reach every author frame after the page CSS, never the reference.
+    const authorFrames = attached.slice(0, 3);
+    for (const frame of authorFrames) {
+      const css = frameCssText(frame.contentDocument!);
+      expect(css.at(-1)).toContain('[class~="font-extrabold"] { font-weight: 800; }');
+    }
+    expect(frameCssText(attached[3].contentDocument!)).toEqual([]);
+  });
+
+  it('loses the mapped styles without the Tailwind rules (regression guard)', async () => {
+    const { host } = createFakeHost(frameStylesheetAuthor);
+    const result = await importHtmlWithBrowserSnapshot(
+      TAILWIND_FIXTURE,
+      { tailwind: false },
+      { hostDocument: host as unknown as Document },
+    );
+    expect(heroOf(result.document!.document as PageNode)?.styles?.base?.fontWeight).not.toBe('800');
+  });
+
+  it('keeps the frame free of scripts, handlers and url() leaks', async () => {
+    const { host, attached } = createFakeHost(frameStylesheetAuthor);
+    const html = TAILWIND_FIXTURE.replace(
+      '</body>',
+      '<div class="bg-[url(http://evil/x.png)] p-4">x</div><img src="http://evil/y.png"></body>',
+    );
+    await importHtmlWithBrowserSnapshot(html, undefined, { hostDocument: host as unknown as Document });
+    const walk = (node: FakeNode, visit: (el: FakeElement) => void) => {
+      if (node instanceof FakeElement) visit(node);
+      node.childNodes.forEach((c) => walk(c, visit));
+    };
+    for (const frame of attached) {
+      expect(frame.getAttribute('sandbox')).toBe(SNAPSHOT_IFRAME_SANDBOX);
+      expect(frame.getAttribute('sandbox')).not.toContain('allow-scripts');
+      expect(frame.getAttribute('srcdoc')).toContain("default-src 'none'");
+      walk(frame.contentDocument!.documentElement, (el) => {
+        expect(el.tagName.toLowerCase()).not.toBe('script');
+        for (const [name, value] of el.attributes) {
+          expect(name.startsWith('on')).toBe(false);
+          if (name !== 'class') expect(value).not.toMatch(/https?:|url\(/i);
+        }
+      });
+      for (const css of frameCssText(frame.contentDocument!)) {
+        expect(css).not.toMatch(/url\s*\(|@import|<script|tailwindcss\.com/i);
+      }
+    }
   });
 });

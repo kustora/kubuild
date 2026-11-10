@@ -5,8 +5,13 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  buildTailwindStylesheet,
+  createEmptyReport,
   importHtml,
   isDangerousDeclaration,
+  parseHtml,
+  sanitizeAst,
+  serializeCssRules,
   type HtmlImportOptions,
   type PageNode,
 } from '../src/index.js';
@@ -332,5 +337,60 @@ describe('importHtml with Tailwind classes', () => {
     expect(section?.styles?.base).toMatchObject({
       backgroundImage: 'linear-gradient(to right, #3b82f6, #9333ea)',
     });
+  });
+});
+
+describe('buildTailwindStylesheet (STORA-649)', () => {
+  async function tailwindCss(html: string, options?: HtmlImportOptions) {
+    const report = createEmptyReport();
+    const parsed = parseHtml(html, options, report);
+    sanitizeAst(parsed.rootElement!, report, options);
+    return buildTailwindStylesheet(parsed.parsed!, options);
+  }
+
+  it('returns the mapped rules of the ai-tailwind fixture as CSS text', async () => {
+    const result = await tailwindCss(readFixture('real-world', 'ai-tailwind.html'));
+    expect(result.applied).toBe(true);
+    expect(result.rules.length).toBeGreaterThan(20);
+    expect(result.css).toContain('[class~="font-extrabold"] { font-weight: 800; }');
+    expect(result.css).toContain('[class~="bg-primary"] { background-color: #10b981; }');
+    expect(result.css).toContain(
+      '@media (min-width: 768px) { [class~="md:text-6xl"] { font-size: 3.75rem; line-height: 1; } }',
+    );
+    expect(result.css).not.toMatch(/url\(|@import|<script|tailwindcss\.com/i);
+  });
+
+  it('follows the same mode and detection as importHtml', async () => {
+    const html = '<div class="p-4 flex items-center gap-2 text-red-500 font-bold">x</div>';
+    expect((await tailwindCss(html, { tailwind: false } as HtmlImportOptions)).css).toBe('');
+    expect((await tailwindCss('<div class="p-4">x</div>')).applied).toBe(false);
+    expect((await tailwindCss('<div class="p-4">x</div>', { tailwind: true } as HtmlImportOptions)).css).toBe(
+      '[class~="p-4"] { padding: 1rem; }',
+    );
+    // Classes defined by page or host stylesheets are left to them.
+    const withHost = await tailwindCss(html, {
+      tailwind: true,
+      stylesheets: ['.p-4 { padding: 3px; }'],
+    } as HtmlImportOptions);
+    expect(withHost.css).not.toContain('"p-4"');
+    expect(withHost.css).toContain('"flex"');
+  });
+
+  it('serializeCssRules drops anything that could break out of its rule', () => {
+    const css = serializeCssRules([
+      { selector: '.a', declarations: [{ property: 'color', value: 'red', important: true }], sourceOrder: 0 },
+      { selector: '.b } body {', declarations: [{ property: 'color', value: 'red', important: false }], sourceOrder: 1 },
+      {
+        selector: '.c',
+        mediaQuery: '(min-width: 1px)',
+        declarations: [
+          { property: 'color', value: 'red; background: blue', important: false },
+          { property: 'margin', value: '0 /* x', important: false },
+          { property: 'padding', value: '1px', important: false },
+        ],
+        sourceOrder: 2,
+      },
+    ]);
+    expect(css).toBe('.a { color: red !important; }\n@media (min-width: 1px) { .c { padding: 1px; } }');
   });
 });
