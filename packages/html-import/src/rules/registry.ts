@@ -15,15 +15,25 @@ import { computeElementStyles, type ComputedElementStyles, type Parse5Element } 
 import type { ParsedStylesheetBundle } from '../stylesheet.js';
 import { isElement } from '../sanitizer.js';
 import {
-  DEFAULT_HTML_MAPPING_RULES,
+  DEFAULT_LAYOUT_TYPOGRAPHY_RULES,
   convertRawTextNode,
   isTextNode,
 } from './layout-typography.js';
+import { DEFAULT_MEDIA_FORM_DATA_RULES } from './media-form-data.js';
 import type {
   HtmlMappingContext,
   HtmlMappingRule,
   Parse5DocumentFragment,
 } from './types.js';
+
+/**
+ * Default HTML element mapping rules registered across layout, typography,
+ * media, form, list, and table domains.
+ */
+export const DEFAULT_HTML_MAPPING_RULES: readonly HtmlMappingRule[] = Object.freeze([
+  ...DEFAULT_LAYOUT_TYPOGRAPHY_RULES,
+  ...DEFAULT_MEDIA_FORM_DATA_RULES,
+]);
 
 /**
  * Set of built-in KUBUILD component types for fast O(1) membership checking.

@@ -6,3 +6,4 @@
 export * from './types.js';
 export * from './registry.js';
 export * from './layout-typography.js';
+export * from './media-form-data.js';

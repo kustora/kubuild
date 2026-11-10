@@ -87,6 +87,25 @@ export function getAttribute(
 }
 
 /**
+ * Checks whether an element has a specified attribute.
+ *
+ * @param element Parse5 element to inspect
+ * @param attributeName Case-insensitive attribute name
+ * @returns True if the attribute is present on the element
+ */
+export function hasAttribute(
+  element: DefaultTreeAdapterMap['element'],
+  attributeName: string,
+): boolean {
+  if (!element.attrs || !Array.isArray(element.attrs)) {
+    return false;
+  }
+  return element.attrs.some(
+    (attr) => attr.name.toLowerCase() === attributeName.toLowerCase(),
+  );
+}
+
+/**
  * Helper to extract all text content from a node recursively.
  */
 export function getTextContent(node: DefaultTreeAdapterMap['node']): string {

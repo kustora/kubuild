@@ -108,6 +108,16 @@ export const BLOCK_TAGS: ReadonlySet<string> = new Set([
   'th',
   'form',
   'fieldset',
+  'video',
+  'audio',
+  'iframe',
+  'figure',
+  'figcaption',
+  'input',
+  'textarea',
+  'select',
+  'button',
+  'label',
 ]);
 
 /**
@@ -564,8 +574,3 @@ export const DEFAULT_LAYOUT_TYPOGRAPHY_RULES: readonly HtmlMappingRule[] = Objec
   sectionRule,
   containerRule,
 ]);
-
-/**
- * Default HTML element mapping rules registered in the registry.
- */
-export const DEFAULT_HTML_MAPPING_RULES: readonly HtmlMappingRule[] = DEFAULT_LAYOUT_TYPOGRAPHY_RULES;

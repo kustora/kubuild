@@ -223,7 +223,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Default rule: media, form, list, table
 - **Description:** `img`/`picture` → `image` (pilih src terbaik dari `srcset`), `video` → `video`, `iframe` YouTube/Vimeo → `video`; `form/input/textarea/select/checkbox/radio/button[type=submit]` → komponen form (+ `formConfig` dasar tanpa action eksekusi); `a`/`button` bergaya tombol (padding + background) → `button`; `ul/ol/li` → `list/list-item`; `table/tr/td/th` → `table/table-row/table-cell`; `svg` sederhana → `icon` atau `html-embed`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-608
 - **Acceptance Criteria:**
   - `alt`, `aria-label`, `name`, `placeholder`, `required`, `type` input terbawa ke props.
