@@ -399,7 +399,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Dokumentasi HTML import
 - **Description:** Tulis guide di `apps/docs`: API, options, mapping table, keterbatasan (no JS, CSS yang didukung), custom rule, report codes, dan contoh integrasi host.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-616
 - **Acceptance Criteria:**
   - Contoh code di docs dicompile/typecheck terhadap API aktual.
@@ -672,6 +672,86 @@ Temuan suite fixture STORA-620.
 - **Dependencies:** STORA-620
 - **Acceptance Criteria:**
   - Form action https biasa tidak lagi tercatat sebagai `URL_BLOCKED`.
+
+### STORA-643
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-643
+- **Type:** Bug
+- **Summary:** Default `fallback` konsisten untuk tipe tidak diizinkan
+- **Description:** Default `fallback` terdokumentasi `'embed'`, tetapi `registry.validateConverted` hanya membuat embed bila `fallback === 'embed'` diset eksplisit; tanpa opsi, node dengan tipe tidak diizinkan dibuang diam-diam.
+- **Priority:** High
+- **Status:** To Do
+- **Dependencies:** STORA-621
+- **Acceptance Criteria:**
+  - Tanpa opsi, tipe tidak diizinkan diperlakukan sama dengan elemen tak terpetakan (embed + diagnostic).
+
+### STORA-644
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-644
+- **Type:** Task
+- **Summary:** Diagnostic code berbeda untuk kegagalan `.zip`
+- **Description:** Semua kegagalan `importHtmlZip` (zip-slip, zip bomb, unzip error, ekstensi executable) dilaporkan `LIMIT_EXCEEDED`, sehingga host tidak bisa membedakan penyebab.
+- **Priority:** Medium
+- **Status:** To Do
+- **Dependencies:** STORA-621
+- **Acceptance Criteria:**
+  - Tiap kelas kegagalan punya code/`details.reason` yang terdokumentasi.
+
+### STORA-645
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-645
+- **Type:** Task
+- **Summary:** Editor meneruskan options host ke import dan paste HTML
+- **Description:** Tombol toolbar "Import HTML" membuka `HtmlImportModal` tanpa options, dan paste canvas memanggil `htmlToNodes(html)` tanpa options; host tidak bisa memberi `assetResolver`, `rules`, `fetchStylesheet`.
+- **Priority:** High
+- **Status:** To Do
+- **Dependencies:** STORA-621
+- **Acceptance Criteria:**
+  - Options import HTML dapat dikonfigurasi lewat props editor dan dipakai oleh dialog maupun paste.
+
+### STORA-646
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-646
+- **Type:** Bug
+- **Summary:** Hasil `assetResolver` untuk `@font-face` dipakai
+- **Description:** `assetResolver` dipanggil untuk file `@font-face`, tetapi hasilnya diabaikan dan stylesheet/theme font tidak ditulis ulang. Sekaligus: `importHtmlZip` meneruskan byte asset ke resolver agar rehost cukup satu pass.
+- **Priority:** Medium
+- **Status:** To Do
+- **Dependencies:** STORA-621
+- **Acceptance Criteria:**
+  - URL font hasil resolver dipakai di document.
+  - Resolver zip menerima byte asset.
+
+### STORA-647
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-647
+- **Type:** Bug
+- **Summary:** Evaluasi atau laporkan `@supports`/`@container`/`@layer`
+- **Description:** Rule di dalam `@supports`, `@container`, `@layer` selalu diterapkan tanpa diagnostic, padahal kondisinya tidak dievaluasi.
+- **Priority:** Medium
+- **Status:** To Do
+- **Dependencies:** STORA-621
+- **Acceptance Criteria:**
+  - `@layer` mengikuti urutan layer; `@supports`/`@container` dilaporkan sebagai approximated.
+
+### STORA-648
+
+- **Epic:** HTML Import Hardening
+- **Task Key:** STORA-648
+- **Type:** Task
+- **Summary:** Konsistensi API publik html-import
+- **Description:** Urutan argumen `HtmlMappingRule.match(element, computed, context)` vs `convert(element, context, computed)` berbeda; default limit html-import (1000 node, 5 MB) berbeda dari core (5000, 10 MB); `@kubuild/react` tidak me-reexport `HTML_IMPORT_DIAGNOSTIC_CODES`, `HtmlMappingRule`, dan helper rule.
+- **Priority:** Low
+- **Status:** To Do
+- **Dependencies:** STORA-621
+- **Acceptance Criteria:**
+  - Keputusan konsistensi tercatat (dengan jalur deprecation bila signature berubah).
+  - Re-export yang hilang ditambahkan.
 
 ---
 
