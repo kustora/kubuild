@@ -202,6 +202,30 @@ export interface HtmlNodesResult {
 }
 
 /**
+ * Options for exporting imported HTML directly to a .stora package.
+ */
+export interface HtmlStoraPackageOptions extends HtmlImportOptions {
+  packageName?: string;
+  assets?: Array<{
+    assetId: string;
+    data: Uint8Array;
+    filename?: string;
+    mimeType?: string;
+  }>;
+}
+
+/**
+ * Result of exporting imported HTML directly to a .stora package.
+ */
+export interface HtmlStoraPackageResult {
+  success: boolean;
+  packageBuffer?: Uint8Array;
+  document?: PageDocument;
+  report: HtmlImportReport;
+  error?: string;
+}
+
+/**
  * Creates an initial empty import report with 0 counts and 100% fidelity score.
  */
 export function createEmptyReport(): HtmlImportReport {

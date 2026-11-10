@@ -288,7 +288,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Validasi akhir dan export `.stora`
 - **Description:** Rakit `PageDocument` (root `page`, `CURRENT_SCHEMA_VERSION`, metadata), jalankan `PageDocumentSchema` + `validateDocumentSecurity`. Sediakan helper `importHtmlToStoraPackage` yang memanggil `exportStoraPackage` dari core.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-612, STORA-613
 - **Acceptance Criteria:**
   - Document yang gagal validasi tidak pernah dikembalikan sebagai sukses.

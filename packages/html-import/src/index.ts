@@ -3,18 +3,17 @@
  * Static HTML to KUBUILD PageDocument importer and compiler
  */
 
+import type { ResponsiveStyles } from '@kubuild/schema';
+import { exportStoraPackage } from '@kubuild/core';
 import {
-  CURRENT_SCHEMA_VERSION,
-  SCHEMA_NAME,
-  type PageDocument,
-  type ResponsiveStyles,
-} from '@kubuild/schema';
-import {
+  addDiagnostic,
   computeFidelityScore,
   createEmptyReport,
   type HtmlImportOptions,
   type HtmlImportResult,
   type HtmlNodesResult,
+  type HtmlStoraPackageOptions,
+  type HtmlStoraPackageResult,
   type PageNode,
 } from './types.js';
 import { parseHtml } from './parser.js';
@@ -25,6 +24,7 @@ import { buildResponsiveStyles } from './responsive.js';
 import { createRuleRegistry } from './rules/index.js';
 import { countTotalNodes, normalizeNodeTree } from './normalizer.js';
 import { processDocumentAssets } from './asset.js';
+import { assemblePageDocument, validatePageDocument } from './validator.js';
 
 export const HTML_IMPORT_VERSION = '0.1.0';
 
@@ -37,6 +37,7 @@ export * from './responsive.js';
 export * from './rules/index.js';
 export * from './normalizer.js';
 export * from './asset.js';
+export * from './validator.js';
 
 /**
  * Imports an untrusted HTML string (document or fragment) and compiles it into a valid KUBUILD PageDocument.
@@ -140,46 +141,50 @@ export async function importHtml(
 
     const processedRoot = (assetProcessedNodes[0] ?? normalizedRoot) as PageNode & { type: 'page' };
 
-    const document: PageDocument = {
-      schema: SCHEMA_NAME,
-      version: CURRENT_SCHEMA_VERSION,
-      metadata: {
-        title,
-        description,
-        author: options?.metadata?.author ?? '',
-        tags: options?.metadata?.tags ?? [],
-        category: options?.metadata?.category ?? 'general',
-        version: options?.metadata?.version ?? '1.0.0',
-        createdAt: options?.metadata?.createdAt ?? new Date().toISOString(),
-        updatedAt: options?.metadata?.updatedAt ?? new Date().toISOString(),
-        ...(options?.metadata?.custom ? { custom: options.metadata.custom } : {}),
-        ...(options?.metadata?.tracking ? { tracking: options.metadata.tracking } : {}),
-      },
-      ...(extractedTheme ? { theme: extractedTheme } : {}),
-      document: processedRoot,
-    };
+    const document = assemblePageDocument({
+      rootNode: processedRoot,
+      title,
+      description,
+      metadata: options?.metadata,
+      theme: extractedTheme,
+    });
 
     const nodeCount = countTotalNodes([processedRoot]);
-    const maxNodeCount =
-      options?.limits?.maxNodeCount ?? 1000;
+    report.stats.nodeCount = nodeCount;
+    report.stats.fidelityScore = computeFidelityScore(report.stats);
+
+    const maxNodeCount = options?.limits?.maxNodeCount ?? 1000;
     if (maxNodeCount !== undefined && nodeCount > maxNodeCount) {
-      report.stats.nodeCount = nodeCount;
-      report.stats.fidelityScore = computeFidelityScore(report.stats);
       report.stats.durationMs = Date.now() - startTime;
+      const errMsg = `Node count limit exceeded: ${nodeCount} exceeds limit of ${maxNodeCount}`;
+      addDiagnostic(report, {
+        code: 'LIMIT_EXCEEDED',
+        severity: 'error',
+        message: errMsg,
+      });
       return {
         success: false,
+        document: undefined,
         report,
-        error: `Node count limit exceeded: ${nodeCount} exceeds limit of ${maxNodeCount}`,
+        error: errMsg,
       };
     }
 
-    report.stats.nodeCount = nodeCount;
-    report.stats.fidelityScore = computeFidelityScore(report.stats);
+    const validation = validatePageDocument(document, options?.limits, report);
     report.stats.durationMs = Date.now() - startTime;
+
+    if (!validation.valid || !validation.document) {
+      return {
+        success: false,
+        document: undefined,
+        report,
+        error: validation.errors.join('; ') || 'Document validation failed',
+      };
+    }
 
     return {
       success: true,
-      document,
+      document: validation.document,
       report,
     };
   } catch (err) {
@@ -188,6 +193,81 @@ export async function importHtml(
     return {
       success: false,
       report,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Imports an untrusted HTML string and exports it directly into a binary .stora package archive.
+ *
+ * @param html The HTML string to import
+ * @param options Import options, package name, and optional binary assets
+ * @returns Promise resolving to an HtmlStoraPackageResult
+ */
+export async function importHtmlToStoraPackage(
+  html: string,
+  options?: HtmlStoraPackageOptions,
+): Promise<HtmlStoraPackageResult> {
+  const result = await importHtml(html, options);
+  if (!result.success || !result.document) {
+    return {
+      success: false,
+      report: result.report,
+      error: result.error,
+    };
+  }
+
+  try {
+    let exportAssets:
+      | Record<string, { data: Uint8Array; filename?: string; mimeType?: string }>
+      | undefined;
+
+    if (Array.isArray(options?.assets)) {
+      exportAssets = {};
+      for (const asset of options.assets) {
+        exportAssets[asset.assetId] = {
+          data: asset.data,
+          filename: asset.filename,
+          mimeType: asset.mimeType,
+        };
+      }
+    }
+
+    const exported = await exportStoraPackage(result.document, {
+      assets: exportAssets,
+      ...(options?.packageName ? { metadata: { title: options.packageName } } : {}),
+      ...(options?.allowedComponentTypes
+        ? { knownComponentTypes: options.allowedComponentTypes }
+        : {}),
+    });
+
+    if (!exported.success) {
+      return {
+        success: false,
+        report: result.report,
+        error: exported.diagnosticMessage || 'Failed to export .stora package',
+      };
+    }
+
+    const packageBuffer: Uint8Array =
+      'archive' in exported && exported.archive instanceof Uint8Array
+        ? exported.archive
+        : ('buffer' in exported && exported.buffer instanceof Uint8Array
+          ? exported.buffer
+          : new Uint8Array());
+
+    return {
+      success: true,
+      packageBuffer,
+      document: result.document,
+      report: result.report,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      report: result.report,
       error: message,
     };
   }
