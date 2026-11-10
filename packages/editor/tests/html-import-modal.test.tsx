@@ -80,6 +80,25 @@ describe('HtmlImportModal (STORA-616)', () => {
       expect(html).toContain('Batal');
       expect(html).toContain('Impor ke Editor');
     });
+
+    it('renders presets when provided in Paste tab', () => {
+      const html = renderToString(
+        <HtmlImportModal
+          isOpen={true}
+          onClose={() => {}}
+          onImport={() => {}}
+          initialHtml="<h1>Sample</h1>"
+          presets={[
+            { id: 'p1', name: 'Preset Hero', html: '<h1>Hero</h1>' },
+            { id: 'p2', name: 'Preset Form', html: '<form><button>Send</button></form>' },
+          ]}
+        />,
+      );
+
+      expect(html).toContain('Sample Presets:');
+      expect(html).toContain('Preset Hero');
+      expect(html).toContain('Preset Form');
+    });
   });
 
   describe('Import Logic & Execution', () => {

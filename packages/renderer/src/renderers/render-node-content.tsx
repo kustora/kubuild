@@ -198,7 +198,13 @@ export function renderTypographyNode(options: RenderNodeContentOptions): React.R
 
   switch (node.type) {
     case 'heading': {
-      const level = typeof resolvedProps.level === 'number' ? resolvedProps.level : 1;
+      const rawLevel = resolvedProps.level;
+      const level =
+        typeof rawLevel === 'number'
+          ? rawLevel
+          : typeof rawLevel === 'string' && /^h([1-6])$/i.test(rawLevel)
+            ? parseInt(rawLevel.slice(1), 10)
+            : 1;
       const Tag = (`h${Math.min(Math.max(level, 1), 6)}` as keyof React.JSX.IntrinsicElements) || 'h1';
       const text = String(resolvedProps.text ?? resolvedProps.content ?? props.text ?? props.content ?? '');
       const isEditable = mode === 'editor' && isNodeSelected && !isVariableBinding(props.text) && !isVariableBinding(props.content);

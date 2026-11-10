@@ -10,11 +10,20 @@ import {
 } from '@kubuild/html-import';
 import { useTranslation } from '../../i18n/index.js';
 
+export interface HtmlImportPreset {
+  id?: string;
+  name: string;
+  html: string;
+  description?: string;
+}
+
 export interface HtmlImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (doc: PageDocument) => void;
   options?: Partial<HtmlImportOptions>;
+  initialHtml?: string;
+  presets?: HtmlImportPreset[];
 }
 
 export type HtmlImportTab = 'upload' | 'paste';
@@ -24,17 +33,26 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
   onClose,
   onImport,
   options,
+  initialHtml,
+  presets,
 }) => {
   const { t } = useTranslation();
 
-  const [activeTab, setActiveTab] = useState<HtmlImportTab>('upload');
+  const [activeTab, setActiveTab] = useState<HtmlImportTab>(initialHtml ? 'paste' : 'upload');
   const [file, setFile] = useState<File | null>(null);
-  const [pastedHtml, setPastedHtml] = useState<string>('');
+  const [pastedHtml, setPastedHtml] = useState<string>(initialHtml || '');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<HtmlImportResult | ZipImportResult | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen && initialHtml) {
+      setPastedHtml(initialHtml);
+      setActiveTab('paste');
+    }
+  }, [isOpen, initialHtml]);
 
   const resetState = useCallback(() => {
     setFile(null);
@@ -293,6 +311,26 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
           {/* Paste Tab View */}
           {activeTab === 'paste' && (
             <div className="flex flex-col gap-3">
+              {presets && presets.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-slate-950/40 border border-slate-800 rounded-lg">
+                  <span className="text-[11px] font-semibold text-slate-400 mr-1">Sample Presets:</span>
+                  {presets.map((preset, idx) => (
+                    <button
+                      key={preset.id || idx}
+                      type="button"
+                      onClick={() => {
+                        setPastedHtml(preset.html);
+                        setError(null);
+                        setResult(null);
+                      }}
+                      className="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-300 border border-slate-700/80 transition cursor-pointer"
+                      title={preset.description || preset.name}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              )}
               <textarea
                 value={pastedHtml}
                 onChange={(e) => setPastedHtml(e.target.value)}

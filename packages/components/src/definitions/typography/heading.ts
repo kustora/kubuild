@@ -39,7 +39,12 @@ export const headingDefinition: ComponentDefinition = {
     if (!isVariableBinding(text) && (typeof text !== 'string' || text.trim().length === 0)) {
       errors.push('Heading requires a non-empty "text".');
     }
-    if (props.level !== undefined && (typeof props.level !== 'number' || props.level < 1 || props.level > 6)) {
+    const rawLevel = props.level;
+    const numLevel =
+      typeof rawLevel === 'string' && /^h([1-6])$/i.test(rawLevel)
+        ? parseInt(rawLevel.slice(1), 10)
+        : rawLevel;
+    if (rawLevel !== undefined && (typeof numLevel !== 'number' || numLevel < 1 || numLevel > 6)) {
       errors.push('Heading "level" must be a number between 1 and 6.');
     }
     return errors.length > 0 ? errors : true;

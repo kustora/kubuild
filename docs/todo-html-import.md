@@ -352,7 +352,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Demo import HTML di playground
 - **Description:** Tambahkan alur import HTML di `apps/stora-playground` dengan mock `assetResolver` dan beberapa sample HTML.
 - **Priority:** Low
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-616
 - **Acceptance Criteria:**
   - Sample HTML dapat diimport, diedit, dan diexport `.stora` end-to-end.

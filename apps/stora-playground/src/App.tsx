@@ -5,6 +5,7 @@ import {
   EditorMode,
   TemplatePicker,
   ImportModal,
+  HtmlImportModal,
   downloadDocumentAsStora,
   downloadDocumentAsJson,
   useEditorStore,
@@ -20,6 +21,7 @@ import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument, cloneTemplateAsPage } from '@kubuild/core';
 import { PageDocument, TemplateRecord, starterPageFixture } from '@kubuild/schema';
 import { HOST_BLOCKS, PLAYGROUND_TEMPLATES } from './host-integration';
+import { SAMPLE_HTML_TEMPLATES } from './sample-html-templates';
 import {
   Layout,
   Eye,
@@ -176,6 +178,9 @@ export function App() {
     }
   }, [editorMode, activeTab]);
   const [isImportOpen, setIsImportOpen] = useState<boolean>(false);
+  const [isHtmlImportOpen, setIsHtmlImportOpen] = useState<boolean>(false);
+  const [selectedSampleHtml, setSelectedSampleHtml] = useState<string | undefined>(undefined);
+  const [isSampleDropdownOpen, setIsSampleDropdownOpen] = useState<boolean>(false);
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState<boolean>(false);
   const [isMobileActionsOpen, setIsMobileActionsOpen] = useState<boolean>(false);
   const [isAddPageModalOpen, setIsAddPageModalOpen] = useState<boolean>(false);
@@ -190,6 +195,7 @@ export function App() {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
+  const sampleDropdownRef = useRef<HTMLDivElement>(null);
   const registry = useMemo(() => createDefaultComponentRegistry(), []);
   // Detached component surfaces (modals/drawers) live in the editor store; Preview needs
   // them so a trigger on the page can actually open its overlay here.
@@ -235,10 +241,31 @@ export function App() {
       ) {
         setIsMobileActionsOpen(false);
       }
+      if (
+        sampleDropdownRef.current &&
+        !sampleDropdownRef.current.contains(e.target as HTMLElement)
+      ) {
+        setIsSampleDropdownOpen(false);
+      }
     };
     window.addEventListener('mousedown', handleClickOutside);
     return () => window.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const htmlImportOptions = useMemo(
+    () => ({
+      assetResolver: async (asset: { url: string; type: 'image' | 'video' | 'font' | 'other' }) => {
+        if (asset.url.startsWith('http://') || asset.url.startsWith('https://')) {
+          return asset.url;
+        }
+        if (asset.type === 'image') {
+          return 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=800&q=80';
+        }
+        return asset.url;
+      },
+    }),
+    [],
+  );
 
   const handleCreatePage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -534,8 +561,63 @@ export function App() {
               title="Add a new page to project"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add Page
+              New Page
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSampleHtml(undefined);
+                setIsHtmlImportOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition"
+              title="Import HTML or ZIP archive"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              Import HTML
+            </button>
+
+            {/* Sample HTML Presets Dropdown */}
+            <div className="relative" ref={sampleDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsSampleDropdownOpen(!isSampleDropdownOpen)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
+                title="Select a curated sample HTML preset"
+              >
+                <span>Sample HTML</span>
+                <ChevronDown
+                  className={`w-3 h-3 text-slate-400 transition-transform ${isSampleDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {isSampleDropdownOpen && (
+                <div className="absolute left-0 mt-1.5 w-64 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl p-1.5 z-50 flex flex-col gap-1 animate-in fade-in slide-in-from-top-1">
+                  <div className="px-2.5 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                    Sample HTML Presets
+                  </div>
+                  {SAMPLE_HTML_TEMPLATES.map((sample) => (
+                    <button
+                      key={sample.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSampleHtml(sample.html);
+                        setIsHtmlImportOpen(true);
+                        setIsSampleDropdownOpen(false);
+                      }}
+                      className="text-left px-2.5 py-2 rounded-lg text-xs hover:bg-slate-800 text-slate-300 hover:text-white transition group flex flex-col gap-0.5 cursor-pointer"
+                    >
+                      <span className="font-medium text-slate-100 group-hover:text-blue-400">
+                        {sample.name}
+                      </span>
+                      <span className="text-[11px] text-slate-400 leading-tight">
+                        {sample.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {editorMode === 'advance' && (
               <>
                 <button
@@ -545,7 +627,7 @@ export function App() {
                   title="Import .stora package"
                 >
                   <Upload className="w-3.5 h-3.5 text-blue-400" />
-                  Import
+                  Import (.stora)
                 </button>
                 <button
                   type="button"
@@ -602,6 +684,18 @@ export function App() {
                 >
                   <Plus className="w-3.5 h-3.5 text-emerald-400" />
                   Add New Page
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileActionsOpen(false);
+                    setSelectedSampleHtml(undefined);
+                    setIsHtmlImportOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                >
+                  <Code2 className="w-3.5 h-3.5 text-blue-400" />
+                  Import HTML
                 </button>
                 {editorMode === 'advance' && (
                   <>
@@ -818,6 +912,28 @@ export function App() {
           if (!result.success) console.error(result.error ?? 'Imported document rejected', result.errors);
         }}
         registry={registry}
+      />
+
+      <HtmlImportModal
+        isOpen={isHtmlImportOpen}
+        onClose={() => {
+          setIsHtmlImportOpen(false);
+          setSelectedSampleHtml(undefined);
+        }}
+        initialHtml={selectedSampleHtml}
+        presets={SAMPLE_HTML_TEMPLATES}
+        options={htmlImportOptions}
+        onImport={(importedDoc) => {
+          const editor = editorRef.current;
+          if (!editor) {
+            handleDocChange(importedDoc);
+            return;
+          }
+          const result = editor.replaceDocument(importedDoc, { keepHistory: true });
+          if (!result.success) {
+            console.error(result.error ?? 'Imported HTML document rejected', result.errors);
+          }
+        }}
       />
 
       {/* Main Content Area */}
