@@ -92,7 +92,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Parse HTML ke AST dengan input limit
 - **Description:** Parse string HTML (full document atau fragment) memakai parser spec-compliant. Ekstrak `<title>`, `<meta name="description">`, `lang`, `<style>`, `<link rel="stylesheet">`, dan `<body>` sebagai root konten. Terapkan limit ukuran input sebelum parsing.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-601
 - **Acceptance Criteria:**
   - Full document dan fragment sama-sama didukung.

@@ -3,7 +3,6 @@
  * Static HTML to KUBUILD PageDocument importer and compiler
  */
 
-import { parse, parseFragment } from 'parse5';
 import {
   CURRENT_SCHEMA_VERSION,
   SCHEMA_NAME,
@@ -19,16 +18,12 @@ import {
   type HtmlNodesResult,
   type PageNode,
 } from './types.js';
+import { parseHtml } from './parser.js';
 
 export const HTML_IMPORT_VERSION = '0.1.0';
 
 export * from './types.js';
-
-/**
- * Maximum document size in bytes if not specified in options.
- */
-const DEFAULT_MAX_DOCUMENT_SIZE_BYTES =
-  DEFAULT_DOCUMENT_SECURITY_LIMITS.maxDocumentSizeBytes ?? 10 * 1024 * 1024;
+export * from './parser.js';
 
 /**
  * Imports an untrusted HTML string (document or fragment) and compiles it into a valid KUBUILD PageDocument.
@@ -48,43 +43,19 @@ export async function importHtml(
   const report = createEmptyReport();
 
   try {
-    if (typeof html !== 'string') {
-      addDiagnostic(report, {
-        code: 'LIMIT_EXCEEDED',
-        severity: 'error',
-        message: 'HTML input must be a string',
-      });
+    const parseResult = parseHtml(html, options, report);
+    if (!parseResult.success) {
       report.stats.durationMs = Date.now() - startTime;
       return {
         success: false,
         report,
-        error: 'HTML input must be a string',
+        error: parseResult.error,
       };
     }
 
-    const maxSizeBytes =
-      options?.limits?.maxDocumentSizeBytes ?? DEFAULT_MAX_DOCUMENT_SIZE_BYTES;
-    const inputByteLength = new TextEncoder().encode(html).length;
+    const title = options?.metadata?.title ?? parseResult.title ?? 'Untitled Page';
+    const description = options?.metadata?.description ?? parseResult.description ?? '';
 
-    if (inputByteLength > maxSizeBytes) {
-      addDiagnostic(report, {
-        code: 'LIMIT_EXCEEDED',
-        severity: 'error',
-        message: `HTML input size (${inputByteLength} bytes) exceeds maximum allowed size of ${maxSizeBytes} bytes`,
-        details: { size: inputByteLength, limit: maxSizeBytes },
-      });
-      report.stats.durationMs = Date.now() - startTime;
-      return {
-        success: false,
-        report,
-        error: `Input size limit exceeded: ${inputByteLength} bytes exceeds limit of ${maxSizeBytes} bytes`,
-      };
-    }
-
-    // Parse HTML with parse5 (spec-compliant HTML5 parser)
-    parse(html);
-
-    const title = options?.metadata?.title ?? 'Untitled Page';
     const rootPageNode: PageNode & { type: 'page' } = {
       id: 'root-page',
       type: 'page',
@@ -98,7 +69,7 @@ export async function importHtml(
       version: CURRENT_SCHEMA_VERSION,
       metadata: {
         title,
-        description: options?.metadata?.description ?? '',
+        description,
         author: options?.metadata?.author ?? '',
         tags: options?.metadata?.tags ?? [],
         category: options?.metadata?.category ?? 'general',
@@ -169,43 +140,16 @@ export async function htmlToNodes(
   const report = createEmptyReport();
 
   try {
-    if (typeof html !== 'string') {
-      addDiagnostic(report, {
-        code: 'LIMIT_EXCEEDED',
-        severity: 'error',
-        message: 'HTML input must be a string',
-      });
+    const parseResult = parseHtml(html, options, report);
+    if (!parseResult.success) {
       report.stats.durationMs = Date.now() - startTime;
       return {
         success: false,
         nodes: [],
         report,
-        error: 'HTML input must be a string',
+        error: parseResult.error,
       };
     }
-
-    const maxSizeBytes =
-      options?.limits?.maxDocumentSizeBytes ?? DEFAULT_MAX_DOCUMENT_SIZE_BYTES;
-    const inputByteLength = new TextEncoder().encode(html).length;
-
-    if (inputByteLength > maxSizeBytes) {
-      addDiagnostic(report, {
-        code: 'LIMIT_EXCEEDED',
-        severity: 'error',
-        message: `HTML input size (${inputByteLength} bytes) exceeds maximum allowed size of ${maxSizeBytes} bytes`,
-        details: { size: inputByteLength, limit: maxSizeBytes },
-      });
-      report.stats.durationMs = Date.now() - startTime;
-      return {
-        success: false,
-        nodes: [],
-        report,
-        error: `Input size limit exceeded: ${inputByteLength} bytes exceeds limit of ${maxSizeBytes} bytes`,
-      };
-    }
-
-    // Parse fragment with parse5
-    parseFragment(html);
 
     // Baseline Phase H0: returns empty nodes array (populated in subsequent phases)
     const nodes: PageNode[] = [];
