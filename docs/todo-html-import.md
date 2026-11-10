@@ -273,7 +273,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Resolve dan rehost asset
 - **Description:** Resolve URL relatif terhadap `baseUrl`. Kumpulkan asset dari `img src/srcset`, `video poster/src`, `url()` di style, `@font-face`. Panggil `assetResolver` host untuk rehost/menghasilkan `AssetReference`. Google Fonts `<link>`/`@font-face` dipetakan ke `theme.fonts`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-604, STORA-610
 - **Acceptance Criteria:**
   - Asset tanpa resolver tetap memakai URL absolut yang lolos `isSafeUrl`.

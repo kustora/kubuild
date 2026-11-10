@@ -3,7 +3,13 @@
  * Type definitions and reporting structures for HTML import.
  */
 
-import type { DocumentMetadata, Node, PageDocument } from '@kubuild/schema';
+import type {
+  AssetReference,
+  DocumentMetadata,
+  Node,
+  PageDocument,
+  Theme,
+} from '@kubuild/schema';
 import type { DocumentSecurityLimits } from '@kubuild/core';
 
 /**
@@ -137,7 +143,11 @@ export interface HtmlImportOptions {
   assetResolver?: (asset: {
     url: string;
     type: 'image' | 'video' | 'font' | 'other';
-  }) => Promise<string | null> | string | null;
+  }) =>
+    | Promise<string | AssetReference | null>
+    | string
+    | AssetReference
+    | null;
   /**
    * Custom element mapping rules extending or overriding default component mappings.
    */
@@ -154,6 +164,10 @@ export interface HtmlImportOptions {
    * Metadata overrides for the generated PageDocument.
    */
   metadata?: Partial<DocumentMetadata>;
+  /**
+   * Optional initial theme tokens to merge with collected fonts and tokens.
+   */
+  theme?: Partial<Theme>;
   /**
    * Fallback strategy when an unmapped element cannot be natively translated.
    * - 'embed': converts to an html-embed component (preserves visual layout, lower fidelity).

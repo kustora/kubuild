@@ -24,6 +24,7 @@ import { computeElementStyles } from './cascade.js';
 import { buildResponsiveStyles } from './responsive.js';
 import { createRuleRegistry } from './rules/index.js';
 import { countTotalNodes, normalizeNodeTree } from './normalizer.js';
+import { processDocumentAssets } from './asset.js';
 
 export const HTML_IMPORT_VERSION = '0.1.0';
 
@@ -35,6 +36,7 @@ export * from './cascade.js';
 export * from './responsive.js';
 export * from './rules/index.js';
 export * from './normalizer.js';
+export * from './asset.js';
 
 /**
  * Imports an untrusted HTML string (document or fragment) and compiles it into a valid KUBUILD PageDocument.
@@ -117,6 +119,27 @@ export async function importHtml(
     const normalizedNodes = normalizeNodeTree([rootPageNode], options, report);
     const normalizedRoot = (normalizedNodes[0] ?? rootPageNode) as PageNode & { type: 'page' };
 
+    // Process and rehost document assets, fonts, and inline styles
+    const combinedStylesheets = [
+      ...(parseResult.stylesheetUrls ?? []),
+      ...((parseResult.styles ?? []).map((s) => s.content)),
+      ...(options?.stylesheets ?? []),
+    ];
+    const assetOptions: HtmlImportOptions = {
+      ...options,
+      stylesheets: combinedStylesheets,
+    };
+
+    const { nodes: assetProcessedNodes, theme: extractedTheme } =
+      await processDocumentAssets(
+        [normalizedRoot],
+        assetOptions,
+        report,
+        options?.theme,
+      );
+
+    const processedRoot = (assetProcessedNodes[0] ?? normalizedRoot) as PageNode & { type: 'page' };
+
     const document: PageDocument = {
       schema: SCHEMA_NAME,
       version: CURRENT_SCHEMA_VERSION,
@@ -132,10 +155,11 @@ export async function importHtml(
         ...(options?.metadata?.custom ? { custom: options.metadata.custom } : {}),
         ...(options?.metadata?.tracking ? { tracking: options.metadata.tracking } : {}),
       },
-      document: normalizedRoot,
+      ...(extractedTheme ? { theme: extractedTheme } : {}),
+      document: processedRoot,
     };
 
-    const nodeCount = countTotalNodes([normalizedRoot]);
+    const nodeCount = countTotalNodes([processedRoot]);
     const maxNodeCount =
       options?.limits?.maxNodeCount ?? 1000;
     if (maxNodeCount !== undefined && nodeCount > maxNodeCount) {
@@ -221,9 +245,27 @@ export async function htmlToNodes(
       ? registry.convertChildren(targetContainer, context)
       : [];
 
-    const nodes = normalizeNodeTree(rawNodes, options, report);
+    const normalizedNodes = normalizeNodeTree(rawNodes, options, report);
 
-    const nodeCount = countTotalNodes(nodes);
+    // Process and rehost document assets, fonts, and inline styles
+    const combinedStylesheets = [
+      ...(parseResult.stylesheetUrls ?? []),
+      ...((parseResult.styles ?? []).map((s) => s.content)),
+      ...(options?.stylesheets ?? []),
+    ];
+    const assetOptions: HtmlImportOptions = {
+      ...options,
+      stylesheets: combinedStylesheets,
+    };
+
+    const { nodes: assetProcessedNodes } = await processDocumentAssets(
+      normalizedNodes,
+      assetOptions,
+      report,
+      options?.theme,
+    );
+
+    const nodeCount = countTotalNodes(assetProcessedNodes);
     report.stats.nodeCount = nodeCount;
     report.stats.fidelityScore = computeFidelityScore(report.stats);
     report.stats.durationMs = Date.now() - startTime;
@@ -232,7 +274,7 @@ export async function htmlToNodes(
     if (maxNodeCount !== undefined && nodeCount > maxNodeCount) {
       return {
         success: false,
-        nodes,
+        nodes: assetProcessedNodes,
         report,
         error: `Node count limit exceeded: ${nodeCount} exceeds limit of ${maxNodeCount}`,
       };
@@ -240,7 +282,7 @@ export async function htmlToNodes(
 
     return {
       success: true,
-      nodes,
+      nodes: assetProcessedNodes,
       report,
     };
   } catch (err) {
