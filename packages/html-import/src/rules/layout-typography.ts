@@ -20,6 +20,7 @@ import {
 import { isElement } from '../sanitizer.js';
 import { getTextContent, getAttribute } from '../parser.js';
 import { buildResponsiveStyles } from '../responsive.js';
+import { INHERITED_TEXT_PROPERTIES } from '../cascade.js';
 import type {
   HtmlMappingContext,
   HtmlMappingRule,
@@ -147,35 +148,39 @@ export function convertRawTextNode(
   // 1. Collapse multiple whitespace characters into a single space
   let collapsed = rawValue.replace(/[\s\r\n\t]+/g, ' ');
 
-  // 2. Identify nearest non-comment previous sibling
+  // 2. Nearest meaningful siblings: comments and whitespace-only text runs are skipped, so
+  //    whitespace next to other whitespace (e.g. around a removed <script>) is trimmed too.
+  const isSkippable = (s: DefaultTreeAdapterMap['node']): boolean =>
+    ('nodeName' in s && s.nodeName === '#comment') ||
+    (isTextNode(s) && s.value.trim().length === 0);
+
   let prevSibling: DefaultTreeAdapterMap['node'] | null = null;
   for (let i = index - 1; i >= 0; i--) {
-    const s = siblings[i];
-    if ('nodeName' in s && s.nodeName === '#comment') {
-      continue;
-    }
-    prevSibling = s;
+    if (isSkippable(siblings[i])) continue;
+    prevSibling = siblings[i];
     break;
   }
 
-  // 3. Identify nearest non-comment next sibling
   let nextSibling: DefaultTreeAdapterMap['node'] | null = null;
   for (let i = index + 1; i < siblings.length; i++) {
-    const s = siblings[i];
-    if ('nodeName' in s && s.nodeName === '#comment') {
-      continue;
-    }
-    nextSibling = s;
+    if (isSkippable(siblings[i])) continue;
+    nextSibling = siblings[i];
     break;
   }
 
+  // 3. Flex and grid containers do not render whitespace-only text and strip whitespace
+  //    at the edges of anonymous items, so both sides are trimmed there. A `display: none`
+  //    parent renders nothing, so its whitespace carries no meaning either.
+  const parentDisplay = String(context.parentStyles?.display ?? '').trim().toLowerCase();
+  const isFlexOrGridParent = /^(inline-)?(flex|grid)$|^none$/.test(parentDisplay);
+
   // 4. Trim leading whitespace if adjacent to container start or preceding block element
-  if (!prevSibling || isBlockElement(prevSibling)) {
+  if (isFlexOrGridParent || !prevSibling || isBlockElement(prevSibling)) {
     collapsed = collapsed.replace(/^\s+/, '');
   }
 
   // 5. Trim trailing whitespace if adjacent to container end or following block element
-  if (!nextSibling || isBlockElement(nextSibling)) {
+  if (isFlexOrGridParent || !nextSibling || isBlockElement(nextSibling)) {
     collapsed = collapsed.replace(/\s+$/, '');
   }
 
@@ -192,10 +197,22 @@ export function convertRawTextNode(
       as: 'span',
     },
     styles: {
-      base: context.parentStyles ? { ...context.parentStyles } : {},
+      // Bare text only inherits text properties; layout/box styles belong to the parent.
+      base: pickInheritedTextStyles(context.parentStyles),
     },
     children: [],
   };
+}
+
+function pickInheritedTextStyles(
+  parentStyles?: Record<string, string | number>,
+): Record<string, string | number> {
+  const result: Record<string, string | number> = {};
+  if (!parentStyles) return result;
+  for (const prop of INHERITED_TEXT_PROPERTIES) {
+    if (parentStyles[prop] !== undefined) result[prop] = parentStyles[prop];
+  }
+  return result;
 }
 
 /**
@@ -335,19 +352,58 @@ export const paragraphRule: HtmlMappingRule = {
 };
 
 /**
- * Mapping rule for inline span elements (<span>).
+ * Inline formatting tags mapped to `text`, keeping the tag in `as` so user-agent semantics
+ * (bold, italic, sub/superscript, …) survive. Allowlist: `as` never takes any other value.
+ */
+export const INLINE_TEXT_TAGS: ReadonlySet<string> = new Set([
+  'span',
+  'strong',
+  'b',
+  'em',
+  'i',
+  'small',
+  'mark',
+  'u',
+  's',
+  'del',
+  'ins',
+  'sub',
+  'sup',
+  'abbr',
+  'cite',
+  'q',
+  'time',
+]);
+
+/**
+ * Mapping rule for inline text elements (`<span>`, `<strong>`, `<em>`, …).
+ * A text-less element (e.g. a decorative `<span class="dot">`) has nothing for `text` to
+ * hold, so it becomes a styled `container` instead.
  */
 export const textRule: HtmlMappingRule = {
   id: 'text',
   priority: 40,
-  match: (element) => element.tagName.toLowerCase() === 'span',
+  match: (element) => INLINE_TEXT_TAGS.has(element.tagName.toLowerCase()),
   convert: (element, context, computed) => {
+    const tag = element.tagName.toLowerCase();
     const text = collapseWhitespace(getTextContent(element));
     const idAttr = getAttribute(element, 'id');
 
+    if (!text) {
+      const props: Record<string, unknown> = {};
+      if (idAttr) props.id = idAttr;
+      return {
+        id: context.generateId('container'),
+        type: 'container',
+        props,
+        styles: buildResponsiveStyles(computed, context.report),
+        children: context.convertChildren(element),
+      };
+    }
+
     const props: Record<string, unknown> = {
       text,
-      as: 'span',
+      as: tag,
     };
     if (idAttr) props.id = idAttr;
 

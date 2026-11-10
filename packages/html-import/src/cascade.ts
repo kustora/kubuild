@@ -500,6 +500,32 @@ export interface MatchedRuleResult {
   pseudoState?: string;
 }
 
+/** Selectors already reported per import, so each unsupported selector is reported once. */
+const reportedUnsupportedSelectors = new WeakMap<HtmlImportReport, Set<string>>();
+
+function reportUnsupportedSelector(
+  report: HtmlImportReport | undefined,
+  selector: string,
+  message: string,
+  details: Record<string, unknown>,
+): void {
+  if (!report) return;
+  let seen = reportedUnsupportedSelectors.get(report);
+  if (!seen) {
+    seen = new Set();
+    reportedUnsupportedSelectors.set(report, seen);
+  }
+  if (seen.has(selector)) return;
+  seen.add(selector);
+  addDiagnostic(report, {
+    code: 'CSS_UNSUPPORTED_SELECTOR',
+    severity: 'info',
+    message,
+    location: { selector },
+    details,
+  });
+}
+
 /**
  * Matches all rules in a stylesheet bundle against an element.
  * Reports unsupported selectors as `CSS_UNSUPPORTED_SELECTOR` without throwing.
@@ -522,15 +548,10 @@ export function matchRulesForElement(
     for (const part of parts) {
       // Check for unsupported selector constructs like :has
       if (/:has\s*\(/i.test(part)) {
-        if (report) {
-          addDiagnostic(report, {
-            code: 'CSS_UNSUPPORTED_SELECTOR',
-            severity: 'info',
-            message: `Unsupported CSS selector: ${part}`,
-            location: { selector: part },
-            details: { selector: part, reason: ':has is unsupported' },
-          });
-        }
+        reportUnsupportedSelector(report, part, `Unsupported CSS selector: ${part}`, {
+          selector: part,
+          reason: ':has is unsupported',
+        });
         continue;
       }
 
@@ -540,18 +561,11 @@ export function matchRulesForElement(
       try {
         matches = cssSelect.is(element, baseSelector, { adapter: parse5Adapter });
       } catch (err) {
-        if (report) {
-          addDiagnostic(report, {
-            code: 'CSS_UNSUPPORTED_SELECTOR',
-            severity: 'info',
-            message: `Unsupported CSS selector: ${part} (${err instanceof Error ? err.message : String(err)})`,
-            location: { selector: part },
-            details: {
-              selector: part,
-              error: err instanceof Error ? err.message : String(err),
-            },
-          });
-        }
+        const error = err instanceof Error ? err.message : String(err);
+        reportUnsupportedSelector(report, part, `Unsupported CSS selector: ${part} (${error})`, {
+          selector: part,
+          error,
+        });
         continue;
       }
 

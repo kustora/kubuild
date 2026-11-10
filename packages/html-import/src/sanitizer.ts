@@ -61,7 +61,9 @@ export const URL_ATTRIBUTES: ReadonlySet<string> = new Set([
  * Regex pattern identifying dangerous keywords or expressions in CSS style values.
  */
 export const DANGEROUS_STYLE_VALUE_PATTERN =
-  /javascript:|expression\s*\(|@import|<script|vbscript:|data:text\/html|behavior\s*:|-moz-binding\s*:|binding\s*:/i;
+  // `behavior`/`binding` only as whole property names (IE `behavior`, `-ms-behavior`,
+  // `-moz-binding`), so `scroll-behavior` / `overscroll-behavior` are not flagged.
+  /javascript:|expression\s*\(|@import|<script|vbscript:|data:text\/html|(?:^|[^\w-]|-ms-)behavior\s*:|(?:^|[^\w-]|-moz-)binding\s*:/i;
 
 /**
  * Type guard for parse5 element nodes.

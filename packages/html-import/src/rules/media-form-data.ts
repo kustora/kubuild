@@ -38,6 +38,7 @@ import {
 } from '../parser.js';
 import { buildResponsiveStyles } from '../responsive.js';
 import { collapseWhitespace } from './layout-typography.js';
+import { handleFallbackElement } from './fallback.js';
 import type {
   HtmlMappingRule,
   Parse5DocumentFragment,
@@ -697,6 +698,14 @@ export const selectRule: HtmlMappingRule = {
   },
 };
 
+function hasIconDescendant(element: DefaultTreeAdapterMap['element']): boolean {
+  return element.childNodes.some(
+    (child) =>
+      isElement(child) &&
+      (['svg', 'img', 'picture'].includes(child.tagName.toLowerCase()) || hasIconDescendant(child)),
+  );
+}
+
 /**
  * Mapping rule for <button> elements.
  * If type="submit", maps to button-submit component; otherwise maps to button component.
@@ -707,7 +716,13 @@ export const buttonRule: HtmlMappingRule = {
   match: (element) => element.tagName.toLowerCase() === 'button',
   convert: (element, context, computed) => {
     const rawType = (getAttribute(element, 'type') ?? 'button').toLowerCase();
-    const label = collapseWhitespace(getTextContent(element)) || 'Button';
+    const text = collapseWhitespace(getTextContent(element));
+    // Icon-only buttons (hamburger, close, …): the `button` component only renders a text
+    // label, so keep the sanitized markup as an embed rather than showing "Button".
+    if (!text && hasIconDescendant(element)) {
+      return handleFallbackElement(element, context, computed);
+    }
+    const label = text || getAttribute(element, 'aria-label') || 'Button';
     const idAttr = getAttribute(element, 'id');
     const disabled = hasAttribute(element, 'disabled');
 

@@ -406,6 +406,110 @@ HTML string (+ CSS eksternal, baseUrl)
 
 ---
 
+## Epic: HTML Import Fidelity Fixes
+
+Temuan dari simulasi fixture nyata `landing_page_pure_html_css.html` (264 node, fidelity 99.2) setelah STORA-619.
+
+### STORA-624
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-624
+- **Type:** Bug
+- **Summary:** Raw text node tidak menyalin style non-teks parent
+- **Description:** `convertRawTextNode` menyalin seluruh computed style parent (`display`, `height`, `background`, …) ke node `text`. Hanya property teks turunan (`INHERITED_TEXT_PROPERTIES`) yang boleh dibawa; sisanya milik parent.
+- **Priority:** Highest
+- **Status:** Done
+- **Dependencies:** STORA-619
+- **Acceptance Criteria:**
+  - Text lepas di dalam `div` flex ber-`height` tidak membawa `display`/`height`/`background` parent.
+  - Property teks yang sama dengan parent dibuang oleh normalizer (STORA-605).
+
+### STORA-625
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-625
+- **Type:** Bug
+- **Summary:** Buang whitespace-only text antar elemen
+- **Description:** Whitespace di antara elemen inline (`<a>`, `<span>`) dan di sekitar elemen yang dibuang (mis. `<script>`) menghasilkan node `text` berisi spasi. Di parent flex/grid whitespace tidak dirender sama sekali (CSS), dan text di sebelah sesama whitespace/edge harus di-trim.
+- **Priority:** Highest
+- **Status:** Done
+- **Dependencies:** STORA-619
+- **Acceptance Criteria:**
+  - Tidak ada node `text` berisi whitespace saja di parent `flex`/`grid`.
+  - Whitespace berurutan/di akhir `body` tidak menjadi node.
+  - Spasi bermakna di antara inline element dalam flow biasa tetap ada.
+
+### STORA-626
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-626
+- **Type:** Bug
+- **Summary:** `<span>` kosong bergaya menjadi `container`
+- **Description:** `<span class="dot"></span>` (indikator, dekorasi) saat ini menjadi `text` dengan teks kosong, yang gagal validasi props komponen `text`. Span tanpa teks dipetakan ke `container` dengan style hasil cascade.
+- **Priority:** High
+- **Status:** Done
+- **Dependencies:** STORA-619
+- **Acceptance Criteria:**
+  - Span kosong tidak pernah menghasilkan `text` dengan `text: ""`.
+
+### STORA-627
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-627
+- **Type:** Bug
+- **Summary:** Inline formatting tag dipetakan ke `text`
+- **Description:** `strong`, `b`, `em`, `i`, `small`, `mark`, `u`, `s`, `del`, `ins`, `sub`, `sup`, `abbr`, `cite`, `q`, `time` saat ini jatuh ke fallback `html-embed`. Petakan ke `text` dengan `as` = tag (allowlist) agar semantik/UA style (bold/italic) tetap.
+- **Priority:** High
+- **Status:** Done
+- **Dependencies:** STORA-619
+- **Acceptance Criteria:**
+  - Elemen tersebut tidak lagi tercatat `ELEMENT_FALLBACK_EMBED`.
+  - `as` hanya bernilai tag dari allowlist.
+
+### STORA-628
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-628
+- **Type:** Bug
+- **Summary:** Tombol ikon-only tidak berlabel "Button"
+- **Description:** `<button>` tanpa teks berisi `<svg>`/`<img>` (hamburger menu) menjadi `button` berlabel default "Button" dan ikonnya hilang. Gunakan fallback `html-embed` tersanitasi agar ikon tetap; tombol tanpa teks dan tanpa ikon memakai `aria-label` sebagai label.
+- **Priority:** Medium
+- **Status:** Done
+- **Dependencies:** STORA-619
+- **Acceptance Criteria:**
+  - Tombol ikon-only tidak menampilkan teks "Button".
+  - Fallback tercatat `ELEMENT_FALLBACK_EMBED`.
+
+### STORA-629
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-629
+- **Type:** Bug
+- **Summary:** Dedupe diagnostic selector tidak didukung
+- **Description:** `CSS_UNSUPPORTED_SELECTOR` dicatat sekali per elemen × rule (642 entri untuk 2 selector pada fixture landing page). Catat sekali per selector per import.
+- **Priority:** Medium
+- **Status:** Done
+- **Dependencies:** STORA-619
+- **Acceptance Criteria:**
+  - Satu diagnostic per selector unik.
+
+### STORA-630
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-630
+- **Type:** Bug
+- **Summary:** False positive `scroll-behavior` sebagai CSS berbahaya
+- **Description:** Pola `behavior\s*:` pada `DANGEROUS_STYLE_VALUE_PATTERN` cocok dengan `scroll-behavior`/`overscroll-behavior`. Batasi ke property IE `behavior`/`-ms-behavior` dan `binding`/`-moz-binding` sebagai nama property utuh.
+- **Priority:** Medium
+- **Status:** Done
+- **Dependencies:** STORA-619
+- **Acceptance Criteria:**
+  - `scroll-behavior: smooth` lolos tanpa diagnostic.
+  - `behavior: url(x.htc)` dan `-moz-binding` tetap dibuang.
+
+
+---
+
 # Phase H7 — Lanjutan (post-MVP)
 
 ## Epic: Fidelity Extensions

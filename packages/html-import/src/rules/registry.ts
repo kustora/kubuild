@@ -404,7 +404,9 @@ export class HtmlRuleRegistry {
         context.parentStyles,
         context.report,
       );
-      if (parentComputed && parentComputed.base && Object.keys(parentComputed.base).length > 0) {
+      // Always scope to the direct parent (its computed base already carries inherited text
+      // properties), so children never see a grandparent's non-inherited `display`.
+      if (parentComputed && parentComputed.base) {
         childContext = {
           ...context,
           parentStyles: parentComputed.base,
