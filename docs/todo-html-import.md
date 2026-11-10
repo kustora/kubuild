@@ -71,7 +71,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Definisikan public API dan `HtmlImportReport`
 - **Description:** Tetapkan signature `importHtml(html, options)` → `{ document, report }` dan `htmlToNodes(html, options)` → `{ nodes, report }`. Options: `baseUrl`, `stylesheets`, `fetchStylesheet`, `assetResolver`, `rules`, `limits` (`DocumentSecurityLimits`), `metadata`. Report berisi diagnostics berkode (mirip `PreflightDiagnostic`): `ELEMENT_DROPPED`, `ELEMENT_FALLBACK_EMBED`, `CSS_UNSUPPORTED_SELECTOR`, `CSS_UNSUPPORTED_PROPERTY`, `CSS_MEDIA_APPROXIMATED`, `ASSET_UNRESOLVED`, `URL_BLOCKED`, `DEPTH_FLATTENED`, `LIMIT_EXCEEDED`, plus statistik (node count, fallback count, fidelity score).
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-600
 - **Acceptance Criteria:**
   - Tipe API dan diagnostic code diexport dan terdokumentasi via TSDoc.
