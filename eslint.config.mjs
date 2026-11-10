@@ -45,6 +45,25 @@ export default [
             { name: '@kubuild/renderer', message: '@kubuild/core must not depend on @kubuild/renderer' },
             { name: '@kubuild/editor', message: '@kubuild/core must not depend on @kubuild/editor' },
             { name: '@kubuild/react', message: '@kubuild/core must not depend on @kubuild/react' },
+            { name: '@kubuild/html-import', message: '@kubuild/core must not depend on @kubuild/html-import' },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/html-import/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'react', message: '@kubuild/html-import must remain UI-framework agnostic. No React allowed.' },
+            { name: 'react-dom', message: '@kubuild/html-import must remain UI-framework agnostic. No ReactDOM allowed.' },
+            { name: '@kubuild/renderer', message: '@kubuild/html-import must not depend on @kubuild/renderer' },
+            { name: '@kubuild/editor', message: '@kubuild/html-import must not depend on @kubuild/editor' },
+            { name: '@kubuild/react', message: '@kubuild/html-import must not depend on @kubuild/react' },
+            { name: '@kubuild/components', message: '@kubuild/html-import must depend only on schema and core' },
           ],
         },
       ],

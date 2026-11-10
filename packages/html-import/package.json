@@ -1,0 +1,69 @@
+{
+  "name": "@kubuild/html-import",
+  "version": "0.12.0",
+  "description": "Static HTML to KUBUILD PageDocument importer and compiler",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup && tsc --emitDeclarationOnly && node ../../scripts/emit-cjs-dts.mjs",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kustora/kubuild.git",
+    "directory": "packages/html-import"
+  },
+  "keywords": [
+    "page-builder",
+    "visual-editor",
+    "html-import",
+    "low-code",
+    "website-builder",
+    "stora",
+    "kubuild"
+  ],
+  "author": "KUBUILD",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/kustora/kubuild/issues"
+  },
+  "homepage": "https://github.com/kustora/kubuild#readme",
+  "dependencies": {
+    "@kubuild/core": "workspace:*",
+    "@kubuild/schema": "workspace:*",
+    "css-select": "^7.0.0",
+    "css-tree": "^3.2.1",
+    "parse5": "^8.1.1"
+  },
+  "devDependencies": {
+    "@types/css-tree": "^3.2.0",
+    "tsup": "^8.3.6",
+    "typescript": "^6.0.0",
+    "vitest": "^4.1.12"
+  }
+}

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tsc = join(root, 'node_modules', '.bin', 'tsc');
-const packages = ['schema', 'core', 'components', 'renderer', 'editor', 'react', 'ai'];
+const packages = ['schema', 'core', 'components', 'renderer', 'editor', 'react', 'ai', 'html-import'];
 
 const source = `
 import { CURRENT_SCHEMA_VERSION, SCHEMA_NAME, type PageDocument } from '@kubuild/schema';
@@ -27,6 +27,7 @@ import * as editor from '@kubuild/editor';
 import * as react from '@kubuild/react';
 import * as ai from '@kubuild/ai';
 import * as aiServer from '@kubuild/ai/server';
+import * as htmlImport from '@kubuild/html-import';
 
 const version: string = CURRENT_SCHEMA_VERSION;
 const name: 'stora.page' = SCHEMA_NAME;
@@ -40,7 +41,8 @@ type Exported =
   | keyof typeof editor
   | keyof typeof react
   | keyof typeof ai
-  | keyof typeof aiServer;
+  | keyof typeof aiServer
+  | keyof typeof htmlImport;
 export type { Exported };
 export { version, name, typesOnly, validateDocument };
 `;
