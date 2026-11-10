@@ -1,0 +1,337 @@
+---
+title: Import Static HTML
+description: Turn untrusted static HTML, .html files, or .zip sites into an editable PageDocument with @kubuild/html-import — API, options, element mapping, supported CSS, custom rules, report codes, and host integration.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+`@kubuild/html-import` compiles static HTML (a string, an `.html` file, or a `.zip` with HTML, CSS and assets) into a regular, validated `PageDocument`. The result is a normal KUBUILD page: it opens in the editor, renders with `@kubuild/renderer`, and exports as `.stora` like any page built from scratch.
+
+The importer is a **compiler, not a browser**. It never runs scripts and never touches the DOM; it parses HTML with `parse5`, resolves the CSS cascade statically, and maps each element to a built-in component. It runs the same way in Node, in a worker, and in the browser.
+
+<Callout type="warn" title="HTML is untrusted input">
+  Treat every imported page like an imported `.stora` package: it may come from anyone. The importer strips scripts, event handlers and unsafe URLs, and the final document must pass `PageDocumentSchema` and `validateDocumentSecurity` before it is returned. Still run imports where a failure cannot hurt (a worker or a server job with limits), and keep your own [security checklist](/docs/integration/security) in place.
+</Callout>
+
+## Installation
+
+```bash
+pnpm add @kubuild/html-import
+```
+
+`@kubuild/react` re-exports the four entry points and the result/option types (`importHtml`, `importHtmlZip`, `htmlToNodes`, `importHtmlToStoraPackage`, `HtmlImportOptions`, …). Import from `@kubuild/html-import` directly when you write [custom rules](#custom-mapping-rules), because the rule helpers (`buildResponsiveStyles`, `getAttribute`, `HTML_IMPORT_DIAGNOSTIC_CODES`, …) are only exported there.
+
+## Quick Start
+
+<include meta='title="quick-start.ts"'>../../../examples/html-import/quick-start.ts</include>
+
+For this input the importer produces a `section` (with `display: flex` and `gap`), a `heading` with a `mobile` font-size override, a `paragraph`, and a `link` whose `:hover` rule lands in `styles.states.hover`.
+
+## The Pipeline
+
+Every entry point runs the same steps:
+
+| Step | What happens |
+| :--- | :--- |
+| 1. **Parse** | `parse5` builds an AST. Input over `limits.maxDocumentSizeBytes` (default 5 MB) is rejected with `LIMIT_EXCEEDED`. Full documents (`<!doctype>`, `<html>`, `<head>` or `<body>`) and fragments are both accepted. |
+| 2. **Sanitize** | Allowlist-based AST sanitizer: drops dangerous elements, `on*` handlers, `srcdoc`, `formaction`, unsafe URLs and dangerous inline styles. |
+| 3. **Cascade** | Collects `<style>`, `<link rel="stylesheet">` and `options.stylesheets` in source order, then resolves specificity, `!important`, inline styles, custom properties and inheritance per element. `@media` rules become breakpoint overrides and `:hover`-style rules become `states`. |
+| 4. **Map** | The rule registry turns each element into a node (`heading`, `image`, `flex`, …). Elements no rule handles become sanitized `html-embed` nodes (or are dropped). |
+| 5. **Normalize** | Removes style values that equal what the node already inherits, collapses unstyled single-child wrappers, merges adjacent text with identical styles, flattens branches deeper than `limits.maxTreeDepth`, and assigns deterministic IDs (`root-page`, `node-1`, `node-1-2`, …). |
+| 6. **Assets** | Resolves relative URLs against `baseUrl`, blocks executable files, calls `assetResolver` for images, videos and fonts, and collects web fonts into `theme.fonts`. |
+| 7. **Validate** | Assembles the `PageDocument` and checks it against `PageDocumentSchema` and `validateDocumentSecurity`. A document that fails is never returned. |
+
+## API
+
+| Function | Input | Returns |
+| :--- | :--- | :--- |
+| `importHtml(html, options?)` | HTML document or fragment string | `Promise<HtmlImportResult>`: `{ success, document?, report, error? }` |
+| `htmlToNodes(html, options?)` | HTML string | `Promise<HtmlNodesResult>`: `{ success, nodes, report, error? }`, the converted nodes without a `page` root, for inserting into an existing document |
+| `importHtmlZip(archive, options?)` | `Uint8Array` or `ArrayBuffer` of a `.zip` | `Promise<ZipImportResult>`: the `importHtml` result plus `entryHtmlPath` and `archiveAssets` |
+| `importHtmlToStoraPackage(html, options?)` | HTML string | `Promise<HtmlStoraPackageResult>`: `{ success, packageBuffer?, document?, report, error? }` |
+
+None of these functions throw. Malformed input, limit violations, failing resolvers and invalid output all come back as `success: false` with an `error` message and the diagnostics collected so far in `report`.
+
+`importHtml` builds the page root from `<body>`: body styles become the `page` node's styles (on top of `minHeight: 100vh` and a white background), and when `<body>` holds nothing but a single `<main>`, that `<main>` is merged into the root instead of becoming an extra section. The document title comes from `metadata.title`, then `<title>`, then `"Untitled Page"`. The description comes from `metadata.description`, then `<meta name="description">`.
+
+## Options
+
+`HtmlImportOptions` is accepted by all four functions (`ZipImportOptions` and `HtmlStoraPackageOptions` extend it):
+
+| Option | Type | Purpose |
+| :--- | :--- | :--- |
+| `baseUrl` | `string` | Resolves relative stylesheet hrefs, `src`, `srcset`, `poster` and CSS `url(...)` values. |
+| `stylesheets` | `string[]` | Extra CSS applied **after** the page's own sheets. Each entry is either raw CSS or a stylesheet URL (fetched through `fetchStylesheet`). |
+| `fetchStylesheet` | `(url) => string \| null \| Promise<…>` | The only way external CSS is read. Without it, `<link rel="stylesheet">` is reported as `ASSET_UNRESOLVED` and skipped. Return `null` to skip a sheet. |
+| `assetResolver` | `({ url, type }) => string \| AssetReference \| null \| Promise<…>` | Rehosts media. `type` is `'image' \| 'video' \| 'font' \| 'other'`. Return a URL or an `AssetReference` to replace the value, or `null` to keep the resolved URL (reported as `ASSET_UNRESOLVED`, severity `info`). |
+| `rules` | `HtmlMappingRule[]` | Host mapping rules, merged over the defaults. See [Custom Mapping Rules](#custom-mapping-rules). |
+| `allowedComponentTypes` | `string[] \| Set<string>` | Custom component types rules may emit. Any other non-built-in type is dropped. |
+| `limits` | `Partial<DocumentSecurityLimits>` | `maxDocumentSizeBytes` (default 5 MB here), `maxNodeCount` (default **1000** here), `maxTreeDepth` (32), `allowedUrlSchemes`, `prohibitedAssetExtensions`, `maxZipExpansionRatio`, and the other core limits used by the final security check. |
+| `metadata` | `Partial<DocumentMetadata>` | Overrides the generated document metadata (`title`, `description`, `author`, `tags`, …). |
+| `theme` | `Partial<Theme>` | Initial theme tokens. Fonts found in the page are merged into `theme.fonts`. |
+| `fallback` | `'embed' \| 'drop'` | What to do with elements no rule matches. `'embed'` (default) keeps them as sanitized `html-embed` nodes; `'drop'` removes them. |
+| `preserveButtonLinks` | `boolean` | Keep button-styled `<a>` elements as `link` nodes instead of converting them to `button`. |
+
+A typical server-side setup:
+
+<include meta='title="server-import.ts"'>../../../examples/html-import/server-import.ts</include>
+
+<Callout type="info" title="Pick a fetchStylesheet policy deliberately">
+  `fetchStylesheet` receives whatever URL the HTML points to. On a server, only fetch from hosts you trust (as above), or the import becomes a way to make your server request arbitrary URLs.
+</Callout>
+
+## Element Mapping
+
+Default rules, by HTML element:
+
+| HTML | Component | Notes |
+| :--- | :--- | :--- |
+| `section`, `header`, `footer`, `main`, `nav`, `article`, `aside` | `section` | Keeps `id`, `role`, `aria-label`. |
+| `div`, `address` | `flex` / `grid` / `container` | Chosen from the computed `display`. |
+| `h1`–`h6` | `heading` | `level` 1–6, `text`. |
+| `p` | `paragraph` | `text`. |
+| `span`, `strong`, `b`, `em`, `i`, `small`, `mark`, `u`, `s`, `del`, `ins`, `sub`, `sup`, `abbr`, `cite`, `q`, `time` | `text` | `as` is set to the tag, so bold/italic/sub/sup semantics survive. An element without text (a decorative `<span class="dot">`) becomes a styled `container`. |
+| `blockquote` | `blockquote` | `text` and `cite` (from the attribute or a child `<cite>`). |
+| `pre`, `code` | `code-block` | Whitespace is preserved; `language` comes from a `language-*` / `lang-*` class. |
+| `hr` | `divider` | |
+| `a` | `link` | `href` (unsafe schemes become `#`), `target`, `rel`. Text-only links get `text`; links with element children keep them as children. |
+| `a` with `role="button"`, a `btn`/`button` class, or a background color **and** padding | `button` | `label`, `href`. Disabled with `preserveButtonLinks: true`. |
+| `img`, `picture` | `image` | `src` (best `srcset` candidate for `<picture>`), `alt`, `loading`, `width`, `height`. |
+| `video` | `video` | `src` (or the first `<source>`), `controls`, `autoplay`, `loop`, `muted`, `poster`. |
+| `iframe` with a YouTube or Vimeo `src` | `video` | Other iframes fall back to `html-embed`. |
+| `svg` | `icon` | The sanitized SVG markup in `svg`. |
+| `form` | `form` | `method`, `action`. An `action` is reported (`URL_BLOCKED`, severity `info`) because the host must wire submission itself; see [Forms & Actions](/docs/guides/forms-and-actions). |
+| `input` | `input`, `checkbox`, `radio`, `button`, `button-submit` | By `type`. |
+| `textarea`, `select` | `textarea`, `select` | `select` gets its `options` from `<option>` children. |
+| `button` | `button` / `button-submit` | `type="submit"` gives `button-submit`. Icon-only buttons (just an `<svg>`/`<img>`) become `html-embed` so the icon survives; a button with no text and no icon uses its `aria-label` as the label. |
+| `label` | `checkbox` / `radio` / `text` | A label wrapping a checkbox or radio is merged into that control. |
+| `ul`, `ol` / `li` | `list` (`ordered`) / `list-item` | A text-only `li` uses `text`; mixed content stays in children only. |
+| `table`, `tr`, `td`/`th` | `table`, `table-row`, `table-cell` | `thead`/`tbody`/`tfoot` rows are flattened; `colSpan`/`rowSpan` are kept. |
+| Anything else (`canvas`, `details`, other iframes, …) | `html-embed` | Sanitized markup, reported as `ELEMENT_FALLBACK_EMBED`. With `fallback: 'drop'` the element is removed instead (`ELEMENT_DROPPED`). |
+
+Loose text directly inside a block (for example text next to an `<a>` inside a `<div>`) becomes a `text` node that carries only the inherited text properties of its parent. Whitespace-only text between elements is removed, and it is never kept inside flex or grid parents, where CSS would not render it either.
+
+## CSS Support
+
+The cascade is resolved per element, using the same precedence as a browser:
+
+1. `!important` beats normal declarations; inline `!important` beats stylesheet `!important`.
+2. Inline `style="…"` beats stylesheet rules.
+3. Higher specificity wins; later source order breaks ties.
+
+Selectors are matched with `css-select`, so type, class, ID, attribute, descendant/child/sibling combinators, `:not()`, `:first-child`, `:nth-child()` and similar structural pseudo-classes all work. Property names are converted to camelCase (`font-size` → `fontSize`) and stored as-is in the portable style object.
+
+### Inheritance and custom properties
+
+- **Inherited text properties** (`color`, `fontSize`, `fontFamily`, `fontWeight`, `fontStyle`, `lineHeight`, `textAlign`, `letterSpacing`) flow from parent to child. The normalizer then removes every value a node would inherit anyway, so styles are written once, on the ancestor that sets them.
+- **Custom properties** (`--brand: #2563eb`) cascade like other properties: tokens on `:root`, on any matching rule, or inline are resolved into `var(--brand, fallback)` usages. A `@media` rule that only changes a token re-resolves the declarations that use it, so the change appears as a breakpoint override.
+
+### Media queries → breakpoints
+
+KUBUILD breakpoints are `desktop` (≥ 1024px), `tablet` (768–1023px) and `mobile` (< 768px), and their layers are **disjoint**: `mobile` does not inherit from `tablet` (see [Responsive Cascade](/docs/guides/responsive-cascade)). CSS width queries cover ranges instead, so a query is applied to **every breakpoint whose width range it covers by more than half**. Override layers only store values that differ from `base`, and later queries still override earlier ones per breakpoint.
+
+| Query | Breakpoints | Diagnostic |
+| :--- | :--- | :--- |
+| `(max-width: 767px)` | `mobile` | — |
+| `(max-width: 1023px)` | `tablet`, `mobile` | — |
+| `(max-width: 991px)` | `tablet`, `mobile` | `CSS_MEDIA_APPROXIMATED` |
+| `(min-width: 768px)` (mobile-first) | `tablet`, `desktop` | — |
+| `(min-width: 768px) and (max-width: 1023px)` | `tablet` | — |
+| `(min-width: 1280px)` | `desktop` | `CSS_MEDIA_APPROXIMATED` |
+| `(max-width: 480px)` | `mobile` | `CSS_MEDIA_APPROXIMATED` |
+| `print`, `(prefers-color-scheme: dark)`, other non-width queries | ignored | — |
+
+`min-width`/`max-width` in `px`, `rem` and `em` (16px base) and range syntax (`width < 600px`) are understood. A query whose bounds don't sit on a KUBUILD breakpoint edge is reported once per query as `CSS_MEDIA_APPROXIMATED`.
+
+### Pseudo-classes → states
+
+Rules ending in `:hover`, `:focus`, `:active`, `:focus-visible`, `:disabled` or `[disabled]` are written to `styles.states` (`hover`, `focus`, `active`, `focusVisible`, `disabled`) as deltas against the base style. Other interactive pseudo-classes such as `:visited` are ignored.
+
+### Not supported
+
+| Feature | What happens |
+| :--- | :--- |
+| `@import` | Dropped, reported as `CSS_UNSUPPORTED_PROPERTY`. Pass the imported sheet through `stylesheets` instead. |
+| Pseudo-elements (`::before`, `::after`, `::placeholder`, …) and `:has()` | The selector is skipped, reported once per selector as `CSS_UNSUPPORTED_SELECTOR`. |
+| `@keyframes` animations | Not converted to KUBUILD animations. |
+| `@supports`, `@container`, `@layer` | Their conditions are not evaluated: the rules inside apply as if they were top-level. |
+| Dangerous values (`expression()`, `javascript:`/`vbscript:` URLs, `behavior`, `-moz-binding`, …) | The declaration is dropped (`URL_BLOCKED` or `CSS_UNSUPPORTED_PROPERTY`). |
+| Tailwind utility classes without a compiled stylesheet | No styles. Compile the CSS and pass it through `stylesheets`. |
+
+## Limitations
+
+- **No JavaScript.** `<script>` is removed, inline handlers are stripped, and nothing is executed. Content rendered by JavaScript (SPAs, client-side templates, lazy-loaded sections) will be missing; import the server-rendered or exported HTML instead.
+- **One page per import.** A `.zip` provides one entry HTML file plus its CSS and assets; links to other pages stay plain links.
+- **Static cascade.** Styles are resolved without layout, so anything that depends on viewport measurement, `calc()` against the real viewport, or JavaScript-toggled classes is approximated.
+- **Form actions are not wired.** `<form action>` is kept as a prop and reported; connect real submission through your host (`onFormSubmit`) or action pipelines.
+- **Node budget.** Imports stop at `limits.maxNodeCount` (default 1000 nodes) with `LIMIT_EXCEEDED`; raise it for large pages.
+
+## Security
+
+| Removed | Diagnostic |
+| :--- | :--- |
+| `script`, `noscript`, `object`, `embed`, `applet`, `base`, `template`, `frame`, `frameset`, SVG `script`/`foreignObject`/`animate`/`set` | `ELEMENT_DROPPED` |
+| `<meta http-equiv>`, `<link rel="import">`, and `<link>` with any rel other than stylesheet, icon or preload/prefetch/preconnect | `ELEMENT_DROPPED` |
+| `on*` event handler attributes, `srcdoc`, `formaction` | `URL_BLOCKED` |
+| `href`, `src`, `action`, `poster`, `srcset`, `xlink:href`, … with a scheme outside `limits.allowedUrlSchemes` (`javascript:`, `data:text/html`, …). `data:image/*` is allowed. | `URL_BLOCKED` |
+| Inline `style` attributes with dangerous expressions | `URL_BLOCKED` |
+| Asset URLs with executable extensions (`.exe`, `.js`, `.sh`, …) | `URL_BLOCKED` |
+
+The `html-embed` fallback only receives markup that went through the same sanitizer, and iframes are only embedded when their `src` is a safe URL. The finished document is then validated by `validateDocumentSecurity`, so an import cannot produce a page that the editor or renderer would reject.
+
+## Assets and Fonts
+
+- Relative URLs are resolved against `baseUrl`. Without `baseUrl` they stay relative.
+- With `assetResolver`, every image (`src`, `srcset`, `poster`, CSS `url(...)`) and video is passed through it. Returning an `AssetReference` (`{ type: 'asset', assetId, fallbackUrl, … }`) stores a portable asset reference that `exportStoraPackage` can package; returning a string replaces the URL. A resolver that throws or returns `null` keeps the resolved URL and adds an `ASSET_UNRESOLVED` info diagnostic.
+- Fonts from Google Fonts / Bunny Fonts links and `@font-face` rules are added to `theme.fonts` (`"Open Sans"` → `theme.fonts["open-sans"]`). `@font-face` files are passed to `assetResolver` with `type: 'font'` so you can copy them, but the stylesheet itself is not rewritten.
+
+See [Assets & AssetProvider](/docs/guides/assets) for how the editor and renderer resolve stored asset references.
+
+## Importing a .zip Site
+
+`importHtmlZip` accepts an archive of an exported static site. It picks the entry HTML file (`entryHtmlPath`, else a root `index.html`, else a single nested `index.html`, else the only `.html` file), reads linked stylesheets from the archive, and resolves relative media against the archive. Before unpacking anything it rejects:
+
+- archives larger than `limits.maxDocumentSizeBytes` (default 5 MB, for the whole archive),
+- zip-slip paths (`../`, absolute paths),
+- zip bombs (`limits.maxZipExpansionRatio`),
+- executable files (`limits.prohibitedAssetExtensions`).
+
+All of these fail with `LIMIT_EXCEEDED`; a missing or ambiguous entry file fails with `ASSET_UNRESOLVED`.
+
+Asset references that resolve inside the archive reach your `assetResolver` as the archive path (for example `site/img/hero.png`); without a resolver they stay as that path. `archiveAssets` returns the bytes of every non-HTML, non-CSS file so you can upload them:
+
+<include meta='title="zip-import.ts"'>../../../examples/html-import/zip-import.ts</include>
+
+## Custom Mapping Rules
+
+A rule decides whether it handles an element (`match`) and what it becomes (`convert`):
+
+```ts
+interface HtmlMappingRule {
+  id: string; // a host rule with the same id replaces the built-in rule
+  priority: number; // higher runs first; built-in rules use 30–60
+  match: (element, computed, context) => boolean;
+  convert: (element, context, computed) => PageNode | PageNode[] | null;
+}
+```
+
+- `element` is the sanitized `parse5` element (`tagName` is lower case, `attrs` is an array of `{ name, value }`). Use `getAttribute`, `hasAttribute` and `getTextContent` from the package to read it.
+- `computed` holds the resolved cascade (`base`, `mediaQueries`, `pseudoStates`). Pass it to `buildResponsiveStyles(computed, context.report)` to get the same `ResponsiveStyles` the built-in rules produce.
+- `context` provides `generateId(prefix)`, `convertChildren(element)` and `convertElement(element)` for recursion, the `report` for your own diagnostics, and the import `options`.
+- Return a node, an array of nodes (for example the converted children, to unwrap an element), or `null` to drop the element silently.
+- Rules are tried in priority order and the **first** match wins. A rule that throws is reported as `ELEMENT_DROPPED` and the element goes to the fallback.
+
+<include meta='title="custom-rule.ts"'>../../../examples/html-import/custom-rule.ts</include>
+
+A rule may only emit built-in component types or types listed in `allowedComponentTypes`. Any other type is dropped and reported as `ELEMENT_DROPPED`; it is replaced by an `html-embed` only when `fallback: 'embed'` is set explicitly. Register the custom component itself in your component registry so the editor and renderer can show it (see [Custom Components](/docs/guides/custom-components)).
+
+Built-in rule IDs, for overriding:
+
+| Priority | Rule IDs |
+| :--- | :--- |
+| 60 | `button-link` |
+| 55 | `iframe-video`, `form-label` |
+| 50 | `heading`, `paragraph`, `blockquote`, `code-block`, `divider`, `link`, `image`, `picture`, `video`, `form`, `input`, `textarea`, `select`, `button`, `list`, `list-item`, `table`, `table-row`, `table-cell`, `svg-icon` |
+| 45 | `table-section` |
+| 40 | `text`, `section` |
+| 30 | `container` |
+
+`createRuleRegistry()` and `DEFAULT_HTML_MAPPING_RULES` are exported too, for tooling that wants to inspect or test the effective rule set.
+
+## Import Report
+
+Every result carries a `report: HtmlImportReport`:
+
+```ts
+interface HtmlImportReport {
+  diagnostics: Array<{
+    code: HtmlImportDiagnosticCode;
+    severity: 'error' | 'warning' | 'info';
+    message: string;
+    location?: { line?: number; column?: number; tagName?: string; selector?: string; path?: string };
+    details?: Record<string, unknown>;
+  }>;
+  stats: {
+    nodeCount: number; // nodes in the output
+    fallbackCount: number; // ELEMENT_FALLBACK_EMBED count
+    droppedCount: number; // ELEMENT_DROPPED count
+    fidelityScore: number; // 0–100
+    durationMs?: number;
+  };
+}
+```
+
+### Diagnostic codes
+
+| Code | Typical severity | Meaning |
+| :--- | :--- | :--- |
+| `ELEMENT_DROPPED` | warning | An element was removed: prohibited for security, unsafe for an embed, a rule threw or emitted a disallowed type, or `fallback: 'drop'`. |
+| `ELEMENT_FALLBACK_EMBED` | warning | No rule matched; the element was kept as a sanitized `html-embed`. |
+| `CSS_UNSUPPORTED_SELECTOR` | info | A selector could not be matched (pseudo-elements, `:has()`, invalid syntax). Reported once per selector. |
+| `CSS_UNSUPPORTED_PROPERTY` | warning | `@import`, or a dangerous property such as `behavior` / `-moz-binding`, was dropped. |
+| `CSS_MEDIA_APPROXIMATED` | info | A media query was mapped to breakpoints whose edges it does not match exactly. Reported once per query. |
+| `ASSET_UNRESOLVED` | warning / info | An external stylesheet was not fetched, a resolver returned `null` or threw, or a `.zip` has no usable entry HTML (error). |
+| `URL_BLOCKED` | warning | An unsafe URL, event handler, `srcdoc`/`formaction`, dangerous inline style, or executable asset was removed. Also used (severity `info`) for a `<form action>` the host must wire. |
+| `DEPTH_FLATTENED` | warning | A branch deeper than `limits.maxTreeDepth` was flattened. |
+| `LIMIT_EXCEEDED` | error | Input size, node count, or a `.zip` safety check failed, or the final document failed validation. |
+
+### Fidelity score
+
+`fidelityScore` estimates how much of the source survived as native, editable components:
+
+```
+native   = nodeCount − fallbackCount
+score    = (native × 1 + fallbackCount × 0.5) / (native + fallbackCount + droppedCount) × 100
+```
+
+Embeds count half, dropped elements count zero. Because dropped elements include security removals, a page with many `<script>` tags scores lower even when it looks identical. Use the score as a hint for review, not as a pass/fail gate on its own:
+
+<include meta='title="report.ts"'>../../../examples/html-import/report.ts</include>
+
+## Host Integration
+
+### Import dialog in the editor
+
+`@kubuild/editor` ships `HtmlImportModal`: a dialog with file upload (`.html`, `.htm`, `.zip`, also by drag and drop) and a paste tab. It runs `importHtml` / `importHtmlZip` with your `options`, shows the fidelity score and diagnostics, and calls `onImport(document)` only when the import succeeded.
+
+<include meta='title="editor-dialog.tsx"'>../../../examples/html-import/editor-dialog.tsx</include>
+
+| Prop | Type | Purpose |
+| :--- | :--- | :--- |
+| `isOpen` / `onClose` | `boolean` / `() => void` | Controls visibility. |
+| `onImport` | `(doc: PageDocument) => void` | Receives the validated document. |
+| `options` | `Partial<HtmlImportOptions>` | Passed to the importer (resolvers, rules, limits, …). |
+| `initialHtml` | `string` | Opens the paste tab prefilled. |
+| `presets` | `HtmlImportPreset[]` | Sample snippets (`{ id?, name, html, description? }`) the user can load into the paste tab. |
+
+The editor toolbar also has a built-in **Import HTML** button that opens the same dialog with default options and loads the result as a new document (history is reset). Render your own `HtmlImportModal`, as above, when you need resolvers, custom rules or an undoable import through `replaceDocument(doc, { keepHistory: true })`.
+
+### Paste HTML onto the canvas
+
+Pasting `text/html` from the clipboard onto the canvas (for example a section copied from another website) converts it with `htmlToNodes` and inserts the nodes into the selected node, or next to it when the selection cannot have children, falling back to the page root. Every paste gets fresh node IDs and is a single undo step. Pastes into text inputs, image pastes and KUBUILD's own clipboard payloads are left alone.
+
+The same action is available programmatically:
+
+<include meta='title="paste-html.ts"'>../../../examples/html-import/paste-html.ts</include>
+
+### Headless: insert a snippet into a document
+
+Outside the editor, convert a fragment with `htmlToNodes` and insert it with the core commands. Re-ID the nodes first: `htmlToNodes` always numbers from `node-1`, so a second snippet would collide.
+
+<include meta='title="fragment-insert.ts"'>../../../examples/html-import/fragment-insert.ts</include>
+
+### Straight to .stora
+
+`importHtmlToStoraPackage` runs `importHtml` and then `exportStoraPackage`, for pipelines that convert HTML templates into shareable packages. Pass `assets` (`{ assetId, data, filename?, mimeType? }[]`) to embed the bytes of assets your resolver referenced.
+
+<include meta='title="stora-package.ts"'>../../../examples/html-import/stora-package.ts</include>
+
+The archive can then be preflighted and imported anywhere with the normal [`.stora` import flow](/docs/guides/export-import).
+
+## Related
+
+- [Export & Import .stora Packages](/docs/guides/export-import)
+- [Responsive Cascade](/docs/guides/responsive-cascade)
+- [Custom Components](/docs/guides/custom-components)
+- [Assets & AssetProvider](/docs/guides/assets)
+- [Security](/docs/integration/security)

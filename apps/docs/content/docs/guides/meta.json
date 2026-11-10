@@ -11,7 +11,8 @@
     "projects-artboards",
     "theming",
     "assets",
-    "export-import"
+    "export-import",
+    "html-import"
   ],
   "defaultOpen": true
 }

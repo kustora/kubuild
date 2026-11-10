@@ -60,6 +60,9 @@ importers:
       '@kubuild/editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@kubuild/html-import':
+        specifier: workspace:*
+        version: link:../../packages/html-import
       '@kubuild/react':
         specifier: workspace:*
         version: link:../../packages/react
