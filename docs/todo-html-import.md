@@ -787,3 +787,17 @@ Temuan suite fixture STORA-620.
 - **Acceptance Criteria:**
   - ~~Iframe sandbox tidak mengizinkan script maupun same-origin.~~ Direvisi: sandbox tanpa `allow-same-origin` membuat parent tidak bisa membaca DOM iframe (opaque origin), sehingga `getComputedStyle` mustahil. Implementasi memakai `sandbox="allow-same-origin"` saja — `allow-scripts` tidak pernah diberikan (escape sandbox butuh keduanya) — ditambah CSP `default-src 'none'` (tanpa network), markup hasil `sanitizeAst` dibangun ulang via DOM API (tanpa `innerHTML`), dan `url()`/`@import` dinetralkan. Lihat `packages/editor/src/html-snapshot/frame.ts`.
   - Style hasil snapshot tidak lebih gemuk dari hasil mode statis untuk fixture yang sama (setelah strip default).
+
+### STORA-649
+
+- **Epic:** Fidelity Extensions
+- **Task Key:** STORA-649
+- **Type:** Bug
+- **Summary:** Browser-snapshot mode menyertakan rule Tailwind hasil mapping
+- **Description:** Frame pengukuran snapshot (STORA-623) hanya menerima CSS halaman dan `options.stylesheets`, bukan rule yang dihasilkan mapper Tailwind (STORA-622). Pada halaman yang hanya bergaya class Tailwind, frame mengukur elemen tanpa style dan nilai terukur menimpa nilai statis hasil mapping (mis. `color`, `font-weight`).
+- **Priority:** High
+- **Status:** To Do
+- **Dependencies:** STORA-622, STORA-623
+- **Acceptance Criteria:**
+  - Rule Tailwind hasil mapping ikut dimuat di frame pengukuran (atau snapshot dilewati dengan diagnostic yang jelas bila tidak memungkinkan).
+  - Fixture `ai-tailwind.html` di mode snapshot tidak kehilangan style hasil mapping (test dengan `getComputedStyle` di-mock).
