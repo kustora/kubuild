@@ -15,6 +15,7 @@ import {
   AiChatBubble,
   AiChatTypingIndicator,
   AiChatErrorBubble,
+  getPastedImageFiles,
 } from '../src/components/ai-chat/ai-chat-panel';
 
 describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
@@ -137,6 +138,19 @@ describe('AiChatPanel (STORA-503, STORA-505, STORA-506)', () => {
           <AiChatPanel aiConfig={enabledConfig} mode="docked" assetProvider={{ resolve: (uri: string) => uri }} />,
         ),
       ).not.toContain('data-testid="ai-chat-attach-image"');
+    });
+
+    it('reads pasted images from clipboard files, falling back to items', () => {
+      const png = new File(['x'], 'shot.png', { type: 'image/png' });
+      const txt = new File(['x'], 'note.txt', { type: 'text/plain' });
+      const asList = (arr: unknown[]) => arr as unknown as FileList & DataTransferItemList;
+      const item = (file: File, kind = 'file') => ({ kind, type: file.type, getAsFile: () => file });
+
+      expect(getPastedImageFiles({ files: asList([png, txt]), items: asList([]) })).toEqual([png]);
+      expect(
+        getPastedImageFiles({ files: asList([]), items: asList([item(png), item(txt), item(png, 'string')]) }),
+      ).toEqual([png]);
+      expect(getPastedImageFiles({ files: asList([txt]), items: asList([item(txt)]) })).toEqual([]);
     });
 
     it('renders the images attached to a message bubble', () => {

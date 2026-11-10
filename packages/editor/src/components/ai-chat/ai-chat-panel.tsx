@@ -197,6 +197,19 @@ export function AiChatBubble({ message }: { message: AiChatMessage }) {
 /** Most images one message may carry — matches `@kubuild/ai`'s per-message cap. */
 const MAX_CHAT_IMAGES = 4;
 
+/**
+ * Image files on a paste's clipboard. Screenshots usually arrive in `files`, but some
+ * sources (e.g. "Copy image" in Safari/Firefox) only expose them as `items`, so fall back.
+ */
+export function getPastedImageFiles(data: Pick<DataTransfer, 'files' | 'items'>): File[] {
+  const files = Array.from(data.files ?? []).filter((f) => f.type.startsWith('image/'));
+  if (files.length > 0) return files;
+  return Array.from(data.items ?? [])
+    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+    .map((item) => item.getAsFile())
+    .filter((f): f is File => !!f);
+}
+
 interface ChatAttachment {
   id: string;
   status: 'uploading' | 'ready';
@@ -1565,7 +1578,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             onChange={(e) => setInputValue(e.target.value)}
             onPaste={(e) => {
               if (!canAttachImages) return;
-              const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/'));
+              const files = getPastedImageFiles(e.clipboardData);
               if (files.length === 0) return;
               e.preventDefault();
               handleAttachFiles(files);
