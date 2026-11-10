@@ -767,7 +767,7 @@ Temuan suite fixture STORA-620.
 - **Summary:** Dukungan Tailwind utility class
 - **Description:** Banyak HTML hasil AI memakai Tailwind CDN tanpa stylesheet. Opsi: (a) mapper class Tailwind → `StyleDefinition` termasuk prefix responsif (`sm:`/`md:`/`lg:`) → breakpoint dan `hover:` → states, atau (b) host mengirim CSS hasil compile. Pilih lewat spike singkat sebelum implementasi.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-606
 - **Acceptance Criteria:**
   - Class utility umum (spacing, flex, grid, typography, color, radius, shadow) terpetakan.

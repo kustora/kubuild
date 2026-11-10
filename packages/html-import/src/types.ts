@@ -13,6 +13,7 @@ import type {
 import type { DocumentSecurityLimits } from '@kubuild/core';
 import type { DefaultTreeAdapterMap } from 'parse5';
 import type { ComputedElementStyles } from './cascade.js';
+import type { TailwindMode } from './tailwind.js';
 
 /**
  * Diagnostic codes emitted during HTML import and compilation.
@@ -188,6 +189,12 @@ export interface HtmlImportOptions {
    * static styles. Errors thrown by the hook are swallowed and fall back to static styles.
    */
   styleOverride?: HtmlStyleOverride;
+  /**
+   * Tailwind utility class mapping (STORA-622). `'auto'` (default) maps classes when a
+   * Tailwind CDN/config script or a clear Tailwind class signature is found; `true` always
+   * maps, `false` never does. Classes defined by the page's own stylesheets are left to them.
+   */
+  tailwind?: TailwindMode;
 }
 
 /**

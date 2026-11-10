@@ -83,6 +83,7 @@ export * from './normalizer.js';
 export * from './asset.js';
 export * from './validator.js';
 export * from './style-override.js';
+export * from './tailwind.js';
 export * from './zip-import.js';
 
 /**
