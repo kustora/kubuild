@@ -172,7 +172,7 @@ describe('Public API and HtmlImportReport (STORA-601)', () => {
 
       expect(result.document?.metadata?.title).toBe('Test Landing');
       expect(result.document?.document.type).toBe('page');
-      expect(result.report.stats.nodeCount).toBe(1);
+      expect(result.report.stats.nodeCount).toBe(2);
       expect(result.report.stats.fidelityScore).toBe(100);
       expect(typeof result.report.stats.durationMs).toBe('number');
     });

@@ -7,6 +7,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   SCHEMA_NAME,
   type PageDocument,
+  type ResponsiveStyles,
 } from '@kubuild/schema';
 import { DEFAULT_DOCUMENT_SECURITY_LIMITS } from '@kubuild/core';
 import {
@@ -20,6 +21,10 @@ import {
 } from './types.js';
 import { parseHtml } from './parser.js';
 import { sanitizeAst } from './sanitizer.js';
+import { collectAndParseStylesheets } from './stylesheet.js';
+import { computeElementStyles } from './cascade.js';
+import { buildResponsiveStyles } from './responsive.js';
+import { createRuleRegistry } from './rules/index.js';
 
 export const HTML_IMPORT_VERSION = '0.1.0';
 
@@ -30,6 +35,20 @@ export * from './stylesheet.js';
 export * from './cascade.js';
 export * from './responsive.js';
 export * from './rules/index.js';
+
+/**
+ * Counts total nodes across a PageNode hierarchy.
+ */
+function countTotalNodes(nodes: PageNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    count += 1;
+    if (node.children && Array.isArray(node.children) && node.children.length > 0) {
+      count += countTotalNodes(node.children);
+    }
+  }
+  return count;
+}
 
 /**
  * Imports an untrusted HTML string (document or fragment) and compiles it into a valid KUBUILD PageDocument.
@@ -63,15 +82,50 @@ export async function importHtml(
       sanitizeAst(parseResult.rootElement, report, options);
     }
 
+    const bundle = await collectAndParseStylesheets(parseResult.parsed!, options, report);
+
+    const registry = createRuleRegistry(undefined, {
+      allowedCustomTypes: options?.allowedComponentTypes,
+    });
+    if (options?.rules && options.rules.length > 0) {
+      registry.registerMany(options.rules);
+    }
+
+    const context = registry.createContext(options, {
+      report,
+      bundle,
+    });
+
+    const targetContainer = parseResult.bodyElement ?? parseResult.rootElement;
+    const childrenNodes: PageNode[] = targetContainer
+      ? registry.convertChildren(targetContainer, context)
+      : [];
+
     const title = options?.metadata?.title ?? parseResult.title ?? 'Untitled Page';
     const description = options?.metadata?.description ?? parseResult.description ?? '';
+
+    let rootStyles: ResponsiveStyles = {
+      base: { minHeight: '100vh', backgroundColor: '#ffffff' },
+    };
+    if (parseResult.bodyElement) {
+      const bodyComputed = computeElementStyles(parseResult.bodyElement, bundle, undefined, report);
+      const bodyResponsive = buildResponsiveStyles(bodyComputed, report);
+      rootStyles = {
+        ...bodyResponsive,
+        base: {
+          minHeight: '100vh',
+          backgroundColor: '#ffffff',
+          ...(bodyResponsive.base ?? {}),
+        },
+      };
+    }
 
     const rootPageNode: PageNode & { type: 'page' } = {
       id: 'root-page',
       type: 'page',
       props: { title },
-      styles: { base: { minHeight: '100vh', backgroundColor: '#ffffff' } },
-      children: [],
+      styles: rootStyles,
+      children: childrenNodes,
     };
 
     const document: PageDocument = {
@@ -92,7 +146,7 @@ export async function importHtml(
       document: rootPageNode,
     };
 
-    const nodeCount = 1; // root page node
+    const nodeCount = countTotalNodes([rootPageNode]);
     const maxNodeCount =
       options?.limits?.maxNodeCount ?? DEFAULT_DOCUMENT_SECURITY_LIMITS.maxNodeCount;
     if (maxNodeCount !== undefined && nodeCount > maxNodeCount) {
@@ -165,10 +219,27 @@ export async function htmlToNodes(
       sanitizeAst(parseResult.rootElement, report, options);
     }
 
-    // Baseline Phase H0: returns empty nodes array (populated in subsequent phases)
-    const nodes: PageNode[] = [];
+    const bundle = await collectAndParseStylesheets(parseResult.parsed!, options, report);
 
-    report.stats.nodeCount = nodes.length;
+    const registry = createRuleRegistry(undefined, {
+      allowedCustomTypes: options?.allowedComponentTypes,
+    });
+    if (options?.rules && options.rules.length > 0) {
+      registry.registerMany(options.rules);
+    }
+
+    const context = registry.createContext(options, {
+      report,
+      bundle,
+    });
+
+    const targetContainer = parseResult.bodyElement ?? parseResult.rootElement;
+    const nodes: PageNode[] = targetContainer
+      ? registry.convertChildren(targetContainer, context)
+      : [];
+
+    const nodeCount = countTotalNodes(nodes);
+    report.stats.nodeCount = nodeCount;
     report.stats.fidelityScore = computeFidelityScore(report.stats);
     report.stats.durationMs = Date.now() - startTime;
 

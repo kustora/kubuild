@@ -195,7 +195,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Default rule: layout & typography
 - **Description:** `section/header/footer/main/nav/article/aside` → `section`; `div` dengan `display:flex` → `flex`, `display:grid` → `grid`, lainnya → `container`; `h1–h6` → `heading` (`level`); `p` → `paragraph`; text node lepas di container → `text`; `blockquote`, `pre/code` → `code-block`, `hr` → `divider`, `a` → `link`. Props mengikuti `canonical-props` (gunakan mapping kebalikan dari `renderer/src/code-generator.ts`).
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-607, STORA-605
 - **Acceptance Criteria:**
   - Whitespace text di-collapse sesuai aturan HTML; text kosong tidak menjadi node.

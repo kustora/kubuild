@@ -34,7 +34,10 @@ export interface HtmlMappingContext {
    * Recursively converts children of an element or document fragment into PageNodes.
    */
   convertChildren: (
-    element: DefaultTreeAdapterMap['element'] | DefaultTreeAdapterMap['documentFragment'],
+    element:
+      | DefaultTreeAdapterMap['element']
+      | DefaultTreeAdapterMap['documentFragment']
+      | DefaultTreeAdapterMap['document'],
   ) => PageNode[];
   /**
    * Converts a single DOM element using registered rules.

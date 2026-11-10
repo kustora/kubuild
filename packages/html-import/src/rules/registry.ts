@@ -3,7 +3,7 @@
  * Rule registry and evaluation engine for HTML element mapping.
  */
 
-import { serialize } from 'parse5';
+import { serialize, type DefaultTreeAdapterMap } from 'parse5';
 import { BUILTIN_COMPONENT_TYPES } from '@kubuild/schema';
 import {
   addDiagnostic,
@@ -14,6 +14,11 @@ import {
 import { computeElementStyles, type ComputedElementStyles, type Parse5Element } from '../cascade.js';
 import type { ParsedStylesheetBundle } from '../stylesheet.js';
 import { isElement } from '../sanitizer.js';
+import {
+  DEFAULT_HTML_MAPPING_RULES,
+  convertRawTextNode,
+  isTextNode,
+} from './layout-typography.js';
 import type {
   HtmlMappingContext,
   HtmlMappingRule,
@@ -367,10 +372,13 @@ export class HtmlRuleRegistry {
   }
 
   /**
-   * Recursively converts children of an element or document fragment into PageNodes.
+   * Recursively converts children of an element, document, or document fragment into PageNodes.
    */
   convertChildren(
-    parent: Parse5Element | Parse5DocumentFragment,
+    parent:
+      | DefaultTreeAdapterMap['element']
+      | DefaultTreeAdapterMap['documentFragment']
+      | DefaultTreeAdapterMap['document'],
     context: HtmlMappingContext,
   ): PageNode[] {
     const nodes: PageNode[] = [];
@@ -392,12 +400,17 @@ export class HtmlRuleRegistry {
           parentStyles: parentComputed.base,
         };
         childContext.convertElement = (el: Parse5Element) => this.mapElement(el, childContext);
-        childContext.convertChildren = (p: Parse5Element | Parse5DocumentFragment) =>
-          this.convertChildren(p, childContext);
+        childContext.convertChildren = (
+          p:
+            | DefaultTreeAdapterMap['element']
+            | DefaultTreeAdapterMap['documentFragment']
+            | DefaultTreeAdapterMap['document'],
+        ) => this.convertChildren(p, childContext);
       }
     }
 
-    for (const child of parent.childNodes) {
+    for (let i = 0; i < parent.childNodes.length; i++) {
+      const child = parent.childNodes[i];
       if (isElement(child)) {
         const converted = childContext.convertElement(child);
         if (converted) {
@@ -406,6 +419,11 @@ export class HtmlRuleRegistry {
           } else {
             nodes.push(converted);
           }
+        }
+      } else if (isTextNode(child)) {
+        const textNode = convertRawTextNode(child, i, parent.childNodes, childContext);
+        if (textNode) {
+          nodes.push(textNode);
         }
       }
     }
@@ -448,8 +466,12 @@ export class HtmlRuleRegistry {
       generateId,
       allowedComponentTypes,
       convertElement: (el: Parse5Element) => this.mapElement(el, baseContext),
-      convertChildren: (p: Parse5Element | Parse5DocumentFragment) =>
-        this.convertChildren(p, baseContext),
+      convertChildren: (
+        p:
+          | DefaultTreeAdapterMap['element']
+          | DefaultTreeAdapterMap['documentFragment']
+          | DefaultTreeAdapterMap['document'],
+      ) => this.convertChildren(p, baseContext),
       ...overrides,
     };
 
@@ -615,12 +637,14 @@ export class HtmlRuleRegistry {
 
 /**
  * Creates a new instance of HtmlRuleRegistry with optional rules and configuration.
+ * When rules are omitted, defaults to DEFAULT_HTML_MAPPING_RULES.
  */
 export function createRuleRegistry(
   rules?: HtmlMappingRule[],
   options?: { allowedCustomTypes?: Iterable<string> },
 ): HtmlRuleRegistry {
-  return new HtmlRuleRegistry(rules, options);
+  const initialRules = rules !== undefined ? rules : [...DEFAULT_HTML_MAPPING_RULES];
+  return new HtmlRuleRegistry(initialRules, options);
 }
 
 /**
