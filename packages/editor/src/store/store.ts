@@ -19,6 +19,7 @@ import {
   findNodeLocation,
   isDescendantOf,
   getParentNodeId,
+  getNodeAncestors,
   insertNode,
   moveNode,
   duplicateNode,
@@ -56,6 +57,7 @@ import {
   STARTER_BLOCKS,
   BlockDefinition,
 } from '@kubuild/components';
+import { htmlToNodes } from '@kubuild/html-import';
 import type { AiGenerationPlaceholderStatus } from '../ai/generate-page.js';
 import type { EditorMode } from '../config/config.js';
 import { getMissingTemplateComponents } from '../utils/template-requirements.js';
@@ -558,6 +560,17 @@ export interface EditorState {
     registry: ComponentRegistry,
     index?: number,
   ) => PasteComponentResult;
+  /**
+   * Imports an HTML string via `@kubuild/html-import` and inserts the resulting nodes
+   * into the document (STORA-617). Insertions are grouped into a single history transaction
+   * so a single undo() reverts the entire paste operation.
+   */
+  pasteHtmlNodes: (
+    html: string,
+    registry: ComponentRegistry,
+    targetParentId?: string,
+    index?: number,
+  ) => Promise<boolean>;
   selectNode: (nodeId: string | null) => void;
   selectMultipleNodes: (ids: string[]) => void;
   toggleNodeSelection: (id: string, multi: boolean) => void;
@@ -1619,6 +1632,135 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     get().selectNode(clonedNode.id);
     return { success: true, nodeId: clonedNode.id };
+  },
+
+  pasteHtmlNodes: async (html, registry, targetParentId, index) => {
+    if (!html || typeof html !== 'string' || !html.trim()) {
+      return false;
+    }
+
+    let res;
+    try {
+      res = await htmlToNodes(html);
+    } catch {
+      return false;
+    }
+
+    if (!res.success || !res.nodes || res.nodes.length === 0) {
+      return false;
+    }
+
+    const state = get();
+    const doc = state.document.document;
+    const rootPageId = doc.id;
+
+    // Target parent resolution:
+    // - If currently selected node accepts children (registry.get(node.type)?.acceptsChildren !== false), insert into it.
+    // - If currently selected node does NOT accept children (e.g. heading, button, text, image):
+    //   Insert as sibling after it in its parent, or find the nearest valid ancestor that accepts children.
+    // - Fallback to root page node (state.document.document.id).
+    let resolvedParentId: string = rootPageId;
+    let resolvedIndex: number | undefined = index;
+
+    const candidateId = targetParentId ?? state.selectedNodeId;
+    if (candidateId) {
+      const candidateNode = findNodeById(doc, candidateId);
+      if (candidateNode) {
+        const candidateDef = registry.get(candidateNode.type);
+        const acceptsChildren = candidateDef ? candidateDef.acceptsChildren !== false : false;
+
+        if (acceptsChildren) {
+          resolvedParentId = candidateNode.id;
+          resolvedIndex = index;
+        } else {
+          // Leaf node (does not accept children)
+          const loc = findNodeLocation(doc, candidateId);
+          if (loc && loc.parent) {
+            const parentDef = registry.get(loc.parent.type);
+            if (parentDef ? parentDef.acceptsChildren !== false : false) {
+              resolvedParentId = loc.parent.id;
+              resolvedIndex = loc.index + 1;
+            } else {
+              // Find nearest valid ancestor that accepts children
+              const ancestors = getNodeAncestors(doc, candidateId);
+              let foundAncestorId: string | null = null;
+              for (let i = ancestors.length - 2; i >= 0; i--) {
+                const anc = ancestors[i];
+                const ancDef = registry.get(anc.type);
+                if (ancDef ? ancDef.acceptsChildren !== false : false) {
+                  foundAncestorId = anc.id;
+                  break;
+                }
+              }
+              if (foundAncestorId) {
+                resolvedParentId = foundAncestorId;
+                resolvedIndex = undefined;
+              } else {
+                resolvedParentId = rootPageId;
+                resolvedIndex = undefined;
+              }
+            }
+          } else {
+            resolvedParentId = rootPageId;
+            resolvedIndex = undefined;
+          }
+        }
+      }
+    }
+
+    // Ensure target parent exists in document
+    const parentNode = findNodeById(doc, resolvedParentId);
+    if (!parentNode) {
+      resolvedParentId = rootPageId;
+      resolvedIndex = undefined;
+    }
+
+    // Fresh unique IDs for cloned subtree
+    const existingIds = collectNodeIdSet(doc);
+    const clonedNodes: Node[] = [];
+    for (const node of res.nodes) {
+      const { clonedNode } = cloneTreeWithNewIds(node as Node, undefined, existingIds);
+      const newIds = collectNodeIdSet(clonedNode);
+      for (const id of newIds) {
+        existingIds.add(id);
+      }
+      clonedNodes.push(clonedNode);
+    }
+
+    if (clonedNodes.length === 0) {
+      return false;
+    }
+
+    // History transaction grouping:
+    // Wrap insertion of all parsed nodes into beginHistoryTransaction ... endHistoryTransaction
+    get().beginHistoryTransaction();
+    try {
+      let currentIndex = resolvedIndex;
+      for (const node of clonedNodes) {
+        get().dispatch((currentDoc) =>
+          insertNode(currentDoc, {
+            parentId: resolvedParentId,
+            node,
+            index: currentIndex,
+          }),
+        );
+        if (typeof currentIndex === 'number') {
+          currentIndex++;
+        }
+      }
+    } finally {
+      get().endHistoryTransaction();
+    }
+
+    // Selection: Select the newly inserted node(s)
+    const insertedIds = clonedNodes.map((n) => n.id);
+    if (insertedIds.length === 1) {
+      get().selectNode(insertedIds[0]);
+    } else if (insertedIds.length > 1) {
+      get().selectMultipleNodes(insertedIds);
+    }
+
+    return true;
   },
 
   selectNode: (nodeId) => {

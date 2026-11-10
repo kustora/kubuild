@@ -337,7 +337,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Paste HTML ke canvas sebagai node
 - **Description:** Saat clipboard berisi `text/html` (dan bukan payload internal KUBUILD), jalankan `htmlToNodes` lalu insert ke selection via command `INSERT_NODE` dalam satu history transaction.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-616
 - **Acceptance Criteria:**
   - Paste dapat di-undo dalam satu langkah.

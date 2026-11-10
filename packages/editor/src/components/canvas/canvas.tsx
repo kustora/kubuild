@@ -93,17 +93,83 @@ export interface EditorCanvasProps {
   className?: string;
 }
 
-function isEditableTarget(target: EventTarget | null): boolean {
+export function isEditableTarget(target: EventTarget | null): boolean {
   if (!target) return false;
-  const el = target instanceof HTMLElement ? target : (target as Node).parentElement;
-  if (!el || !(el instanceof HTMLElement)) return false;
-  return (
-    el.tagName === 'INPUT' ||
-    el.tagName === 'TEXTAREA' ||
-    el.isContentEditable ||
-    el.getAttribute('contenteditable') === 'true' ||
-    el.closest('[contenteditable="true"]') !== null
-  );
+  const isHtmlEl = typeof HTMLElement !== 'undefined' && target instanceof HTMLElement;
+  const el = isHtmlEl
+    ? target
+    : ((target as { parentElement?: Element }).parentElement ?? (target as Element));
+  if (!el) return false;
+  const tagName = typeof el.tagName === 'string' ? el.tagName.toUpperCase() : '';
+  if (tagName === 'INPUT' || tagName === 'TEXTAREA') return true;
+  if (
+    (el as HTMLElement).isContentEditable ||
+    (typeof el.getAttribute === 'function' && el.getAttribute('contenteditable') === 'true')
+  ) {
+    return true;
+  }
+  if (typeof el.closest === 'function' && el.closest('[contenteditable="true"]') !== null) {
+    return true;
+  }
+  return false;
+}
+
+export interface CanvasPasteEventLike {
+  target: EventTarget | null;
+  defaultPrevented?: boolean;
+  preventDefault?: () => void;
+  clipboardData?: {
+    getData: (format: string) => string;
+    types?: readonly string[];
+    files?: readonly File[] | FileList;
+    items?: readonly unknown[] | DataTransferItemList;
+  } | null;
+}
+
+/**
+ * Global / canvas clipboard paste handler (STORA-617).
+ * Extracts text/html from clipboard, parses it via `@kubuild/html-import`'s `htmlToNodes`,
+ * and inserts the resulting nodes into the active canvas document with atomic undo.
+ */
+export async function handleCanvasPaste(
+  e: CanvasPasteEventLike,
+  registry: ComponentRegistry,
+): Promise<boolean> {
+  if (e.defaultPrevented) return false;
+  if (isEditableTarget(e.target)) return false;
+  const clipboardData = e.clipboardData;
+  if (!clipboardData) return false;
+
+  // Ignore if clipboard contains image files (preserve existing file / image handlers)
+  const files = Array.from(clipboardData.files || []);
+  const items = Array.from(clipboardData.items || []);
+  const hasImageFiles =
+    files.some((f) => f.type.startsWith('image/')) ||
+    items.some((item) => {
+      const it = item as { kind?: string; type?: string };
+      return it.kind === 'file' && typeof it.type === 'string' && it.type.startsWith('image/');
+    });
+  if (hasImageFiles) return false;
+
+  // Ignore if clipboard contains internal KUBUILD payload
+  const types = Array.from(clipboardData.types || []);
+  const hasKubuildPayload =
+    types.some((t) => t.toLowerCase().includes('kubuild')) ||
+    Boolean(clipboardData.getData('application/x-kubuild')) ||
+    Boolean(clipboardData.getData('application/kubuild')) ||
+    Boolean(clipboardData.getData('application/kubuild-node')) ||
+    Boolean(clipboardData.getData('application/x-kubuild-node'));
+  if (hasKubuildPayload) return false;
+
+  const html = clipboardData.getData('text/html');
+  if (!html || !html.trim()) return false;
+
+  if (typeof e.preventDefault === 'function') {
+    e.preventDefault();
+  }
+
+  const state = useEditorStore.getState();
+  return await state.pasteHtmlNodes(html, registry);
 }
 
 const ARROW_DIRECTIONS: Record<string, NavigationDirection> = {
@@ -766,7 +832,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         return;
       }
       if (mod && e.key.toLowerCase() === 'v' && state.selectedNodeId) {
-        state.pasteNode(state.selectedNodeId, registry);
+        // If native paste event is supported, let onPaste handle inspecting clipboardData.
+        // Fall back to pasteNode if state.clipboard is present in headless environments.
+        if (state.clipboard && typeof window === 'undefined') {
+          state.pasteNode(state.selectedNodeId, registry);
+        }
         return;
       }
       if (mod && e.key.toLowerCase() === 'd') {
@@ -806,13 +876,34 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       setIsAltPressed(false);
     };
 
+    const onPaste = (e: ClipboardEvent) => {
+      void handleCanvasPaste(e, registry);
+    };
+
+    const onCopy = (e: ClipboardEvent) => {
+      if (isEditableTarget(e.target)) return;
+      const state = useEditorStore.getState();
+      if (state.selectedNodeId && e.clipboardData) {
+        const node = findNodeById(state.document.document, state.selectedNodeId);
+        if (node) {
+          e.clipboardData.setData('application/kubuild-node', JSON.stringify(node));
+          e.clipboardData.setData('application/kubuild-drag-type', 'node');
+          e.clipboardData.setData('text/plain', node.id);
+        }
+      }
+    };
+
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
+    window.addEventListener('paste', onPaste);
+    window.addEventListener('copy', onCopy);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
+      window.removeEventListener('paste', onPaste);
+      window.removeEventListener('copy', onCopy);
     };
   }, [registry]);
 
