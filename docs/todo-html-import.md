@@ -302,7 +302,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Input `.zip` (HTML + asset lokal)
 - **Description:** Terima archive berisi `index.html` + CSS + asset. Reuse safety check importer `.stora` (zip-slip `isDangerousPath`, `checkZipBomb`, size limit). CSS dan asset lokal di-resolve dari archive, lalu diteruskan ke `assetResolver`.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-614
 - **Acceptance Criteria:**
   - Archive berbahaya (zip-slip, zip bomb, ekstensi executable) ditolak sebelum parsing.

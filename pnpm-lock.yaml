@@ -318,6 +318,9 @@ importers:
       css-tree:
         specifier: ^3.2.1
         version: 3.2.1
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       parse5:
         specifier: ^8.1.1
         version: 8.1.1

@@ -226,6 +226,25 @@ export interface HtmlStoraPackageResult {
 }
 
 /**
+ * Configuration options for importing an HTML zip archive.
+ */
+export interface ZipImportOptions extends HtmlImportOptions {
+  /**
+   * Explicit path to the entry HTML file within the zip archive.
+   * If omitted, automatic entry resolution is performed (index.html or single .html file).
+   */
+  entryHtmlPath?: string;
+}
+
+/**
+ * Result of importing an HTML zip archive into a KUBUILD PageDocument.
+ */
+export interface ZipImportResult extends HtmlImportResult {
+  entryHtmlPath?: string;
+  archiveAssets?: Array<{ path: string; data: Uint8Array; mimeType?: string }>;
+}
+
+/**
  * Creates an initial empty import report with 0 counts and 100% fidelity score.
  */
 export function createEmptyReport(): HtmlImportReport {
