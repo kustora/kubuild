@@ -104,27 +104,8 @@ export interface HtmlImportReport {
  */
 export type PageNode = Node;
 
-/**
- * Context provided to element mapping rules during AST conversion.
- */
-export interface HtmlMappingContext {
-  [key: string]: unknown;
-}
-
-/**
- * Minimal placeholder rule for element-to-node mapping (expanded in Phase H3 / STORA-607).
- */
-export interface HtmlMappingRule {
-  id?: string;
-  name?: string;
-  priority?: number;
-  match?: (element: unknown, computedStyle?: unknown, context?: HtmlMappingContext) => boolean;
-  convert?: (
-    element: unknown,
-    context?: HtmlMappingContext,
-  ) => PageNode | PageNode[] | null | Promise<PageNode | PageNode[] | null>;
-  [key: string]: unknown;
-}
+export type { HtmlMappingContext, HtmlMappingRule } from './rules/types.js';
+import type { HtmlMappingRule } from './rules/types.js';
 
 /**
  * Asset descriptor passed to custom asset resolvers.
@@ -161,6 +142,10 @@ export interface HtmlImportOptions {
    * Custom element mapping rules extending or overriding default component mappings.
    */
   rules?: HtmlMappingRule[];
+  /**
+   * Optional set or array of custom component types allowed by the host application.
+   */
+  allowedComponentTypes?: Set<string> | string[];
   /**
    * Security and document limits (e.g. maxNodeCount, maxDocumentSizeBytes).
    */

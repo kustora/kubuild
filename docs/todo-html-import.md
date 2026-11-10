@@ -180,7 +180,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Rule registry untuk mapping elemen
 - **Description:** Definisikan `HtmlMappingRule { id, priority, match(el, computedStyle, ctx), convert(el, ctx) → Node | Node[] | null }` dan engine yang mengevaluasi rule berdasar priority. Host dapat menambah/override rule lewat `options.rules` untuk component custom.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-601
 - **Acceptance Criteria:**
   - Rule host dapat override rule default dengan priority lebih tinggi.
