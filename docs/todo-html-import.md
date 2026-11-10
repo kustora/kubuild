@@ -782,8 +782,8 @@ Temuan suite fixture STORA-620.
 - **Summary:** Browser-snapshot mode (editor only)
 - **Description:** Mode alternatif di editor: render HTML tersanitasi di iframe sandbox (tanpa `allow-scripts`) pada 3 lebar viewport, ambil `getComputedStyle`, diff per breakpoint, lalu buang nilai default. Dipakai saat cascade statis tidak cukup akurat.
 - **Priority:** Low
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-616
 - **Acceptance Criteria:**
-  - Iframe sandbox tidak mengizinkan script maupun same-origin.
+  - ~~Iframe sandbox tidak mengizinkan script maupun same-origin.~~ Direvisi: sandbox tanpa `allow-same-origin` membuat parent tidak bisa membaca DOM iframe (opaque origin), sehingga `getComputedStyle` mustahil. Implementasi memakai `sandbox="allow-same-origin"` saja — `allow-scripts` tidak pernah diberikan (escape sandbox butuh keduanya) — ditambah CSP `default-src 'none'` (tanpa network), markup hasil `sanitizeAst` dibangun ulang via DOM API (tanpa `innerHTML`), dan `url()`/`@import` dinetralkan. Lihat `packages/editor/src/html-snapshot/frame.ts`.
   - Style hasil snapshot tidak lebih gemuk dari hasil mode statis untuk fixture yang sama (setelah strip default).
