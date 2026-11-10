@@ -159,7 +159,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Map `@media` ke breakpoint dan pseudo-class ke `states`
 - **Description:** Rule di dalam `@media (max-width|min-width)` dipetakan ke `base`/`desktop`/`tablet`/`mobile` memakai `BREAKPOINTS` dari schema (nearest match). Media non-width (`print`, `prefers-*`) diabaikan. `:hover`, `:focus`, `:active`, `:focus-visible` dipetakan ke `styles.states`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-605
 - **Acceptance Criteria:**
   - Breakpoint custom (mis. `max-width: 900px`) dipetakan ke breakpoint terdekat dan dilaporkan `CSS_MEDIA_APPROXIMATED`.

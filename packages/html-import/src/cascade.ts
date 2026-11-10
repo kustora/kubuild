@@ -374,7 +374,7 @@ export function splitSelectorList(selectorListStr: string): string[] {
 }
 
 /**
- * Separates interactive pseudo-class suffixes (:hover, :focus, :active, :focus-visible, :visited)
+ * Separates interactive pseudo-class suffixes (:hover, :focus, :active, :focus-visible, :visited, :disabled, [disabled])
  * from base selector.
  */
 export function extractPseudoState(selectorStr: string): {
@@ -382,9 +382,13 @@ export function extractPseudoState(selectorStr: string): {
   pseudoState?: string;
 } {
   const trimmed = selectorStr.trim();
-  const match = trimmed.match(/:(hover|focus|active|focus-visible|visited)$/i);
+  const match = trimmed.match(
+    /(?::(hover|focus|active|focus-visible|visited|disabled)|\[disabled(?:="?[^"\]]*"?)?\])$/i,
+  );
   if (match && match.index !== undefined) {
-    const pseudoState = `:${match[1].toLowerCase()}`;
+    const pseudoState = match[0].startsWith(':')
+      ? `:${match[1].toLowerCase()}`
+      : '[disabled]';
     const base = trimmed.slice(0, match.index).trim();
     return {
       baseSelector: base.length > 0 ? base : '*',

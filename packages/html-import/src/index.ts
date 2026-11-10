@@ -28,6 +28,7 @@ export * from './parser.js';
 export * from './sanitizer.js';
 export * from './stylesheet.js';
 export * from './cascade.js';
+export * from './responsive.js';
 
 /**
  * Imports an untrusted HTML string (document or fragment) and compiles it into a valid KUBUILD PageDocument.
