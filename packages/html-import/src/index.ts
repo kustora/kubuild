@@ -19,14 +19,57 @@ import {
 import { parseHtml } from './parser.js';
 import { sanitizeAst } from './sanitizer.js';
 import { collectAndParseStylesheets } from './stylesheet.js';
-import { computeElementStyles } from './cascade.js';
+import { computeElementStyles, type Parse5Element } from './cascade.js';
 import { buildResponsiveStyles } from './responsive.js';
 import { createRuleRegistry } from './rules/index.js';
+import { isElement } from './sanitizer.js';
 import { countTotalNodes, normalizeNodeTree } from './normalizer.js';
 import { processDocumentAssets } from './asset.js';
 import { assemblePageDocument, validatePageDocument } from './validator.js';
 
 export const HTML_IMPORT_VERSION = '0.1.0';
+
+/**
+ * Merges two responsive style objects layer by layer (`override` wins per property).
+ */
+function mergeResponsiveStyles(
+  baseStyles: ResponsiveStyles,
+  override: ResponsiveStyles,
+): ResponsiveStyles {
+  const result: ResponsiveStyles = {};
+  for (const layer of ['base', 'desktop', 'tablet', 'mobile'] as const) {
+    if (baseStyles[layer] || override[layer]) {
+      result[layer] = { ...(baseStyles[layer] ?? {}), ...(override[layer] ?? {}) };
+    }
+  }
+  if (baseStyles.states || override.states) {
+    const states: NonNullable<ResponsiveStyles['states']> = { ...(baseStyles.states ?? {}) };
+    for (const [state, def] of Object.entries(override.states ?? {})) {
+      states[state] = { ...(states[state] ?? {}), ...def };
+    }
+    result.states = states;
+  }
+  return result;
+}
+
+/**
+ * Returns the `<main>` element when it is the only element child of `<body>` and no
+ * meaningful text sits beside it. Such a `<main>` is the page root (e.g. HTML exported by
+ * `generateStandaloneHtml`), so it is hoisted into the `page` node instead of becoming
+ * an extra `section` wrapper.
+ */
+function findSoleMainElement(body: Parse5Element): Parse5Element | undefined {
+  let main: Parse5Element | undefined;
+  for (const child of body.childNodes) {
+    if (isElement(child)) {
+      if (main || child.tagName.toLowerCase() !== 'main') return undefined;
+      main = child;
+    } else if (child.nodeName === '#text' && 'value' in child && child.value.trim() !== '') {
+      return undefined;
+    }
+  }
+  return main;
+}
 
 export * from './types.js';
 export * from './parser.js';
@@ -86,7 +129,10 @@ export async function importHtml(
       bundle,
     });
 
-    const targetContainer = parseResult.bodyElement ?? parseResult.rootElement;
+    const soleMain = parseResult.bodyElement
+      ? findSoleMainElement(parseResult.bodyElement)
+      : undefined;
+    const targetContainer = soleMain ?? parseResult.bodyElement ?? parseResult.rootElement;
     const childrenNodes: PageNode[] = targetContainer
       ? registry.convertChildren(targetContainer, context)
       : [];
@@ -100,12 +146,19 @@ export async function importHtml(
     if (parseResult.bodyElement) {
       const bodyComputed = computeElementStyles(parseResult.bodyElement, bundle, undefined, report);
       const bodyResponsive = buildResponsiveStyles(bodyComputed, report);
+      const mainResponsive = soleMain
+        ? buildResponsiveStyles(
+            computeElementStyles(soleMain, bundle, bodyComputed.base, report),
+            report,
+          )
+        : {};
+      const merged = mergeResponsiveStyles(bodyResponsive, mainResponsive);
       rootStyles = {
-        ...bodyResponsive,
+        ...merged,
         base: {
           minHeight: '100vh',
           backgroundColor: '#ffffff',
-          ...(bodyResponsive.base ?? {}),
+          ...(merged.base ?? {}),
         },
       };
     }
@@ -321,7 +374,10 @@ export async function htmlToNodes(
       bundle,
     });
 
-    const targetContainer = parseResult.bodyElement ?? parseResult.rootElement;
+    const soleMain = parseResult.bodyElement
+      ? findSoleMainElement(parseResult.bodyElement)
+      : undefined;
+    const targetContainer = soleMain ?? parseResult.bodyElement ?? parseResult.rootElement;
     const rawNodes: PageNode[] = targetContainer
       ? registry.convertChildren(targetContainer, context)
       : [];

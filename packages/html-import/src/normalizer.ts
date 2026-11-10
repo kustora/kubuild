@@ -12,6 +12,7 @@ import {
   type HtmlImportReport,
   type PageNode,
 } from './types.js';
+import { INHERITED_TEXT_PROPERTIES } from './cascade.js';
 
 /**
  * Properties that are considered negligible / default on container/flex wrappers.
@@ -100,6 +101,45 @@ export function stripStylesFromTree(nodes: PageNode[]): PageNode[] {
     };
     if (copy.children && Array.isArray(copy.children) && copy.children.length > 0) {
       copy.children = stripStylesFromTree(copy.children);
+    }
+    return copy;
+  });
+}
+
+/**
+ * Removes inherited text properties (`INHERITED_TEXT_PROPERTIES`) from each node's base
+ * styles when the value equals what the node already inherits from its mapped parent.
+ * The cascade resolves inheritance per element, so without this step every descendant
+ * would repeat the parent's `color`/`font-*`/`line-height`/`text-align`.
+ */
+export function stripInheritedTextStyles(
+  nodes: PageNode[],
+  inherited: Readonly<Record<string, string>> = {},
+): PageNode[] {
+  return nodes.map((node) => {
+    const base = node.styles?.base;
+    let effective = inherited;
+    let copy: PageNode = node;
+
+    if (base && typeof base === 'object') {
+      const nextBase: StyleDefinition = { ...base };
+      const nextEffective: Record<string, string> = { ...inherited };
+      for (const prop of INHERITED_TEXT_PROPERTIES) {
+        const value = nextBase[prop];
+        if (value === undefined || value === null || value === '') continue;
+        const normalized = String(value);
+        if (inherited[prop] === normalized) {
+          delete nextBase[prop];
+        } else {
+          nextEffective[prop] = normalized;
+        }
+      }
+      effective = nextEffective;
+      copy = { ...node, styles: { ...node.styles, base: nextBase } };
+    }
+
+    if (copy.children && Array.isArray(copy.children) && copy.children.length > 0) {
+      copy = { ...copy, children: stripInheritedTextStyles(copy.children, effective) };
     }
     return copy;
   });
@@ -452,8 +492,8 @@ export function normalizeNodeTree(
     DEFAULT_DOCUMENT_SECURITY_LIMITS.maxTreeDepth ??
     32;
 
-  // 1. Strip redundant / default styles first
-  let tree = stripStylesFromTree(nodes);
+  // 1. Strip inherited duplicates and redundant / default styles first
+  let tree = stripStylesFromTree(stripInheritedTextStyles(nodes));
 
   // 2. Collapse redundant wrapper containers
   tree = collapseRedundantWrappers(tree);

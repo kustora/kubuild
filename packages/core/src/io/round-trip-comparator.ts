@@ -42,6 +42,44 @@ export interface SemanticCompareOptions {
    * Default: true.
    */
   ignoreTimestamps?: boolean;
+
+  /*
+   * Allowed differences for lossy round-trips (e.g. `generateStandaloneHtml` → `importHtml`).
+   * All default to strict comparison; `.stora` export/import round-trips should not set them.
+   */
+
+  /**
+   * Skip node ID comparison and match children by position only.
+   * Use when the producer regenerates IDs (HTML import assigns deterministic `node-*` IDs).
+   */
+  ignoreNodeIds?: boolean;
+
+  /** Metadata keys that are not compared (e.g. fields with no HTML representation). */
+  ignoreMetadataKeys?: readonly string[];
+
+  /**
+   * Top-level prop keys that are not compared, keyed by node type. Use `'*'` for all types.
+   * Example: `{ image: ['asset', 'width'], '*': ['id'] }`.
+   */
+  ignoreProps?: Readonly<Record<string, readonly string[]>>;
+
+  /**
+   * Pairs of node types considered equivalent, e.g. `['text', 'paragraph']` when a format
+   * renders both as `<p>` and cannot tell them apart on the way back.
+   */
+  typeAliases?: ReadonlyArray<readonly [string, string]>;
+
+  /**
+   * Transparent wrapper predicate. Matching nodes (in either tree) are replaced by their
+   * children before comparison, so a wrapper added or dropped by a producer is not a difference.
+   */
+  isTransparentWrapper?: (node: Node) => boolean;
+
+  /**
+   * Compare style values with whitespace normalized around `,`, `(` and `)` and collapsed
+   * elsewhere, so `rgba(0, 0, 0, 0.1)` equals `rgba(0,0,0,0.1)`.
+   */
+  normalizeStyleWhitespace?: boolean;
 }
 
 export interface SemanticComparisonResult {
@@ -309,11 +347,17 @@ function comparePropValues(
 /**
  * Compares responsive styles across all breakpoints (base, desktop, tablet, mobile).
  */
+function normalizeWhitespace<T>(value: T): T | string {
+  if (typeof value !== 'string') return value;
+  return value.replace(/\s*([,()])\s*/g, '$1').replace(/\s+/g, ' ').trim();
+}
+
 function compareStyles(
   nodePath: string,
   expected?: ResponsiveStyles,
   actual?: ResponsiveStyles,
   differences: SemanticDifference[] = [],
+  options?: SemanticCompareOptions,
 ): void {
   const breakpoints = ['base', 'desktop', 'tablet', 'mobile'] as const;
   const expStyles = expected || {};
@@ -329,8 +373,12 @@ function compareStyles(
       const actVal = actBp[key];
 
       // Treat undefined and empty string as equivalent empty style values
-      const expNorm = expVal === undefined || expVal === '' ? undefined : expVal;
-      const actNorm = actVal === undefined || actVal === '' ? undefined : actVal;
+      let expNorm = expVal === undefined || expVal === '' ? undefined : expVal;
+      let actNorm = actVal === undefined || actVal === '' ? undefined : actVal;
+      if (options?.normalizeStyleWhitespace) {
+        expNorm = normalizeWhitespace(expNorm);
+        actNorm = normalizeWhitespace(actNorm);
+      }
 
       if (expNorm !== actNorm) {
         differences.push({
@@ -345,6 +393,36 @@ function compareStyles(
   }
 }
 
+function areTypesEquivalent(a: string, b: string, options?: SemanticCompareOptions): boolean {
+  if (a === b) return true;
+  return (options?.typeAliases ?? []).some(
+    ([x, y]) => (x === a && y === b) || (x === b && y === a),
+  );
+}
+
+function omitIgnoredProps(
+  props: Record<string, unknown>,
+  type: string,
+  options?: SemanticCompareOptions,
+): Record<string, unknown> {
+  const ignored = [...(options?.ignoreProps?.['*'] ?? []), ...(options?.ignoreProps?.[type] ?? [])];
+  if (ignored.length === 0) return props;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (!ignored.includes(key)) result[key] = value;
+  }
+  return result;
+}
+
+function resolveChildren(node: Node, options?: SemanticCompareOptions): Node[] {
+  const children = node.children || [];
+  const predicate = options?.isTransparentWrapper;
+  if (!predicate) return children;
+  return children.flatMap((child) =>
+    predicate(child) ? resolveChildren(child, options) : [child],
+  );
+}
+
 /**
  * Recursively compares two component trees, strictly verifying node identity, order,
  * props, styles, and children.
@@ -357,7 +435,7 @@ function compareNodes(
   options?: SemanticCompareOptions,
 ): void {
   // 1. Check ID
-  if (expected.id !== actual.id) {
+  if (!options?.ignoreNodeIds && expected.id !== actual.id) {
     differences.push({
       path: `${nodePath}.id`,
       kind: 'NODE_MISSING',
@@ -368,7 +446,7 @@ function compareNodes(
   }
 
   // 2. Check Type
-  if (expected.type !== actual.type) {
+  if (!areTypesEquivalent(expected.type, actual.type, options)) {
     differences.push({
       path: `${nodePath}.type`,
       kind: 'NODE_TYPE',
@@ -379,14 +457,20 @@ function compareNodes(
   }
 
   // 3. Compare Props
-  comparePropValues(`${nodePath}.props`, expected.props || {}, actual.props || {}, differences, options);
+  comparePropValues(
+    `${nodePath}.props`,
+    omitIgnoredProps(expected.props || {}, expected.type, options),
+    omitIgnoredProps(actual.props || {}, expected.type, options),
+    differences,
+    options,
+  );
 
   // 4. Compare Styles
-  compareStyles(nodePath, expected.styles, actual.styles, differences);
+  compareStyles(nodePath, expected.styles, actual.styles, differences, options);
 
   // 5. Compare Children (Order and Content)
-  const expChildren = expected.children || [];
-  const actChildren = actual.children || [];
+  const expChildren = resolveChildren(expected, options);
+  const actChildren = resolveChildren(actual, options);
 
   if (expChildren.length !== actChildren.length) {
     differences.push({
@@ -418,7 +502,7 @@ function compareNodes(
         expected: expChild.id,
       });
     } else if (expChild && actChild) {
-      if (expChild.id !== actChild.id) {
+      if (!options?.ignoreNodeIds && expChild.id !== actChild.id) {
         differences.push({
           path: `${nodePath}.children[${i}]`,
           kind: 'NODE_ORDER',
@@ -474,6 +558,9 @@ export function compareDocumentsSemantically(
 
   for (const k of metaKeys) {
     if (ignoreTimestamps && (k === 'updatedAt' || k === 'createdAt')) {
+      continue;
+    }
+    if (options.ignoreMetadataKeys?.includes(k)) {
       continue;
     }
     const expVal = (expMeta as Record<string, unknown>)[k];

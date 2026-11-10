@@ -688,4 +688,81 @@ describe('Round-Trip Compatibility Suite (STORA-064)', () => {
       expect(comp.differences.some((d) => d.kind === 'DEPENDENCY_MISMATCH')).toBe(true);
     });
   });
+  describe('5. Lossy Round-Trip Allowances (STORA-619)', () => {
+    const makeDoc = (): PageDocument => ({
+      schema: 'stora.page',
+      version: '1.0.0',
+      metadata: { title: 'A', author: 'Someone' },
+      document: {
+        id: 'root',
+        type: 'page',
+        props: { title: 'Page' },
+        styles: { base: { boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' } },
+        children: [
+          {
+            id: 'copy',
+            type: 'text',
+            props: { text: 'Hello', as: 'p' },
+            styles: {},
+            children: [],
+          },
+        ],
+      },
+    });
+
+    const makeImported = (): PageDocument => ({
+      schema: 'stora.page',
+      version: '1.0.0',
+      metadata: { title: 'A', author: '' },
+      document: {
+        id: 'root',
+        type: 'page',
+        props: {},
+        styles: { base: { boxShadow: '0 1px 2px rgba(0,0,0,0.1)' } },
+        children: [
+          {
+            id: 'wrapper',
+            type: 'container',
+            props: { transparent: true },
+            styles: {},
+            children: [
+              { id: 'node-1', type: 'paragraph', props: { text: 'Hello' }, styles: {}, children: [] },
+            ],
+          },
+        ],
+      },
+    });
+
+    it('is strict by default', () => {
+      const result = compareDocumentsSemantically(makeDoc(), makeImported());
+      expect(result.equivalent).toBe(false);
+    });
+
+    it('accepts documented allowances: IDs, metadata keys, props, type aliases, wrappers, whitespace', () => {
+      const result = compareDocumentsSemantically(makeDoc(), makeImported(), {
+        ignoreNodeIds: true,
+        ignoreMetadataKeys: ['author'],
+        ignoreProps: { page: ['title'], text: ['as'] },
+        typeAliases: [['text', 'paragraph']],
+        isTransparentWrapper: (node) => node.props?.transparent === true,
+        normalizeStyleWhitespace: true,
+      });
+      expect(result.differences).toEqual([]);
+      expect(result.equivalent).toBe(true);
+    });
+
+    it('still reports text changes under allowances', () => {
+      const imported = makeImported();
+      imported.document.children![0].children![0].props = { text: 'Changed' };
+      const result = compareDocumentsSemantically(makeDoc(), imported, {
+        ignoreNodeIds: true,
+        ignoreMetadataKeys: ['author'],
+        ignoreProps: { page: ['title'], text: ['as'] },
+        typeAliases: [['text', 'paragraph']],
+        isTransparentWrapper: (node) => node.props?.transparent === true,
+        normalizeStyleWhitespace: true,
+      });
+      expect(result.differences.map((d) => d.kind)).toEqual(['PROP_MISMATCH']);
+    });
+  });
 });

@@ -38,7 +38,7 @@ describe('Layout and Typography Mapping Rules (STORA-608)', () => {
 
       expect(section.children).toHaveLength(2);
       expect(section.children?.[0].type).toBe('heading');
-      expect(section.children?.[0].props?.level).toBe('h1');
+      expect(section.children?.[0].props?.level).toBe(1);
       expect(section.children?.[0].props?.text).toBe('Welcome');
 
       expect(section.children?.[1].type).toBe('paragraph');
@@ -151,7 +151,7 @@ describe('Layout and Typography Mapping Rules (STORA-608)', () => {
       for (let i = 0; i < levels.length; i++) {
         const node = result.nodes[i];
         expect(node.type).toBe('heading');
-        expect(node.props?.level).toBe(levels[i]);
+        expect(node.props?.level).toBe(i + 1);
         expect(node.props?.text).toBe(`Heading ${i + 1}`);
         expect(node.children).toEqual([]);
       }
@@ -431,7 +431,7 @@ describe('Layout and Typography Mapping Rules (STORA-608)', () => {
       expect(result.nodes).toHaveLength(1);
       const imported = result.nodes[0];
       expect(imported.type).toBe('heading');
-      expect(imported.props?.level).toBe('h2');
+      expect(imported.props?.level).toBe(2);
       expect(imported.props?.text).toBe('Section Title');
     });
 
@@ -498,7 +498,7 @@ describe('Layout and Typography Mapping Rules (STORA-608)', () => {
       expect(importedCont?.children).toHaveLength(2);
 
       expect(importedCont?.children?.[0].type).toBe('heading');
-      expect(importedCont?.children?.[0].props?.level).toBe('h1');
+      expect(importedCont?.children?.[0].props?.level).toBe(1);
       expect(importedCont?.children?.[0].props?.text).toBe('Nested Title');
 
       expect(importedCont?.children?.[1].type).toBe('paragraph');

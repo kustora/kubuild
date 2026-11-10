@@ -287,7 +287,8 @@ export const headingRule: HtmlMappingRule = {
   priority: 50,
   match: (element) => /^h[1-6]$/i.test(element.tagName),
   convert: (element, context, computed) => {
-    const level = element.tagName.toLowerCase();
+    // Canonical heading level is numeric 1–6 (matches the heading definition's select options).
+    const level = Number(element.tagName.slice(1));
     const text = collapseWhitespace(getTextContent(element));
     const idAttr = getAttribute(element, 'id');
 

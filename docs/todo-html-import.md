@@ -371,7 +371,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Round-trip test `generateHtml` → `importHtml`
 - **Description:** Untuk fixture document di `@kubuild/schema`, generate HTML standalone via `renderer/code-generator`, import kembali, lalu bandingkan dengan `round-trip-comparator`. Test ditaruh di package yang boleh bergantung ke renderer (mis. test-only devDependency atau package e2e) agar `html-import` tidak bergantung ke renderer di runtime.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-614
 - **Acceptance Criteria:**
   - Struktur node, tipe, props utama, dan style per breakpoint ekivalen secara semantik.
