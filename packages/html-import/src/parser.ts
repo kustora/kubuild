@@ -14,6 +14,7 @@ import {
   type HtmlImportOptions,
   type HtmlImportReport,
 } from './types.js';
+import { detectTailwind, type TailwindDetection } from './tailwind.js';
 
 /**
  * Default maximum document size in bytes (5 MB).
@@ -61,6 +62,11 @@ export interface ParsedHtmlDocument {
     | DefaultTreeAdapterMap['documentFragment']
     | DefaultTreeAdapterMap['document'];
   bodyElement?: DefaultTreeAdapterMap['element'];
+  /**
+   * Tailwind usage signals recorded from the raw tree, before sanitization strips the
+   * `<script>` elements that carry them (STORA-622).
+   */
+  tailwind?: TailwindDetection;
 }
 
 /**
@@ -336,6 +342,7 @@ export function parseHtml(
       stylesheetUrls,
       rootElement,
       bodyElement,
+      tailwind: detectTailwind(rootElement),
     };
 
     return {

@@ -17,6 +17,7 @@ import {
   type ParsedHtmlDocument,
 } from './parser.js';
 import { isElement, isSafeStyleValue } from './sanitizer.js';
+import { buildTailwindRules, type TailwindMode } from './tailwind.js';
 
 /**
  * Single CSS declaration with property name, serialized value, and !important flag.
@@ -485,6 +486,21 @@ export async function collectAndParseStylesheets(
         currentSourceOrder = parsed.nextSourceOrder;
       }
     }
+  }
+
+  // 4. Tailwind utility classes (STORA-622): mapped to plain class rules appended last,
+  //    like the Play CDN's utilities layer, so the regular cascade resolves them.
+  if (parsedDoc.rootElement && typeof parsedDoc.rootElement === 'object') {
+    const tailwind = buildTailwindRules({
+      root: parsedDoc.rootElement,
+      detection: parsedDoc.tailwind,
+      mode: (options as { tailwind?: TailwindMode } | undefined)?.tailwind,
+      existingRules: allRules,
+      sourceOrderStart: currentSourceOrder,
+      report: actualReport,
+      isSafeDeclaration: (property, value) => !isDangerousDeclaration(property, value),
+    });
+    allRules.push(...tailwind.rules);
   }
 
   return {

@@ -16,7 +16,7 @@ const REAL_WORLD_FIXTURES = [
   'bootstrap.html',
   'webflow-export.html',
   'framer-export.html',
-  // Tailwind utility classes are not resolved yet (STORA-622); its snapshot will change then.
+  // Tailwind utility classes are mapped to portable styles (STORA-622).
   'ai-tailwind.html',
 ] as const;
 

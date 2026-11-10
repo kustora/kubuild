@@ -3,26 +3,29 @@
 exports[`real-world HTML fixtures (STORA-620) > ai-tailwind.html imports into a safe, schema-valid document 1`] = `
 {
   "diagnostics": {
+    "CSS_MEDIA_APPROXIMATED": 1,
     "ELEMENT_DROPPED": 3,
     "URL_BLOCKED": 1,
   },
-  "maxTreeDepth": 5,
+  "maxTreeDepth": 6,
   "nodeTypes": {
     "blockquote": 1,
-    "button": 1,
-    "container": 9,
+    "button": 2,
+    "container": 10,
+    "flex": 2,
+    "grid": 1,
     "heading": 4,
-    "link": 4,
+    "link": 3,
     "page": 1,
     "paragraph": 6,
     "section": 5,
-    "text": 6,
+    "text": 4,
   },
   "stats": {
     "droppedCount": 3,
     "fallbackCount": 0,
-    "fidelityScore": 92.5,
-    "nodeCount": 37,
+    "fidelityScore": 92.9,
+    "nodeCount": 39,
   },
   "success": true,
 }
