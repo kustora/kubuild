@@ -188,7 +188,9 @@ export function parseHtml(
 
   try {
     const isFullDoc = isFullHtmlDocument(html);
-    const rootElement = isFullDoc ? parse(html) : parseFragment(html);
+    const rootElement = isFullDoc
+      ? parse(html, { sourceCodeLocationInfo: true })
+      : parseFragment(html, { sourceCodeLocationInfo: true });
 
     let extractedTitle: string | undefined;
     let extractedDescription: string | undefined;

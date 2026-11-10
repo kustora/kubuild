@@ -108,7 +108,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Sanitizer berbasis AST (allowlist)
 - **Description:** Ganti pendekatan regex (`sanitizeHtml` di core) dengan sanitizer AST berbasis allowlist tag & atribut untuk jalur HTML import. Buang `script`, `noscript`, `object`, `embed`, `applet`, `base`, `meta[http-equiv]`, `template`, semua atribut `on*`, `srcdoc`, `formaction`. Semua `href`/`src`/`action`/`poster`/`srcset` divalidasi dengan `isSafeUrl` dari core.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-602
 - **Acceptance Criteria:**
   - Payload XSS umum (event handler, `javascript:` ter-encode/ber-whitespace, `data:text/html`, SVG `<script>`/`onload`, `<a xlink:href>`) tidak lolos.

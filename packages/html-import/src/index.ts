@@ -19,11 +19,13 @@ import {
   type PageNode,
 } from './types.js';
 import { parseHtml } from './parser.js';
+import { sanitizeAst } from './sanitizer.js';
 
 export const HTML_IMPORT_VERSION = '0.1.0';
 
 export * from './types.js';
 export * from './parser.js';
+export * from './sanitizer.js';
 
 /**
  * Imports an untrusted HTML string (document or fragment) and compiles it into a valid KUBUILD PageDocument.
@@ -51,6 +53,10 @@ export async function importHtml(
         report,
         error: parseResult.error,
       };
+    }
+
+    if (parseResult.rootElement) {
+      sanitizeAst(parseResult.rootElement, report, options);
     }
 
     const title = options?.metadata?.title ?? parseResult.title ?? 'Untitled Page';
@@ -149,6 +155,10 @@ export async function htmlToNodes(
         report,
         error: parseResult.error,
       };
+    }
+
+    if (parseResult.rootElement) {
+      sanitizeAst(parseResult.rootElement, report, options);
     }
 
     // Baseline Phase H0: returns empty nodes array (populated in subsequent phases)
