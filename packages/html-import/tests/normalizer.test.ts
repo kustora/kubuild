@@ -76,6 +76,8 @@ describe('Tree Normalization Pipeline (STORA-612)', () => {
       expect(normalized).toHaveLength(1);
       expect(normalized[0].type).toBe('text');
       expect(normalized[0].props?.text).toBe('Deep leaf');
+      // The block wrappers' line box survives on the promoted text.
+      expect(normalized[0].props?.as).toBe('div');
     });
 
     it('collapses wrapper when styles contain only negligible properties (display, boxSizing)', () => {

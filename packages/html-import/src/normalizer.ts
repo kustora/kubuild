@@ -229,9 +229,20 @@ export function collapseRedundantWrappers(nodes: PageNode[]): PageNode[] {
       node.children = collapseRedundantWrappers(node.children);
     }
 
-    // 2. While this node itself is a collapsible wrapper, promote its single child
+    // 2. While this node itself is a collapsible wrapper, promote its single child.
+    //    A block wrapper around inline text keeps its line box: unstyled text takes the
+    //    wrapper's place as a block (`as: 'div'`); styled or formatted inline text keeps
+    //    the wrapper. Otherwise sibling blocks would end up as one merged inline run.
     while (isCollapsibleWrapperNode(node)) {
-      const child = node.children![0];
+      let child = node.children![0];
+      if (child.type === 'text') {
+        const as = (child.props?.as as string | undefined) ?? 'span';
+        if (as === 'span' && isNegligibleStyles(child.styles)) {
+          child = { ...child, props: { ...child.props, as: 'div' } };
+        } else if (as !== 'div') {
+          break;
+        }
+      }
       node = child;
       if (node.children && Array.isArray(node.children) && node.children.length > 0) {
         node.children = collapseRedundantWrappers(node.children);
@@ -274,6 +285,10 @@ export function areTextNodesMergeable(nodeA: PageNode, nodeB: PageNode): boolean
   const asA = (nodeA.props?.as as string | undefined) || 'span';
   const asB = (nodeB.props?.as as string | undefined) || 'span';
   if (asA !== asB) {
+    return false;
+  }
+  // Block-level text (e.g. promoted from a `<div>` wrapper) has its own line box.
+  if (asA === 'div' || asA === 'p') {
     return false;
   }
 

@@ -508,6 +508,62 @@ Temuan dari simulasi fixture nyata `landing_page_pure_html_css.html` (264 node, 
   - `behavior: url(x.htc)` dan `-moz-binding` tetap dibuang.
 
 
+### STORA-631
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-631
+- **Type:** Bug
+- **Summary:** `list-item` dengan elemen anak tidak mengulang teks
+- **Description:** Importer menyimpan `text` (seluruh teks `<li>`) sekaligus children hasil konversi; renderer merender keduanya sehingga teks tampil dua kali. Konten campuran hanya disimpan di children.
+- **Priority:** Highest
+- **Status:** Done
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - `<li><a>Menu</a></li>` tidak menghasilkan prop `text`.
+  - `<li>` teks murni tetap memakai `text`.
+
+### STORA-632
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-632
+- **Type:** Bug
+- **Summary:** Media query width diterapkan ke semua breakpoint yang dicakup
+- **Description:** Layer breakpoint KUBUILD disjoint (mobile tidak mewarisi tablet), sedangkan importer memetakan satu query ke satu breakpoint. `(max-width: 991px)` hilang di mobile dan mobile-first `(min-width: 768px)` (Bootstrap/Tailwind) hilang di desktop. Query diterapkan ke setiap breakpoint yang tercakup > 50% rentangnya; `CSS_MEDIA_APPROXIMATED` dicatat sekali per query.
+- **Priority:** Highest
+- **Status:** Done
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - `max-width: 991px` → tablet + mobile.
+  - `min-width: 768px` → tablet + desktop.
+  - Urutan source tetap menentukan override antar query.
+
+### STORA-633
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-633
+- **Type:** Bug
+- **Summary:** Custom property level elemen dan per breakpoint
+- **Description:** Hanya `--x` di `:root` yang di-resolve; token di rule elemen (pola Framer `--framer-font-size`) tersisa sebagai `var(...)`. Custom property ikut cascade per elemen, dan media query yang hanya mengganti token me-resolve ulang deklarasi base yang memakainya.
+- **Priority:** High
+- **Status:** Done
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - Tidak ada `var(--x)` tersisa bila token didefinisikan di rule yang cocok.
+  - Override token di `@media` menghasilkan override style di breakpoint terkait.
+
+### STORA-634
+
+- **Epic:** HTML Import Fidelity Fixes
+- **Task Key:** STORA-634
+- **Type:** Bug
+- **Summary:** Wrapper block di sekitar teks tetap block
+- **Description:** Collapse wrapper `div` tanpa style mempromosikan text inline sehingga dua `<div>` bersebelahan menjadi satu teks tergabung ("received!Oops!"). Text tanpa style yang dipromosikan menjadi `as: 'div'`, text inline bergaya mempertahankan wrapper, dan text block tidak di-merge.
+- **Priority:** High
+- **Status:** Done
+- **Dependencies:** STORA-620
+- **Acceptance Criteria:**
+  - `<div>A</div><div>B</div>` menghasilkan dua node text block.
+
 ---
 
 # Phase H7 — Lanjutan (post-MVP)

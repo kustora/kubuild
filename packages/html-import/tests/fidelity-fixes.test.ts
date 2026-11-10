@@ -127,3 +127,50 @@ describe('HTML import fidelity fixes', () => {
     expect(report.diagnostics.some((d) => d.code === 'CSS_UNSUPPORTED_PROPERTY')).toBe(false);
   });
 });
+
+describe('HTML import fidelity fixes (STORA-631 – STORA-634)', () => {
+  it('STORA-631: list items with element children do not repeat their text', async () => {
+    const { document } = await importBody('<ul><li><a href="#menu">Menu</a></li><li>Plain</li></ul>');
+    const [mixed, plain] = document!.document.children![0].children!;
+    expect(mixed.props?.text).toBeUndefined();
+    expect(mixed.children![0].type).toBe('link');
+    expect(plain.props?.text).toBe('Plain');
+  });
+
+  it('STORA-632: width queries apply to every breakpoint they cover', async () => {
+    const { document } = await importBody(
+      '<div class="a">x</div><div class="b">y</div>',
+      `.a { padding: 1px; } .b { padding: 1px; }
+       @media (max-width: 991px) { .a { padding: 2px; } }
+       @media (min-width: 768px) { .b { padding: 3px; } }`,
+    );
+    const [a, b] = document!.document.children!;
+    expect(a.styles?.tablet?.padding).toBe('2px');
+    expect(a.styles?.mobile?.padding).toBe('2px');
+    expect(a.styles?.desktop).toBeUndefined();
+    expect(b.styles?.tablet?.padding).toBe('3px');
+    expect(b.styles?.desktop?.padding).toBe('3px');
+    expect(b.styles?.mobile).toBeUndefined();
+  });
+
+  it('STORA-633: element-level custom properties resolve per breakpoint', async () => {
+    const { document } = await importBody(
+      '<div class="title">Hi</div>',
+      `.title { --size: 64px; --size-x: 1px; font-size: var(--size); padding: 4px; }
+       @media (max-width: 767px) { .title { --size: 36px; } }`,
+    );
+    const title = document!.document.children![0];
+    expect(title.styles?.base?.fontSize).toBe('64px');
+    expect(title.styles?.mobile?.fontSize).toBe('36px');
+    expect(JSON.stringify(title.styles)).not.toContain('--size');
+  });
+
+  it('STORA-634: sibling block wrappers around text stay separate blocks', async () => {
+    const { document } = await importBody('<div><div>Thank you!</div></div><div><div>Oops!</div></div>');
+    const texts = document!.document.children!;
+    expect(texts.map((t) => [t.type, t.props?.text, t.props?.as])).toEqual([
+      ['text', 'Thank you!', 'div'],
+      ['text', 'Oops!', 'div'],
+    ]);
+  });
+});

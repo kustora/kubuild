@@ -595,6 +595,25 @@ export function matchRulesForElement(
   return results;
 }
 
+function referencesCustomProperty(value: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`var\\(\\s*${escaped}\\s*[,)]`).test(value);
+}
+
+/**
+ * Merges the custom properties (`--x`) won by `candidates` over `inherited`.
+ */
+function collectCustomProperties(
+  inherited: Record<string, string>,
+  candidates: Map<string, StyleCandidate>,
+): Record<string, string> {
+  const result: Record<string, string> = { ...inherited };
+  for (const [prop, candidate] of candidates.entries()) {
+    if (prop.startsWith('--')) result[prop] = String(candidate.value);
+  }
+  return result;
+}
+
 /**
  * Resolves full computed styles for an element, taking into account:
  * 1. Matching stylesheet rules (ordered by specificity, sourceOrder, and !important).
@@ -619,21 +638,13 @@ export function computeElementStyles(
   const mediaQueryCandidates = new Map<string, Map<string, StyleCandidate>>();
   const pseudoStateCandidates = new Map<string, Map<string, StyleCandidate>>();
 
-  // Local dictionary for CSS variable resolution
-  const customProps: Record<string, string> = { ...bundle.customProperties };
-
   // Parse inline style if present
   const styleAttr = getAttribute(element, 'style');
   const inlineDeclarations = styleAttr ? parseInlineStyle(styleAttr, report) : [];
 
-  // Extract inline custom properties if any
-  for (const decl of inlineDeclarations) {
-    if (decl.property.startsWith('--')) {
-      customProps[decl.property] = decl.value;
-    }
-  }
-
-  // 1. Process matching stylesheet rules
+  // 1. Collect raw candidates from matching stylesheet rules. Custom properties (`--x`)
+  //    take part in the cascade like any other property, so element-level and
+  //    per-breakpoint tokens resolve the way the browser would.
   const matchedRules = matchRulesForElement(element, bundle, report);
 
   for (const match of matchedRules) {
@@ -660,55 +671,48 @@ export function computeElementStyles(
 
     for (let i = 0; i < rule.declarations.length; i++) {
       const decl = rule.declarations[i];
-      const camelProp = cssPropertyToCamelCase(decl.property);
-      if (camelProp.startsWith('--')) {
-        continue;
-      }
-
-      const resolvedRaw = resolveCssVariables(decl.value, customProps);
-      const value = normalizeStyleValue(camelProp, resolvedRaw);
-
-      const candidate: StyleCandidate = {
-        property: camelProp,
-        value,
+      addCandidate(targetMap, {
+        property: cssPropertyToCamelCase(decl.property),
+        value: decl.value,
         important: decl.important,
         isInline: false,
         specificity,
         sourceOrder: rule.sourceOrder * 10000 + i,
-      };
-
-      addCandidate(targetMap, candidate);
+      });
     }
   }
 
-  // 2. Process inline declarations on the element (applies to base styles)
+  // 2. Inline declarations on the element (apply to base styles)
   let inlineIndex = 0;
   for (const decl of inlineDeclarations) {
-    const camelProp = cssPropertyToCamelCase(decl.property);
-    if (camelProp.startsWith('--')) {
-      continue;
-    }
-
-    const resolvedRaw = resolveCssVariables(decl.value, customProps);
-    const value = normalizeStyleValue(camelProp, resolvedRaw);
-
-    const candidate: StyleCandidate = {
-      property: camelProp,
-      value,
+    addCandidate(baseCandidates, {
+      property: cssPropertyToCamelCase(decl.property),
+      value: decl.value,
       important: decl.important,
       isInline: true,
       specificity: [0, 0, 0],
       sourceOrder: inlineIndex++,
-    };
-
-    addCandidate(baseCandidates, candidate);
+    });
   }
+
+  const baseCustomProps = collectCustomProperties(bundle.customProperties, baseCandidates);
+  const resolveLayer = (
+    map: Map<string, StyleCandidate>,
+    customProps: Record<string, string>,
+  ): Record<string, string | number> => {
+    const styles: Record<string, string | number> = {};
+    for (const [prop, candidate] of map.entries()) {
+      if (prop.startsWith('--')) continue;
+      styles[prop] = normalizeStyleValue(
+        prop,
+        resolveCssVariables(String(candidate.value), customProps),
+      );
+    }
+    return styles;
+  };
 
   // 3. Assemble base styles and inherit typography from parent
-  const base: Record<string, string | number> = {};
-  for (const [prop, candidate] of baseCandidates.entries()) {
-    base[prop] = candidate.value;
-  }
+  const base = resolveLayer(baseCandidates, baseCustomProps);
 
   if (parentStyles) {
     for (const prop of INHERITED_TEXT_PROPERTIES) {
@@ -723,24 +727,34 @@ export function computeElementStyles(
     }
   }
 
-  // 4. Assemble mediaQueries
+  // 4. Assemble mediaQueries. A query that only redefines a custom property still changes
+  //    every base declaration that reads it, so those are re-resolved into the query.
   const mediaQueries: Array<{ query: string; styles: Record<string, string | number> }> = [];
   for (const [query, map] of mediaQueryCandidates.entries()) {
-    const styles: Record<string, string | number> = {};
-    for (const [prop, candidate] of map.entries()) {
-      styles[prop] = candidate.value;
+    const overridden = [...map.keys()].filter((prop) => prop.startsWith('--'));
+    const customProps = collectCustomProperties(baseCustomProps, map);
+    const styles = resolveLayer(map, customProps);
+    if (overridden.length > 0) {
+      for (const [prop, candidate] of baseCandidates.entries()) {
+        if (prop.startsWith('--') || prop in styles) continue;
+        const raw = String(candidate.value);
+        if (overridden.some((name) => referencesCustomProperty(raw, name))) {
+          styles[prop] = normalizeStyleValue(prop, resolveCssVariables(raw, customProps));
+        }
+      }
     }
-    mediaQueries.push({ query, styles });
+    if (Object.keys(styles).length > 0) {
+      mediaQueries.push({ query, styles });
+    }
   }
 
   // 5. Assemble pseudoStates
   const pseudoStates: Record<string, Record<string, string | number>> = {};
   for (const [state, map] of pseudoStateCandidates.entries()) {
-    const styles: Record<string, string | number> = {};
-    for (const [prop, candidate] of map.entries()) {
-      styles[prop] = candidate.value;
+    const styles = resolveLayer(map, collectCustomProperties(baseCustomProps, map));
+    if (Object.keys(styles).length > 0) {
+      pseudoStates[state] = styles;
     }
-    pseudoStates[state] = styles;
   }
 
   return {

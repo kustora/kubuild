@@ -974,9 +974,9 @@ export const listItemRule: HtmlMappingRule = {
 
     const hasElementChildren = element.childNodes.some(isElement);
     let children: PageNode[] = [];
+    // The renderer outputs `text` *and* children, so mixed content lives in children only.
     if (hasElementChildren) {
       children = context.convertChildren(element);
-      props.text = collapseWhitespace(getTextContent(element));
     } else {
       props.text = collapseWhitespace(getTextContent(element));
     }

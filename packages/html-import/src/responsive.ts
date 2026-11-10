@@ -291,6 +291,98 @@ export function mapMediaQueryToBreakpoint(
 }
 
 /**
+ * Width used as the upper edge of the open-ended `desktop` range when measuring how much
+ * of it a media query covers.
+ */
+const DESKTOP_MEASURE_MAX_WIDTH = 1440;
+
+/** Queries already reported as approximated per import, so each is reported once. */
+const reportedApproximatedQueries = new WeakMap<HtmlImportReport, Set<string>>();
+
+function isBreakpointEdge(value: number | null, edges: readonly number[]): boolean {
+  return value === null || value === 0 || edges.some((edge) => Math.abs(value - edge) < 1);
+}
+
+/**
+ * Maps a CSS @media query to every KUBUILD breakpoint it applies to.
+ *
+ * KUBUILD breakpoint layers are disjoint (`mobile` = base + mobile, it does not inherit
+ * `tablet`), while CSS width queries cover ranges: `(max-width: 1023px)` applies to tablet
+ * *and* mobile, and mobile-first `(min-width: 768px)` to tablet *and* desktop. A breakpoint
+ * is included when the query covers more than half of its width range; when none qualifies
+ * the nearest breakpoint (`mapMediaQueryToBreakpoint`) is used. Queries whose bounds do not
+ * sit on breakpoint edges are reported once as `CSS_MEDIA_APPROXIMATED`.
+ */
+export function mapMediaQueryToBreakpoints(
+  mediaQuery: string,
+  report?: HtmlImportReport,
+): BreakpointName[] {
+  if (!mediaQuery || typeof mediaQuery !== 'string') {
+    return [];
+  }
+
+  const ranges: Record<BreakpointName, readonly [number, number]> = {
+    mobile: [BREAKPOINTS.mobile.minWidth, BREAKPOINTS.tablet.minWidth],
+    tablet: [BREAKPOINTS.tablet.minWidth, BREAKPOINTS.desktop.minWidth],
+    desktop: [BREAKPOINTS.desktop.minWidth, DESKTOP_MEASURE_MAX_WIDTH],
+  };
+  const minEdges = [BREAKPOINTS.tablet.minWidth, BREAKPOINTS.desktop.minWidth];
+  const maxEdges = [BREAKPOINTS.mobile.maxWidth!, BREAKPOINTS.tablet.maxWidth!];
+
+  const matched = new Set<BreakpointName>();
+  let approximated = false;
+
+  for (const rawSub of mediaQuery.split(',')) {
+    const parsed = parseMediaQueryWidth(rawSub.trim());
+    if (!parsed || !parsed.hasWidthConstraint || parsed.isPrintOrSpeech) {
+      continue;
+    }
+
+    const from = parsed.minWidth ?? 0;
+    // max-width is inclusive: `max-width: 767px` covers widths below 768px.
+    const to = parsed.maxWidth !== null ? Math.floor(parsed.maxWidth) + 1 : Infinity;
+    const covered: BreakpointName[] = [];
+    for (const bp of ['mobile', 'tablet', 'desktop'] as const) {
+      const [lo, hi] = ranges[bp];
+      const overlap = Math.max(0, Math.min(to, hi) - Math.max(from, lo));
+      if (overlap / (hi - lo) > 0.5) covered.push(bp);
+    }
+
+    if (covered.length === 0) {
+      const nearest = resolveBreakpointMapping(parsed);
+      if (nearest) covered.push(nearest.breakpoint);
+    }
+    covered.forEach((bp) => matched.add(bp));
+
+    if (!isBreakpointEdge(parsed.minWidth, minEdges) || !isBreakpointEdge(parsed.maxWidth, maxEdges)) {
+      approximated = true;
+    }
+  }
+
+  const result = (['desktop', 'tablet', 'mobile'] as const).filter((bp) => matched.has(bp));
+
+  if (approximated && report && result.length > 0) {
+    const query = mediaQuery.trim();
+    let seen = reportedApproximatedQueries.get(report);
+    if (!seen) {
+      seen = new Set();
+      reportedApproximatedQueries.set(report, seen);
+    }
+    if (!seen.has(query)) {
+      seen.add(query);
+      addDiagnostic(report, {
+        code: 'CSS_MEDIA_APPROXIMATED',
+        severity: 'info',
+        message: `Media query "${query}" was approximated to breakpoint(s) ${result.map((bp) => `"${bp}"`).join(', ')}`,
+        details: { originalQuery: query, mappedBreakpoints: result },
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
  * Maps a CSS pseudo-class or attribute selector (e.g. :hover, :focus, [disabled])
  * to its corresponding KUBUILD state key ('hover' | 'focus' | 'active' | 'focusVisible' | 'disabled').
  * Returns null for unsupported pseudo-classes (e.g. :first-child, :visited).
@@ -395,15 +487,13 @@ export function buildResponsiveStyles(
         continue;
       }
 
-      const bp = mapMediaQueryToBreakpoint(entry.query, report);
-      if (!bp) {
-        continue;
+      // Source order is kept per breakpoint, so a later query overrides an earlier one.
+      for (const bp of mapMediaQueryToBreakpoints(entry.query, report)) {
+        if (!breakpointBuckets[bp]) {
+          breakpointBuckets[bp] = {};
+        }
+        Object.assign(breakpointBuckets[bp]!, entry.styles);
       }
-
-      if (!breakpointBuckets[bp]) {
-        breakpointBuckets[bp] = {};
-      }
-      Object.assign(breakpointBuckets[bp]!, entry.styles);
     }
   }
 
