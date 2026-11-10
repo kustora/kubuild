@@ -11,7 +11,8 @@ import {
   type HtmlImportOptions,
   type PageNode,
 } from '../types.js';
-import { computeElementStyles, type ComputedElementStyles, type Parse5Element } from '../cascade.js';
+import { type ComputedElementStyles, type Parse5Element } from '../cascade.js';
+import { computeElementStylesWithOverride } from '../style-override.js';
 import type { ParsedStylesheetBundle } from '../stylesheet.js';
 import { isElement } from '../sanitizer.js';
 import {
@@ -334,7 +335,13 @@ export class HtmlRuleRegistry {
     const computedStyles =
       computed ??
       (context.bundle
-        ? computeElementStyles(element, context.bundle, context.parentStyles, context.report)
+        ? computeElementStylesWithOverride(
+            element,
+            context.bundle,
+            context.parentStyles,
+            context.report,
+            context.options,
+          )
         : { base: {}, mediaQueries: [], pseudoStates: {} });
 
     const effectiveRules = this.getEffectiveRules(context.options.rules);
@@ -398,11 +405,12 @@ export class HtmlRuleRegistry {
 
     let childContext = context;
     if (isElement(parent)) {
-      const parentComputed = computeElementStyles(
+      const parentComputed = computeElementStylesWithOverride(
         parent,
         context.bundle,
         context.parentStyles,
         context.report,
+        context.options,
       );
       // Always scope to the direct parent (its computed base already carries inherited text
       // properties), so children never see a grandparent's non-inherited `display`.

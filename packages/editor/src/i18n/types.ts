@@ -172,6 +172,9 @@ export interface TranslationSchema {
   importHtmlDocumentPreview: string;
   importHtmlTitleLabel: string;
   importHtmlDescriptionLabel: string;
+  importHtmlSnapshotMode: string;
+  importHtmlSnapshotModeHint: string;
+  importHtmlSnapshotFallback: string;
 }
 
 export interface PixelEventTranslations {

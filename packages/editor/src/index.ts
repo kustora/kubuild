@@ -5,3 +5,4 @@ export * from './utils/index.js';
 export * from './ai/index.js';
 export * from './i18n/index.js';
 export type { AssetProvider, AssetInfo } from '@kubuild/core';
+export * from './html-snapshot/index.js';

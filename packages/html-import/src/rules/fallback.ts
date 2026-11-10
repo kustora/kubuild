@@ -8,11 +8,8 @@ import { serialize } from 'parse5';
 import { isSafeUrl } from '@kubuild/core';
 import type { PageNode, HtmlImportOptions, HtmlImportReport } from '../types.js';
 import { addDiagnostic } from '../types.js';
-import {
-  computeElementStyles,
-  type ComputedElementStyles,
-  type Parse5Element,
-} from '../cascade.js';
+import { type ComputedElementStyles, type Parse5Element } from '../cascade.js';
+import { computeElementStylesWithOverride } from '../style-override.js';
 import { buildResponsiveStyles } from '../responsive.js';
 import { getTextContent } from '../parser.js';
 import {
@@ -159,7 +156,13 @@ export function createFallbackEmbedNode(
   const computedStyles =
     computed ??
     (context.bundle
-      ? computeElementStyles(element, context.bundle, context.parentStyles, context.report)
+      ? computeElementStylesWithOverride(
+          element,
+          context.bundle,
+          context.parentStyles,
+          context.report,
+          context.options,
+        )
       : { base: {}, mediaQueries: [], pseudoStates: {} });
 
   return {

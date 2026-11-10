@@ -280,4 +280,8 @@ export const id: TranslationSchema = {
   importHtmlDocumentPreview: 'Pratinjau Dokumen',
   importHtmlTitleLabel: 'Judul',
   importHtmlDescriptionLabel: 'Deskripsi',
+  importHtmlSnapshotMode: 'Style snapshot browser',
+  importHtmlSnapshotModeHint:
+    'Ukur style di frame browser terisolasi tanpa script pada lebar desktop, tablet, dan mobile. Pakai jika style statis kurang akurat.',
+  importHtmlSnapshotFallback: 'Snapshot browser tidak tersedia, style statis dipakai.',
 };

@@ -9,6 +9,7 @@ import {
   type HtmlImportDiagnostic,
 } from '@kubuild/html-import';
 import { useTranslation } from '../../i18n/index.js';
+import { importHtmlWithBrowserSnapshot } from '../../html-snapshot/index.js';
 
 export interface HtmlImportPreset {
   id?: string;
@@ -24,7 +25,15 @@ export interface HtmlImportModalProps {
   options?: Partial<HtmlImportOptions>;
   initialHtml?: string;
   presets?: HtmlImportPreset[];
+  /**
+   * Initial style mode. `'snapshot'` measures styles in an inert, script-free browser frame
+   * (STORA-623) and falls back to the static cascade when that is impossible.
+   * ZIP imports always use static mode.
+   */
+  defaultStyleMode?: HtmlImportStyleMode;
 }
+
+export type HtmlImportStyleMode = 'static' | 'snapshot';
 
 export type HtmlImportTab = 'upload' | 'paste';
 
@@ -35,6 +44,7 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
   options,
   initialHtml,
   presets,
+  defaultStyleMode = 'static',
 }) => {
   const { t } = useTranslation();
 
@@ -44,6 +54,8 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<HtmlImportResult | ZipImportResult | null>(null);
+  const [styleMode, setStyleMode] = useState<HtmlImportStyleMode>(defaultStyleMode);
+  const [snapshotFallback, setSnapshotFallback] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,6 +72,7 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
     setIsLoading(false);
     setError(null);
     setResult(null);
+    setSnapshotFallback(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -84,6 +97,14 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
 
   if (!isOpen) return null;
 
+  const runHtmlImport = async (html: string): Promise<HtmlImportResult> => {
+    setSnapshotFallback(false);
+    if (styleMode !== 'snapshot') return importHtml(html, options);
+    const res = await importHtmlWithBrowserSnapshot(html, options);
+    setSnapshotFallback(!res.snapshotApplied);
+    return res;
+  };
+
   const processFile = async (selectedFile: File) => {
     setFile(selectedFile);
     setError(null);
@@ -101,7 +122,7 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
         setResult(res);
       } else {
         const text = await selectedFile.text();
-        const res = await importHtml(text, options);
+        const res = await runHtmlImport(text);
         if (!res.success) {
           setError(res.error || t.importHtmlFailed);
         }
@@ -137,7 +158,7 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
     setIsLoading(true);
 
     try {
-      const res = await importHtml(pastedHtml, options);
+      const res = await runHtmlImport(pastedHtml);
       if (!res.success) {
         setError(res.error || t.importHtmlFailed);
       }
@@ -251,6 +272,26 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
 
         {/* Modal Scrollable Body */}
         <div className="p-6 flex flex-col gap-4 overflow-y-auto">
+          {/* Style mode (STORA-623) */}
+          <label className="flex items-start gap-2.5 p-3 bg-slate-950/40 border border-slate-800 rounded-lg text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              data-testid="html-import-snapshot-toggle"
+              checked={styleMode === 'snapshot'}
+              onChange={(e) => {
+                setStyleMode(e.target.checked ? 'snapshot' : 'static');
+                setResult(null);
+                setError(null);
+                setSnapshotFallback(false);
+              }}
+              className="mt-0.5 accent-blue-600"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium text-slate-200">{t.importHtmlSnapshotMode}</span>
+              <span className="text-[11px] text-slate-400 leading-relaxed">{t.importHtmlSnapshotModeHint}</span>
+            </span>
+          </label>
+
           {/* Upload Tab View */}
           {activeTab === 'upload' && (
             <>
@@ -375,6 +416,11 @@ export const HtmlImportModal: React.FC<HtmlImportModalProps> = ({
           {/* Report & Preview UI */}
           {result && !isLoading && (
             <div className="flex flex-col gap-4">
+              {snapshotFallback && (
+                <div className="p-2.5 bg-amber-950/40 border border-amber-800/60 rounded-lg text-[11px] text-amber-300">
+                  {t.importHtmlSnapshotFallback}
+                </div>
+              )}
               {/* Document Metadata Preview */}
               {result.document && (
                 <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2 text-xs">

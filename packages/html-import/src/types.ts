@@ -11,6 +11,8 @@ import type {
   Theme,
 } from '@kubuild/schema';
 import type { DocumentSecurityLimits } from '@kubuild/core';
+import type { DefaultTreeAdapterMap } from 'parse5';
+import type { ComputedElementStyles } from './cascade.js';
 
 /**
  * Diagnostic codes emitted during HTML import and compilation.
@@ -179,7 +181,22 @@ export interface HtmlImportOptions {
    * Whether to preserve `<button>` elements with navigation links as link components.
    */
   preserveButtonLinks?: boolean;
+  /**
+   * Optional hook that replaces the statically computed cascade of an element, e.g. with
+   * styles measured by the editor's browser-snapshot mode (STORA-623). Called with the
+   * sanitized parse5 element and its static result; return `null`/`undefined` to keep the
+   * static styles. Errors thrown by the hook are swallowed and fall back to static styles.
+   */
+  styleOverride?: HtmlStyleOverride;
 }
+
+/**
+ * Hook signature for `HtmlImportOptions.styleOverride`.
+ */
+export type HtmlStyleOverride = (
+  element: DefaultTreeAdapterMap['element'],
+  computed: ComputedElementStyles,
+) => ComputedElementStyles | null | undefined;
 
 /**
  * Result of importing full HTML document into a PageDocument.

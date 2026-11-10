@@ -19,7 +19,8 @@ import {
 import { parseHtml } from './parser.js';
 import { sanitizeAst } from './sanitizer.js';
 import { collectAndParseStylesheets } from './stylesheet.js';
-import { computeElementStyles, type Parse5Element } from './cascade.js';
+import { type Parse5Element } from './cascade.js';
+import { computeElementStylesWithOverride } from './style-override.js';
 import { buildResponsiveStyles } from './responsive.js';
 import { createRuleRegistry } from './rules/index.js';
 import { isElement } from './sanitizer.js';
@@ -81,6 +82,7 @@ export * from './rules/index.js';
 export * from './normalizer.js';
 export * from './asset.js';
 export * from './validator.js';
+export * from './style-override.js';
 export * from './zip-import.js';
 
 /**
@@ -144,11 +146,17 @@ export async function importHtml(
       base: { minHeight: '100vh', backgroundColor: '#ffffff' },
     };
     if (parseResult.bodyElement) {
-      const bodyComputed = computeElementStyles(parseResult.bodyElement, bundle, undefined, report);
+      const bodyComputed = computeElementStylesWithOverride(
+        parseResult.bodyElement,
+        bundle,
+        undefined,
+        report,
+        options,
+      );
       const bodyResponsive = buildResponsiveStyles(bodyComputed, report);
       const mainResponsive = soleMain
         ? buildResponsiveStyles(
-            computeElementStyles(soleMain, bundle, bodyComputed.base, report),
+            computeElementStylesWithOverride(soleMain, bundle, bodyComputed.base, report, options),
             report,
           )
         : {};

@@ -279,4 +279,8 @@ export const en: TranslationSchema = {
   importHtmlDocumentPreview: 'Document Preview',
   importHtmlTitleLabel: 'Title',
   importHtmlDescriptionLabel: 'Description',
+  importHtmlSnapshotMode: 'Browser snapshot styles',
+  importHtmlSnapshotModeHint:
+    'Measure styles in an isolated, script-free browser frame at desktop, tablet and mobile widths. Use when static styles look off.',
+  importHtmlSnapshotFallback: 'Browser snapshot unavailable, static styles were used.',
 };
