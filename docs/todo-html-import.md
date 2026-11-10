@@ -238,7 +238,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Fallback `html-embed` untuk elemen tak terpetakan
 - **Description:** Elemen tanpa rule cocok (mis. `iframe` lain, `canvas`, SVG kompleks, custom element) diubah menjadi `html-embed` berisi outerHTML yang sudah disanitasi (STORA-603) dengan style inline hasil cascade. Elemen yang sama sekali tidak aman dibuang.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-603, STORA-607
 - **Acceptance Criteria:**
   - Setiap fallback tercatat `ELEMENT_FALLBACK_EMBED` dan menurunkan fidelity score.

@@ -3,7 +3,7 @@
  * Rule registry and evaluation engine for HTML element mapping.
  */
 
-import { serialize, type DefaultTreeAdapterMap } from 'parse5';
+import type { DefaultTreeAdapterMap } from 'parse5';
 import { BUILTIN_COMPONENT_TYPES } from '@kubuild/schema';
 import {
   addDiagnostic,
@@ -20,10 +20,10 @@ import {
   isTextNode,
 } from './layout-typography.js';
 import { DEFAULT_MEDIA_FORM_DATA_RULES } from './media-form-data.js';
+import { createFallbackEmbedNode, handleFallbackElement } from './fallback.js';
 import type {
   HtmlMappingContext,
   HtmlMappingRule,
-  Parse5DocumentFragment,
 } from './types.js';
 
 /**
@@ -510,7 +510,10 @@ export class HtmlRuleRegistry {
         } else {
           this.recordDroppedDiagnostic(element, node?.type ?? 'unknown', rule.id, context);
           if (context.options.fallback === 'embed') {
-            validNodes.push(this.createFallbackEmbed(element, context, computed));
+            const fallbackNode = createFallbackEmbedNode(element, context, computed);
+            if (fallbackNode) {
+              validNodes.push(fallbackNode);
+            }
           }
         }
       }
@@ -523,7 +526,7 @@ export class HtmlRuleRegistry {
 
     this.recordDroppedDiagnostic(element, converted?.type ?? 'unknown', rule.id, context);
     if (context.options.fallback === 'embed') {
-      return this.createFallbackEmbed(element, context, computed);
+      return createFallbackEmbedNode(element, context, computed);
     }
     return null;
   }
@@ -563,40 +566,7 @@ export class HtmlRuleRegistry {
     context: HtmlMappingContext,
     computed: ComputedElementStyles,
   ): PageNode | null {
-    if (context.options?.fallback === 'embed') {
-      addDiagnostic(context.report, {
-        code: 'ELEMENT_FALLBACK_EMBED',
-        severity: 'info',
-        message: `Element <${element.tagName}> has no matching mapping rule; converted to fallback html-embed.`,
-        location: {
-          tagName: element.tagName,
-          line: element.sourceCodeLocation?.startLine,
-          column: element.sourceCodeLocation?.startCol,
-        },
-        details: {
-          tagName: element.tagName,
-        },
-      });
-      return this.createFallbackEmbed(element, context, computed);
-    }
-
-    if (context.options?.fallback === 'drop') {
-      addDiagnostic(context.report, {
-        code: 'ELEMENT_DROPPED',
-        severity: 'info',
-        message: `Element <${element.tagName}> has no matching mapping rule; dropped as requested by options.fallback.`,
-        location: {
-          tagName: element.tagName,
-          line: element.sourceCodeLocation?.startLine,
-          column: element.sourceCodeLocation?.startCol,
-        },
-        details: {
-          tagName: element.tagName,
-        },
-      });
-    }
-
-    return null;
+    return handleFallbackElement(element, context, computed);
   }
 
   private handleFallback(
@@ -604,33 +574,7 @@ export class HtmlRuleRegistry {
     context: HtmlMappingContext,
     computed: ComputedElementStyles,
   ): PageNode | null {
-    if (context.options?.fallback === 'embed') {
-      return this.createFallbackEmbed(element, context, computed);
-    }
-    return null;
-  }
-
-  private createFallbackEmbed(
-    element: Parse5Element,
-    context: HtmlMappingContext,
-    computed: ComputedElementStyles,
-  ): PageNode {
-    const serialized = serialize({
-      nodeName: '#document-fragment',
-      childNodes: [element],
-    } as unknown as Parse5DocumentFragment);
-
-    return {
-      id: context.generateId('embed'),
-      type: 'html-embed',
-      props: {
-        html: serialized,
-      },
-      styles: {
-        base: computed?.base ?? {},
-      },
-      children: [],
-    };
+    return handleFallbackElement(element, context, computed);
   }
 
   private sortRules(): void {

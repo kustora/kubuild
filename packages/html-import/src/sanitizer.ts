@@ -226,7 +226,7 @@ function isSvgNode(
  * Internal recursive sanitizer for a single element node.
  * Returns `true` if the element should be kept, or `false` if it must be dropped.
  */
-function sanitizeElement(
+export function sanitizeElement(
   element: DefaultTreeAdapterMap['element'],
   report: HtmlImportReport,
   options?: HtmlImportOptions,
