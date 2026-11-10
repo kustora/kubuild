@@ -18,4 +18,11 @@ describe('@kubuild/react exports', () => {
     expect(kubuildReact.useTranslation).toBeDefined();
     expect(kubuildReact.TranslationOverridesContext).toBeDefined();
   });
+
+  it('re-exports HtmlImportModal and html-import utilities (STORA-616)', () => {
+    expect(kubuildReact.HtmlImportModal).toBeDefined();
+    expect(kubuildReact.importHtml).toBeDefined();
+    expect(kubuildReact.importHtmlZip).toBeDefined();
+    expect(kubuildReact.HTML_IMPORT_VERSION).toBeDefined();
+  });
 });

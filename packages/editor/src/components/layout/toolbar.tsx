@@ -4,6 +4,7 @@ import { ComponentRegistry } from '@kubuild/components';
 import type { PixelCredentialOption, TrackingPixelInput } from '@kubuild/schema';
 import { useEditorStore } from '../../store/index.js';
 import { ImportModal } from '../modals/import-modal.js';
+import { HtmlImportModal } from '../modals/html-import-modal.js';
 import { CodeViewerModal } from '../modals/code-viewer-modal.js';
 import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal.js';
 import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils/index.js';
@@ -151,6 +152,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
+  const [isHtmlImportModalOpen, setIsHtmlImportModalOpen] = useState<boolean>(false);
   const [isCodeViewerModalOpen, setIsCodeViewerModalOpen] = useState<boolean>(false);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -377,6 +379,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </button>
             <button
               type="button"
+              title="Import HTML or ZIP Archive"
+              onClick={() => setIsHtmlImportModalOpen(true)}
+              className="text-xs px-2 sm:px-2.5 py-1 rounded border border-slate-200 bg-white hover:border-blue-500 hover:text-blue-600 font-medium text-slate-700 transition cursor-pointer"
+            >
+              Import HTML
+            </button>
+            <button
+              type="button"
               title="Export .stora Archive"
               disabled={isExporting}
               onClick={handleExportStora}
@@ -458,6 +468,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           setDocument(importedDoc);
         }}
         registry={registry}
+      />
+
+      <HtmlImportModal
+        isOpen={isHtmlImportModalOpen}
+        onClose={() => setIsHtmlImportModalOpen(false)}
+        onImport={(importedDoc) => {
+          setDocument(importedDoc);
+        }}
       />
 
       <CodeViewerModal

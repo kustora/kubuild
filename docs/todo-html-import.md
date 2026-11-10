@@ -322,7 +322,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Dialog "Import HTML" di editor
 - **Description:** Dialog di `@kubuild/editor`: upload `.html`/`.zip` atau paste HTML, jalankan import, tampilkan preview + `HtmlImportReport` (warning, fallback, fidelity), lalu buka sebagai document baru via callback host. Re-export lewat `@kubuild/react`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-614
 - **Acceptance Criteria:**
   - Import gagal tidak mengubah draft aktif.

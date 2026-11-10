@@ -57,6 +57,7 @@
     "@kubuild/components": "workspace:*",
     "@kubuild/core": "workspace:*",
     "@kubuild/editor": "workspace:*",
+    "@kubuild/html-import": "workspace:*",
     "@kubuild/renderer": "workspace:*",
     "@kubuild/schema": "workspace:*"
   },

@@ -147,6 +147,31 @@ export interface TranslationSchema {
 
   // Per-node click tracking ("Event Pixel" section in the inspector)
   pixelEvent: PixelEventTranslations;
+
+  // HTML Import Modal
+  importHtmlModalTitle: string;
+  importHtmlModalDescription: string;
+  importHtmlUploadTab: string;
+  importHtmlPasteTab: string;
+  importHtmlPastePlaceholder: string;
+  importHtmlDragDropHint: string;
+  importHtmlFileFormatsHint: string;
+  importHtmlFidelityScore: string;
+  importHtmlDiagnostics: string;
+  importHtmlWarnings: string;
+  importHtmlFallbacks: string;
+  importHtmlNodeCount: string;
+  importHtmlDroppedCount: string;
+  importHtmlConfirmButton: string;
+  importHtmlCancelButton: string;
+  importHtmlFailed: string;
+  importHtmlAnalyzeButton: string;
+  importHtmlAnalyzing: string;
+  importHtmlChangeFile: string;
+  importHtmlNoDiagnostics: string;
+  importHtmlDocumentPreview: string;
+  importHtmlTitleLabel: string;
+  importHtmlDescriptionLabel: string;
 }
 
 export interface PixelEventTranslations {
