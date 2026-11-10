@@ -73,7 +73,7 @@ function isElement(
 /**
  * Helper to get an attribute value from an element (case-insensitive).
  */
-function getAttribute(
+export function getAttribute(
   element: DefaultTreeAdapterMap['element'],
   attributeName: string,
 ): string | undefined {
@@ -89,7 +89,7 @@ function getAttribute(
 /**
  * Helper to extract all text content from a node recursively.
  */
-function getTextContent(node: DefaultTreeAdapterMap['node']): string {
+export function getTextContent(node: DefaultTreeAdapterMap['node']): string {
   if ('nodeName' in node && node.nodeName === '#text' && 'value' in node) {
     return typeof node.value === 'string' ? node.value : '';
   }
@@ -111,7 +111,7 @@ function getTextContent(node: DefaultTreeAdapterMap['node']): string {
 /**
  * Walks a parse5 AST tree depth-first.
  */
-function walkTree(
+export function walkTree(
   node: DefaultTreeAdapterMap['node'],
   callback: (node: DefaultTreeAdapterMap['node']) => void,
 ): void {

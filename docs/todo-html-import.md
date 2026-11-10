@@ -129,7 +129,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Kumpulkan dan parse stylesheet
 - **Description:** Kumpulkan CSS dari `<style>`, `style=""` inline, `options.stylesheets`, dan `<link rel="stylesheet">` lewat `fetchStylesheet` milik host (tanpa fetch bawaan). Parse dengan CSS parser toleran; `@import` diabaikan dan dilaporkan.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-602
 - **Acceptance Criteria:**
   - Urutan source order dipertahankan untuk cascade.

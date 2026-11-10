@@ -26,6 +26,7 @@ export const HTML_IMPORT_VERSION = '0.1.0';
 export * from './types.js';
 export * from './parser.js';
 export * from './sanitizer.js';
+export * from './stylesheet.js';
 
 /**
  * Imports an untrusted HTML string (document or fragment) and compiles it into a valid KUBUILD PageDocument.
