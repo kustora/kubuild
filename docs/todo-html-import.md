@@ -209,7 +209,7 @@ HTML string (+ CSS eksternal, baseUrl)
 - **Summary:** Putuskan strategi rich inline text
 - **Description:** Tentukan cara menangani inline markup (`<p>Halo <b>dunia</b> <a href>link</a></p>`): (a) simpan sebagai inline HTML tersanitasi di prop `paragraph`/`text` bila renderer mendukung, (b) pecah jadi beberapa node `text`/`link` dalam `flex` inline, atau (c) flatten ke plain text. Cek dukungan inline editor dan renderer saat ini.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-608
 - **Acceptance Criteria:**
   - Keputusan tertulis (ADR singkat di docs) beserta dampak ke inline editor dan schema.
