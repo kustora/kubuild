@@ -80,8 +80,7 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vitest run",
-    "prepublishOnly": "pnpm run build"
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",

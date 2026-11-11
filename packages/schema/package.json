@@ -61,8 +61,7 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "lint": "eslint src",
-    "test": "vitest run",
-    "prepublishOnly": "pnpm run build"
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
