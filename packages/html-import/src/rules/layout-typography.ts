@@ -20,7 +20,7 @@ import {
 import { isElement } from '../sanitizer.js';
 import { getTextContent, getAttribute } from '../parser.js';
 import { buildResponsiveStyles } from '../responsive.js';
-import { INHERITED_TEXT_PROPERTIES } from '../cascade.js';
+import { INHERITED_TEXT_PROPERTIES, type ComputedElementStyles } from '../cascade.js';
 import type {
   HtmlMappingContext,
   HtmlMappingRule,
@@ -561,6 +561,60 @@ export const dividerRule: HtmlMappingRule = {
   },
 };
 
+const NAVIGATE_TARGETS = new Set(['_self', '_blank', '_parent', '_top']);
+
+/**
+ * The `link` component holds plain text only, so an anchor wrapping elements (a logo with
+ * an icon box, a card link) becomes a container whose click pipeline navigates to the href.
+ * The anchor's default inline flow and pointer cursor are kept unless the cascade set them.
+ */
+function convertLinkWithChildren(
+  element: DefaultTreeAdapterMap['element'],
+  context: HtmlMappingContext,
+  computed: ComputedElementStyles,
+  safeHref: string,
+  target: string | undefined,
+  idAttr: string | undefined,
+): PageNode {
+  const styles = buildResponsiveStyles(computed, context.report);
+  const base = { ...(styles.base ?? {}) };
+  if (base.display === undefined) base.display = 'inline';
+  if (base.cursor === undefined) base.cursor = 'pointer';
+  styles.base = base;
+
+  addDiagnostic(context.report, {
+    code: 'ELEMENT_REMAPPED',
+    severity: 'info',
+    message: `<a href="${safeHref}"> with element children was converted to a container with a click-to-navigate action`,
+    location: {
+      tagName: element.tagName,
+      line: element.sourceCodeLocation?.startLine,
+      column: element.sourceCodeLocation?.startCol,
+    },
+    details: { href: safeHref },
+  });
+
+  const payload: Record<string, unknown> = { url: safeHref };
+  if (target && NAVIGATE_TARGETS.has(target)) payload.target = target;
+
+  const nodeId = context.generateId('link');
+  return {
+    id: nodeId,
+    type: 'container',
+    props: idAttr ? { id: idAttr } : {},
+    styles,
+    actions: [
+      {
+        id: `${nodeId}-click`,
+        trigger: 'click',
+        enabled: true,
+        steps: [{ id: `${nodeId}-navigate`, type: 'navigate', payload }],
+      },
+    ],
+    children: context.convertChildren(element),
+  };
+}
+
 /**
  * Mapping rule for anchor link elements (<a>).
  */
@@ -600,19 +654,18 @@ export const linkRule: HtmlMappingRule = {
     if (rel) props.rel = rel;
     if (idAttr) props.id = idAttr;
 
-    let children: PageNode[] = [];
     if (hasElementChildren) {
-      children = context.convertChildren(element);
-    } else {
-      props.text = collapseWhitespace(getTextContent(element));
+      return convertLinkWithChildren(element, context, computed, safeHref, target, idAttr);
     }
+
+    props.text = collapseWhitespace(getTextContent(element));
 
     return {
       id: context.generateId('link'),
       type: 'link',
       props,
       styles: buildResponsiveStyles(computed, context.report),
-      children,
+      children: [],
     };
   },
 };

@@ -208,6 +208,9 @@ export function isCollapsibleWrapperNode(node: PageNode): boolean {
   if (!node.children || node.children.length !== 1) {
     return false;
   }
+  if (node.actions && node.actions.length > 0) {
+    return false;
+  }
   if (hasMeaningfulCustomProps(node)) {
     return false;
   }

@@ -173,4 +173,28 @@ describe('HTML import fidelity fixes (STORA-631 – STORA-634)', () => {
       ['text', 'Oops!', 'div'],
     ]);
   });
+  it('STORA-650: an anchor wrapping elements becomes a navigating container, never a link with children', async () => {
+    const result = await importBody(
+      '<a href="#home" class="logo" target="_blank"><div class="box">K</div>Karya<span class="accent">Digital</span></a><a href="#x">Plain</a>',
+      '.logo { display: flex; gap: 8px; } .box { width: 32px; background: #4f46e5; } .accent { color: #4f46e5; }',
+    );
+    walk(result.document!.document.children, (node) => {
+      if (node.type === 'link') expect(node.children ?? []).toHaveLength(0);
+    });
+
+    const [logo, plain] = result.document!.document.children!;
+    expect(logo.type).toBe('container');
+    expect(logo.styles?.base?.display).toBe('flex');
+    expect(logo.styles?.base?.cursor).toBe('pointer');
+    expect(logo.children!.length).toBeGreaterThan(1);
+    expect(logo.actions).toEqual([
+      expect.objectContaining({
+        trigger: 'click',
+        steps: [expect.objectContaining({ type: 'navigate', payload: { url: '#home', target: '_blank' } })],
+      }),
+    ]);
+    expect(plain.type).toBe('link');
+    expect(plain.props?.text).toBe('Plain');
+    expect(result.report.diagnostics.some((d) => d.code === 'ELEMENT_REMAPPED')).toBe(true);
+  });
 });

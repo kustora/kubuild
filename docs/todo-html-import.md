@@ -801,3 +801,18 @@ Temuan suite fixture STORA-620.
 - **Acceptance Criteria:**
   - Rule Tailwind hasil mapping ikut dimuat di frame pengukuran (atau snapshot dilewati dengan diagnostic yang jelas bila tidak memungkinkan).
   - Fixture `ai-tailwind.html` di mode snapshot tidak kehilangan style hasil mapping (test dengan `getComputedStyle` di-mock).
+
+### STORA-650
+
+- **Epic:** Fidelity Extensions
+- **Task Key:** STORA-650
+- **Type:** Bug
+- **Summary:** `<a>` berisi elemen menghasilkan `link` dengan children (CHILD_POLICY_VIOLATION)
+- **Description:** Komponen `link` adalah `acceptsChildren: false`, tetapi `linkRule` mengonversi children untuk anchor yang membungkus elemen (mis. logo `<a><div class="logo-box">K</div>Karya<span>Digital</span></a>`). Validator core dengan component registry menolak dokumen hasil import. Anchor dengan element children kini menjadi `container` dengan action pipeline `click → navigate` (href + target yang valid), `display: inline` dan `cursor: pointer` bila cascade tidak menetapkannya, plus diagnostic `ELEMENT_REMAPPED`. Normalizer tidak meng-collapse wrapper yang punya `actions`.
+- **Priority:** High
+- **Status:** Done
+- **Dependencies:** STORA-608
+- **Acceptance Criteria:**
+  - Tidak ada node `link` dengan children di hasil import.
+  - Landing page uji (`landing_page_pure_html_css.html`) lolos `validateDocument` dengan default component registry tanpa error child policy.
+  - Catatan: mode `strictChildPolicy` masih melaporkan `flex` di dalam `list-item` (mis. `<li><div class="check-icon">`), karena `allowedChildren` milik `list-item` tidak memuat tipe layout. Ini keputusan policy komponen, belum diubah.

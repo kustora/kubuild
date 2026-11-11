@@ -336,14 +336,14 @@ describe('Layout and Typography Mapping Rules (STORA-608)', () => {
       expect(result.report.diagnostics.some((d) => d.code === 'URL_BLOCKED')).toBe(true);
     });
 
-    it('converts children recursively when link has child elements', async () => {
+    it('converts a link with child elements into a navigating container', async () => {
       const html = '<a href="/dashboard"><p>Go to Dashboard</p></a>';
       const result = await htmlToNodes(html);
 
       expect(result.nodes).toHaveLength(1);
       const link = result.nodes[0];
-      expect(link.type).toBe('link');
-      expect(link.props?.href).toBe('/dashboard');
+      expect(link.type).toBe('container');
+      expect(link.actions?.[0].steps[0]).toMatchObject({ type: 'navigate', payload: { url: '/dashboard' } });
       expect(link.children).toHaveLength(1);
       expect(link.children?.[0].type).toBe('paragraph');
       expect(link.children?.[0].props?.text).toBe('Go to Dashboard');

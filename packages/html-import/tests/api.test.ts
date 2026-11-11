@@ -21,10 +21,11 @@ describe('Public API and HtmlImportReport (STORA-601)', () => {
       expect(HTML_IMPORT_VERSION).toBe('0.1.0');
     });
 
-    it('defines all 9 required diagnostic codes', () => {
+    it('defines all 10 required diagnostic codes', () => {
       const expectedCodes: HtmlImportDiagnosticCode[] = [
         'ELEMENT_DROPPED',
         'ELEMENT_FALLBACK_EMBED',
+        'ELEMENT_REMAPPED',
         'CSS_UNSUPPORTED_SELECTOR',
         'CSS_UNSUPPORTED_PROPERTY',
         'CSS_MEDIA_APPROXIMATED',
