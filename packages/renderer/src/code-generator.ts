@@ -17,6 +17,7 @@ import { collectAnimationStylesCss } from './animation.js';
 import { themeToCssDeclarations } from './theme.js';
 import {
   buildEffectManifest,
+  sanitizeHtml,
   EFFECT_MANIFEST_ELEMENT_ID,
   EFFECT_NODE_ATTRIBUTE,
   type EffectRegistry,
@@ -315,7 +316,10 @@ function renderNodeMarkup(node: Node, indentLevel: number, options: GenerateHtml
     }
 
     case 'html-embed': {
-      const rawHtml = (props.html ?? props.content ?? '') as string;
+      // Same rule as the runtime renderer: sanitized unless the author opted out with
+      // `sanitize: false`, so an exported page never runs more than the live one would.
+      const sourceHtml = (props.html ?? props.content ?? '') as string;
+      const rawHtml = props.sanitize === false ? sourceHtml : sanitizeHtml(sourceHtml);
       const cls = buildClass('kb-html-embed', nodeClass);
       if (!rawHtml) {
         return `${indent}<div class="${cls}"${idAttr}></div>`;

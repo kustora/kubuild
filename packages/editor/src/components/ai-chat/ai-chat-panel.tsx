@@ -303,6 +303,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     updateNodeProps,
     updateNodeStyle,
     updateNodeStateStyle,
+    updateNodeEffects,
     replaceNodeSubtree,
     insertNodeTree,
     moveComponent,
@@ -919,6 +920,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       duplicateNode: (nodeId, targetParentId, index) =>
         duplicateComponent(nodeId, registry, targetParentId, index),
       replaceNodeSubtree: (nodeId, node) => replaceNodeSubtree(nodeId, node, registry),
+      updateNodeEffects: (nodeId, effects) => updateNodeEffects(nodeId, effects),
       beginHistoryTransaction,
       endHistoryTransaction,
       // Read the live document: ops applied mid-run must see nodes inserted by earlier ops.

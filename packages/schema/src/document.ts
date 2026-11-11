@@ -275,7 +275,7 @@ function findDangerousEffectValue(value: unknown, depth = 0): string | null {
 }
 
 /**
- * Node Effect Schema (STORA-650)
+ * Node Effect Schema (STORA-651)
  * One plugin-driven runtime effect (parallax, scroll-linked transforms, ...) attached to a
  * node. The document only stores the plugin id + plain-data config; the behavior lives in
  * host-registered effect plugins, so a document stays portable and an unknown plugin is

@@ -1,5 +1,5 @@
 /**
- * Effect plugin contract (STORA-650).
+ * Effect plugin contract (STORA-651).
  *
  * An effect plugin owns one kind of runtime behavior (parallax, scroll-linked transforms,
  * ...). The document only stores `{ plugin, enabled, config }`; everything else — config

@@ -69,7 +69,7 @@ export interface KubuildRendererProps {
    */
   selectedNodeId?: string | null;
   /**
-   * Effect plugins (parallax, ...) the host provides (STORA-650). Without a registry, node
+   * Effect plugins (parallax, ...) the host provides (STORA-651). Without a registry, node
    * `effects` are kept in the document but never run.
    */
   effects?: EffectRegistry;

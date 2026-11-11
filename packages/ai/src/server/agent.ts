@@ -19,7 +19,13 @@ import {
 } from '../core/prompt-compiler.js';
 import { getMessagePromptText } from '../core/messages.js';
 import type { KubuildAiEngine } from './engine.js';
-import { createDocumentTools, createSkillTools, toToolDefinitions, type AgentTool } from './tools/index.js';
+import {
+  createDocumentTools,
+  createEffectTools,
+  createSkillTools,
+  toToolDefinitions,
+  type AgentTool,
+} from './tools/index.js';
 
 export interface KubuildAiAgentOptions extends KubuildAiEngineOptions {
   /**
@@ -110,6 +116,7 @@ export class KubuildAiAgent {
     this.tools = [
       ...(options.tools ?? createDocumentTools()),
       ...(options.skills && options.skills.length > 0 ? createSkillTools(options.skills) : []),
+      ...(options.effects && options.effects.size > 0 ? createEffectTools(options.effects) : []),
     ];
   }
 
@@ -215,6 +222,7 @@ export class KubuildAiAgent {
         document: snapshot,
         catalog: this.catalog,
         securityLimits: this.options.securityLimits,
+        effects: this.options.effects,
         signal,
         generateSection: this.options.engine
           ? async ({ prompt, parentContext }) => {
@@ -322,6 +330,7 @@ export class KubuildAiAgent {
       stylePreference: request.stylePreference,
       additionalContext: joinInstructions(request.instructions, request.systemPrompt),
       skills: this.options.skills,
+      effects: this.options.effects,
     });
     const loadedSkills = new Set<string>();
 

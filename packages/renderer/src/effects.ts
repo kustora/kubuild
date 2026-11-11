@@ -6,7 +6,7 @@ import { createRuntimeMap, mountNodeEffects } from '@kubuild/runtime-dom';
 const NODE_ATTRIBUTE = 'data-kubuild-node';
 
 /**
- * Mounts the document's effects (STORA-650) on the rendered elements under `rootRef`, the
+ * Mounts the document's effects (STORA-651) on the rendered elements under `rootRef`, the
  * same way `kubuild-runtime.js` does on an exported page: resolved against `registry`,
  * matched by `data-kubuild-node`, every rendered copy of a node (collections, artboard
  * instances) gets its own mount.

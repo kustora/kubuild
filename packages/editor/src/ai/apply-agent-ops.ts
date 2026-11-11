@@ -1,4 +1,4 @@
-import type { Node, StyleDefinition } from '@kubuild/schema';
+import type { Node, NodeEffect, StyleDefinition } from '@kubuild/schema';
 import type { AgentOp, AgentOpRecord } from '@kubuild/ai';
 
 /** Mirrors the `{ success, error? }` shape every editor store mutation already returns. */
@@ -37,6 +37,8 @@ export interface ApplyAgentOpsDeps {
   deleteNode: (nodeId: string) => ApplyOpResult;
   duplicateNode: (nodeId: string, targetParentId?: string, index?: number) => ApplyOpResult;
   replaceNodeSubtree: (nodeId: string, node: Node) => ApplyOpResult;
+  /** Replaces a node's effect list; `null` removes it (STORA-651). */
+  updateNodeEffects: (nodeId: string, effects: NodeEffect[] | null) => ApplyOpResult;
   beginHistoryTransaction: () => void;
   endHistoryTransaction: () => void;
   /** Optional: reads the node currently in the document, used to preserve interactivity config. */
@@ -78,9 +80,12 @@ function applyOne(op: AgentOp, deps: ApplyAgentOpsDeps): ApplyOpResult {
     case 'duplicate-node':
       return deps.duplicateNode(op.nodeId, op.targetParentId, op.index);
 
+    case 'set-effects':
+      return deps.updateNodeEffects(op.nodeId, op.effects.length > 0 ? op.effects : null);
+
     case 'replace-node': {
       // The agent's tool pipeline only ever reasons about props/styles/children, so a
-      // replacement node carries none of the node's `animation`/`actions`/`formConfig`.
+      // replacement node carries none of the node's `animation`/`actions`/`formConfig`/`effects`.
       // Re-attaching them is the same safeguard `applyEnhanceCandidate` applies on its
       // `replaceNode` fallback — without it, Apply would silently wipe a node's
       // interactivity config.
@@ -91,6 +96,7 @@ function applyOne(op: AgentOp, deps: ApplyAgentOpsDeps): ApplyOpResult {
             ...(existing.animation ? { animation: existing.animation } : {}),
             ...(existing.actions ? { actions: existing.actions } : {}),
             ...(existing.formConfig ? { formConfig: existing.formConfig } : {}),
+            ...(existing.effects ? { effects: existing.effects } : {}),
           }
         : op.node;
       return deps.replaceNodeSubtree(op.nodeId, merged);

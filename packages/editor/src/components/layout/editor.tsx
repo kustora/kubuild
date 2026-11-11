@@ -113,7 +113,7 @@ export interface KubuildEditorProps {
   onPagesChange?: (pages: EditorPageItem[]) => void;
   registry?: ComponentRegistry;
   /**
-   * Effect plugins (parallax, ...) for node `effects` (STORA-650): played in preview, edited
+   * Effect plugins (parallax, ...) for node `effects` (STORA-651): played in preview, edited
    * in the inspector's Effects panel and shipped with the static-site export. Without it,
    * effects already in a document are preserved but neither run nor editable.
    */

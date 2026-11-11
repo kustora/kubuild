@@ -1,5 +1,5 @@
 import type { Node, PageDocument } from '@kubuild/schema';
-import type { DocumentSecurityLimits } from '@kubuild/core';
+import type { DocumentSecurityLimits, EffectRegistry } from '@kubuild/core';
 import type { AgentOp, AiCompiledComponentSpec, AiToolDefinition } from '../../types.js';
 
 /**
@@ -13,6 +13,8 @@ export interface ToolExecutionContext {
   document: PageDocument;
   catalog: AiCompiledComponentSpec[];
   securityLimits?: DocumentSecurityLimits;
+  /** Host effect plugins, when the agent was given any (STORA-651). */
+  effects?: EffectRegistry;
   /**
    * Delegate used by `insert_section` to synthesize a section node — wired to
    * `KubuildAiEngine.generateSection` so section generation keeps going through the

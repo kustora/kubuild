@@ -42,19 +42,23 @@ export function createFakeDom(options: { innerWidth?: number; innerHeight?: numb
   const documentElement = listenerTarget();
   const doc = { defaultView: view, body: {}, documentElement };
 
+  const scaleOf = (parent: null | { offsetWidth: number; getBoundingClientRect(): { width: number } }) =>
+    parent && parent.offsetWidth > 0 ? parent.getBoundingClientRect().width / parent.offsetWidth : 1;
+
   function element(layout: { top: number; height: number; left?: number; width?: number }) {
     const style = { translate: '', scale: '', rotate: '', opacity: '', backgroundPositionY: '' };
     const el = {
       layout,
       style,
       ownerDocument: doc,
-      parentElement: null,
+      parentElement: null as null | { offsetWidth: number; getBoundingClientRect(): { width: number } },
       getBoundingClientRect() {
         const [x = '0', y = '0'] = style.translate ? style.translate.split(/\s+/) : [];
+        const scale = scaleOf(el.parentElement);
         return {
-          top: layout.top + (parseFloat(y) || 0),
+          top: layout.top + (parseFloat(y) || 0) * scale,
           height: layout.height,
-          left: (layout.left ?? 0) + (parseFloat(x) || 0),
+          left: (layout.left ?? 0) + (parseFloat(x) || 0) * scale,
           width: layout.width ?? 300,
         };
       },

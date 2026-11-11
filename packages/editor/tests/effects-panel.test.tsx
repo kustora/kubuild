@@ -121,3 +121,18 @@ describe('Effects in the inspector and store', () => {
     expect(useEditorStore.getState().updateNodeEffects('missing', null).success).toBe(false);
   });
 });
+
+describe('Effects sector in Simple mode', () => {
+  it('is available in Simple mode as well', () => {
+    const doc = createBlankDocument('Effects');
+    doc.document.children = [section([{ plugin: 'drift', enabled: true, config: {} }])];
+    useEditorStore.getState().setDocument(doc);
+    useEditorStore.getState().selectNode('hero');
+    const html = renderToString(
+      <EffectRegistryContext.Provider value={registry}>
+        <InspectorPanel registry={createDefaultComponentRegistry()} document={doc} selectedNodeId="hero" mode="simple" />
+      </EffectRegistryContext.Provider>,
+    );
+    expect(html).toContain('data-testid="sector-effects"');
+  });
+});

@@ -180,3 +180,20 @@ describe('scroll viewport marker', () => {
     expect(listeners.has('scroll')).toBe(false);
   });
 });
+
+describe('scaled ancestor (zoomed editor canvas)', () => {
+  it('moves parallax-scroll the same visual distance at any zoom', () => {
+    const dom = createFakeDom();
+    // Parent drawn at 50%: 600 CSS px wide, 300 screen px.
+    const parent = { offsetWidth: 600, getBoundingClientRect: () => ({ width: 300 }) };
+    const el = dom.element({ top: 600, height: 200 }); // screen center 700, viewport center 500
+    Object.assign(el, { parentElement: parent });
+    parallaxScroll.mount!(el, parallaxScroll.defaults, ctx);
+    // 200 screen px off-center * 0.3 = 60 screen px = 120 CSS px inside the 50% canvas.
+    expect(el.style.translate).toBe('0px -120px');
+
+    // Our own translate (120 CSS px = 60 screen px) is not mistaken for layout movement.
+    dom.scrollTo(el, 600);
+    expect(el.style.translate).toBe('0px -120px');
+  });
+});

@@ -401,6 +401,7 @@ Write tools mutate the AST atomically and return structured diff operations:
 | `replace_node` | Replaces a node or entire subtree atomically with a newly generated node tree. | Full subtree normalization, depth limit validation. |
 | `move_node` | Relocates a node to a different parent container or reorders it among siblings. | Cycle detection (cannot move a node into its own descendant). |
 | `duplicate_node` | Clones a node and its descendants, regenerating all node IDs to prevent duplicates. | Global unique ID verification. |
+| `set_node_effects` | Replaces a node's runtime effects (parallax, scroll-linked motion). Only present when the engine/agent gets an `effects` registry; the prompt then also lists every plugin with its guidance and config schema. | Plugin must be registered; each config validated by the plugin's `parse`; all problems reported in one result. |
 
 ### Deterministic AST Safety Pipeline
 
@@ -717,6 +718,11 @@ export function PromptToPageModal({ onApplyDocument }) {
     skills: {
       description: 'Array of loaded Agent Skills to inject into the system prompt compilation.',
       type: 'AiSkill[]',
+      required: false,
+    },
+    effects: {
+      description: 'Effect plugins the pages can run (the same registry the editor gets). Gives the agent an effect catalog and the set_node_effects tool.',
+      type: 'EffectRegistry',
       required: false,
     },
     systemPrompt: {

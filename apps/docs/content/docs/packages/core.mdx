@@ -784,6 +784,21 @@ if (comparison.equivalent) {
 
 ---
 
+## Node Effects
+
+Effects (parallax, scroll-linked motion) are stored on nodes as `{ plugin, enabled, config }` and implemented by host-registered plugins, so core stays DOM-free. See the [Effects & Parallax guide](/docs/guides/effects).
+
+| API | Purpose |
+| :--- | :--- |
+| `createEffectRegistry(plugins)` / `EffectRegistry` | Host-side catalog of effect plugins; rejects malformed or duplicate ids. |
+| `defineEffectPlugin(plugin)` | Typed identity helper for writing a plugin (`EffectPlugin<TConfig>`). |
+| `resolveEffect(effect, registry)` / `resolveNodeEffects(node, registry)` | Resolve stored effects to `ok`, `disabled`, `unknown-plugin` or `invalid-config` (parsing config with the plugin). |
+| `updateEffects(document, { nodeId, effects })` | Command that replaces a node's effect list (`null` / `[]` removes it), emitting `EFFECTS_UPDATED`. |
+| `collectEffectNodes(root)` | Every node carrying effects, in document order. |
+| `buildEffectManifest(root, registry)` | The resolved, parsed effect list a static export ships (see [`@kubuild/runtime-dom`](/docs/packages/runtime-dom)). |
+
+Unknown plugins are preserved, never dropped: a document opened on a host without a plugin keeps its effect data for the next host that has it.
+
 ## Layout Geometry & Snapping Boundaries
 
 To maintain clean separation of concerns:

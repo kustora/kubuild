@@ -1,0 +1,60 @@
+---
+title: '@kubuild/runtime-dom'
+description: Framework-free page runtime that mounts document effects on static HTML exports — and the same mounting logic the React renderer uses.
+---
+
+`@kubuild/runtime-dom` has no React and no schema/zod dependency. It powers `kubuild-runtime.js`, the script a [static HTML export](/docs/guides/static-html-export) loads, and exposes the mounting primitives for hosts that render pages their own way.
+
+```bash
+pnpm add @kubuild/runtime-dom
+```
+
+## Entry points
+
+| Import | Contents |
+| :--- | :--- |
+| `@kubuild/runtime-dom` | `bootEffects`, `readEffectManifest`, `mountNodeEffects`, `createRuntimeMap`, `REDUCED_MOTION_QUERY`. |
+| `@kubuild/runtime-dom/source` | `KUBUILD_RUNTIME_SOURCE` (the bundled script as a string), `KUBUILD_RUNTIME_FILENAME`, `KUBUILD_RUNTIME_VERSION` — for writing the file into an export without a bundler `?raw` import. |
+| `@kubuild/runtime-dom/kubuild-runtime.js` | The bundled IIFE itself. It boots automatically and exposes `window.KubuildRuntime.destroy()`. |
+
+## `bootEffects(options)`
+
+Reads `<script type="application/json" id="kb-effects">`, finds every `[data-kb-node]` element the manifest mentions, and mounts its effects. Returns a function that unmounts everything (useful for hosts that swap pages without a reload).
+
+```ts
+import { bootEffects } from '@kubuild/runtime-dom';
+import { parallaxRuntimes } from '@kubuild/plugin-parallax/dom';
+import { myRuntimes } from './my-effects.runtime';
+
+// A custom page bundle with first-party and your own effects
+const destroy = bootEffects({
+  runtimes: [...parallaxRuntimes, ...myRuntimes],
+  onError: (error, plugin) => console.error(plugin, error),
+});
+```
+
+| Option | Description |
+| :--- | :--- |
+| `runtimes` | `EffectRuntime` objects (`{ id, reducedMotion?, mount }`). Effects whose plugin isn't listed are skipped. |
+| `document` | Defaults to the global `document`. |
+| `manifest` | Pass a manifest directly instead of reading it from the page. |
+| `onError` | Called when a runtime throws while mounting or cleaning up; other effects keep running. |
+
+## `mountNodeEffects(element, effects, runtimes, options)`
+
+Mounts one node's effects and returns a cleanup that unmounts them in reverse order. Honors `prefers-reduced-motion`: runtimes with `reducedMotion: 'skip'` (the default) are not mounted for those visitors. `KubuildRenderer` uses this for its `effects` prop.
+
+## The manifest format
+
+Defined in `@kubuild/core/effect-manifest` (a dependency-free subpath, safe for page bundles):
+
+```ts
+interface EffectManifest {
+  version: 1;
+  nodes: Record<string, Array<{ plugin: string; config: Record<string, unknown> }>>;
+}
+```
+
+`buildEffectManifest(root, registry)` from `@kubuild/core` produces it from a document: disabled effects are dropped, configs are parsed (defaults filled), and effects that can't run are returned in `skipped` with a reason (`unknown-plugin`, `invalid-config`, `no-runtime`). `parseEffectManifest(json)` validates one read back from a page.
+
+Constants: `EFFECT_MANIFEST_ELEMENT_ID` (`"kb-effects"`), `EFFECT_NODE_ATTRIBUTE` (`"data-kb-node"`), `EFFECT_SCROLL_VIEWPORT_ATTRIBUTE` (`"data-kb-scroll-viewport"`).

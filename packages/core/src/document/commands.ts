@@ -603,7 +603,7 @@ export interface UpdateEffectsParams {
 }
 
 /**
- * Replace the plugin-driven effects of an existing node (STORA-650).
+ * Replace the plugin-driven effects of an existing node (STORA-651).
  * Only the portable shape is validated here — plugin ids and plain-data config. Whether a
  * plugin exists and whether its config is valid is the effect registry's concern, so core
  * keeps unknown plugins intact instead of dropping data it cannot interpret.

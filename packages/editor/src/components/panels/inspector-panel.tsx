@@ -1687,6 +1687,20 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     onModeChange?.('advance');
   };
 
+  // Effects aren't tied to a breakpoint or state, so the same sector shows in both modes.
+  const effectsSector = effectRegistry ? (
+    <EffectsSector
+      key={node.id}
+      node={node}
+      registry={effectRegistry}
+      error={fieldErrors.effects ?? undefined}
+      onChange={(effects) => {
+        const result = updateNodeEffects(node.id, effects);
+        setError('effects', result.success ? null : (result.error ?? null));
+      }}
+    />
+  ) : null;
+
   return (
     <div className={`flex flex-col h-full min-h-0 overflow-hidden text-sm text-slate-900 ${className || ''}`}>
       {/* STORA-250 — Asset Manager Modal: picking an asset updates the target prop instantly. */}
@@ -2092,15 +2106,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
           {showStyles && (
             isSimpleMode ? (
-              <SimpleAppearanceSection
-                nodeType={node.type}
-                styles={activeLayer}
-                baseStyles={(node.styles?.base as Record<string, unknown> | undefined) ?? {}}
-                onCommitStyles={(stylesPatch) => {
-                  updateNodeStyle(node.id, stylesPatch, activeBreakpoint);
-                }}
-                onSwitchToAdvance={handleSwitchToAdvance}
-              />
+              <>
+                <SimpleAppearanceSection
+                  nodeType={node.type}
+                  styles={activeLayer}
+                  baseStyles={(node.styles?.base as Record<string, unknown> | undefined) ?? {}}
+                  onCommitStyles={(stylesPatch) => {
+                    updateNodeStyle(node.id, stylesPatch, activeBreakpoint);
+                  }}
+                  onSwitchToAdvance={handleSwitchToAdvance}
+                />
+                {effectsSector}
+              </>
             ) : (
               <div className="pt-2 border-t border-slate-200 min-w-0 max-w-full shrink-0">
                 {/* Active state warning badge — STORA-223 */}
@@ -2168,18 +2185,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   breakpoint={activeBreakpoint}
                   assetProvider={assetProvider}
                 />
-                {effectRegistry && (
-                  <EffectsSector
-                    key={node.id}
-                    node={node}
-                    registry={effectRegistry}
-                    error={fieldErrors.effects ?? undefined}
-                    onChange={(effects) => {
-                      const result = updateNodeEffects(node.id, effects);
-                      setError('effects', result.success ? null : (result.error ?? null));
-                    }}
-                  />
-                )}
+                {effectsSector}
               </div>
             )
           )}

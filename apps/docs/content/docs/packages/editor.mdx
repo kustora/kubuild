@@ -276,6 +276,11 @@ export function PageBuilderPage({ initialDoc }: { initialDoc: PageDocument }) {
       type: '(template: TemplateRecord, doc: PageDocument) => void',
       required: false,
     },
+    effects: {
+      description: 'Effect plugins (parallax, …) from createEffectRegistry(). Enables the inspector Effects section, plays effects in Preview, and ships them with the HTML export. Without it, effects in a document are preserved but neither run nor editable. See the Effects & Parallax guide.',
+      type: 'EffectRegistry',
+      required: false,
+    },
     ai: {
       description: 'Optional AI configuration enabling streaming page generator, AI chat assistant panel, and prompt copilot.',
       type: 'AiEditorConfig',

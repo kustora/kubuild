@@ -51,18 +51,31 @@ export function viewportBox(element: HTMLElement, scrollParent: HTMLElement | nu
 }
 
 /**
+ * Screen pixels per CSS pixel around the element: 1 on a normal page, the zoom factor
+ * inside a scaled container such as the editor canvas. Measured on the parent, because the
+ * element's own `scale` (which effects may set) would distort it.
+ */
+export function renderScale(element: HTMLElement): number {
+  const parent = element.parentElement;
+  if (!parent || !(parent.offsetWidth > 0)) return 1;
+  const scale = parent.getBoundingClientRect().width / parent.offsetWidth;
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+/**
  * Measures the element's layout box without the transforms the effects themselves apply
  * (`translate`/`scale`/`rotate`), so parallax math doesn't feed back into itself.
  */
-export function untransformedBox(element: HTMLElement): Box {
+export function untransformedBox(element: HTMLElement, scale = 1): Box {
   const rect = element.getBoundingClientRect();
   const { translate } = element.style;
   let dx = 0;
   let dy = 0;
   if (translate && translate !== 'none') {
     const [x = '0', y = '0'] = translate.split(/\s+/);
-    dx = parseFloat(x) || 0;
-    dy = parseFloat(y) || 0;
+    // The inline translate is in CSS px; on screen it is multiplied by any ancestor scale.
+    dx = (parseFloat(x) || 0) * scale;
+    dy = (parseFloat(y) || 0) * scale;
   }
   return { top: rect.top - dy, height: rect.height, left: rect.left - dx, width: rect.width };
 }

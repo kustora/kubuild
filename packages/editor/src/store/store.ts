@@ -535,7 +535,7 @@ export interface EditorState {
     animation: Partial<AnimationConfig> | null,
     merge?: boolean,
   ) => UpdateAnimationResult;
-  /** Replaces the node's effect list (STORA-650); `null` or `[]` removes it. */
+  /** Replaces the node's effect list (STORA-651); `null` or `[]` removes it. */
   updateNodeEffects: (nodeId: string, effects: NodeEffect[] | null) => UpdateEffectsResult;
   updateNodeActions: (
     nodeId: string,

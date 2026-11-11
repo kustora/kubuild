@@ -1,5 +1,5 @@
 import type { EffectRuntime } from '@kubuild/core';
-import { MOBILE_QUERY, matchesMedia, onScrollFrame, untransformedBox, viewportBox } from '../runtime/dom.js';
+import { MOBILE_QUERY, matchesMedia, onScrollFrame, renderScale, untransformedBox, viewportBox } from '../runtime/dom.js';
 import { lerp, scrollProgress, windowedProgress, type EasingName } from '../runtime/math.js';
 import { createMotionChannel } from '../runtime/motion.js';
 
@@ -32,7 +32,7 @@ export const scrollTransformRuntime: EffectRuntime<ScrollTransformConfig> = {
         channel.set({});
         return;
       }
-      const progress = scrollProgress(untransformedBox(element), viewportBox(element, scrollParent));
+      const progress = scrollProgress(untransformedBox(element, renderScale(element)), viewportBox(element, scrollParent));
       const t = windowedProgress(progress, config.start, config.end, config.easing);
       channel.set({
         x: lerp(config.fromX, config.toX, t),

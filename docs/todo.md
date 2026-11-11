@@ -30,6 +30,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 | 9    | Playground/docs        | Developer dapat mencoba dan mengintegrasikan kubuild dari dokumentasi.   |
 | 10   | AI provider & in-editor assistant | AI chat, prompt-to-page, dan enhance-selection ter-embed di editor lewat command engine, tanpa mengubah manual editing sebagai jalur utama. |
 | 11   | Host integration feedback | Host (funnel builder) dapat menyuplai blocks/templates, menyimpan via `onSave`, merender halaman responsif, dan memakai komponen konversi tanpa workaround. |
+| 12   | Effects & static export | Node dapat membawa efek runtime (parallax, scroll-linked) dari plugin host yang bisa diedit, di-preview, dipasang AI, dan ikut ke export HTML statis tanpa kode di dokumen. |
 
 ---
 
@@ -359,7 +360,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Buat editor state controller
 - **Description:** Satukan document draft, selection, hover, clipboard, history, command dispatch, dirty state, dan event `onChange`. State UI tidak ikut diserialisasi ke page document.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-012, STORA-013, STORA-030
 - **Acceptance Criteria:**
   - Editor dapat load document, dispatch command, expose current selection, dan emit document baru.
@@ -374,7 +375,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan canvas selection, hover, dan keyboard navigation
 - **Description:** Tambahkan overlay non-destructive pada renderer editor untuk memilih node, melihat hover, berpindah tree via keyboard, dan menghapus node terpilih.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-040, STORA-033
 - **Acceptance Criteria:**
   - Klik node memilih tepat satu node dan inspector menerima node itu.
@@ -389,7 +390,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan element panel dan insert component
 - **Description:** Tampilkan component registry berdasarkan category; user memilih insertion target valid dan menambahkan node default lewat command engine.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-040, STORA-020, STORA-022
 - **Acceptance Criteria:**
   - Panel memuat core component dari registry, bukan hard-coded list terpisah.
@@ -404,7 +405,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan drag-and-drop reorder dan reparent
 - **Description:** User dapat memindahkan node pada canvas/layer panel. Gunakan drop indicator, validasi child policy, dan command `moveNode` tunggal agar history konsisten.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-040, STORA-041, STORA-042
 - **Acceptance Criteria:**
   - User dapat reorder sibling dan memindahkan node ke container valid.
@@ -419,7 +420,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Buat inspector props dan style berbasis component schema
 - **Description:** Generate form inspector dari metadata registry untuk content, asset, action, base style, dan responsive overrides. Perubahan melewati validation dan command engine.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-040, STORA-020, STORA-023
 - **Acceptance Criteria:**
   - Heading text, image asset/alt, button label/action, dan spacing dapat diedit pada UI.
@@ -434,7 +435,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan duplicate, delete, copy/paste, undo, dan redo controls
 - **Description:** Bangun control editor memakai command/history engine; clipboard memuat subtree portable dan membersihkan ID ketika paste.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-040, STORA-041, STORA-013
 - **Acceptance Criteria:**
   - Duplicate, delete, paste, undo, dan redo bekerja pada nested subtree.
@@ -449,7 +450,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan layers panel dan responsive preview control
 - **Description:** Tampilkan tree document, status selection, expand/collapse, reorder, serta switch desktop/tablet/mobile yang mengendalikan canvas preview.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-041, STORA-043, STORA-033
 - **Acceptance Criteria:**
   - Layers panel merefleksikan tree setelah semua edit command.
@@ -470,7 +471,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Definisikan expression binding dan variable context v1
 - **Description:** Gunakan binding object serializable, misalnya `{ type: "variable", key: "site.name" }`, bukan string evaluation. Definisikan lookup nested path, missing-value policy, dan static fallback.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-010, STORA-031
 - **Acceptance Criteria:**
   - Binding `site.name` resolve dari runtime context ke nilai scalar.
@@ -485,7 +486,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Integrasikan bindings ke component props renderer
 - **Description:** Resolver berjalan sebelum component menerima props render. Props dapat statis atau binding dengan type checking dari component schema.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-050, STORA-030, STORA-022
 - **Acceptance Criteria:**
   - Heading, text, image, dan button dapat memakai static value atau variable binding pada prop yang kompatibel.
@@ -500,7 +501,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Implementasikan collection node dengan scoped item context
 - **Description:** Tambahkan component `collection` yang menerima array runtime dari variable key, merender template child untuk setiap item, dan memberikan scope `item` serta index.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-050, STORA-051, STORA-021
 - **Acceptance Criteria:**
   - Array `products` dengan tiga item menghasilkan tiga subtree dalam urutan input.
@@ -515,7 +516,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan variable picker dan preview data adapter di editor
 - **Description:** Host memberikan catalog variable dan sample values. Inspector menawarkan binding hanya untuk prop compatible, sementara preview memakai sample context tanpa menyimpan data rahasia ke document.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-044, STORA-050, STORA-051
 - **Acceptance Criteria:**
   - User dapat memilih `site.name` untuk heading dan melihat sample value di canvas.
@@ -677,7 +678,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Buat template library MVP dan create-from-template flow
 - **Description:** Tampilkan template local/reference dalam grid dengan category/tag filter, preview, dependency warning, dan tombol use template menuju builder.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-071, STORA-033, STORA-063
 - **Acceptance Criteria:**
   - User dapat filter template berdasarkan category dan tag.
@@ -692,7 +693,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan template version metadata tanpa auto-update instance
 - **Description:** Simpan version semantic pada template snapshot. Page clone mencatat template origin/version sebagai metadata optional; tidak ada automatic update pada document instance.
 - **Priority:** Low
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-071
 - **Acceptance Criteria:**
   - Template baru dapat diberi version baru tanpa mengubah previous snapshot.
@@ -713,7 +714,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tambahkan unit test suite core, registry, dan renderer
 - **Description:** Cover validation, commands, history, migration, component policy, bindings, collection, action dispatch, dan renderer fallback.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** In Progress
 - **Dependencies:** STORA-014, STORA-032, STORA-054
 - **Acceptance Criteria:**
   - Semua public behavior kritis memiliki test deterministik tanpa network.
@@ -743,7 +744,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Buat end-to-end test portable package round-trip
 - **Description:** Jalankan create/edit/export, buka pada clean host registry, preflight/import, lalu edit dan export ulang.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-064, STORA-065, STORA-081
 - **Acceptance Criteria:**
   - E2E berjalan dari UI/editor atau public APIs pada clean fixture host.
@@ -809,7 +810,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Bangun playground interaktif kubuild
 - **Description:** Buat app lokal yang mendemonstrasikan builder, runtime renderer, responsive preview, variable samples, asset adapter mock, action mock, dan export/import fixture.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** In Progress
 - **Dependencies:** STORA-065, STORA-072, STORA-081
 - **Acceptance Criteria:**
   - Playground membuka starter page di editor dan runtime side-by-side.
@@ -824,7 +825,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Tulis quickstart integrasi kubuild untuk consumer React
 - **Description:** Dokumentasikan install, component registry, renderer, editor, runtime context, asset provider, action handler, variable catalog, dan common errors.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** In Progress
 - **Dependencies:** STORA-090, STORA-024, STORA-031
 - **Acceptance Criteria:**
   - Developer dapat menjalankan renderer simple dari fresh React app mengikuti quickstart.
@@ -839,7 +840,7 @@ Tidak termasuk MVP: CMS lengkap, auth, database platform, marketplace, arbitrary
 - **Summary:** Dokumentasikan format document dan `.stora` untuk interoperabilitas
 - **Description:** Publikasikan document schema, binding model, style/responsive rules, manifest, import errors, migration policy, dan security constraints.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** In Progress
 - **Dependencies:** STORA-014, STORA-060, STORA-063, STORA-083
 - **Acceptance Criteria:**
   - Docs memiliki contoh valid untuk static page, variable binding, collection, custom component requirement, dan manifest.
@@ -877,7 +878,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Tambahkan dependency `@kubuild/ai` ke `@kubuild/editor` dan `@kubuild/react`
 - **Description:** Daftarkan `@kubuild/ai` (`./react` dan `./client` entry) sebagai dependency package `editor`, lalu re-export lewat `@kubuild/react`. Arah dependency baru (`editor → ai`) tidak boleh melanggar aturan `no-restricted-imports` yang membatasi `core`; `@kubuild/ai` sendiri tetap hanya bergantung ke `core`/`schema`.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - `pnpm --filter @kubuild/editor build` sukses dengan `@kubuild/ai` sebagai dependency baru.
@@ -892,7 +893,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Definisikan `AiEditorConfig` mengikuti pola `EditorConfig` yang sudah ada
 - **Description:** Tambahkan tipe config (provider adapter/endpoint, feature flag aktif/nonaktif per fitur AI, default panel mode) sebagai prop opsional baru di `KubuildEditorProps`, konsisten dengan pola `registry`/`context`/`config` yang sudah ada. Host (consumer) yang menyuplai provider/API key — editor tidak hardcode provider apa pun.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-500
 - **Acceptance Criteria:**
   - `KubuildEditor` berjalan normal tanpa error saat prop AI config tidak diberikan (fitur AI default nonaktif/hidden).
@@ -907,7 +908,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Sambungkan `selectedNodeId` dan snapshot document dari editor store ke context AI
 - **Description:** Setiap request `useAiChat`/`useAiGenerator` yang dipicu dari dalam editor menyertakan `selectedNodeId` aktif dan document aktif (`AiChatRequest.currentDocument`/`selectedNodeId` sudah didukung tipe-nya di `@kubuild/ai`), tanpa menyalin logic store secara terpisah.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-500, STORA-501
 - **Acceptance Criteria:**
   - Mengganti selection di canvas otomatis mengubah context yang dikirim ke chat berikutnya.
@@ -924,7 +925,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Bangun AI Chat Panel dengan mode `docked | floating | hidden`
 - **Description:** Panel baru mengikuti pola panel existing (`navigatorMode`, `tableSpreadsheetMode` di `EditorState`) — state `aiChatMode` baru di store, docked di sisi kanan/kiri atau floating di atas canvas seperti `TableSpreadsheetEditor`.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-501
 - **Acceptance Criteria:**
   - Panel dapat di-toggle antara docked, floating, dan hidden tanpa reload editor.
@@ -939,7 +940,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Tambah toggle "AI Chat" di toolbar dan `EditorToolbarConfig`
 - **Description:** Tombol toolbar baru untuk membuka/menutup AI Chat Panel, dengan flag `showAiChatToggle` di `EditorToolbarConfig` mengikuti pola `showNavigatorToggle` yang sudah ada.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-503
 - **Acceptance Criteria:**
   - Toggle hilang dari toolbar bila `showAiChatToggle: false` atau fitur AI nonaktif di `AiEditorConfig`.
@@ -953,7 +954,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** UI riwayat pesan chat (bubble user/assistant, loading, error)
 - **Description:** Render `messages` dari `useAiChat` sebagai bubble chat, termasuk state loading (indikator mengetik) dan error state (retry action) sesuai `cancel()`/error handling yang sudah ada di hook.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-503
 - **Acceptance Criteria:**
   - Pesan user dan assistant terbedakan secara visual dan urut secara kronologis.
@@ -968,7 +969,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Indikator context aktif di chat input ("membahas: #button-1")
 - **Description:** Saat ada `selectedNodeId`, chat input menampilkan chip/badge node yang sedang jadi context, dengan opsi user melepas context tersebut sebelum mengirim pesan.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-502, STORA-505
 - **Acceptance Criteria:**
   - Chip context hilang otomatis saat selection di canvas dikosongkan.
@@ -984,7 +985,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Wire `streamPage` ke command engine editor
 - **Description:** Tiap `AiStreamEvent` bertipe `section` dari `useAiGenerator.streamPage` di-dispatch sebagai `insertNode` (lewat `dispatch`/`insertComponent` di store, bukan mutasi document langsung) ke document aktif, section demi section sesuai urutan datang.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-502
 - **Acceptance Criteria:**
   - Prompt "buatkan landing page" menghasilkan document dengan minimal page → section → komponen anak, tervalidasi oleh `@kubuild/core`.
@@ -999,7 +1000,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Progressive preview saat generate berjalan
 - **Description:** Canvas menampilkan placeholder loading untuk section yang sedang di-generate dan langsung merender section begitu event-nya masuk, memakai renderer yang sama dengan preview manual (bukan preview terpisah).
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-507
 - **Acceptance Criteria:**
   - User melihat halaman terbentuk bertahap, bukan menunggu semua section selesai baru muncul.
@@ -1013,7 +1014,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Validasi & sanitasi output AI sebelum dispatch ke document
 - **Description:** Sebelum tiap node/section hasil AI di-dispatch, jalankan jalur yang sama dengan import `.stora`: schema validation (`PageDocumentSchema`/`normalizeAndValidate*` yang sudah ada di `@kubuild/ai`) plus `validateDocumentSecurity` dari `@kubuild/core`. Tidak ada node hasil AI yang masuk document tanpa lolos validasi ini.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-507
 - **Acceptance Criteria:**
   - Node dengan prop/style yang tidak lolos schema ditolak dan dilaporkan sebagai diagnostic ke host (`onDiagnostic`), bukan silent-inserted.
@@ -1028,7 +1029,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Generate sebagai satu batch history entry yang bisa di-undo sekali klik
 - **Description:** Seluruh section yang masuk dari satu sesi `streamPage` tergabung jadi satu grup di `DocumentHistoryManager`, sehingga satu kali `undo()` mengembalikan document ke kondisi sebelum generate, bukan meng-undo section satu per satu.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-507
 - **Acceptance Criteria:**
   - Setelah generate multi-section, satu kali klik Undo mengosongkan seluruh hasil generate.
@@ -1044,7 +1045,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Aksi "Ask AI about this component" dari inspector/canvas
 - **Description:** Tombol/menu di `InspectorPanel` atau floating badge canvas yang membuka AI Chat Panel dengan context node terpilih sudah ter-attach (lihat STORA-506), tanpa user perlu mengetik ulang identitas node.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-505, STORA-506
 - **Acceptance Criteria:**
   - Klik aksi ini membuka panel (jika tertutup) dan mem-fokus chat input dengan context node sudah terpasang.
@@ -1058,7 +1059,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Wire `refactorNode` untuk instruksi enhance dari node terpilih
 - **Description:** Instruksi user ("buat lebih menonjol", "ubah jadi gaya minimalis") dikirim ke `useAiGenerator.refactorNode` bersama node dan context document, menghasilkan kandidat node baru tanpa langsung mengubah document.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-502, STORA-511
 - **Acceptance Criteria:**
   - Hasil `refactorNode` tervalidasi lewat jalur yang sama seperti STORA-509 sebelum ditampilkan sebagai kandidat.
@@ -1072,7 +1073,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Diff preview before/after untuk hasil enhance di chat
 - **Description:** Tampilkan perbandingan ringkas (props/styles yang berubah) antara node asli dan kandidat hasil AI langsung di dalam chat, dengan tombol **Apply** dan **Discard**.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-512
 - **Acceptance Criteria:**
   - Diff menyoroti field yang berubah saja (bukan dump seluruh objek node).
@@ -1086,7 +1087,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Apply hasil enhance lewat command engine
 - **Description:** Tombol Apply memanggil `updateNodeProps`/`updateNodeStyle` (atau command replace-subtree baru jika struktur berubah) di store editor — path yang sama persis dengan edit manual — sehingga tercatat di `DocumentHistoryManager`.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-513
 - **Acceptance Criteria:**
   - Setelah Apply, `undo()` mengembalikan node ke kondisi sebelum enhance.
@@ -1102,7 +1103,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Implementasikan token-level streaming untuk `chat()`
 - **Description:** `KubuildAiEngine.chat()` saat ini single request/response. Tambahkan varian streaming (`chatStream()` atau `stream: true` pada `chat()`) yang meneruskan `stream: true` ke adapter provider (OpenAI/Anthropic/Gemini) dan meng-emit token/partial chunk lewat mekanisme SSE yang sama dengan `streamPage`.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Response chat tampil progresif (token/partial chunk), bukan menunggu jawaban penuh.
@@ -1117,7 +1118,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Update `useAiChat` untuk konsumsi stream dan render partial response realtime
 - **Description:** Hook `useAiChat` menambah dukungan callback partial-token (mirip `AiStreamCallbacks` di `useAiGenerator`), dan AI Chat Panel (STORA-505) merender token yang masuk secara realtime ke bubble assistant yang sedang aktif.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-515, STORA-505
 - **Acceptance Criteria:**
   - Bubble assistant ter-update per chunk tanpa re-render seluruh riwayat chat.
@@ -1131,7 +1132,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Putuskan nasib `AiChatResponse.suggestedAction` (implement atau hapus)
 - **Description:** Field ini sudah ada di tipe tapi tidak pernah diisi oleh engine. Keputusan produk: implementasikan (mis. AI dapat menyarankan aksi "generate section baru" langsung dari chat) atau hapus dari tipe publik untuk mencegah consumer bergantung pada field yang selalu kosong.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Jika diimplementasi: minimal satu jenis `suggestedAction` (mis. "insert section ini ke document") dapat di-trigger dari chat panel lewat command engine.
@@ -1145,7 +1146,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Bersihkan `console.log` debug di `server/engine.ts`
 - **Description:** Beberapa `console.log` tertinggal di `KubuildAiEngine` (generatePage/streamPage/chat) tidak digate oleh opsi `debug`/`logger` yang sudah ada di constructor. Rapikan agar semua logging lewat `logger` yang dikonfigurasi, senyap secara default.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Tidak ada `console.log` langsung tersisa di `packages/ai/src/server/engine.ts`.
@@ -1161,7 +1162,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Sediakan hook auth/rate-limit di `createAiHandler`
 - **Description:** `createAiHandler` saat ini tidak punya auth/rate-limiting bawaan. Tambahkan opsi middleware/hook (mis. `beforeRequest`) yang dipanggil sebelum request diteruskan ke engine, supaya host dapat menyisipkan auth/rate-limit sendiri tanpa fork handler.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** None
 - **Acceptance Criteria:**
   - Host dapat menolak request (mis. 401/429) sebelum mencapai provider LLM lewat hook ini.
@@ -1175,7 +1176,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Persist riwayat chat per document lewat storage adapter opsional
 - **Description:** `useAiChat` saat ini murni React state, hilang saat reload. Sediakan interface storage adapter opsional (`loadHistory`/`saveHistory`) yang host dapat implementasikan (localStorage, backend Stora.page, dsb.) tanpa `@kubuild/ai` bergantung ke storage tertentu.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** In Progress
 - **Dependencies:** STORA-505
 - **Acceptance Criteria:**
   - Tanpa adapter diisi, behavior tetap seperti sekarang (in-memory saja).
@@ -1189,7 +1190,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Terapkan security limit yang sama dengan import `.stora` pada output generate AI
 - **Description:** Reuse `validateDocumentSecurity` (depth limit, node count limit, payload size) dari `@kubuild/core` untuk memvalidasi setiap document/section hasil AI sebelum dispatch — mencegah prompt yang menghasilkan tree raksasa atau nested-loop merusak editor.
 - **Priority:** Highest
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-509
 - **Acceptance Criteria:**
   - Prompt yang secara sengaja diarahkan menghasilkan tree sangat dalam/lebar ditolak dengan diagnostic yang jelas, bukan membuat editor freeze.
@@ -1205,7 +1206,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** E2E: prompt kosong → generate → edit manual → tetap valid
 - **Description:** Test mereproduksi Flow A dari PRD §31.3: mulai dari blank document, generate lewat prompt, lalu lakukan edit manual (drag/insert/update style) di atas hasil generate, pastikan document tetap valid sepanjang jalur.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** In Progress
 - **Dependencies:** STORA-507, STORA-509, STORA-510
 - **Acceptance Criteria:**
   - Test lulus tanpa mock command engine — memakai command engine `@kubuild/core` yang sesungguhnya.
@@ -1219,7 +1220,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** E2E: select → ask → enhance → apply → undo
 - **Description:** Test mereproduksi Flow B dan C dari PRD §31.3 end-to-end: select node, tanya AI, minta enhance, apply hasilnya, lalu undo — memverifikasi node kembali ke kondisi semula persis.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** In Progress
 - **Dependencies:** STORA-512, STORA-514
 - **Acceptance Criteria:**
   - Setelah undo, node identik (deep-equal) dengan kondisi sebelum enhance.
@@ -1233,7 +1234,7 @@ Referensi produk: `docs/PRD.md` §31. `@kubuild/ai` (engine, adapters, client, r
 - **Summary:** Dokumentasikan integrasi AI provider untuk consumer
 - **Description:** Tulis quickstart untuk consumer (mis. Stora.page): cara menyuplai provider/API key lewat `AiEditorConfig`, shape config, catatan keamanan (API key tidak boleh exposed ke client bila memakai provider berbayar langsung, disarankan lewat backend proxy `createAiHandler`).
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Dependencies:** STORA-501, STORA-519
 - **Acceptance Criteria:**
   - Quickstart mencakup contoh minimal: aktifkan AI chat + generate di `KubuildEditor` dengan satu provider.
@@ -1248,13 +1249,13 @@ Sumber: temuan integrasi KUBUILD `0.7.0` sebagai page builder funnel di aplikasi
 | Epic Key | Epic Name | Package Target | Jumlah Task | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | **EPIC-57** | Correctness Bugs (data loss & silent failures) | `@kubuild/core`, `@kubuild/renderer`, `@kubuild/components` | 5 Tasks | 5/5 Done |
-| **EPIC-58** | Host Integration API (blocks, templates, save, replace) | `@kubuild/editor`, `@kubuild/react`, `@kubuild/components` | 5 Tasks | 4/5 Done, 1 To Do |
+| **EPIC-58** | Host Integration API (blocks, templates, save, replace) | `@kubuild/editor`, `@kubuild/react`, `@kubuild/components` | 5 Tasks | 4/5 Done, 1 In Progress |
 | **EPIC-59** | Responsive Runtime Rendering | `@kubuild/renderer` | 3 Tasks | 3/3 Done |
 | **EPIC-60** | Conversion Components (sales/funnel pages) | `@kubuild/components`, `@kubuild/renderer` | 7 Tasks | 7/7 Done |
 | **EPIC-61** | Schema Consistency, Theming & Types | `@kubuild/schema`, `@kubuild/core`, `@kubuild/editor` | 4 Tasks | 4/4 Done |
-| **EPIC-62** | Documentation Accuracy | `docs/` | 3 Tasks | 0/3 Done, 3 To Do |
+| **EPIC-62** | Documentation Accuracy | `docs/` | 3 Tasks | 2/3 Done, 1 To Do |
 
-Ringkasan status: **23 Done**, **0 In Progress**, **4 To Do** (total 27).
+Ringkasan status: **25 Done**, **1 In Progress**, **1 To Do** (total 27).
 
 ## Epic: Correctness Bugs
 
@@ -1419,7 +1420,7 @@ Epic key: `EPIC-58` — package target: `@kubuild/editor`, `@kubuild/react`.
 - **Summary:** Guide "Embedding KUBUILD in a host app" end-to-end
 - **Description:** Satu guide yang menunjukkan integrasi nyata: custom component yang membaca `context.variables` (contoh: blok produk), host blocks, templates, `onSave`, imperative handle, action handler host, dan rendering publik dengan `KubuildRenderer`.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** In Progress
 - **Package:** `docs/`
 - **Dependencies:** STORA-535, STORA-536, STORA-537, STORA-538
 - **Acceptance Criteria:**
@@ -1664,7 +1665,7 @@ Epic key: `EPIC-62` — package target: `docs/`.
 - **Summary:** Guide import/export merujuk fungsi yang tidak ada
 - **Description:** `docs/src/content/docs/guides/import-export.md:13,16` meng-import `exportToStoraPackage` / `importFromStoraPackage` dari `@kubuild/editor`; tidak ada di `packages/*/src`. Fungsi sebenarnya: `exportPackage` / `exportStoraPackage` (`packages/core/src/io/exporter.ts:310,523`) dan `importPackage` / `importStoraPackage` / `preflightPackage` (`importer.ts:910,1205,361`), plus helper editor `downloadDocumentAsStora` / `downloadDocumentAsJson` (`packages/editor/src/utils/export-utils.ts:66,89`).
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Package:** `docs/`
 - **Dependencies:** None
 - **Acceptance Criteria:**
@@ -1678,7 +1679,7 @@ Epic key: `EPIC-62` — package target: `docs/`.
 - **Summary:** Guide theming memakai shape style yang tidak sesuai schema
 - **Description:** `docs/src/content/docs/guides/theming-and-styling.md:21` memakai key `"style"` dan objek padding bersarang, sedangkan schema memakai `styles: { base, desktop, tablet, mobile, states }` dengan nilai skalar (`packages/schema/src/document.ts:192-201`). Contoh dari docs gagal validasi.
 - **Priority:** Medium
-- **Status:** To Do
+- **Status:** Done
 - **Package:** `docs/`
 - **Dependencies:** STORA-551 (bila theme ditambahkan, guide ditulis ulang sekaligus)
 - **Acceptance Criteria:**
@@ -1745,6 +1746,165 @@ Epic key: `EPIC-64` — package target: `@kubuild/core`, `@kubuild/renderer`, `d
   - `helpers.setErrors` menampilkan error per field; hook yang melempar error menggagalkan submit dengan diagnostic `ACTION_EXECUTION_ERROR`.
   - `createRenderContext` meneruskan `onFormSubmit`; hook tidak dipanggil di editor.
   - `api/renderer.md` EN + `id/` diperbarui.
+
+---
+
+# Phase 12 — Effects & Static Export
+
+## Epic: Effects & Static Export
+
+Epic key: `EPIC-65` — package target: `@kubuild/schema`, `@kubuild/core`, `@kubuild/plugin-parallax`, `@kubuild/runtime-dom`, `@kubuild/renderer`, `@kubuild/editor`, `@kubuild/ai`, `apps/docs`.
+
+Catatan: kode awal fitur ini memakai komentar `STORA-650`, yang ternyata sudah dipakai bug `<a>` di `todo-html-import.md`. Referensi efek di kode sudah diganti ke `STORA-651`.
+
+Ringkasan status: **6 Done**, **0 In Progress**, **3 To Do** (total 9).
+
+### STORA-651
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-651
+- **Type:** Feature
+- **Summary:** Kontrak effect plugin dan `node.effects` di schema
+- **Description:** Dokumen hanya menyimpan `{ plugin, enabled, config }` per node; perilaku (validasi config, default, kontrol editor, panduan AI, runtime DOM) ada di plugin yang didaftarkan host lewat `EffectRegistry`. Plugin tidak dikenal dipertahankan, tidak dijalankan.
+- **Priority:** High
+- **Status:** Done
+- **Package:** `@kubuild/schema`, `@kubuild/core`
+- **Dependencies:** None
+- **Acceptance Criteria:**
+  - `NodeEffectSchema` memvalidasi id plugin dan menolak pola berbahaya di config; maksimal `MAX_NODE_EFFECTS` per node.
+  - Migrasi 1.3.0 → 1.4.0 dan round-trip `.stora` mempertahankan effects.
+  - Command `updateEffects` mengganti daftar efek (null/[] menghapus) dengan event `EFFECTS_UPDATED`.
+  - `resolveEffect` mengembalikan `ok` / `disabled` / `unknown-plugin` / `invalid-config`; `@kubuild/core` tetap tanpa DOM.
+
+### STORA-652
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-652
+- **Type:** Feature
+- **Summary:** Plugin parallax first-party (`@kubuild/plugin-parallax`)
+- **Description:** Empat plugin: `parallax-scroll`, `parallax-background`, `scroll-transform`, `pointer-parallax`. Definisi (zod, fields, AI) dipisah dari runtime DOM; entry `/dom` hanya berisi runtime.
+- **Priority:** High
+- **Status:** Done
+- **Package:** `@kubuild/plugin-parallax`
+- **Dependencies:** STORA-651
+- **Acceptance Criteria:**
+  - Efek pada satu elemen tersusun lewat compositor (translate dijumlah, scale/opacity dikali) dan cleanup memulihkan style asli.
+  - Runtime mengikuti scroll container terdekat atau elemen bertanda `data-kb-scroll-viewport`, mendukung iframe, dan mengoreksi skala ancestor (canvas yang di-zoom).
+  - Semua efek dilewati saat `prefers-reduced-motion: reduce`; `pointer-parallax` tidak aktif di layar sentuh.
+  - Unit test memverifikasi geometri dan mount/cleanup tanpa jsdom.
+
+### STORA-653
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-653
+- **Type:** Feature
+- **Summary:** Export HTML statis dengan runtime efek
+- **Description:** Export ZIP berisi `index.html` + `kubuild-runtime.js` (IIFE tanpa framework) yang membaca manifest efek. Config di-resolve dan di-parse saat export, jadi runtime tidak memvalidasi atau mengisi default.
+- **Priority:** High
+- **Status:** Done
+- **Package:** `@kubuild/core`, `@kubuild/runtime-dom`, `@kubuild/renderer`, `@kubuild/editor`
+- **Dependencies:** STORA-651, STORA-652
+- **Acceptance Criteria:**
+  - `buildEffectManifest` hanya memuat efek aktif, valid, dan punya runtime; sisanya dilaporkan sebagai `skipped`.
+  - Halaman tanpa efek tidak mendapat `<script>`; default memakai `<script src defer>` agar lolos CSP tanpa `unsafe-inline`.
+  - Bundle runtime < 20 KB, tidak menarik schema/zod (dijaga test).
+  - Escaping: node id di atribut class dan selector CSS, `<` di CSS, manifest JSON, dan `html-embed` disanitasi kecuali `sanitize: false`.
+  - Hasil export diverifikasi di Chrome: efek bergerak saat scroll dan `destroy()` memulihkan style.
+
+### STORA-654
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-654
+- **Type:** Feature
+- **Summary:** Efek di editor dan renderer: panel, preview, prop `effects`
+- **Description:** `KubuildEditor` dan `KubuildRenderer` menerima `effects`. Efek hanya jalan di mode runtime/preview; inspector punya section Effects yang dibangkitkan dari `plugin.fields`.
+- **Priority:** High
+- **Status:** Done
+- **Package:** `@kubuild/renderer`, `@kubuild/editor`, `apps/stora-playground`
+- **Dependencies:** STORA-651, STORA-652
+- **Acceptance Criteria:**
+  - Mode edit tidak pernah menjalankan efek; keluar dari preview membersihkan semua style efek.
+  - Section Effects tersedia di mode Simple dan Advance; slider menghasilkan satu langkah undo per gesture; plugin tidak dikenal ditandai tapi tetap bisa dihapus.
+  - Preview canvas bisa di-scroll dengan wheel dan efek mengikuti pan/zoom.
+  - Toolbar punya export HTML (ZIP); playground punya halaman Parallax Demo.
+
+### STORA-655
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-655
+- **Type:** Feature
+- **Summary:** AI dapat memasang efek (`set_node_effects`)
+- **Description:** Opsi `effects` di engine/agent AI menambahkan katalog efek (deskripsi, guidance, JSON schema config, contoh) ke system prompt dan tool `set_node_effects` yang menghasilkan op `set-effects`.
+- **Priority:** Medium
+- **Status:** Done
+- **Package:** `@kubuild/ai`, `@kubuild/editor`
+- **Dependencies:** STORA-651, STORA-654
+- **Acceptance Criteria:**
+  - Tool hanya ada bila host memberi registry; enum plugin sesuai plugin terdaftar.
+  - Config divalidasi dengan `parse` plugin; semua kesalahan dilaporkan sekaligus untuk satu kali retry.
+  - Op diterapkan lewat `updateNodeEffects` dalam satu transaksi history; `replace-node` mempertahankan efek node.
+
+### STORA-656
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-656
+- **Type:** Task
+- **Summary:** Dokumentasi efek dan export HTML statis
+- **Description:** Guide Effects & Parallax, guide Static HTML Export, halaman package `runtime-dom` dan `plugin-parallax`, serta prop/opsi baru di halaman editor, renderer, ai, core.
+- **Priority:** Medium
+- **Status:** Done
+- **Package:** `apps/docs`
+- **Dependencies:** STORA-653, STORA-654, STORA-655
+- **Acceptance Criteria:**
+  - Guide menjelaskan cara menulis plugin sendiri dengan pemisahan definisi/runtime.
+  - Situs docs ter-build tanpa error.
+  - Versi `id/` belum ada karena situs docs saat ini hanya EN.
+
+### STORA-657
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-657
+- **Type:** Feature
+- **Summary:** Export HTML statis menyertakan asset lokal
+- **Description:** Gambar/video `asset://` (upload) belum ikut ke ZIP; hanya URL eksternal yang berfungsi.
+- **Priority:** High
+- **Status:** To Do
+- **Package:** `@kubuild/editor`, `@kubuild/renderer`
+- **Dependencies:** STORA-653
+- **Acceptance Criteria:**
+  - Asset yang direferensikan halaman disalin ke `assets/` di ZIP dan `src` ditulis ulang ke path relatif.
+  - Asset yang gagal di-resolve dilaporkan tanpa membatalkan export.
+
+### STORA-658
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-658
+- **Type:** Feature
+- **Summary:** Komponen interaktif dan action pipeline di export HTML statis
+- **Description:** Accordion, tabs, carousel, countdown, dan action pipeline saat ini diekspor sebagai markup statis tanpa perilaku.
+- **Priority:** Medium
+- **Status:** To Do
+- **Package:** `@kubuild/renderer`, `@kubuild/runtime-dom`
+- **Dependencies:** STORA-653
+- **Acceptance Criteria:**
+  - Accordion memakai `<details>/<summary>` sehingga berfungsi tanpa JS.
+  - Tabs, carousel, dan countdown mendapat runtime kecil di `kubuild-runtime.js`, hanya dibundel bila dipakai halaman.
+  - Tidak ada eksekusi kode dari dokumen; runtime hanya membaca data.
+
+### STORA-659
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-659
+- **Type:** Task
+- **Summary:** Batasi format node id di schema
+- **Description:** Node id dengan spasi tidak pernah cocok dengan class `kb-node-<id>` di export HTML (atribut class terpecah di spasi). Escaping sudah aman, tapi style node tersebut hilang di export.
+- **Priority:** Low
+- **Status:** To Do
+- **Package:** `@kubuild/schema`, `@kubuild/core`
+- **Dependencies:** None
+- **Acceptance Criteria:**
+  - Schema menolak atau migrasi menormalkan id yang mengandung whitespace.
+  - Import `.stora` lama dengan id seperti itu tetap terbuka (dinormalkan dengan remap referensi).
 
 ---
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { NodeEffectSchema, NodeSchema, MAX_NODE_EFFECTS } from '../src/document.js';
 
-describe('NodeEffectSchema (STORA-650)', () => {
+describe('NodeEffectSchema (STORA-651)', () => {
   it('fills defaults for enabled and config', () => {
     expect(NodeEffectSchema.parse({ plugin: 'parallax-scroll' })).toEqual({
       plugin: 'parallax-scroll',

@@ -69,3 +69,20 @@ describe('escapeCssIdentifier', () => {
     expect(nodeAttributeSelector('a"]{}<b')).toBe('[data-kubuild-node="a\\22 \\5d \\7b \\7d \\3c b"]');
   });
 });
+
+describe('html-embed in standalone HTML', () => {
+  const embed = (props: Record<string, unknown>): Node => ({ id: 'e', type: 'html-embed', props, styles: {}, children: [] });
+  const payload = '<p>ok</p><script>alert(1)</script><img src=x onerror="alert(2)">';
+
+  it('is sanitized like the runtime renderer does', () => {
+    const html = generateStandaloneHtml(docWith(embed({ html: payload })));
+    expect(html).toContain('<p>ok</p>');
+    expect(html).not.toContain('alert(1)');
+    expect(html).not.toContain('onerror');
+  });
+
+  it('passes through untouched only when the author opted out with sanitize: false', () => {
+    const html = generateStandaloneHtml(docWith(embed({ html: payload, sanitize: false })));
+    expect(html).toContain('<script>alert(1)</script>');
+  });
+});

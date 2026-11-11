@@ -120,7 +120,7 @@ const EffectField: React.FC<{
 };
 
 /**
- * Inspector section for node effects (STORA-650). Controls are generated from each plugin's
+ * Inspector section for node effects (STORA-651). Controls are generated from each plugin's
  * `fields`, so a new plugin needs no editor code. Only changed keys are written to the
  * stored config; defaults stay with the plugin.
  */

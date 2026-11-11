@@ -1,0 +1,77 @@
+---
+title: '@kubuild/plugin-parallax'
+description: First-party effect plugins — parallax scroll, parallax background, scroll-linked transforms and pointer parallax.
+---
+
+```bash
+pnpm add @kubuild/plugin-parallax
+```
+
+See the [Effects & Parallax guide](/docs/guides/effects) for how effects fit into documents, the editor, the AI agent and exports.
+
+## Entry points
+
+| Import | Contents | Where to use it |
+| :--- | :--- | :--- |
+| `@kubuild/plugin-parallax` | Full plugins (`parallaxScroll`, `parallaxBackground`, `scrollTransform`, `pointerParallax`, `parallaxPlugins`) with zod config parsing, editor fields and AI guidance — plus everything from `/dom`. | Editor, renderer, AI server. |
+| `@kubuild/plugin-parallax/dom` | Runtimes only (`parallaxRuntimes` and one per plugin) and the config types. No zod. | Page bundles (`bootEffects`). |
+
+```ts
+import { createEffectRegistry } from '@kubuild/core';
+import { parallaxPlugins } from '@kubuild/plugin-parallax';
+
+const effects = createEffectRegistry([...parallaxPlugins]);
+```
+
+## Plugins
+
+### `parallax-scroll`
+
+Offsets the element by its distance from the viewport center times `speed`, so it sits exactly where it was designed when centered.
+
+| Config | Type | Default | Notes |
+| :--- | :--- | :--- | :--- |
+| `speed` | number, -1…1 | `0.3` | Positive lags behind the scroll (further away), negative leads it (closer). 0.1–0.4 looks natural. |
+| `axis` | `"vertical"` \| `"horizontal"` | `"vertical"` | Horizontal moves sideways as the page scrolls. |
+| `disableOnMobile` | boolean | `false` | Below 768px. |
+
+### `parallax-background`
+
+Moves `background-position-y` (in %) with the section's scroll progress. Percentages only travel through the image's own overflow, so a high speed can never reveal a gap — but there must be overflow: use an image taller than the section (`background-size: cover` on a wide section, or e.g. `100% 220%` for gradients).
+
+| Config | Type | Default |
+| :--- | :--- | :--- |
+| `speed` | number, -1…1 | `0.5` |
+| `disableOnMobile` | boolean | `false` |
+
+### `scroll-transform`
+
+Interpolates from a start state to an end state while scroll progress goes from `start` to `end` (0 = element entering at the bottom, 0.5 = centered, 1 = leaving at the top). Outside the window the end values hold.
+
+| Config | Type | Default |
+| :--- | :--- | :--- |
+| `start`, `end` | number, 0…1 | `0`, `0.5` |
+| `easing` | `linear` \| `ease-in` \| `ease-out` \| `ease-in-out` | `ease-out` |
+| `fromX`, `fromY` / `toX`, `toY` | px | `0`, `60` / `0`, `0` |
+| `fromScale` / `toScale` | 0…5 | `1` / `1` |
+| `fromRotate` / `toRotate` | deg | `0` / `0` |
+| `fromOpacity` / `toOpacity` | 0…1 | `0` / `1` |
+| `disableOnMobile` | boolean | `false` |
+
+The defaults are a "fade up while entering" reveal.
+
+### `pointer-parallax`
+
+Shifts the element up to `strength` px towards the pointer (or away with `invert`). Not mounted on touch screens.
+
+| Config | Type | Default |
+| :--- | :--- | :--- |
+| `strength` | px, 0…200 | `20` |
+| `invert` | boolean | `false` |
+
+## How the runtimes behave
+
+- **Composable.** Effects write the individual `translate` / `scale` / `rotate` properties and `opacity` through a shared per-element compositor: translations add, scales and opacities multiply. A node's own `transform` style is untouched, and the original inline values are restored when the last effect unmounts.
+- **Container-aware.** They follow the nearest scrolling ancestor (or one marked `data-kb-scroll-viewport`), resolve the window through the element's own document (iframes work), and correct for a scaled ancestor such as a zoomed canvas.
+- **Cheap.** At most one update per animation frame, passive listeners only.
+- **Accessible.** All four are skipped under `prefers-reduced-motion: reduce`.

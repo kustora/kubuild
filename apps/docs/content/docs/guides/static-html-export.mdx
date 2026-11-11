@@ -1,0 +1,76 @@
+---
+title: Static HTML Export
+description: Publish a page as plain HTML + CSS, plus a tiny effect runtime when the page uses effects — no React, no build step on the receiving side.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+`.stora` packages are for moving editable documents between KUBUILD hosts. A **static HTML export** is for publishing: a folder you can drop on any static host.
+
+```text
+my-page.zip
+├── index.html          ← semantic HTML + one <style> block
+└── kubuild-runtime.js  ← only when the page has effects (~6 KB, no framework)
+```
+
+## In the editor
+
+Click **HTML** in the editor toolbar. The editor uses the effect registry passed to `<KubuildEditor effects={…}>`; without one the export is HTML + CSS only. If some effects can't be shipped (unknown plugin, invalid config) the export still succeeds and the toolbar names them.
+
+## Programmatically
+
+```ts
+import { buildStaticSiteArchive, downloadDocumentAsStaticSite } from '@kubuild/editor';
+import { effectRegistry } from '@/lib/effects';
+
+// In the browser: build and download the ZIP
+downloadDocumentAsStaticSite(doc, 'landing.zip', { effectRegistry });
+
+// Anywhere: get the bytes (e.g. to upload to your CDN)
+const { archive, files, skippedEffects } = buildStaticSiteArchive(doc, { effectRegistry });
+```
+
+For full control over the HTML, use the generator from `@kubuild/renderer` directly:
+
+```ts
+import { generateStandaloneHtml } from '@kubuild/renderer';
+import { KUBUILD_RUNTIME_SOURCE } from '@kubuild/runtime-dom/source';
+
+const html = generateStandaloneHtml(doc, {
+  effects: {
+    registry: effectRegistry,
+    // Either reference the file you host next to the page…
+    runtime: { src: '/static/kubuild-runtime.js' },
+    // …or inline it for a single-file page:
+    // runtime: { inline: KUBUILD_RUNTIME_SOURCE },
+    onSkipped: (skipped) => console.warn(skipped),
+  },
+});
+```
+
+| Runtime mode | Use when | CSP |
+| :--- | :--- | :--- |
+| `{ src }` (default in the ZIP) | You host files; several pages share the cached runtime. | Works with `script-src 'self'`. |
+| `{ inline }` | One self-contained file (email preview, copy-paste). | Needs `'unsafe-inline'`. |
+
+## What ends up in the page
+
+Effects are resolved against your registry **at export time**: only enabled effects with valid config are kept, with defaults filled in. The page gets:
+
+```html
+<section data-kb-node="hero" class="kb-section kb-node-hero">…</section>
+<script type="application/json" id="kb-effects">{"version":1,"nodes":{"hero":[…]}}</script>
+<script src="kubuild-runtime.js" defer></script>
+```
+
+The runtime reads the JSON manifest and mounts each effect on its `data-kb-node` element. It never evaluates code from the page, and malformed manifest entries are ignored. A page without effects gets no `<script>` at all.
+
+<Callout type="info" title="Untrusted documents">
+  Exports are safe to produce from imported `.stora` files: node ids are escaped in class attributes and CSS selectors, style values can't close the `<style>` element, `html-embed` content is sanitized unless the author set `sanitize: false` (same rule as the live renderer), and the manifest is escaped so config strings can't end its `<script>`.
+</Callout>
+
+## Current limits
+
+- Local assets (`asset://…` uploads) are not copied into the ZIP yet; external image URLs work.
+- Interactive components (accordion, tabs, carousel, countdown) and action pipelines export as static markup.
+- `kubuild-runtime.js` includes the first-party parallax runtimes; effects from your own plugins need a custom runtime bundle (see [`@kubuild/runtime-dom`](/docs/packages/runtime-dom)).

@@ -1,5 +1,5 @@
 import type { EffectRuntime } from '@kubuild/core';
-import { MOBILE_QUERY, matchesMedia, onScrollFrame, untransformedBox, viewportBox } from '../runtime/dom.js';
+import { MOBILE_QUERY, matchesMedia, onScrollFrame, renderScale, untransformedBox, viewportBox } from '../runtime/dom.js';
 import { backgroundPositionPercent, scrollProgress } from '../runtime/math.js';
 
 export type ParallaxBackgroundConfig = {
@@ -17,7 +17,7 @@ export const parallaxBackgroundRuntime: EffectRuntime<ParallaxBackgroundConfig> 
         element.style.backgroundPositionY = original;
         return;
       }
-      const progress = scrollProgress(untransformedBox(element), viewportBox(element, scrollParent));
+      const progress = scrollProgress(untransformedBox(element, renderScale(element)), viewportBox(element, scrollParent));
       const percent = backgroundPositionPercent(progress, config.speed);
       element.style.backgroundPositionY = `${Math.round(percent * 100) / 100}%`;
     });

@@ -3,6 +3,7 @@
   "pages": [
     "figma-layout",
     "responsive-cascade",
+    "effects",
     "custom-components",
     "dynamic-variables",
     "forms-and-actions",
@@ -12,6 +13,7 @@
     "theming",
     "assets",
     "export-import",
+    "static-html-export",
     "html-import"
   ],
   "defaultOpen": true

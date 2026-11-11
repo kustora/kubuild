@@ -147,7 +147,7 @@ export interface AnimationConfig {
   loopEffect: string;
 }
 
-/** One plugin-driven runtime effect on a node (STORA-650). */
+/** One plugin-driven runtime effect on a node (STORA-651). */
 export interface NodeEffect {
   plugin: string;
   enabled: boolean;

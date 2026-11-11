@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { Node, PageDocument } from '@kubuild/schema';
+import type { Node, NodeEffect, PageDocument } from '@kubuild/schema';
 import { createBlankDocument, findNodeById } from '@kubuild/core';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import type { AgentOpRecord } from '@kubuild/ai';
@@ -33,6 +33,8 @@ function makeDeps() {
       useEditorStore.getState().duplicateComponent(nodeId, registry, targetParentId, index),
     replaceNodeSubtree: (nodeId: string, node: Node) =>
       useEditorStore.getState().replaceNodeSubtree(nodeId, node, registry),
+    updateNodeEffects: (nodeId: string, effects: NodeEffect[] | null) =>
+      useEditorStore.getState().updateNodeEffects(nodeId, effects),
     beginHistoryTransaction: () => useEditorStore.getState().beginHistoryTransaction(),
     endHistoryTransaction: () => useEditorStore.getState().endHistoryTransaction(),
     getNode: (nodeId: string) =>
@@ -208,5 +210,37 @@ describe('partitionAutoApplicableOps (STORA-530)', () => {
     expect(result.autoApplicable).toEqual([safe]);
     // Ops after a deletion may depend on it, so they wait for the same confirmation.
     expect(result.needsConfirmation).toEqual([destructive, after]);
+  });
+});
+
+describe('applyAgentOps — effects (STORA-651)', () => {
+  beforeEach(() => {
+    useEditorStore.getState().setDocument(docWithHero());
+  });
+
+  const heroEffects = () => findNodeById(useEditorStore.getState().document.document, 'hero')?.effects;
+
+  it('applies set-effects through the store and reverts it with one undo', () => {
+    const effects = [{ plugin: 'parallax-scroll', enabled: true, config: { speed: 0.2 } }];
+    const result = applyAgentOps([record('e1', { kind: 'set-effects', nodeId: 'hero', effects })], makeDeps());
+    expect(result.success).toBe(true);
+    expect(heroEffects()).toEqual(effects);
+
+    applyAgentOps([record('e2', { kind: 'set-effects', nodeId: 'hero', effects: [] })], makeDeps());
+    expect(heroEffects()).toBeUndefined();
+
+    useEditorStore.getState().undo();
+    expect(heroEffects()).toEqual(effects);
+  });
+
+  it('keeps a node\'s effects when the agent replaces its subtree', () => {
+    const effects = [{ plugin: 'parallax-background', enabled: true, config: {} }];
+    useEditorStore.getState().updateNodeEffects('hero', effects);
+    const result = applyAgentOps(
+      [record('r1', { kind: 'replace-node', nodeId: 'hero', node: { id: 'hero', type: 'section', children: [] } as Node }, true)],
+      makeDeps(),
+    );
+    expect(result.success).toBe(true);
+    expect(heroEffects()).toEqual(effects);
   });
 });

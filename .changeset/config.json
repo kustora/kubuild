@@ -11,8 +11,10 @@
       "@kubuild/components",
       "@kubuild/core",
       "@kubuild/editor",
+      "@kubuild/plugin-parallax",
       "@kubuild/react",
       "@kubuild/renderer",
+      "@kubuild/runtime-dom",
       "@kubuild/schema"
     ]
   ],

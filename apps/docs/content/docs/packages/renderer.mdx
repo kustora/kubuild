@@ -149,6 +149,17 @@ export function MyPageView({ document }: { document: PageDocument }) {
       type: 'ComponentRegistry',
       required: false,
     },
+    effects: {
+      description: 'Effect plugins (parallax, …) to run for node effects. Without a registry, effects are kept in the document but never run.',
+      type: 'EffectRegistry',
+      required: false,
+    },
+    runEffects: {
+      description: 'Whether to run effects. Effects never run while editing.',
+      type: 'boolean',
+      default: 'mode === "runtime"',
+      required: false,
+    },
     viewport: {
       description: 'Target preview viewport ("desktop" | "tablet" | "mobile"). Automatically sets responsive="viewport" unless responsive is explicitly passed.',
       type: '"desktop" | "tablet" | "mobile"',

@@ -7,7 +7,7 @@ import type { EffectPlugin } from './types.js';
 export type AnyEffectPlugin = EffectPlugin<any>;
 
 /**
- * Host-side catalog of effect plugins (STORA-650). Mirrors `ComponentRegistry`: effects are
+ * Host-side catalog of effect plugins (STORA-651). Mirrors `ComponentRegistry`: effects are
  * registered, never hardcoded into the renderer, editor or AI.
  */
 export class EffectRegistry {

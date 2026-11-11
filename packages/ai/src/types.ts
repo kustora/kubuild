@@ -1,5 +1,5 @@
-import type { Node, PageDocument, DocumentMetadata } from '@kubuild/schema';
-import type { DocumentSecurityLimits } from '@kubuild/core';
+import type { Node, NodeEffect, PageDocument, DocumentMetadata } from '@kubuild/schema';
+import type { DocumentSecurityLimits, EffectRegistry } from '@kubuild/core';
 
 export type AiGenerationMode = 'full-page' | 'section' | 'refactor' | 'chat' | 'agent' | 'plan';
 
@@ -440,6 +440,12 @@ export interface KubuildAiEngineOptions {
    * call per request — and add those to the system prompt.
    */
   skills?: AiSkill[];
+  /**
+   * Effect plugins the pages can run (STORA-651) — the same registry the editor gets. When
+   * set, the agent sees an effect catalog and a `set_node_effects` tool; configs it writes
+   * are validated with each plugin's `parse`.
+   */
+  effects?: EffectRegistry;
   /** Agent loop step ceiling (STORA-530). Default: 8. */
   maxAgentSteps?: number;
   /**
@@ -491,7 +497,9 @@ export type AgentOp =
       targetParentId?: string;
       index?: number;
     }
-  | { kind: 'replace-node'; nodeId: string; node: Node };
+  | { kind: 'replace-node'; nodeId: string; node: Node }
+  /** Replaces the node's whole effect list; `[]` removes it (STORA-651). */
+  | { kind: 'set-effects'; nodeId: string; effects: NodeEffect[] };
 
 /** An `AgentOp` plus the metadata the review UI needs before the user hits Apply. */
 export interface AgentOpRecord {

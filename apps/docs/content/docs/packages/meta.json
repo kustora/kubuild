@@ -5,9 +5,11 @@
     "core",
     "components",
     "renderer",
+    "runtime-dom",
     "editor",
     "ai",
-    "react"
+    "react",
+    "plugin-parallax"
   ],
   "defaultOpen": true
 }

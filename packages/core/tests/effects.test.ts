@@ -53,7 +53,7 @@ const speedPlugin = defineEffectPlugin<{ speed: number }>({
   },
 });
 
-describe('updateEffects (STORA-650)', () => {
+describe('updateEffects (STORA-651)', () => {
   it('replaces the effect list, filling schema defaults, without mutating the input', () => {
     const original = doc();
     const result = updateEffects(original, {

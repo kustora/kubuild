@@ -1,5 +1,5 @@
 import type { EffectRuntime } from '@kubuild/core';
-import { MOBILE_QUERY, matchesMedia, onScrollFrame, untransformedBox, viewportBox } from '../runtime/dom.js';
+import { MOBILE_QUERY, matchesMedia, onScrollFrame, renderScale, untransformedBox, viewportBox } from '../runtime/dom.js';
 import { parallaxOffset } from '../runtime/math.js';
 import { createMotionChannel } from '../runtime/motion.js';
 
@@ -20,7 +20,11 @@ export const parallaxScrollRuntime: EffectRuntime<ParallaxScrollConfig> = {
         channel.set({});
         return;
       }
-      const offset = parallaxOffset(untransformedBox(element), viewportBox(element, scrollParent), config.speed);
+      // Geometry is measured in screen px but the translate is applied in CSS px, so divide
+      // by any ancestor scale (zoomed editor canvas) to move the same distance visually.
+      const scale = renderScale(element);
+      const offset =
+        parallaxOffset(untransformedBox(element, scale), viewportBox(element, scrollParent), config.speed) / scale;
       channel.set(config.axis === 'horizontal' ? { x: offset } : { y: offset });
     });
     return () => {

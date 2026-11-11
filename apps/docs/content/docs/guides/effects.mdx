@@ -1,0 +1,175 @@
+---
+title: Effects & Parallax
+description: Attach plugin-driven runtime effects (parallax, scroll-linked transforms, pointer motion) to nodes, play them in the editor, let the AI add them, and ship them with static HTML exports.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+Effects are runtime behaviors that styles can't express: an element that drifts against the scroll, a background that slides through its own overflow, a card that fades in as it enters the viewport. KUBUILD keeps them **portable** by splitting them in two:
+
+| Lives in the document | Lives in the host |
+| :--- | :--- |
+| `node.effects: [{ plugin, enabled, config }]` — plain data, validated by the schema. | An **effect plugin**: config validation and defaults, editor controls, AI guidance, and the browser runtime. |
+
+A document never contains code. A host that doesn't register a plugin keeps the effect data intact and simply doesn't run it, so a `.stora` file stays safe to open anywhere.
+
+```json title="page.json (excerpt)"
+{
+  "id": "hero",
+  "type": "section",
+  "effects": [
+    { "plugin": "parallax-background", "enabled": true, "config": { "speed": 0.8 } }
+  ]
+}
+```
+
+## First-party plugins: `@kubuild/plugin-parallax`
+
+| Plugin id | What it does | Main config |
+| :--- | :--- | :--- |
+| `parallax-scroll` | Moves the element slower or faster than the scroll, so it reads as further away or closer. | `speed` (-1…1), `axis`, `disableOnMobile` |
+| `parallax-background` | Slides the background image through its own overflow (needs an image taller than the section, e.g. `background-size: cover` on a wide section). | `speed`, `disableOnMobile` |
+| `scroll-transform` | Interpolates translate / scale / rotate / opacity between two states across a window of the scroll. | `start`, `end`, `easing`, `from*`, `to*` |
+| `pointer-parallax` | Shifts the element with the mouse. Inactive on touch screens. | `strength` (px), `invert` |
+
+Every effect is skipped for visitors with `prefers-reduced-motion: reduce`. Several effects on one node compose: translations add, scales and opacities multiply, and the node's own `transform` style is never overwritten.
+
+## Setting it up
+
+<Steps>
+<Step>
+
+### Register the plugins once, in the host
+
+The host decides which effects exist. Use the same registry everywhere — editor, renderer, AI server and export.
+
+```ts title="lib/effects.ts"
+import { createEffectRegistry } from '@kubuild/core';
+import { parallaxPlugins } from '@kubuild/plugin-parallax';
+
+export const effectRegistry = createEffectRegistry([...parallaxPlugins]);
+```
+
+</Step>
+<Step>
+
+### Pass it to the editor
+
+```tsx
+<KubuildEditor initialDocument={doc} effects={effectRegistry} />
+```
+
+This enables three things: the **Effects** section in the inspector (Simple and Advance mode), effects playing in **Preview**, and effects in the **HTML** static-site export.
+
+</Step>
+<Step>
+
+### Pass it to the renderer on published pages
+
+```tsx
+<KubuildRenderer document={doc} effects={effectRegistry} />
+```
+
+The renderer runs effects only in `mode="runtime"` (the default). Override with `runEffects`.
+
+</Step>
+</Steps>
+
+## In the editor
+
+- **Effects panel.** Select a node and open the **Effects** section in the Style tab. Controls are generated from each plugin's `fields`, so a new plugin needs no editor code. Only the fields you change are written to the document; defaults stay with the plugin. Effects from plugins the editor doesn't know are listed (and removable) but flagged as not running.
+- **Preview.** Effects never run while you edit — elements stay exactly where you placed them. Toggle **Preview** and scroll the canvas with the wheel or trackpad. Effects follow pan and zoom, and move the same visual distance at any zoom level.
+
+<Callout type="info" title="Transform-based canvases">
+  The editor canvas moves content with a CSS transform instead of scrolling. It marks itself with `data-kb-scroll-viewport` and dispatches a `scroll` event on every pan/zoom; scroll-linked plugins treat such an element as their viewport. A host with its own transform-based preview can do the same — the attribute name is exported as `EFFECT_SCROLL_VIEWPORT_ATTRIBUTE` from `@kubuild/core`.
+</Callout>
+
+## With the AI agent
+
+Pass the registry to the AI engine on your server:
+
+```ts title="app/api/ai/route.ts"
+import { KubuildAiEngine, KubuildAiAgent, createAiHandler } from '@kubuild/ai/server';
+import { effectRegistry } from '@/lib/effects';
+
+const engine = new KubuildAiEngine({ adapter, registry });
+const agent = new KubuildAiAgent({ adapter, registry, effects: effectRegistry });
+
+export const POST = createAiHandler(engine, { agent });
+```
+
+The agent then gets an **EFFECT PLUGINS** catalog in its system prompt — each plugin's description, `ai.guidance`, `configJsonSchema` and `ai.examples` — and a `set_node_effects` tool. The tool replaces a node's effect list (an empty list removes it), validates every config with the plugin's `parse`, and reports all problems at once so the model can fix them in one retry. Applying the run replays it through the editor store, so it is a single undo step like any other agent edit.
+
+Plugin objects are DOM-free apart from `mount`, which the server never calls, so importing them on the server is safe.
+
+## Exporting
+
+The editor toolbar's **HTML** button (or `downloadDocumentAsStaticSite`) produces a self-hostable ZIP. When the page has effects, it contains `index.html` plus `kubuild-runtime.js` — a ~6 KB, framework-free script loaded with `<script src defer>`. See [Static HTML export](/docs/guides/static-html-export).
+
+## Writing your own effect plugin
+
+A plugin is two parts. Keep them in separate modules: a static page bundle imports only the runtime, so your zod schema, editor fields and AI text never reach visitors.
+
+```ts title="tilt.runtime.ts — browser only"
+import type { EffectRuntime } from '@kubuild/core';
+
+export type TiltConfig = { degrees: number };
+
+export const tiltRuntime: EffectRuntime<TiltConfig> = {
+  id: 'tilt-on-hover',
+  reducedMotion: 'skip', // default: don't mount under prefers-reduced-motion
+  mount(element, config) {
+    const original = element.style.rotate;
+    const enter = () => (element.style.rotate = `${config.degrees}deg`);
+    const leave = () => (element.style.rotate = original);
+    element.addEventListener('pointerenter', enter);
+    element.addEventListener('pointerleave', leave);
+    // The cleanup must restore the element exactly.
+    return () => {
+      element.removeEventListener('pointerenter', enter);
+      element.removeEventListener('pointerleave', leave);
+      leave();
+    };
+  },
+};
+```
+
+```ts title="tilt.ts — editor, AI server and renderer"
+import { z } from 'zod';
+import { defineEffectPlugin } from '@kubuild/core';
+import { tiltRuntime, type TiltConfig } from './tilt.runtime';
+
+const schema = z.object({ degrees: z.number().min(-15).max(15).default(3) });
+
+export const tilt = defineEffectPlugin<TiltConfig>({
+  id: 'tilt-on-hover',
+  label: 'Tilt on hover',
+  description: 'Rotates the element slightly while the pointer is over it.',
+  defaults: schema.parse({}),
+  configJsonSchema: z.toJSONSchema(schema, { io: 'input' }) as Record<string, unknown>,
+  fields: [{ key: 'degrees', label: 'Angle', type: 'number', min: -15, max: 15, step: 1, unit: 'deg' }],
+  parse(config) {
+    const result = schema.safeParse(config ?? {});
+    return result.success
+      ? { success: true, config: result.data }
+      : { success: false, error: result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') };
+  },
+  ai: { guidance: 'Use on cards and buttons; keep degrees between 2 and 5.' },
+  reducedMotion: tiltRuntime.reducedMotion,
+  mount: tiltRuntime.mount,
+});
+```
+
+Contract checklist:
+
+| Field | Rule |
+| :--- | :--- |
+| `id` | Lowercase letters, digits and single hyphens. It is what documents store — never rename it. |
+| `parse` | Pure and DOM-free; receives **untrusted** config (imports, AI output) and must fill defaults. |
+| `fields` | `number` / `select` / `boolean` controls; every key should exist in `defaults`. |
+| `mount` | Write only the individual transform properties (`translate`, `scale`, `rotate`) or properties you own, resolve the window via `element.ownerDocument.defaultView` (the canvas may be in an iframe), and return a cleanup that restores the element. |
+
+<Callout type="warn" title="Custom plugins and static export">
+  The bundled `kubuild-runtime.js` contains the first-party parallax runtimes only. Effects from your own plugins are kept in an exported page's manifest but don't run there until you ship a runtime that includes them — build your own bundle with `bootEffects` from `@kubuild/runtime-dom` (see the [package page](/docs/packages/runtime-dom)).
+</Callout>
