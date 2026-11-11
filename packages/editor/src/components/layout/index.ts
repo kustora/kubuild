@@ -5,3 +5,4 @@ export * from './save-controller.js';
 export * from './save-status.js';
 export * from './editor-handle.js';
 
+export * from './effect-registry-context.js';

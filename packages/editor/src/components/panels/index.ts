@@ -7,3 +7,4 @@ export * from './inspector-panel.js';
 export * from './layers-panel.js';
 export * from './left-sidebar.js';
 export * from './traits-panel.js';
+export * from './effects-panel.js';

@@ -14,6 +14,7 @@ import {
   X,
   Check,
 } from 'lucide-react';
+import { useEffectRegistry } from '../layout/effect-registry-context.js';
 
 export interface DeviceSpec {
   id: Viewport;
@@ -82,6 +83,7 @@ export const MultiDevicePreview: React.FC<MultiDevicePreviewProps> = ({
   } = useEditorStore();
 
   const doc = propDoc ?? storeDoc;
+  const effectRegistry = useEffectRegistry();
 
   // Scale controls: 0.35 to 1.25, default 0.60 to fit all 3 devices on typical screens
   const [scale, setScale] = useState<number>(0.6);
@@ -276,6 +278,7 @@ export const MultiDevicePreview: React.FC<MultiDevicePreviewProps> = ({
                       context={context}
                       viewport={device.id}
                       mode={previewMode ? 'runtime' : 'editor'}
+                      effects={effectRegistry}
                       selectedNodeId={selectedNodeId}
                       onNodeClick={(id) => {
                         selectNode(id);

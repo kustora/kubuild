@@ -152,3 +152,31 @@ describe('composition', () => {
     expect(el.style.translate).toBe('');
   });
 });
+
+describe('scroll viewport marker', () => {
+  it('treats a marked, non-scrolling ancestor as the viewport and follows its scroll events', async () => {
+    const { findScrollParent } = await import('../src/runtime/dom.js');
+    const { EFFECT_SCROLL_VIEWPORT_ATTRIBUTE } = await import('@kubuild/core/effect-manifest');
+    const dom = createFakeDom();
+    const listeners = new Map<string, () => void>();
+    const canvas = {
+      hasAttribute: (name: string) => name === EFFECT_SCROLL_VIEWPORT_ATTRIBUTE,
+      parentElement: null,
+      getBoundingClientRect: () => ({ top: 100, height: 400, left: 0, width: 800 }),
+      addEventListener: (type: string, fn: () => void) => listeners.set(type, fn),
+      removeEventListener: (type: string) => listeners.delete(type),
+    };
+    const el = dom.element({ top: 250, height: 100 }); // center 300 = canvas center (100 + 400 / 2)
+    Object.assign(el, { parentElement: canvas });
+    expect(findScrollParent(el)).toBe(canvas);
+
+    const cleanup = parallaxScroll.mount!(el, parallaxScroll.defaults, ctx) as () => void;
+    expect(el.style.translate).toBe('0px 0px');
+    el.layout.top = 150; // content moved up by 100 → center 200, 100 above the canvas center
+    listeners.get('scroll')!();
+    dom.flush();
+    expect(el.style.translate).toBe('0px 30px');
+    cleanup();
+    expect(listeners.has('scroll')).toBe(false);
+  });
+});

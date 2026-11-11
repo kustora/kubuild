@@ -62,10 +62,10 @@
   },
   "homepage": "https://github.com/kustora/kubuild#readme",
   "dependencies": {
-    "@kubuild/core": "workspace:*",
-    "@kubuild/plugin-parallax": "workspace:*"
+    "@kubuild/core": "workspace:*"
   },
   "devDependencies": {
+    "@kubuild/plugin-parallax": "workspace:*",
     "tsup": "^8.3.6",
     "typescript": "^6.0.0",
     "vitest": "^4.1.12"

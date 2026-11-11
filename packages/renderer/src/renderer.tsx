@@ -30,7 +30,8 @@ import { ToastContainer } from './action-runners/toast-container.js';
 import { useModal, modalManager, type ModalManager } from './action-runners/index.js';
 import { executeNodeActions, useNodeLoadActions } from './action-dispatcher.js';
 import { injectTrackingScripts } from './tracking/tracking-manager.js';
-import { resolveTrackingConfig } from '@kubuild/core';
+import { resolveTrackingConfig, type EffectRegistry } from '@kubuild/core';
+import { useDocumentEffects } from './effects.js';
 import { isLegacyActionResolvable } from './legacy-actions.js';
 
 // Re-export all nodes and media utilities for backward compatibility
@@ -67,6 +68,13 @@ export interface KubuildRendererProps {
    * always just selects instead of immediately opening edit mode underneath it.
    */
   selectedNodeId?: string | null;
+  /**
+   * Effect plugins (parallax, ...) the host provides (STORA-650). Without a registry, node
+   * `effects` are kept in the document but never run.
+   */
+  effects?: EffectRegistry;
+  /** Whether to run `effects`. Defaults to `mode === 'runtime'` — never while editing. */
+  runEffects?: boolean;
 }
 
 export interface NodeRendererProps {
@@ -413,8 +421,14 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
   onActionDispatch,
   onNodePropChange,
   selectedNodeId,
+  effects,
+  runEffects,
 }) => {
-  if (!document || !document.document) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const hasDocument = !!document?.document;
+  useDocumentEffects(rootRef, document, effects, hasDocument && (runEffects ?? mode === 'runtime'), mode);
+
+  if (!hasDocument) {
     return <div className={className}>Empty Document</div>;
   }
 
@@ -461,7 +475,7 @@ const KubuildRendererComponent: React.FC<KubuildRendererProps> = ({
 
   return (
     <RenderContextProvider value={context}>
-      <div className={`kubuild-canvas-root ${className || ''}`} style={themeStyle}>
+      <div ref={rootRef} className={`kubuild-canvas-root ${className || ''}`} style={themeStyle}>
         {/* Compiled breakpoint overrides as scoped @media rules — STORA-540 */}
         {responsiveStylesCss ? (
           <style data-kubuild-responsive-styles>{responsiveStylesCss}</style>

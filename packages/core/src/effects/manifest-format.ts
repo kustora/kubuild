@@ -14,6 +14,12 @@
 export const EFFECT_MANIFEST_VERSION = 1;
 export const EFFECT_MANIFEST_ELEMENT_ID = 'kb-effects';
 export const EFFECT_NODE_ATTRIBUTE = 'data-kb-node';
+/**
+ * Marks an element that acts as the effects' viewport although it doesn't scroll — e.g. an
+ * editor canvas that moves content with a transform. Scroll-linked effects measure against
+ * it and listen for `scroll` events on it, which the host dispatches when content moves.
+ */
+export const EFFECT_SCROLL_VIEWPORT_ATTRIBUTE = 'data-kb-scroll-viewport';
 
 export interface EffectManifestEntry {
   plugin: string;

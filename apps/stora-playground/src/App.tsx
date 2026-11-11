@@ -8,6 +8,7 @@ import {
   HtmlImportModal,
   downloadDocumentAsStora,
   downloadDocumentAsJson,
+  downloadDocumentAsStaticSite,
   useEditorStore,
   Viewport,
   AiEditorConfig,
@@ -18,10 +19,12 @@ import {
   createMinimalRenderContext,
 } from '@kubuild/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
-import { createBlankDocument, cloneTemplateAsPage } from '@kubuild/core';
+import { createBlankDocument, cloneTemplateAsPage, createEffectRegistry } from '@kubuild/core';
+import { parallaxPlugins } from '@kubuild/plugin-parallax';
 import { PageDocument, TemplateRecord, starterPageFixture } from '@kubuild/schema';
 import { HOST_BLOCKS, PLAYGROUND_TEMPLATES } from './host-integration';
 import { SAMPLE_HTML_TEMPLATES } from './sample-html-templates';
+import { parallaxDemoDocument } from './parallax-demo';
 import {
   Layout,
   Eye,
@@ -150,7 +153,29 @@ const INITIAL_PAGES: ProjectPage[] = [
       },
     },
   },
+  {
+    id: 'page-parallax',
+    name: 'Parallax Demo',
+    slug: '/parallax',
+    document: parallaxDemoDocument,
+    width: defaultInitialWidth,
+    viewport: defaultInitialViewport,
+  },
 ];
+
+/** The host decides which effect plugins exist; the editor and renderer only run what's registered. */
+const effectRegistry = createEffectRegistry([...parallaxPlugins]);
+
+function exportStaticSite(document: PageDocument): void {
+  try {
+    const { skippedEffects } = downloadDocumentAsStaticSite(document, undefined, { effectRegistry });
+    if (skippedEffects.length > 0) {
+      alert(`Exported without ${skippedEffects.length} effect(s): ${skippedEffects.map((s) => s.plugin).join(', ')}`);
+    }
+  } catch (e: unknown) {
+    alert(e instanceof Error ? e.message : String(e));
+  }
+}
 
 export function App() {
   const [pages, setPages] = useState<ProjectPage[]>(INITIAL_PAGES);
@@ -648,6 +673,14 @@ export function App() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => exportStaticSite(activePage.document)}
+                  className="px-2.5 py-1 rounded text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
+                  title="Export active page as a static site (.zip: index.html + effect runtime)"
+                >
+                  HTML
+                </button>
+                <button
+                  type="button"
                   onClick={() => downloadDocumentAsJson(activePage.document)}
                   className="px-2.5 py-1 rounded text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
                   title="Export active page as JSON"
@@ -737,6 +770,17 @@ export function App() {
                     >
                       <FileText className="w-3.5 h-3.5 text-slate-400" />
                       Download JSON
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileActionsOpen(false);
+                        exportStaticSite(activePage.document);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-left"
+                    >
+                      <Code2 className="w-3.5 h-3.5 text-slate-400" />
+                      Export HTML (.zip)
                     </button>
                   </>
                 )}
@@ -965,6 +1009,7 @@ export function App() {
             initialDocument={activePage.document}
             onChange={handleDocChange}
             registry={registry}
+            effects={effectRegistry}
             context={renderContext}
             ai={aiConfig}
             className="h-full"
@@ -976,12 +1021,13 @@ export function App() {
             <PreviewViewportAdapter
               document={activePage.document}
               registry={registry}
+              effects={effectRegistry}
               context={renderContext}
               componentArtboards={componentArtboards}
               viewport={previewViewport}
               onViewportChange={setPreviewViewport}
               showChrome={true}
-              canvasClassName="bg-white shadow-2xl rounded-xl overflow-hidden border border-slate-200"
+              canvasClassName="bg-white shadow-2xl rounded-xl overflow-x-hidden overflow-y-auto border border-slate-200"
             />
           </div>
         )}

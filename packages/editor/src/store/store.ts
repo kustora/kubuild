@@ -7,6 +7,7 @@ import {
   StyleDefinition,
   TemplateRecord,
   AnimationConfig,
+  NodeEffect,
   ActionPipeline,
   FormConfig,
   TrackingConfig,
@@ -27,6 +28,7 @@ import {
   updateProps,
   updateStyle,
   updateAnimation,
+  updateEffects,
   updateActions,
   updateFormConfig,
   replaceNode,
@@ -256,6 +258,11 @@ export interface UpdateStyleResult {
 }
 
 export interface UpdateAnimationResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface UpdateEffectsResult {
   success: boolean;
   error?: string;
 }
@@ -528,6 +535,8 @@ export interface EditorState {
     animation: Partial<AnimationConfig> | null,
     merge?: boolean,
   ) => UpdateAnimationResult;
+  /** Replaces the node's effect list (STORA-650); `null` or `[]` removes it. */
+  updateNodeEffects: (nodeId: string, effects: NodeEffect[] | null) => UpdateEffectsResult;
   updateNodeActions: (
     nodeId: string,
     actions: ActionPipeline[] | null,
@@ -1430,6 +1439,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateNodeAnimation: (nodeId, animation, merge = true) => {
     try {
       get().dispatch((doc) => updateAnimation(doc, { nodeId, animation, merge }));
+    } catch (err) {
+      return { success: false, error: formatCommandError(err) };
+    }
+
+    return { success: true };
+  },
+
+  updateNodeEffects: (nodeId, effects) => {
+    try {
+      get().dispatch((doc) => updateEffects(doc, { nodeId, effects }));
     } catch (err) {
       return { success: false, error: formatCommandError(err) };
     }

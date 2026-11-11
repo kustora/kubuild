@@ -14,6 +14,7 @@ import {
   Diagnostic,
   buildSampleVariablesFromCatalog,
   AssetProvider,
+  type EffectRegistry,
 } from '@kubuild/core';
 import {
   useEditorStore,
@@ -25,6 +26,7 @@ import {
 import { TranslationOverridesContext, TranslationOverrides } from '../../i18n/index.js';
 import { createControlledStoreSync, ControlledStoreSync } from './controlled-store-sync.js';
 import { buildEditorPreviewContext } from './preview-context.js';
+import { EffectRegistryContext } from './effect-registry-context.js';
 import {
   createEditorSaveController,
   EditorAutosaveOptions,
@@ -110,6 +112,12 @@ export interface KubuildEditorProps {
   onActivePageChange?: (pageId: string) => void;
   onPagesChange?: (pages: EditorPageItem[]) => void;
   registry?: ComponentRegistry;
+  /**
+   * Effect plugins (parallax, ...) for node `effects` (STORA-650): played in preview, edited
+   * in the inspector's Effects panel and shipped with the static-site export. Without it,
+   * effects already in a document are preserved but neither run nor editable.
+   */
+  effects?: EffectRegistry;
   context?: RuntimeContext;
   /** Host-declared bindable variables + preview-only sample values (STORA-053). Never written to the document. */
   variableCatalog?: VariableCatalog;
@@ -197,6 +205,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   onActivePageChange,
   onPagesChange,
   registry = createDefaultComponentRegistry(),
+  effects,
   context,
   variableCatalog,
   onChange,
@@ -1139,6 +1148,8 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
   );
 
   return (
-    <TranslationOverridesContext.Provider value={translations}>{shell}</TranslationOverridesContext.Provider>
+    <TranslationOverridesContext.Provider value={translations}>
+      <EffectRegistryContext.Provider value={effects}>{shell}</EffectRegistryContext.Provider>
+    </TranslationOverridesContext.Provider>
   );
 });

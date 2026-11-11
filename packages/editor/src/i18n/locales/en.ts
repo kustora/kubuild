@@ -283,4 +283,15 @@ export const en: TranslationSchema = {
   importHtmlSnapshotModeHint:
     'Measure styles in an isolated, script-free browser frame at desktop, tablet and mobile widths. Use when static styles look off.',
   importHtmlSnapshotFallback: 'Browser snapshot unavailable, static styles were used.',
+  effectsSector: 'Effects',
+  effectsSectorDesc: 'Parallax and scroll-linked effects from host plugins',
+  effectsPlayInPreview: 'Effects play in Preview mode and on the exported page.',
+  effectsAddPlaceholder: 'Add an effect…',
+  effectsAdd: 'Add',
+  effectsRemove: 'Remove effect',
+  effectsEnabled: 'Enabled',
+  effectsUnknownPlugin:
+    'This editor has no plugin for this effect. It is kept in the page but does not run.',
+  effectsLimitReached: 'This element already has the maximum number of effects.',
+  effectsNoPlugins: 'No effect plugins are registered.',
 };

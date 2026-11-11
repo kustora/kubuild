@@ -1,3 +1,4 @@
+import { EFFECT_SCROLL_VIEWPORT_ATTRIBUTE } from '@kubuild/core/effect-manifest';
 import type { Box } from './math.js';
 
 /**
@@ -20,8 +21,9 @@ export const COARSE_POINTER_QUERY = '(hover: none), (pointer: coarse)';
 const SCROLLABLE = /(auto|scroll|overlay)/;
 
 /**
- * Nearest ancestor that actually scrolls, or `null` for the window. The editor canvas
- * scrolls inside a container rather than the page, and parallax must follow whichever one
+ * Nearest ancestor that actually scrolls (or is marked as the effects' viewport, see
+ * `EFFECT_SCROLL_VIEWPORT_ATTRIBUTE`), or `null` for the window. The editor canvas moves
+ * content inside a container rather than the page, and parallax must follow whichever one
  * moves the element.
  */
 export function findScrollParent(element: HTMLElement): HTMLElement | null {
@@ -29,6 +31,7 @@ export function findScrollParent(element: HTMLElement): HTMLElement | null {
   if (!view) return null;
   let current = element.parentElement;
   while (current && current !== element.ownerDocument.body && current !== element.ownerDocument.documentElement) {
+    if (current.hasAttribute?.(EFFECT_SCROLL_VIEWPORT_ATTRIBUTE)) return current;
     const style = view.getComputedStyle(current);
     if (SCROLLABLE.test(style.overflowY + style.overflowX) && current.scrollHeight > current.clientHeight) {
       return current;

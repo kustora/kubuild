@@ -55,6 +55,7 @@
   "dependencies": {
     "@kubuild/components": "workspace:*",
     "@kubuild/core": "workspace:*",
+    "@kubuild/runtime-dom": "workspace:*",
     "@kubuild/schema": "workspace:*",
     "lucide-react": "^1.33.0"
   },

@@ -232,6 +232,12 @@ export const CanvasZoomToolbar: React.FC<CanvasZoomToolbarProps> = ({
 export interface UseCanvasPanZoomOptions {
   containerRef: React.RefObject<HTMLElement | null>;
   enabled?: boolean;
+  /**
+   * Keep wheel / trackpad panning (and Cmd/Ctrl+wheel zoom) on while `enabled` is off. The
+   * canvas preview uses it so the page can still be scrolled through, which scroll-linked
+   * effects need.
+   */
+  wheelEnabled?: boolean;
 }
 
 /**
@@ -240,6 +246,7 @@ export interface UseCanvasPanZoomOptions {
 export function useCanvasPanZoom({
   containerRef,
   enabled = true,
+  wheelEnabled = false,
 }: UseCanvasPanZoomOptions) {
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState<number>(1.0);
@@ -297,7 +304,7 @@ export function useCanvasPanZoom({
   // Wheel listener for Zoom (Cmd/Ctrl + Wheel or Pinch) & Pan (Trackpad two-finger swipe or standard mouse wheel)
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !enabled) return;
+    if (!container || !(enabled || wheelEnabled)) return;
 
     const onWheel = (e: WheelEvent) => {
       // 1. Zoom with Cmd / Ctrl or pinch gesture (ctrlKey is true on trackpad pinch)
@@ -335,7 +342,7 @@ export function useCanvasPanZoom({
 
     container.addEventListener('wheel', onWheel, { passive: false });
     return () => container.removeEventListener('wheel', onWheel);
-  }, [containerRef, enabled]);
+  }, [containerRef, enabled, wheelEnabled]);
 
   const rafPanRef = useRef<number | null>(null);
   const pendingPanRef = useRef<{ x: number; y: number } | null>(null);

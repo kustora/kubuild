@@ -175,6 +175,16 @@ export interface TranslationSchema {
   importHtmlSnapshotMode: string;
   importHtmlSnapshotModeHint: string;
   importHtmlSnapshotFallback: string;
+  effectsSector: string;
+  effectsSectorDesc: string;
+  effectsPlayInPreview: string;
+  effectsAddPlaceholder: string;
+  effectsAdd: string;
+  effectsRemove: string;
+  effectsEnabled: string;
+  effectsUnknownPlugin: string;
+  effectsLimitReached: string;
+  effectsNoPlugins: string;
 }
 
 export interface PixelEventTranslations {

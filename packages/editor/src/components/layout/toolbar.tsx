@@ -7,7 +7,8 @@ import { ImportModal } from '../modals/import-modal.js';
 import { HtmlImportModal } from '../modals/html-import-modal.js';
 import { CodeViewerModal } from '../modals/code-viewer-modal.js';
 import { TrackingSettingsModal, type SaveTrackingSecretHandler } from '../modals/tracking-settings-modal.js';
-import { downloadDocumentAsStora, downloadDocumentAsJson } from '../../utils/index.js';
+import { downloadDocumentAsStora, downloadDocumentAsJson, downloadDocumentAsStaticSite } from '../../utils/index.js';
+import { useEffectRegistry } from './effect-registry-context.js';
 import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Terminal, Sparkles, Activity, Loader2 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.js';
 
@@ -156,6 +157,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [isCodeViewerModalOpen, setIsCodeViewerModalOpen] = useState<boolean>(false);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const effectRegistry = useEffectRegistry();
 
   const showAiChatToggle = config?.showAiChatToggle !== false && aiEnabled;
   const isAiTabActive = inspectorTab === 'ai';
@@ -206,6 +208,20 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       setError(`Export failed: ${msg}`);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleExportStaticSite = () => {
+    setError(null);
+    try {
+      const result = downloadDocumentAsStaticSite(document, undefined, { effectRegistry });
+      if (result.skippedEffects.length > 0) {
+        const plugins = [...new Set(result.skippedEffects.map((s) => s.plugin))].join(', ');
+        setError(`Exported without ${result.skippedEffects.length} effect(s) that could not run: ${plugins}`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error during HTML export.';
+      setError(`HTML export failed: ${msg}`);
     }
   };
 
@@ -393,6 +409,15 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               className="text-xs px-2 sm:px-2.5 py-1 rounded border border-blue-600 bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50 transition shadow-xs cursor-pointer"
             >
               {isExporting ? '...' : 'Export'}
+            </button>
+            <button
+              type="button"
+              data-testid="toolbar-export-html"
+              title="Download a static site (.zip): index.html plus the effect runtime when the page uses effects"
+              onClick={handleExportStaticSite}
+              className="hidden md:inline-block text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-slate-400 text-slate-600 transition cursor-pointer"
+            >
+              HTML
             </button>
             <button
               type="button"

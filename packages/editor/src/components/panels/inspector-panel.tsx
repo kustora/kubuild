@@ -24,6 +24,8 @@ import type { MediaTranslations } from '../../i18n/index.js';
 import { LanguageSwitcher } from '../ui/language-switcher.js';
 import type { AssetProvider, Diagnostic } from '@kubuild/core';
 import { AiChatPanel } from '../ai-chat/ai-chat-panel.js';
+import { EffectsSector } from './effects-panel.js';
+import { useEffectRegistry } from '../layout/effect-registry-context.js';
 
 
 export interface InspectorPanelProps {
@@ -1334,6 +1336,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     resetNodeViewportStyles,
     updateNodeStateStyle,
     updateNodeAnimation,
+    updateNodeEffects,
     updateNodeFormConfig,
     updateNodeActions,
     variableCatalog,
@@ -1346,6 +1349,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     setInspectorTab: setActiveTab,
   } = storeState;
 
+  const effectRegistry = useEffectRegistry();
   const effectiveMode: EditorMode = mode ?? storeEditorMode ?? 'advance';
   const isSimpleMode = effectiveMode === 'simple';
 
@@ -2164,6 +2168,18 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   breakpoint={activeBreakpoint}
                   assetProvider={assetProvider}
                 />
+                {effectRegistry && (
+                  <EffectsSector
+                    key={node.id}
+                    node={node}
+                    registry={effectRegistry}
+                    error={fieldErrors.effects ?? undefined}
+                    onChange={(effects) => {
+                      const result = updateNodeEffects(node.id, effects);
+                      setError('effects', result.success ? null : (result.error ?? null));
+                    }}
+                  />
+                )}
               </div>
             )
           )}

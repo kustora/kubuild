@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { PageDocument, BREAKPOINTS, type Artboard } from '@kubuild/schema';
 import type { ComponentRegistry } from '@kubuild/components';
+import type { EffectRegistry } from '@kubuild/core';
 import { RenderContext, Diagnostic } from './render-context.js';
 import { KubuildRenderer } from './renderer.js';
 import { ArtboardPortalHost } from './artboard-portal-host.js';
@@ -195,6 +196,8 @@ export interface PreviewViewportAdapterProps {
    * `context.componentArtboards`.
    */
   componentArtboards?: readonly Artboard[];
+  /** Effect plugins to run (see `KubuildRendererProps.effects`). */
+  effects?: EffectRegistry;
 }
 
 /**
@@ -225,6 +228,7 @@ export const PreviewViewportAdapter: React.FC<PreviewViewportAdapterProps> = ({
   onDiagnostic,
   onActionDispatch,
   componentArtboards,
+  effects,
 }) => {
   // Callback ref (not useRef) so the portal host re-renders once the container exists.
   const [overlayHost, setOverlayHost] = useState<HTMLDivElement | null>(null);
@@ -358,6 +362,7 @@ export const PreviewViewportAdapter: React.FC<PreviewViewportAdapterProps> = ({
           context={context}
           viewport={viewport}
           mode={mode}
+          effects={effects}
           onNodeClick={onNodeClick}
           onDiagnostic={onDiagnostic}
           onActionDispatch={onActionDispatch}

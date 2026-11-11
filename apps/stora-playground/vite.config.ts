@@ -8,6 +8,15 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
+      // Subpaths first: aliases are prefix matches, so `@kubuild/core` would swallow them.
+      '@kubuild/core/effect-manifest': fileURLToPath(
+        new URL('../../packages/core/src/effects/manifest-format.ts', import.meta.url),
+      ),
+      // Generated at build time (the bundled page runtime as a string), so it comes from dist.
+      '@kubuild/runtime-dom/source': fileURLToPath(new URL('../../packages/runtime-dom/dist/source.js', import.meta.url)),
+      '@kubuild/runtime-dom': fileURLToPath(new URL('../../packages/runtime-dom/src', import.meta.url)),
+      '@kubuild/plugin-parallax/dom': fileURLToPath(new URL('../../packages/plugin-parallax/src/dom.ts', import.meta.url)),
+      '@kubuild/plugin-parallax': fileURLToPath(new URL('../../packages/plugin-parallax/src', import.meta.url)),
       '@kubuild/schema': fileURLToPath(new URL('../../packages/schema/src', import.meta.url)),
       '@kubuild/core': fileURLToPath(new URL('../../packages/core/src', import.meta.url)),
       '@kubuild/components': fileURLToPath(new URL('../../packages/components/src', import.meta.url)),

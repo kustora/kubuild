@@ -33,6 +33,8 @@ import {
   type AiGenerationPlaceholderStatus,
   shouldShowAiGenerationPlaceholder,
 } from '../../ai/generate-page.js';
+import { useEffectRegistry } from '../layout/effect-registry-context.js';
+import { EFFECT_SCROLL_VIEWPORT_ATTRIBUTE } from '@kubuild/core';
 
 export interface EditorPageItem {
   id: string;
@@ -252,6 +254,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const deleteComponent = useEditorStore((s) => s.deleteComponent);
   const duplicateComponent = useEditorStore((s) => s.duplicateComponent);
   const previewMode = useEditorStore((s) => s.previewMode);
+  // Effects play only in preview: the renderer runs them in `runtime` mode.
+  const effectRegistry = useEffectRegistry();
   const multiDeviceMode = useEditorStore((s) => s.multiDeviceMode);
   const toggleMultiDeviceMode = useEditorStore((s) => s.toggleMultiDeviceMode);
   const addActionLog = useEditorStore((s) => s.addActionLog);
@@ -645,7 +649,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   } = useCanvasPanZoom({
     containerRef,
     enabled: !previewMode,
+    // Preview still scrolls with the wheel, so scroll-linked effects can be seen.
+    wheelEnabled: true,
   });
+
+  // The canvas moves content with a transform, not by scrolling, so it marks itself as the
+  // effects' viewport and tells them about every pan/zoom as if it were a scroll.
+  useEffect(() => {
+    if (previewMode && effectRegistry) containerRef.current?.dispatchEvent(new Event('scroll'));
+  }, [pan, zoom, previewMode, effectRegistry]);
 
   // Auto-center active artboard comfortably in the canvas viewport on mount
   const hasAutoCenteredRef = useRef(false);
@@ -1416,6 +1428,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     <div
       ref={containerRef}
       data-testid="canvas-viewport-container"
+      {...{ [EFFECT_SCROLL_VIEWPORT_ATTRIBUTE]: '' }}
       className={`relative w-full h-full overflow-hidden select-none ${className || ''}`}
       style={{
         position: 'relative',
@@ -1520,6 +1533,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                       context={contextForArtboard(pageItem)}
                       viewport={pageViewport}
                       mode={previewMode ? 'runtime' : 'editor'}
+                      effects={effectRegistry}
                       selectedNodeId={selectedNodeId}
                     onNodeClick={(id: string, e?: React.MouseEvent) => {
                       if (!previewMode) {

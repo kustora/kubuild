@@ -142,6 +142,9 @@ importers:
       '@kubuild/html-import':
         specifier: workspace:*
         version: link:../../packages/html-import
+      '@kubuild/plugin-parallax':
+        specifier: workspace:*
+        version: link:../../packages/plugin-parallax
       '@kubuild/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -429,6 +432,9 @@ importers:
       '@kubuild/core':
         specifier: workspace:*
         version: link:../core
+      '@kubuild/runtime-dom':
+        specifier: workspace:*
+        version: link:../runtime-dom
       '@kubuild/schema':
         specifier: workspace:*
         version: link:../schema
@@ -463,10 +469,10 @@ importers:
       '@kubuild/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
       '@kubuild/plugin-parallax':
         specifier: workspace:*
         version: link:../plugin-parallax
-    devDependencies:
       tsup:
         specifier: ^8.3.6
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.32)(typescript@6.0.3)(yaml@2.9.1)
