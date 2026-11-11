@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineEffectPlugin, type EffectFieldDescriptor } from '@kubuild/core';
-import { toConfigJsonSchema, zodParser } from '../runtime/config.js';
+import { toConfigJsonSchema, zodParser } from '@kubuild/effect-kit';
 import { scrollTransformRuntime, type ScrollTransformConfig } from './scroll-transform.runtime.js';
 
 const offset = (fallback: number) => z.number().min(-2000).max(2000).default(fallback);

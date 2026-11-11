@@ -9,7 +9,9 @@
     "editor",
     "ai",
     "react",
-    "plugin-parallax"
+    "plugin-parallax",
+    "plugin-animation",
+    "effect-kit"
   ],
   "defaultOpen": true
 }

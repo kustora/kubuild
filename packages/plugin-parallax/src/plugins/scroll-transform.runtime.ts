@@ -1,7 +1,7 @@
 import type { EffectRuntime } from '@kubuild/core';
 import { MOBILE_QUERY, matchesMedia, onScrollFrame, renderScale, untransformedBox, viewportBox } from '../runtime/dom.js';
 import { lerp, scrollProgress, windowedProgress, type EasingName } from '../runtime/math.js';
-import { createMotionChannel } from '../runtime/motion.js';
+import { createMotionChannel } from '@kubuild/effect-kit/dom';
 
 export type ScrollTransformConfig = {
   /** Scroll progress (0 = entering from below, 1 = gone above) where the motion starts. */

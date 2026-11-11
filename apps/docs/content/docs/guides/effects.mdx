@@ -33,6 +33,16 @@ A document never contains code. A host that doesn't register a plugin keeps the 
 | `scroll-transform` | Interpolates translate / scale / rotate / opacity between two states across a window of the scroll. | `start`, `end`, `easing`, `from*`, `to*` |
 | `pointer-parallax` | Shifts the element with the mouse. Inactive on touch screens. | `strength` (px), `invert` |
 
+## First-party plugins: `@kubuild/plugin-animation`
+
+A preset-driven animation generator played with [Motion](https://motion.dev). See the [package page](/docs/packages/plugin-animation) for every preset and option.
+
+| Plugin id | What it does | Main config |
+| :--- | :--- | :--- |
+| `animate-entrance` | Reveals the element (fade, slide, zoom, pop, rotate) when it scrolls into view; can stagger its children. | `preset`, `duration`, `delay`, `easing` (incl. springs), `stagger`, `once` |
+| `animate-loop` | Repeats float, pulse, spin, wiggle, … while on screen. | `preset`, `intensity`, `duration` |
+| `animate-hover` | Lift, grow, tilt, push, … while hovered. | `preset`, `intensity`, `duration`, `easing` |
+
 Every effect is skipped for visitors with `prefers-reduced-motion: reduce`. Several effects on one node compose: translations add, scales and opacities multiply, and the node's own `transform` style is never overwritten.
 
 ## Setting it up
@@ -46,9 +56,10 @@ The host decides which effects exist. Use the same registry everywhere — edito
 
 ```ts title="lib/effects.ts"
 import { createEffectRegistry } from '@kubuild/core';
+import { animationPlugins } from '@kubuild/plugin-animation';
 import { parallaxPlugins } from '@kubuild/plugin-parallax';
 
-export const effectRegistry = createEffectRegistry([...parallaxPlugins]);
+export const effectRegistry = createEffectRegistry([...parallaxPlugins, ...animationPlugins]);
 ```
 
 </Step>
@@ -105,7 +116,7 @@ Plugin objects are DOM-free apart from `mount`, which the server never calls, so
 
 ## Exporting
 
-The editor toolbar's **HTML** button (or `downloadDocumentAsStaticSite`) produces a self-hostable ZIP. When the page has effects, it contains `index.html` plus `kubuild-runtime.js` — a ~6 KB, framework-free script loaded with `<script src defer>`. See [Static HTML export](/docs/guides/static-html-export).
+The editor toolbar's **HTML** button (or `downloadDocumentAsStaticSite`) produces a self-hostable ZIP. When the page has effects, it contains `index.html` plus `kubuild-runtime.js` — a ~12 KB gzipped, framework-free script loaded with `<script src defer>`. See [Static HTML export](/docs/guides/static-html-export).
 
 ## Writing your own effect plugin
 
@@ -168,8 +179,8 @@ Contract checklist:
 | `id` | Lowercase letters, digits and single hyphens. It is what documents store — never rename it. |
 | `parse` | Pure and DOM-free; receives **untrusted** config (imports, AI output) and must fill defaults. |
 | `fields` | `number` / `select` / `boolean` controls; every key should exist in `defaults`. |
-| `mount` | Write only the individual transform properties (`translate`, `scale`, `rotate`) or properties you own, resolve the window via `element.ownerDocument.defaultView` (the canvas may be in an iframe), and return a cleanup that restores the element. |
+| `mount` | Move elements through `createMotionChannel` from [`@kubuild/effect-kit`](/docs/packages/effect-kit) so your effect composes with the first-party ones; otherwise write only properties you own, resolve the window via `element.ownerDocument.defaultView` (the canvas may be in an iframe), and return a cleanup that restores the element. |
 
 <Callout type="warn" title="Custom plugins and static export">
-  The bundled `kubuild-runtime.js` contains the first-party parallax runtimes only. Effects from your own plugins are kept in an exported page's manifest but don't run there until you ship a runtime that includes them — build your own bundle with `bootEffects` from `@kubuild/runtime-dom` (see the [package page](/docs/packages/runtime-dom)).
+  The bundled `kubuild-runtime.js` contains the first-party parallax and animation runtimes only. Effects from your own plugins are kept in an exported page's manifest but don't run there until you ship a runtime that includes them — build your own bundle with `bootEffects` from `@kubuild/runtime-dom` (see the [package page](/docs/packages/runtime-dom)).
 </Callout>

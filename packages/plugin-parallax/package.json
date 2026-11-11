@@ -64,6 +64,7 @@
   "homepage": "https://github.com/kustora/kubuild#readme",
   "dependencies": {
     "@kubuild/core": "workspace:*",
+    "@kubuild/effect-kit": "workspace:*",
     "@kubuild/schema": "workspace:*",
     "zod": "^4.6.6"
   },

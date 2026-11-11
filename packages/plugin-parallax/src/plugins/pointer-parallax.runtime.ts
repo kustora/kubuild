@@ -1,7 +1,7 @@
 import type { EffectRuntime } from '@kubuild/core';
 import { COARSE_POINTER_QUERY, getView, matchesMedia } from '../runtime/dom.js';
 import { normalizedPointer } from '../runtime/math.js';
-import { createMotionChannel } from '../runtime/motion.js';
+import { createMotionChannel } from '@kubuild/effect-kit/dom';
 
 export type PointerParallaxConfig = {
   /** Maximum shift in px when the pointer reaches the edge of the window. */

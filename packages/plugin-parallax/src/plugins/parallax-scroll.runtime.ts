@@ -1,7 +1,7 @@
 import type { EffectRuntime } from '@kubuild/core';
 import { MOBILE_QUERY, matchesMedia, onScrollFrame, renderScale, untransformedBox, viewportBox } from '../runtime/dom.js';
 import { parallaxOffset } from '../runtime/math.js';
-import { createMotionChannel } from '../runtime/motion.js';
+import { createMotionChannel } from '@kubuild/effect-kit/dom';
 
 export type ParallaxScrollConfig = {
   /** 0.3 lags 30% behind the scroll (feels further away); negative values lead it. */

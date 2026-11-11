@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineEffectPlugin } from '@kubuild/core';
-import { toConfigJsonSchema, zodParser } from '../runtime/config.js';
+import { toConfigJsonSchema, zodParser } from '@kubuild/effect-kit';
 import { pointerParallaxRuntime, type PointerParallaxConfig } from './pointer-parallax.runtime.js';
 
 const schema = z.object({

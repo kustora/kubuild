@@ -18,6 +18,7 @@
     "@kubuild/core": "workspace:*",
     "@kubuild/editor": "workspace:*",
     "@kubuild/html-import": "workspace:*",
+    "@kubuild/plugin-animation": "workspace:*",
     "@kubuild/plugin-parallax": "workspace:*",
     "@kubuild/react": "workspace:*",
     "@kubuild/renderer": "workspace:*",

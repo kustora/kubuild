@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineEffectPlugin } from '@kubuild/core';
-import { toConfigJsonSchema, zodParser } from '../runtime/config.js';
+import { toConfigJsonSchema, zodParser } from '@kubuild/effect-kit';
 import { parallaxScrollRuntime, type ParallaxScrollConfig } from './parallax-scroll.runtime.js';
 
 const schema = z.object({

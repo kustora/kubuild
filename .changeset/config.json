@@ -11,6 +11,8 @@
       "@kubuild/components",
       "@kubuild/core",
       "@kubuild/editor",
+      "@kubuild/effect-kit",
+      "@kubuild/plugin-animation",
       "@kubuild/plugin-parallax",
       "@kubuild/react",
       "@kubuild/renderer",

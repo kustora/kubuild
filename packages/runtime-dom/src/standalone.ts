@@ -2,6 +2,7 @@
  * Entry for the `kubuild-runtime.js` IIFE that static HTML exports load with
  * `<script src defer>`. Boots every first-party effect runtime against the page's manifest.
  */
+import { animationRuntimes } from '@kubuild/plugin-animation/dom';
 import { parallaxRuntimes } from '@kubuild/plugin-parallax/dom';
 import { bootEffects } from './boot.js';
 
@@ -13,7 +14,7 @@ declare global {
 
 function start(): void {
   const destroy = bootEffects({
-    runtimes: parallaxRuntimes,
+    runtimes: [...parallaxRuntimes, ...animationRuntimes],
     onError: (error, plugin) => console.error(`[kubuild] effect "${plugin}" failed`, error),
   });
   window.KubuildRuntime = { destroy };

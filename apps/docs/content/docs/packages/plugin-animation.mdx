@@ -1,0 +1,93 @@
+---
+title: '@kubuild/plugin-animation'
+description: First-party animation generator — entrance, loop and hover presets turned into keyframes and played with Motion.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+```bash
+pnpm add @kubuild/plugin-animation
+```
+
+See the [Effects guide](/docs/guides/effects) for how effects fit into documents, the editor, the AI agent and exports.
+
+The plugin is a **preset generator**: a document stores a preset name and a few knobs (`{ preset: 'fade-up', stagger: 100 }`), the generator turns them into motion keyframes, and [Motion](https://motion.dev) (MIT) tweens between them — including real springs. Nothing animation-specific is stored as code or CSS, so the same document plays identically in the editor preview, in `KubuildRenderer` and in a static HTML export.
+
+## Entry points
+
+| Import                          | Contents                                                                                                                                                                                                                                                               | Where to use it               |
+| :------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
+| `@kubuild/plugin-animation`     | Full plugins (`animateEntrance`, `animateLoop`, `animateHover`, `animationPlugins`) with zod config parsing, editor fields and AI guidance, the generator (`entranceFrames`, `loopFrames`, `hoverFrames`, `sampleFrames`, preset lists) — plus everything from `/dom`. | Editor, renderer, AI server.  |
+| `@kubuild/plugin-animation/dom` | Runtimes only (`animationRuntimes` and one per plugin) and the config types. No zod.                                                                                                                                                                                   | Page bundles (`bootEffects`). |
+
+```ts
+import { createEffectRegistry } from '@kubuild/core';
+import { animationPlugins } from '@kubuild/plugin-animation';
+import { parallaxPlugins } from '@kubuild/plugin-parallax';
+
+const effects = createEffectRegistry([...parallaxPlugins, ...animationPlugins]);
+```
+
+## Plugins
+
+Durations and delays are in **milliseconds**. `easing` is one of `ease-out`, `ease-in-out`, `ease-in`, `linear`, `back-out` (slight overshoot), `spring` and `bouncy` (springs whose `duration` is their perceived length).
+
+### `animate-entrance`
+
+Plays when the element scrolls into view. The element starts hidden in the preset's start pose as soon as the runtime mounts.
+
+| Config               | Type                                                                                                                                                                    | Default     | Notes                                                                                 |
+| :------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------- | :------------------------------------------------------------------------------------ |
+| `preset`             | `fade` · `fade-up` · `fade-down` · `fade-left` · `fade-right` · `slide-up` · `slide-down` · `slide-left` · `slide-right` · `zoom-in` · `zoom-out` · `pop` · `rotate-in` | `fade-up`   | Directions name the direction of travel.                                              |
+| `distance`           | px, 0…1000                                                                                                                                                              | `40`        | Travel of the `fade-*` / `slide-*` presets.                                           |
+| `duration` / `delay` | ms                                                                                                                                                                      | `600` / `0` |                                                                                       |
+| `easing`             | see above                                                                                                                                                               | `ease-out`  |                                                                                       |
+| `once`               | boolean                                                                                                                                                                 | `true`      | Off: resets when it leaves the viewport and replays on the way back.                  |
+| `threshold`          | 0…1                                                                                                                                                                     | `0.2`       | Share of the element that must be visible.                                            |
+| `stagger`            | ms, 0…2000                                                                                                                                                              | `0`         | Above 0 animates the element's **children** one after another instead of the element. |
+| `disableOnMobile`    | boolean                                                                                                                                                                 | `false`     | Below 768px.                                                                          |
+
+### `animate-loop`
+
+Repeats one cycle forever, paused while the element is off-screen.
+
+| Config            | Type                                                                                                     | Default |
+| :---------------- | :------------------------------------------------------------------------------------------------------- | :------ |
+| `preset`          | `float` · `bounce` · `pulse` · `breathe` · `spin` · `wiggle` · `swing` · `shake` · `heartbeat` · `blink` | `float` |
+| `intensity`       | 0…5 (1 = as designed)                                                                                    | `1`     |
+| `duration`        | ms per cycle                                                                                             | `3000`  |
+| `delay`           | ms                                                                                                       | `0`     |
+| `disableOnMobile` | boolean                                                                                                  | `false` |
+
+### `animate-hover`
+
+Animates into the preset's pose while the pointer is over the element and back when it leaves, reversing from wherever it is. Touch "hovers" are ignored.
+
+| Config      | Type                                                           | Default    |
+| :---------- | :------------------------------------------------------------- | :--------- |
+| `preset`    | `lift` · `grow` · `shrink` · `tilt` · `push` · `nudge` · `dim` | `lift`     |
+| `intensity` | 0…5                                                            | `1`        |
+| `duration`  | ms                                                             | `250`      |
+| `easing`    | see above                                                      | `ease-out` |
+
+## Using the generator directly
+
+The generator is pure, so a host can preview or reuse presets without the DOM:
+
+```ts
+import { entranceFrames, sampleFrames } from '@kubuild/plugin-animation';
+
+const frames = entranceFrames('fade-up', 40); // [{ y: 40, opacity: 0, ... }, rest]
+sampleFrames(frames, 0.5); // { x: 0, y: 20, scale: 1, rotate: 0, opacity: 0.5 }
+```
+
+## How the runtimes behave
+
+- **Composable.** Values go through the same motion compositor as `@kubuild/plugin-parallax` (from `@kubuild/effect-kit`): an entrance, a loop and a parallax on one node add up instead of fighting. A settled animation contributes nothing, so the node's own `translate` / `scale` / `rotate` / `opacity` styles show through.
+- **Light.** Only Motion's value engine (`animateValue`), `inView` and `hover` are used — about 8 KB gzipped inside `kubuild-runtime.js`.
+- **Accessible.** All three are skipped under `prefers-reduced-motion: reduce`; entrance content is then simply visible.
+
+<Callout type="info" title="Why Motion and not GSAP">
+  GSAP's license forbids use in tools that let users build animations visually in competition with
+  Webflow — which a page builder is. Motion is MIT-licensed.
+</Callout>

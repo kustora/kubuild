@@ -15,6 +15,10 @@ export default defineConfig({
       // Generated at build time (the bundled page runtime as a string), so it comes from dist.
       '@kubuild/runtime-dom/source': fileURLToPath(new URL('../../packages/runtime-dom/dist/source.js', import.meta.url)),
       '@kubuild/runtime-dom': fileURLToPath(new URL('../../packages/runtime-dom/src', import.meta.url)),
+      '@kubuild/effect-kit/dom': fileURLToPath(new URL('../../packages/effect-kit/src/dom.ts', import.meta.url)),
+      '@kubuild/effect-kit': fileURLToPath(new URL('../../packages/effect-kit/src', import.meta.url)),
+      '@kubuild/plugin-animation/dom': fileURLToPath(new URL('../../packages/plugin-animation/src/dom.ts', import.meta.url)),
+      '@kubuild/plugin-animation': fileURLToPath(new URL('../../packages/plugin-animation/src', import.meta.url)),
       '@kubuild/plugin-parallax/dom': fileURLToPath(new URL('../../packages/plugin-parallax/src/dom.ts', import.meta.url)),
       '@kubuild/plugin-parallax': fileURLToPath(new URL('../../packages/plugin-parallax/src', import.meta.url)),
       '@kubuild/schema': fileURLToPath(new URL('../../packages/schema/src', import.meta.url)),

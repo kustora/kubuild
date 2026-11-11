@@ -1753,11 +1753,11 @@ Epic key: `EPIC-64` — package target: `@kubuild/core`, `@kubuild/renderer`, `d
 
 ## Epic: Effects & Static Export
 
-Epic key: `EPIC-65` — package target: `@kubuild/schema`, `@kubuild/core`, `@kubuild/plugin-parallax`, `@kubuild/runtime-dom`, `@kubuild/renderer`, `@kubuild/editor`, `@kubuild/ai`, `apps/docs`.
+Epic key: `EPIC-65` — package target: `@kubuild/schema`, `@kubuild/core`, `@kubuild/effect-kit`, `@kubuild/plugin-parallax`, `@kubuild/plugin-animation`, `@kubuild/runtime-dom`, `@kubuild/renderer`, `@kubuild/editor`, `@kubuild/ai`, `apps/docs`.
 
 Catatan: kode awal fitur ini memakai komentar `STORA-650`, yang ternyata sudah dipakai bug `<a>` di `todo-html-import.md`. Referensi efek di kode sudah diganti ke `STORA-651`.
 
-Ringkasan status: **7 Done**, **0 In Progress**, **2 To Do** (total 9).
+Ringkasan status: **8 Done**, **0 In Progress**, **3 To Do** (total 11).
 
 ### STORA-651
 
@@ -1905,6 +1905,39 @@ Ringkasan status: **7 Done**, **0 In Progress**, **2 To Do** (total 9).
 - **Acceptance Criteria:**
   - Schema menolak atau migrasi menormalkan id yang mengandung whitespace.
   - Import `.stora` lama dengan id seperti itu tetap terbuka (dinormalkan dengan remap referensi).
+
+### STORA-660
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-660
+- **Type:** Story
+- **Summary:** Plugin animation generator (`@kubuild/plugin-animation`) dengan Motion
+- **Description:** Preset animasi (entrance, loop, hover) yang di-generate jadi keyframe dan dimainkan dengan Motion (MIT). GSAP tidak dipakai: lisensinya melarang dipakai di builder animasi visual yang bersaing dengan Webflow. Compositor motion dipindah ke `@kubuild/effect-kit` supaya animasi dan parallax bisa jalan bersamaan di satu elemen.
+- **Priority:** High
+- **Status:** Done
+- **Package:** `@kubuild/plugin-animation`, `@kubuild/effect-kit`, `@kubuild/plugin-parallax`, `@kubuild/runtime-dom`, `apps/stora-playground`, `apps/docs`
+- **Dependencies:** STORA-651
+- **Acceptance Criteria:**
+  - `animate-entrance` (13 preset, stagger anak, once/replay, threshold), `animate-loop` (10 preset, pause saat off-screen), `animate-hover` (7 preset, reverse dari progress saat ini); easing termasuk spring.
+  - Bisa digabung dengan efek lain lewat compositor bersama; animasi yang sudah selesai tidak menulis style inline.
+  - Ikut jalan di `kubuild-runtime.js` (static export); bundle < 40 KiB.
+  - Dilewati saat `prefers-reduced-motion`; field editor dan panduan AI di-generate dari plugin.
+  - Halaman "Animation Demo" di playground; sudah dicek di Chrome (preview dan static export).
+
+### STORA-661
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-661
+- **Type:** Story
+- **Summary:** Plugin Lottie (`@kubuild/plugin-lottie`)
+- **Description:** Player Lottie (autoplay, loop, play saat masuk viewport, hover, scroll-scrub) memakai build `lottie_light` (tanpa expressions/`eval`, karena file `.stora` adalah input yang tidak dipercaya). Butuh tipe field `asset`/`text` baru di `EffectFieldDescriptor`.
+- **Priority:** Medium
+- **Status:** To Do
+- **Package:** `@kubuild/core`, `@kubuild/editor`, `@kubuild/plugin-lottie` (baru), `@kubuild/runtime-dom`
+- **Dependencies:** STORA-660
+- **Acceptance Criteria:**
+  - Tidak ada `eval` atau expressions Lottie di bundle; URL animasi hanya boleh berupa asset dokumen atau https.
+  - Runtime Lottie hanya dimuat oleh halaman yang memakainya (tidak memperbesar `kubuild-runtime.js` untuk semua halaman).
 
 ---
 

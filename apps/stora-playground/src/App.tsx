@@ -20,11 +20,13 @@ import {
 } from '@kubuild/renderer';
 import { createDefaultComponentRegistry } from '@kubuild/components';
 import { createBlankDocument, cloneTemplateAsPage, createEffectRegistry } from '@kubuild/core';
+import { animationPlugins } from '@kubuild/plugin-animation';
 import { parallaxPlugins } from '@kubuild/plugin-parallax';
 import { PageDocument, TemplateRecord, starterPageFixture } from '@kubuild/schema';
 import { HOST_BLOCKS, PLAYGROUND_TEMPLATES } from './host-integration';
 import { SAMPLE_HTML_TEMPLATES } from './sample-html-templates';
 import { parallaxDemoDocument } from './parallax-demo';
+import { animationDemoDocument } from './animation-demo';
 import {
   Layout,
   Eye,
@@ -161,10 +163,18 @@ const INITIAL_PAGES: ProjectPage[] = [
     width: defaultInitialWidth,
     viewport: defaultInitialViewport,
   },
+  {
+    id: 'page-animation',
+    name: 'Animation Demo',
+    slug: '/animation',
+    document: animationDemoDocument,
+    width: defaultInitialWidth,
+    viewport: defaultInitialViewport,
+  },
 ];
 
 /** The host decides which effect plugins exist; the editor and renderer only run what's registered. */
-const effectRegistry = createEffectRegistry([...parallaxPlugins]);
+const effectRegistry = createEffectRegistry([...parallaxPlugins, ...animationPlugins]);
 
 async function exportStaticSite(document: PageDocument): Promise<void> {
   try {

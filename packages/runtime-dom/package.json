@@ -65,6 +65,7 @@
     "@kubuild/core": "workspace:*"
   },
   "devDependencies": {
+    "@kubuild/plugin-animation": "workspace:*",
     "@kubuild/plugin-parallax": "workspace:*",
     "tsup": "^8.3.6",
     "typescript": "^6.0.0",

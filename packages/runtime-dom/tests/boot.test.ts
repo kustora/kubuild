@@ -110,12 +110,20 @@ describe('kubuild-runtime.js bundle', () => {
   const bundle = readFileSync(fileURLToPath(new URL('../dist/kubuild-runtime.js', import.meta.url)), 'utf8');
 
   it('stays small: no engine, schema or zod pulled in', () => {
-    expect(bundle.length).toBeLessThan(20 * 1024);
+    // ~20 KiB of this is Motion's value-animation engine (plugin-animation); the rest is
+    // the effect runtimes. Raise deliberately, not to make room for a stray import.
+    expect(bundle.length).toBeLessThan(40 * 1024);
     expect(bundle).not.toMatch(/ZodError|\$ZodType/);
   });
 
   it('ships the first-party parallax runtimes', () => {
     for (const id of ['parallax-scroll', 'parallax-background', 'scroll-transform', 'pointer-parallax']) {
+      expect(bundle).toContain(`"${id}"`);
+    }
+  });
+
+  it('ships the first-party animation runtimes', () => {
+    for (const id of ['animate-entrance', 'animate-loop', 'animate-hover']) {
       expect(bundle).toContain(`"${id}"`);
     }
   });

@@ -23,12 +23,13 @@ Reads `<script type="application/json" id="kb-effects">`, finds every `[data-kb-
 
 ```ts
 import { bootEffects } from '@kubuild/runtime-dom';
+import { animationRuntimes } from '@kubuild/plugin-animation/dom';
 import { parallaxRuntimes } from '@kubuild/plugin-parallax/dom';
 import { myRuntimes } from './my-effects.runtime';
 
 // A custom page bundle with first-party and your own effects
 const destroy = bootEffects({
-  runtimes: [...parallaxRuntimes, ...myRuntimes],
+  runtimes: [...parallaxRuntimes, ...animationRuntimes, ...myRuntimes],
   onError: (error, plugin) => console.error(plugin, error),
 });
 ```

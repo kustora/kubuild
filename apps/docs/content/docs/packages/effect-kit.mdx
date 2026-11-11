@@ -1,0 +1,30 @@
+---
+title: '@kubuild/effect-kit'
+description: Shared building blocks for effect plugins — the per-element motion compositor and zod config helpers.
+---
+
+```bash
+pnpm add @kubuild/effect-kit
+```
+
+Used by `@kubuild/plugin-parallax` and `@kubuild/plugin-animation`, and meant for your own plugins too (see [Writing a plugin](/docs/guides/effects)).
+
+| Import                    | Exports                                                                                                                                                                                             |
+| :------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@kubuild/effect-kit`     | `zodParser(schema)` → an `EffectPlugin.parse` that fills defaults and flattens issues; `toConfigJsonSchema(schema)` → the config's input shape for `configJsonSchema`; plus everything from `/dom`. |
+| `@kubuild/effect-kit/dom` | `createMotionChannel(element)`, `getView`, `matchesMedia`, `MOBILE_QUERY`, `COARSE_POINTER_QUERY`. No zod — safe for page bundles.                                                                  |
+
+## The motion compositor
+
+Several effects may move the same element. Each one opens a channel and sets its _part_; the compositor combines all parts — translations and rotations add, scales and opacities multiply — and writes the individual `translate` / `scale` / `rotate` properties plus `opacity`. Releasing the last channel restores the element's original inline values.
+
+```ts
+import { createMotionChannel } from '@kubuild/effect-kit/dom';
+
+const channel = createMotionChannel(element);
+channel.set({ y: -12, opacity: 0.8 });
+// ...
+channel.release();
+```
+
+Effects only compose if they share **one copy** of this package: depend on `@kubuild/effect-kit` rather than copying the compositor into your plugin.
