@@ -404,6 +404,20 @@ defaultMigrationRegistry.register({
   },
 });
 
+// 8. 1.3.0 -> 1.4.0: nodes may carry plugin-driven `effects[]` (STORA-650). Purely additive,
+// so older documents need nothing beyond the version bump — the step exists so a 1.3.0
+// reader refuses (rather than silently strips) a document that uses effects.
+defaultMigrationRegistry.register({
+  fromVersion: '1.3.0',
+  toVersion: '1.4.0',
+  description: 'Introduce node effects (plugin-driven runtime effects such as parallax)',
+  migrate: (rawDoc: Record<string, unknown>) => {
+    const migrated = deepClone(rawDoc);
+    migrated.version = '1.4.0';
+    return migrated;
+  },
+});
+
 /**
  * Check whether a migration path exists between source and target versions.
  */

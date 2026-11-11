@@ -7,6 +7,8 @@ import {
   ResponsiveStylesSchema,
   AnimationConfig,
   AnimationConfigSchema,
+  NodeEffect,
+  NodeEffectsSchema,
   ActionPipeline,
   ActionPipelineSchema,
   FormConfig,
@@ -29,6 +31,7 @@ export type DocumentChangeType =
   | 'PROPS_UPDATED'
   | 'STYLE_UPDATED'
   | 'ANIMATION_UPDATED'
+  | 'EFFECTS_UPDATED'
   | 'ACTIONS_UPDATED'
   | 'FORM_CONFIG_UPDATED'
   | 'NODE_REMOVED'
@@ -585,6 +588,55 @@ export function updateAnimation(
       payload: {
         animation: targetNode.animation,
         previousAnimation,
+      },
+    },
+  };
+}
+
+export interface UpdateEffectsParams {
+  nodeId: string;
+  /**
+   * The node's complete effect list (replace semantics — effects are an ordered list, so a
+   * partial merge has no obvious meaning). `null` or an empty array removes the field.
+   */
+  effects: Array<Partial<NodeEffect> & { plugin: string }> | null;
+}
+
+/**
+ * Replace the plugin-driven effects of an existing node (STORA-650).
+ * Only the portable shape is validated here — plugin ids and plain-data config. Whether a
+ * plugin exists and whether its config is valid is the effect registry's concern, so core
+ * keeps unknown plugins intact instead of dropping data it cannot interpret.
+ * Returns a new PageDocument and an EFFECTS_UPDATED event.
+ */
+export function updateEffects(document: PageDocument, params: UpdateEffectsParams): CommandResult {
+  const { nodeId, effects } = params;
+
+  const newDoc = deepClone(document);
+  const loc = findNodeLocation(newDoc.document, nodeId);
+  if (!loc) {
+    throw new Error(`Cannot update effects: Node with ID "${nodeId}" not found in document.`);
+  }
+
+  const targetNode = loc.node;
+  const previousEffects = targetNode.effects ? deepClone(targetNode.effects) : undefined;
+
+  if (effects === null || effects.length === 0) {
+    delete targetNode.effects;
+  } else {
+    targetNode.effects = NodeEffectsSchema.parse(deepClone(effects));
+  }
+
+  return {
+    document: newDoc,
+    event: {
+      type: 'EFFECTS_UPDATED',
+      timestamp: new Date().toISOString(),
+      nodeId,
+      parentId: loc.parent ? loc.parent.id : undefined,
+      payload: {
+        effects: targetNode.effects,
+        previousEffects,
       },
     },
   };

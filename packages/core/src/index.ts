@@ -4,3 +4,4 @@ export * from './document/index.js';
 export * from './runtime/index.js';
 export * from './io/index.js';
 export * from './validation/index.js';
+export * from './effects/index.js';

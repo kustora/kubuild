@@ -30,7 +30,7 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
       type: 'string',
       pattern: '^\\d+(\\.\\d+)*$',
       description: 'Schema version of the document',
-      default: '1.3.0',
+      default: '1.4.0',
     },
     metadata: {
       $ref: '#/definitions/documentMetadata',
@@ -289,6 +289,28 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
       },
       additionalProperties: false,
     },
+    nodeEffect: {
+      type: 'object',
+      required: ['plugin'],
+      properties: {
+        plugin: {
+          type: 'string',
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$',
+          description: 'Id of the host-registered effect plugin (e.g. parallax-scroll)',
+        },
+        enabled: {
+          type: 'boolean',
+          default: true,
+          description: 'Disabled effects stay in the document but are not mounted',
+        },
+        config: {
+          type: 'object',
+          default: {},
+          description: 'Plugin-specific plain-data configuration, validated by the plugin',
+        },
+      },
+      additionalProperties: false,
+    },
     actionStep: {
       type: 'object',
       required: ['id', 'type'],
@@ -420,6 +442,14 @@ export const PAGE_DOCUMENT_JSON_SCHEMA_V1 = {
         },
         animation: {
           $ref: '#/definitions/animationConfig',
+        },
+        effects: {
+          type: 'array',
+          maxItems: 8,
+          items: {
+            $ref: '#/definitions/nodeEffect',
+          },
+          description: 'Plugin-driven runtime effects (parallax, scroll-linked transforms, ...)',
         },
         actions: {
           type: 'array',

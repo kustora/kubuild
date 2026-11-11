@@ -5,7 +5,7 @@ import { TrackingConfig, TrackingConfigSchema } from './tracking.js';
 import { ThemeSchema } from './theme.js';
 
 export const SCHEMA_NAME = 'stora.page' as const;
-export const CURRENT_SCHEMA_VERSION = '1.3.0' as const;
+export const CURRENT_SCHEMA_VERSION = '1.4.0' as const;
 
 /**
  * Asset Reference Schema
@@ -255,6 +255,58 @@ export const DEFAULT_ANIMATION_CONFIG: AnimationConfig = {
 };
 
 /**
+ * Effect plugin ids follow the same shape as skill names: lowercase letters, digits and
+ * single hyphens (e.g. `parallax-scroll`). Kept strict because the id is interpolated into
+ * diagnostics and editor UI, and is the only link between a document and host code.
+ */
+export const EFFECT_PLUGIN_ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** Most effects one node may carry — a guard against runaway AI output, not a design limit. */
+export const MAX_NODE_EFFECTS = 8;
+
+function findDangerousEffectValue(value: unknown, depth = 0): string | null {
+  if (typeof value === 'string') return DANGEROUS_STYLE_VALUE_PATTERN.test(value) ? value : null;
+  if (depth > 4 || value === null || typeof value !== 'object') return null;
+  for (const entry of Object.values(value as Record<string, unknown>)) {
+    const hit = findDangerousEffectValue(entry, depth + 1);
+    if (hit !== null) return hit;
+  }
+  return null;
+}
+
+/**
+ * Node Effect Schema (STORA-650)
+ * One plugin-driven runtime effect (parallax, scroll-linked transforms, ...) attached to a
+ * node. The document only stores the plugin id + plain-data config; the behavior lives in
+ * host-registered effect plugins, so a document stays portable and an unknown plugin is
+ * preserved untouched rather than executed.
+ */
+export const NodeEffectSchema = z
+  .object({
+    plugin: z
+      .string()
+      .regex(EFFECT_PLUGIN_ID_PATTERN, 'Effect plugin id must be lowercase letters, digits and single hyphens'),
+    enabled: z.boolean().optional().default(true),
+    config: z.record(z.string(), z.unknown()).optional().default({}),
+  })
+  .superRefine((effect, ctx) => {
+    const hit = findDangerousEffectValue(effect.config);
+    if (hit !== null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['config'],
+        message: 'Effect config contains a disallowed or unsafe pattern',
+      });
+    }
+  });
+
+export type NodeEffect = z.infer<typeof NodeEffectSchema>;
+
+export const NodeEffectsSchema = z
+  .array(NodeEffectSchema)
+  .max(MAX_NODE_EFFECTS, `A node may carry at most ${MAX_NODE_EFFECTS} effects`);
+
+/**
  * Recursive Node Type Definition
  */
 export type Node = {
@@ -263,6 +315,7 @@ export type Node = {
   props?: Record<string, unknown>;
   styles?: ResponsiveStyles;
   animation?: AnimationConfig;
+  effects?: NodeEffect[];
   actions?: ActionPipeline[];
   formConfig?: FormConfig;
   children?: Node[];
@@ -280,6 +333,7 @@ export const NodeSchema: z.ZodType<Node> = z.lazy(() =>
     props: z.record(z.string(), z.unknown()).optional().default({}),
     styles: ResponsiveStylesSchema.optional().default({}),
     animation: AnimationConfigSchema.optional(),
+    effects: NodeEffectsSchema.optional(),
     actions: z.array(ActionPipelineSchema).optional(),
     formConfig: FormConfigSchema.optional(),
     children: z.array(NodeSchema).optional().default([]),

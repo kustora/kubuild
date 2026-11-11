@@ -12,6 +12,7 @@ import {
   PseudoStateStylesSchema,
   ResponsiveStylesSchema,
   AnimationConfigSchema,
+  NodeEffectSchema,
   NodeSchema,
   RootPageNodeSchema,
   DocumentMetadataSchema,
@@ -90,6 +91,7 @@ describe('STORA-552: @kubuild/schema/types mirrors z.infer', () => {
     expectTypeOf<Pure.PseudoStateStyles>().toEqualTypeOf<z.infer<typeof PseudoStateStylesSchema>>();
     expectTypeOf<Pure.ResponsiveStyles>().toEqualTypeOf<z.infer<typeof ResponsiveStylesSchema>>();
     expectTypeOf<Pure.AnimationConfig>().toEqualTypeOf<z.infer<typeof AnimationConfigSchema>>();
+    expectTypeOf<Pure.NodeEffect>().toEqualTypeOf<z.infer<typeof NodeEffectSchema>>();
   });
 
   it('theme', () => {

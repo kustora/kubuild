@@ -147,6 +147,13 @@ export interface AnimationConfig {
   loopEffect: string;
 }
 
+/** One plugin-driven runtime effect on a node (STORA-650). */
+export interface NodeEffect {
+  plugin: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+}
+
 /* ----------------------------------------------------------------------------------------
  * Theme (STORA-551)
  * -------------------------------------------------------------------------------------- */
@@ -354,6 +361,7 @@ export interface Node {
   props?: Record<string, unknown>;
   styles?: ResponsiveStyles;
   animation?: AnimationConfig;
+  effects?: NodeEffect[];
   actions?: ActionPipeline[];
   formConfig?: FormConfig;
   children?: Node[];
