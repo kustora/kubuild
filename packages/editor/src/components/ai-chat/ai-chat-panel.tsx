@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PageDocument } from '@kubuild/schema';
 import { findNodeById, type AssetProvider, type Diagnostic } from '@kubuild/core';
 import { ComponentRegistry, createDefaultComponentRegistry } from '@kubuild/components';
@@ -196,6 +196,8 @@ export function AiChatBubble({ message }: { message: AiChatMessage }) {
 
 /** Most images one message may carry — matches `@kubuild/ai`'s per-message cap. */
 const MAX_CHAT_IMAGES = 4;
+/** Prompt box grows with wrapped text up to this height, then scrolls. */
+const PROMPT_MAX_HEIGHT_PX = 160;
 
 /**
  * Image files on a paste's clipboard. Screenshots usually arrive in `files`, but some
@@ -428,7 +430,15 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
    */
   const [autoApply, setAutoApply] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Grow the prompt box with its content (wrapped lines) up to a cap, then scroll.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, PROMPT_MAX_HEIGHT_PX)}px`;
+  }, [inputValue]);
 
   // Floating panel draggable state
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -1570,12 +1580,18 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               ))}
             </div>
           )}
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={1}
             data-testid="ai-chat-input"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter sends, Shift+Enter inserts a newline; never submit mid-IME composition.
+              if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }}
             onPaste={(e) => {
               if (!canAttachImages) return;
               const files = getPastedImageFiles(e.clipboardData);
@@ -1584,7 +1600,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
               handleAttachFiles(files);
             }}
             placeholder={dynamicPlaceholder}
-            className="w-full text-xs px-3 pt-2.5 pb-1 bg-transparent border-0 focus:outline-none"
+            style={{ maxHeight: PROMPT_MAX_HEIGHT_PX }}
+            className="block w-full resize-none overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs leading-relaxed px-3 pt-2.5 pb-1 bg-transparent border-0 focus:outline-none"
           />
 
           <div className="flex flex-wrap items-center justify-between gap-1 px-2 pb-2 pt-1">
