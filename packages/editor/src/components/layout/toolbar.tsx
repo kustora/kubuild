@@ -13,6 +13,7 @@ import { Copy, ClipboardPaste, CopyPlus, Trash2, Undo2, Redo2, Play, Square, Ter
 import { useTranslation } from '../../i18n/index.js';
 
 import { EditorToolbarConfig } from '../../config/index.js';
+import type { AssetProvider } from '@kubuild/core';
 
 export interface EditorToolbarProps {
   registry: ComponentRegistry;
@@ -37,6 +38,8 @@ export interface EditorToolbarProps {
   inheritedTrackingPixels?: readonly TrackingPixelInput[];
   /** Label for those pixels in the tracking modal, e.g. "this funnel". */
   inheritedTrackingPixelsLabel?: string;
+  /** Resolves `asset:` URIs and asset ids for the HTML export (the editor's `assetProvider`). */
+  assetProvider?: AssetProvider;
 }
 
 interface ToolbarIconButtonProps {
@@ -116,6 +119,7 @@ const ToolbarIconButton: React.FC<ToolbarIconButtonProps> = ({
 };
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
+  assetProvider,
   registry,
   className,
   showExportImport: propShowExportImport = true,
@@ -211,17 +215,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     }
   };
 
-  const handleExportStaticSite = () => {
+  const handleExportStaticSite = async () => {
     setError(null);
+    setIsExporting(true);
     try {
-      const result = downloadDocumentAsStaticSite(document, undefined, { effectRegistry });
+      const result = await downloadDocumentAsStaticSite(document, undefined, { effectRegistry, assetProvider });
+      const notes: string[] = [];
       if (result.skippedEffects.length > 0) {
         const plugins = [...new Set(result.skippedEffects.map((s) => s.plugin))].join(', ');
-        setError(`Exported without ${result.skippedEffects.length} effect(s) that could not run: ${plugins}`);
+        notes.push(`${result.skippedEffects.length} effect(s) that could not run (${plugins})`);
       }
+      if (result.assetFailures.length > 0) {
+        notes.push(`${result.assetFailures.length} asset(s) that could not be read`);
+      }
+      if (notes.length > 0) setError(`Exported without ${notes.join(' and ')}.`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error during HTML export.';
       setError(`HTML export failed: ${msg}`);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -414,6 +426,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               type="button"
               data-testid="toolbar-export-html"
               title="Download a static site (.zip): index.html plus the effect runtime when the page uses effects"
+              disabled={isExporting}
               onClick={handleExportStaticSite}
               className="hidden md:inline-block text-xs px-2 py-1 rounded border border-slate-200 bg-white hover:border-slate-400 text-slate-600 transition cursor-pointer"
             >

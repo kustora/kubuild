@@ -61,7 +61,8 @@ Useful options:
 | `componentRegistry` / `knownComponentTypes` | Validate component types and record custom components the importer must provide. |
 | `assets` | A map of asset bytes keyed by asset ID, when you already hold them. |
 | `getAssetBytes(assetId, ref)` | Fetch asset bytes on demand. |
-| `assetProvider` | Fallback resolver when no bytes provider is given. |
+| `assetProvider` | Fallback resolver when no bytes provider is given. The URL it resolves to is downloaded and packaged; if the download fails the asset counts as not collected (see `allowExternalFallback`). |
+| `fetchAsset(url)` | Downloads `http(s):` / `blob:` URLs from `assetProvider` or given as asset data. Defaults to `fetch`; override for auth headers or runtimes without it. |
 | `allowExternalFallback` | Don't fail for assets that have no local bytes but are hosted externally. |
 | `packageVersion` / `builderCompatibility` | Written to the manifest (defaults `"1.0.0"` and `">=0.1.0"`). |
 | `metadata` | Override metadata fields such as `author` or `tags`. |

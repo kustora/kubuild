@@ -64,9 +64,17 @@ export interface ExportPackageOptions {
   getAssetBytes?: AssetBytesProvider;
 
   /**
-   * Host AssetProvider instance to resolve assets if bytes provider is not present.
+   * Host AssetProvider instance to resolve assets if bytes provider is not present. The URL
+   * it resolves to is downloaded (see `fetchAsset`); the URL itself is never packaged.
    */
   assetProvider?: AssetProvider;
+
+  /**
+   * Downloads an `http(s):` / `blob:` URL returned by `assetProvider.resolve` or given as an
+   * asset's data. Defaults to the global `fetch`; override for auth headers or runtimes
+   * without it. Returning `null` treats the asset as not collected.
+   */
+  fetchAsset?: (url: string) => Promise<{ data: Uint8Array; mimeType?: string } | null>;
 
   /**
    * Package version to write in manifest (defaults to "1.0.0").
@@ -262,42 +270,82 @@ function getExtensionFromMime(mimeType?: string): string | null {
   return null;
 }
 
-async function convertToUint8Array(input: unknown): Promise<Uint8Array | null> {
+type FetchAsset = NonNullable<ExportPackageOptions['fetchAsset']>;
+
+interface ConvertedAsset {
+  data: Uint8Array;
+  mimeType?: string;
+}
+
+const FETCHABLE_URL = /^(https?:|blob:)/i;
+
+async function defaultFetchAsset(url: string): Promise<ConvertedAsset | null> {
+  if (typeof fetch !== 'function') return null;
+  const response = await fetch(url);
+  if (!response.ok) return null;
+  return {
+    data: new Uint8Array(await response.arrayBuffer()),
+    mimeType: response.headers.get('content-type')?.split(';')[0] || undefined,
+  };
+}
+
+function decodeDataUrl(input: string): ConvertedAsset | null {
+  const commaIdx = input.indexOf(',');
+  if (commaIdx === -1) return null;
+  const meta = input.substring(5, commaIdx);
+  const rawData = input.substring(commaIdx + 1);
+  const mimeType = meta.split(';')[0] || undefined;
+  if (meta.includes(';base64')) {
+    if (typeof atob !== 'function') return null;
+    const binary = atob(rawData);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return { data: bytes, mimeType };
+  }
+  try {
+    return { data: new TextEncoder().encode(decodeURIComponent(rawData)), mimeType };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Turns supplied asset data into bytes. A string is a `data:` URL, a URL to download, or —
+ * only when `stringIsContent` — the file's text content (e.g. inline SVG markup). Strings
+ * from an asset provider are always references, so their text is never packaged.
+ */
+async function convertToBytes(
+  input: unknown,
+  fetchAsset: FetchAsset,
+  stringIsContent: boolean,
+): Promise<ConvertedAsset | null> {
   if (!input) return null;
 
   if (input instanceof Uint8Array) {
-    return input;
+    return { data: input };
   }
 
   if (input instanceof ArrayBuffer) {
-    return new Uint8Array(input);
+    return { data: new Uint8Array(input) };
   }
 
   if (typeof Blob !== 'undefined' && input instanceof Blob) {
     const arrayBuffer = await input.arrayBuffer();
-    return new Uint8Array(arrayBuffer);
+    return { data: new Uint8Array(arrayBuffer), mimeType: input.type || undefined };
   }
 
   if (typeof input === 'string') {
-    // Check if data URL
-    if (input.startsWith('data:')) {
-      const commaIdx = input.indexOf(',');
-      if (commaIdx !== -1) {
-        const meta = input.substring(0, commaIdx);
-        const rawData = input.substring(commaIdx + 1);
-        if (meta.includes(';base64')) {
-          if (typeof atob === 'function') {
-            const binary = atob(rawData);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-              bytes[i] = binary.charCodeAt(i);
-            }
-            return bytes;
-          }
-        }
+    if (input.startsWith('data:')) return decodeDataUrl(input);
+    if (FETCHABLE_URL.test(input)) {
+      try {
+        return await fetchAsset(input);
+      } catch {
+        return null;
       }
     }
-    return new TextEncoder().encode(input);
+    return stringIsContent ? { data: new TextEncoder().encode(input) } : null;
   }
 
   return null;
@@ -366,6 +414,7 @@ export async function exportPackage(
   const archiveFiles: Record<string, Uint8Array> = {};
   const assetCollectionErrors: DocumentValidationError[] = [];
   const usedArchivePaths = new Set<string>();
+  const fetchAsset: FetchAsset = options.fetchAsset ?? defaultFetchAsset;
 
   for (const [assetId, assetRef] of assetRefsById.entries()) {
     let rawAsset: Uint8Array | ArrayBuffer | Blob | string | ExportAssetData | null | undefined;
@@ -396,12 +445,14 @@ export async function exportPackage(
       }
     }
 
-    // Check options.assetProvider
+    // Check options.assetProvider: it resolves to a URL, which is downloaded below
+    let fromProvider = false;
     if (!rawAsset && options.assetProvider?.resolve) {
       try {
         const resolved = await options.assetProvider.resolve(assetId);
         if (resolved) {
           rawAsset = resolved;
+          fromProvider = true;
         }
       } catch {
         // Continue to fallback check
@@ -417,7 +468,11 @@ export async function exportPackage(
       if (assetObj.filename) customFilename = assetObj.filename;
     }
 
-    const assetBytes = await convertToUint8Array(dataToConvert);
+    const converted = await convertToBytes(dataToConvert, fetchAsset, !fromProvider);
+    const assetBytes = converted?.data ?? null;
+    if (!customMime && converted?.mimeType && converted.mimeType !== 'application/octet-stream') {
+      customMime = converted.mimeType;
+    }
 
     if (assetBytes) {
       // Local asset found and collected

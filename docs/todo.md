@@ -1757,7 +1757,7 @@ Epic key: `EPIC-65` — package target: `@kubuild/schema`, `@kubuild/core`, `@ku
 
 Catatan: kode awal fitur ini memakai komentar `STORA-650`, yang ternyata sudah dipakai bug `<a>` di `todo-html-import.md`. Referensi efek di kode sudah diganti ke `STORA-651`.
 
-Ringkasan status: **6 Done**, **0 In Progress**, **3 To Do** (total 9).
+Ringkasan status: **7 Done**, **0 In Progress**, **2 To Do** (total 9).
 
 ### STORA-651
 
@@ -1868,7 +1868,7 @@ Ringkasan status: **6 Done**, **0 In Progress**, **3 To Do** (total 9).
 - **Summary:** Export HTML statis menyertakan asset lokal
 - **Description:** Gambar/video `asset://` (upload) belum ikut ke ZIP; hanya URL eksternal yang berfungsi.
 - **Priority:** High
-- **Status:** To Do
+- **Status:** Done
 - **Package:** `@kubuild/editor`, `@kubuild/renderer`
 - **Dependencies:** STORA-653
 - **Acceptance Criteria:**

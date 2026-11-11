@@ -10,6 +10,7 @@ import {
 import { generateStandaloneHtml, type StandaloneHtmlOptions } from '@kubuild/renderer';
 import { KUBUILD_RUNTIME_FILENAME, KUBUILD_RUNTIME_SOURCE } from '@kubuild/runtime-dom/source';
 import { strToU8, zipSync } from 'fflate';
+import { localizeDocumentAssets, type StaticAssetFailure, type StaticAssetOptions } from './static-assets.js';
 
 /**
  * Refuse to export a page that depends on content living in a separate component artboard.
@@ -100,30 +101,44 @@ export function downloadDocumentAsJson(doc: PageDocument, filename?: string): vo
   downloadFile(jsonStr, name, 'application/json');
 }
 
-export interface StaticSiteExportOptions {
+export interface StaticSiteExportOptions extends StaticAssetOptions {
   /** Effects (parallax, ...) are shipped only when the host passes its effect registry. */
   effectRegistry?: EffectRegistry;
   htmlOptions?: Omit<StandaloneHtmlOptions, 'effects'>;
 }
 
 export interface StaticSiteExport {
-  /** ZIP with `index.html`, plus `kubuild-runtime.js` when the page has effects to run. */
+  /**
+   * ZIP with `index.html`, `kubuild-runtime.js` when the page has effects to run, and
+   * `assets/` for uploads and host assets the page references.
+   */
   archive: Uint8Array;
   files: string[];
   skippedEffects: SkippedManifestEffect[];
+  /** Assets that could not be read; their references are cleared in the exported page. */
+  assetFailures: StaticAssetFailure[];
 }
 
 /**
  * Builds a self-hostable static site: `index.html` loading `kubuild-runtime.js` with
  * `<script src defer>`, so it also runs under a CSP without `'unsafe-inline'`. The runtime
- * file is only added when the page actually has effects to mount.
+ * file is only added when the page actually has effects to mount. Local assets (`blob:`
+ * uploads, `asset:` URIs, asset references) are copied into `assets/` (STORA-657).
  */
-export function buildStaticSiteArchive(doc: PageDocument, options: StaticSiteExportOptions = {}): StaticSiteExport {
+export async function buildStaticSiteArchive(
+  doc: PageDocument,
+  options: StaticSiteExportOptions = {},
+): Promise<StaticSiteExport> {
   assertNoDetachedArtboardReferences(doc);
   // A published page must never carry tracking secrets, same as .stora and JSON exports.
   const { document: safeDoc } = sanitizeDocumentTracking(doc);
+  const { document: localDoc, files: assetFiles, failures: assetFailures } = await localizeDocumentAssets(
+    safeDoc,
+    options,
+  );
+
   let skippedEffects: SkippedManifestEffect[] = [];
-  const html = generateStandaloneHtml(safeDoc, {
+  const html = generateStandaloneHtml(localDoc, {
     ...options.htmlOptions,
     effects: options.effectRegistry
       ? {
@@ -140,18 +155,24 @@ export function buildStaticSiteArchive(doc: PageDocument, options: StaticSiteExp
   if (html.includes(`src="${KUBUILD_RUNTIME_FILENAME}"`)) {
     entries[KUBUILD_RUNTIME_FILENAME] = strToU8(KUBUILD_RUNTIME_SOURCE);
   }
-  return { archive: zipSync(entries, { level: 6 }), files: Object.keys(entries), skippedEffects };
+  Object.assign(entries, assetFiles);
+  return {
+    archive: zipSync(entries, { level: 6 }),
+    files: Object.keys(entries),
+    skippedEffects,
+    assetFailures,
+  };
 }
 
 /**
  * Exports the page as a static-site ZIP and initiates browser download.
  */
-export function downloadDocumentAsStaticSite(
+export async function downloadDocumentAsStaticSite(
   doc: PageDocument,
   filename?: string,
   options?: StaticSiteExportOptions,
-): StaticSiteExport {
-  const result = buildStaticSiteArchive(doc, options);
+): Promise<StaticSiteExport> {
+  const result = await buildStaticSiteArchive(doc, options);
   const name = filename || sanitizeDocumentFilename(doc.metadata?.title || 'page', 'zip');
   downloadFile(result.archive, name, 'application/zip');
   return result;

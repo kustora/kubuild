@@ -94,6 +94,20 @@ function escapeAttr(str: unknown): string {
   return escapeHtml(str);
 }
 
+/**
+ * A media URL from a prop: plain strings pass through; an asset reference
+ * (`{ type: 'asset', fallbackUrl }`) falls back to its URL, since the generator has no
+ * asset provider. Static-site export rewrites references to `assets/…` before this runs.
+ */
+function mediaUrl(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object' && (value as { type?: unknown }).type === 'asset') {
+    const fallback = (value as { fallbackUrl?: unknown }).fallbackUrl;
+    return typeof fallback === 'string' ? fallback : '';
+  }
+  return '';
+}
+
 function getYouTubeId(url: string): string | null {
   if (!url || typeof url !== 'string') return null;
   const match = url.match(
@@ -279,7 +293,8 @@ function renderNodeMarkup(node: Node, indentLevel: number, options: GenerateHtml
     }
 
     case 'image': {
-      const src = props.src ? ` src="${escapeAttr(props.src)}"` : ' src=""';
+      const imageUrl = mediaUrl(props.src ?? props.asset);
+      const src = ` src="${escapeAttr(imageUrl)}"`;
       const alt = props.alt ? ` alt="${escapeAttr(props.alt)}"` : ' alt=""';
       const loading = props.loading ? ` loading="${escapeAttr(props.loading)}"` : ' loading="lazy"';
       const cls = buildClass('kb-image', nodeClass);
@@ -287,19 +302,20 @@ function renderNodeMarkup(node: Node, indentLevel: number, options: GenerateHtml
     }
 
     case 'video': {
-      const src = (props.src as string) || '';
+      const src = mediaUrl(props.src);
       const ytId = getYouTubeId(src);
       const vmId = getVimeoId(src);
       const cls = buildClass('kb-video', nodeClass);
 
       if (ytId) {
-        return `${indent}<div class="kb-video-wrapper ${nodeClass}"${idAttr}>\n${innerIndent}<iframe src="https://www.youtube-nocookie.com/embed/${escapeAttr(ytId)}" title="${escapeAttr(props.title || 'Video player')}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>\n${indent}</div>`;
+        return `${indent}<div class="${buildClass('kb-video-wrapper', nodeClass)}"${idAttr}>\n${innerIndent}<iframe src="https://www.youtube-nocookie.com/embed/${escapeAttr(ytId)}" title="${escapeAttr(props.title || 'Video player')}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>\n${indent}</div>`;
       }
       if (vmId) {
-        return `${indent}<div class="kb-video-wrapper ${nodeClass}"${idAttr}>\n${innerIndent}<iframe src="https://player.vimeo.com/video/${escapeAttr(vmId)}" title="${escapeAttr(props.title || 'Video player')}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>\n${indent}</div>`;
+        return `${indent}<div class="${buildClass('kb-video-wrapper', nodeClass)}"${idAttr}>\n${innerIndent}<iframe src="https://player.vimeo.com/video/${escapeAttr(vmId)}" title="${escapeAttr(props.title || 'Video player')}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>\n${indent}</div>`;
       }
 
-      const poster = props.poster ? ` poster="${escapeAttr(props.poster)}"` : '';
+      const posterUrl = mediaUrl(props.poster);
+      const poster = posterUrl ? ` poster="${escapeAttr(posterUrl)}"` : '';
       const controls = props.controls !== false ? ' controls' : '';
       const autoplay = props.autoplay ? ' autoplay' : '';
       const loop = props.loop ? ' loop' : '';

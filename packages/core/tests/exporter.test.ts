@@ -396,3 +396,78 @@ describe('STORA-061: Portable Package Exporter (.stora)', () => {
     });
   });
 });
+
+describe('exportPackage — asset provider URLs are downloaded, never packaged as text', () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 7, 7]);
+
+  function docWithAsset(asset: Record<string, unknown>): PageDocument {
+    return {
+      schema: SCHEMA_NAME,
+      version: '1.0.0',
+      document: {
+        id: 'root-page',
+        type: 'page',
+        children: [{ id: 'img', type: 'image', props: { asset: { type: 'asset', ...asset } } }],
+      },
+    } as PageDocument;
+  }
+
+  it('downloads the URL the provider resolves to and keeps its content type', async () => {
+    const fetched: string[] = [];
+    const result = await exportPackage(docWithAsset({ assetId: 'hero', filename: 'hero.png' }), {
+      assetProvider: { resolve: (id) => `https://cdn.example.com/${id}` },
+      fetchAsset: async (url) => {
+        fetched.push(url);
+        return { data: PNG, mimeType: 'image/png' };
+      },
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(fetched).toEqual(['https://cdn.example.com/hero']);
+    expect(result.manifest.assets).toEqual([
+      expect.objectContaining({ id: 'hero', path: 'assets/hero.png', mimeType: 'image/png', size: PNG.byteLength }),
+    ]);
+    expect(unzipSync(result.archive)['assets/hero.png']).toEqual(PNG);
+  });
+
+  it('treats a failed download as uncollected instead of storing the URL text', async () => {
+    const options = {
+      assetProvider: { resolve: () => 'https://cdn.example.com/gone.png' },
+      fetchAsset: async () => null,
+    };
+    const strict = await exportPackage(docWithAsset({ assetId: 'gone' }), options);
+    expect(strict.success).toBe(false);
+    if (!strict.success) expect(strict.errors[0].code).toBe('INVALID_ASSET_REFERENCE');
+
+    const lenient = await exportPackage(docWithAsset({ assetId: 'gone' }), { ...options, allowExternalFallback: true });
+    expect(lenient.success).toBe(true);
+    if (lenient.success) expect(lenient.manifest.assets).toEqual([]);
+  });
+
+  it('never packages a non-URL provider result as file content', async () => {
+    const result = await exportPackage(docWithAsset({ assetId: 'x' }), {
+      assetProvider: { resolve: () => 'asset://x' },
+      allowExternalFallback: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.manifest.assets).toEqual([]);
+  });
+
+  it('decodes percent-encoded data URLs and still accepts raw text content from the host', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+    const fromDataUrl = await exportPackage(docWithAsset({ assetId: 'icon', filename: 'icon.svg' }), {
+      getAssetBytes: () => `data:image/svg+xml,${encodeURIComponent(svg)}`,
+    });
+    expect(fromDataUrl.success).toBe(true);
+    if (fromDataUrl.success) {
+      expect(strFromU8(unzipSync(fromDataUrl.archive)['assets/icon.svg'])).toBe(svg);
+      expect(fromDataUrl.manifest.assets[0].mimeType).toBe('image/svg+xml');
+    }
+
+    const fromText = await exportPackage(docWithAsset({ assetId: 'icon', filename: 'icon.svg', mimeType: 'image/svg+xml' }), {
+      assets: { icon: svg },
+    });
+    expect(fromText.success).toBe(true);
+    if (fromText.success) expect(strFromU8(unzipSync(fromText.archive)['assets/icon.svg'])).toBe(svg);
+  });
+});

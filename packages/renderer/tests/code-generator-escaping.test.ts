@@ -86,3 +86,24 @@ describe('html-embed in standalone HTML', () => {
     expect(html).toContain('<script>alert(1)</script>');
   });
 });
+
+describe('media URLs in standalone HTML', () => {
+  const media = (type: string, props: Record<string, unknown>, id = 'm'): Node => ({ id, type, props, styles: {}, children: [] });
+
+  it('uses an asset reference fallback URL instead of printing the object', () => {
+    const html = generateStandaloneHtml(
+      docWith(media('image', { src: { type: 'asset', assetId: 'a', fallbackUrl: 'https://cdn.example.com/a.png' } })),
+    );
+    expect(html).toContain('src="https://cdn.example.com/a.png"');
+    expect(html).not.toContain('[object Object]');
+    expect(generateStandaloneHtml(docWith(media('image', { src: { type: 'asset', assetId: 'a' } })))).toContain('src=""');
+  });
+
+  it('escapes the node class on YouTube and Vimeo wrappers too', () => {
+    for (const src of ['https://youtu.be/dQw4w9WgXcQ', 'https://vimeo.com/123456']) {
+      const html = generateStandaloneHtml(docWith(media('video', { src }, 'v"><img src=x onerror=alert(1)>')));
+      expect(html).not.toMatch(/<img/i);
+      expect(html).toContain('class="kb-video-wrapper kb-node-v&quot;&gt;&lt;img');
+    }
+  });
+});

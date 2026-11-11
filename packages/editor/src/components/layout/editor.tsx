@@ -841,6 +841,7 @@ export const KubuildEditor = React.forwardRef<EditorHandle, KubuildEditorProps>(
               trackingRelayUrl={trackingRelayUrl}
               inheritedTrackingPixels={inheritedTrackingPixels}
               inheritedTrackingPixelsLabel={inheritedTrackingPixelsLabel}
+              assetProvider={assetProvider}
             />
 
             {/* Viewport switcher */}

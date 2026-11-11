@@ -10,12 +10,13 @@ import { Callout } from 'fumadocs-ui/components/callout';
 ```text
 my-page.zip
 ├── index.html          ← semantic HTML + one <style> block
-└── kubuild-runtime.js  ← only when the page has effects (~6 KB, no framework)
+├── kubuild-runtime.js  ← only when the page has effects (~6 KB, no framework)
+└── assets/             ← uploads and host assets the page uses
 ```
 
 ## In the editor
 
-Click **HTML** in the editor toolbar. The editor uses the effect registry passed to `<KubuildEditor effects={…}>`; without one the export is HTML + CSS only. If some effects can't be shipped (unknown plugin, invalid config) the export still succeeds and the toolbar names them.
+Click **HTML** in the editor toolbar. The editor uses the effect registry passed to `<KubuildEditor effects={…}>` (without one the export is HTML + CSS only) and its `assetProvider` for assets. If some effects or assets can't be shipped, the export still succeeds and the toolbar says what was left out.
 
 ## Programmatically
 
@@ -24,10 +25,13 @@ import { buildStaticSiteArchive, downloadDocumentAsStaticSite } from '@kubuild/e
 import { effectRegistry } from '@/lib/effects';
 
 // In the browser: build and download the ZIP
-downloadDocumentAsStaticSite(doc, 'landing.zip', { effectRegistry });
+await downloadDocumentAsStaticSite(doc, 'landing.zip', { effectRegistry, assetProvider });
 
 // Anywhere: get the bytes (e.g. to upload to your CDN)
-const { archive, files, skippedEffects } = buildStaticSiteArchive(doc, { effectRegistry });
+const { archive, files, skippedEffects, assetFailures } = await buildStaticSiteArchive(doc, {
+  effectRegistry,
+  assetProvider,
+});
 ```
 
 For full control over the HTML, use the generator from `@kubuild/renderer` directly:
@@ -53,6 +57,19 @@ const html = generateStandaloneHtml(doc, {
 | `{ src }` (default in the ZIP) | You host files; several pages share the cached runtime. | Works with `script-src 'self'`. |
 | `{ inline }` | One self-contained file (email preview, copy-paste). | Needs `'unsafe-inline'`. |
 
+## Assets
+
+A static host can't reach what only existed in the editor, so the export copies those files into `assets/` and rewrites the references to relative paths — in props (`<img src>`, video `poster`, …) and in `url(…)` inside styles such as `background-image`.
+
+| Reference in the document | In the export |
+| :--- | :--- |
+| `blob:` URL (an upload without an `assetProvider`) | Downloaded into `assets/`. |
+| `asset:` URI | Resolved with `assetProvider.resolve`. An `http(s)` result is linked as is; a `blob:` result is downloaded. |
+| `{ type: 'asset', assetId }` reference | Bytes from `assets` / `getAssetBytes` (same options as `.stora` export), else the provider's URL, else `fallbackUrl`. |
+| `http(s)`, `data:` and relative URLs | Left alone. |
+
+Each source is downloaded once however often the page uses it. File names come from the reference's `filename` or are generated, with the extension taken from the MIME type (sniffed from the bytes when a blob has none). Anything that can't be read is **cleared** (`src=""`, `background-image: none`) rather than shipped as a dead link, and reported in `assetFailures`. Pass `fetchAsset` to download with your own credentials or outside a browser.
+
 ## What ends up in the page
 
 Effects are resolved against your registry **at export time**: only enabled effects with valid config are kept, with defaults filled in. The page gets:
@@ -71,6 +88,5 @@ The runtime reads the JSON manifest and mounts each effect on its `data-kb-node`
 
 ## Current limits
 
-- Local assets (`asset://…` uploads) are not copied into the ZIP yet; external image URLs work.
 - Interactive components (accordion, tabs, carousel, countdown) and action pipelines export as static markup.
 - `kubuild-runtime.js` includes the first-party parallax runtimes; effects from your own plugins need a custom runtime bundle (see [`@kubuild/runtime-dom`](/docs/packages/runtime-dom)).

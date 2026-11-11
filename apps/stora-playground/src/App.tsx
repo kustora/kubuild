@@ -166,12 +166,16 @@ const INITIAL_PAGES: ProjectPage[] = [
 /** The host decides which effect plugins exist; the editor and renderer only run what's registered. */
 const effectRegistry = createEffectRegistry([...parallaxPlugins]);
 
-function exportStaticSite(document: PageDocument): void {
+async function exportStaticSite(document: PageDocument): Promise<void> {
   try {
-    const { skippedEffects } = downloadDocumentAsStaticSite(document, undefined, { effectRegistry });
-    if (skippedEffects.length > 0) {
-      alert(`Exported without ${skippedEffects.length} effect(s): ${skippedEffects.map((s) => s.plugin).join(', ')}`);
-    }
+    const { skippedEffects, assetFailures } = await downloadDocumentAsStaticSite(document, undefined, {
+      effectRegistry,
+    });
+    const notes = [
+      ...(skippedEffects.length > 0 ? [`${skippedEffects.length} effect(s): ${skippedEffects.map((s) => s.plugin).join(', ')}`] : []),
+      ...(assetFailures.length > 0 ? [`${assetFailures.length} unreadable asset(s)`] : []),
+    ];
+    if (notes.length > 0) alert(`Exported without ${notes.join(' and ')}`);
   } catch (e: unknown) {
     alert(e instanceof Error ? e.message : String(e));
   }
