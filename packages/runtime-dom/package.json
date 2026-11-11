@@ -1,0 +1,73 @@
+{
+  "name": "@kubuild/runtime-dom",
+  "version": "0.12.0",
+  "description": "Framework-free page runtime for KUBUILD static HTML exports (effects, ...)",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./source": {
+      "import": {
+        "types": "./dist/source.d.ts",
+        "default": "./dist/source.js"
+      },
+      "require": {
+        "types": "./dist/source.d.cts",
+        "default": "./dist/source.cjs"
+      }
+    },
+    "./kubuild-runtime.js": "./dist/kubuild-runtime.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsup && node scripts/emit-source.mjs && tsc --emitDeclarationOnly && node ../../scripts/emit-cjs-dts.mjs",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kustora/kubuild.git",
+    "directory": "packages/runtime-dom"
+  },
+  "keywords": [
+    "page-builder",
+    "runtime",
+    "static-export",
+    "kubuild"
+  ],
+  "author": "KUBUILD",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/kustora/kubuild/issues"
+  },
+  "homepage": "https://github.com/kustora/kubuild#readme",
+  "dependencies": {
+    "@kubuild/core": "workspace:*",
+    "@kubuild/plugin-parallax": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.6",
+    "typescript": "^6.0.0",
+    "vitest": "^4.1.12"
+  }
+}

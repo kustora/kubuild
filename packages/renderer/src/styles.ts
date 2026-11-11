@@ -250,7 +250,7 @@ export function collectResponsiveCssRules(
 
 /** Scoped attribute selector matching the element the renderer tags with a node id. */
 export function nodeAttributeSelector(nodeId: string): string {
-  return `[data-kubuild-node="${escapeCssIdent(nodeId)}"]`;
+  return `[data-kubuild-node="${escapeCssIdentifier(nodeId)}"]`;
 }
 
 /**
@@ -295,10 +295,14 @@ function escapeCssValue(value: unknown): string {
 }
 
 /**
- * Escape a node id for safe interpolation into an attribute selector.
+ * Escapes a node id for a CSS class selector (`.kb-node-<id>`) or a quoted attribute
+ * selector. Node ids are untrusted document data. Every ASCII character outside
+ * `[A-Za-z0-9_-]` becomes a hex escape (`\\3c `), so the result can't close the selector,
+ * the string or the rule, and contains no `<`. A literal `\\<` would still close a
+ * `<style>` element, because HTML parsing ignores CSS escapes.
  */
-function escapeCssIdent(value: string): string {
-  return value.replace(/["\\\]]/g, '\\$&');
+export function escapeCssIdentifier(value: string): string {
+  return value.replace(/[^A-Za-z0-9_\-\u0080-\uffff]/g, (char) => `\\${char.charCodeAt(0).toString(16)} `);
 }
 
 /**

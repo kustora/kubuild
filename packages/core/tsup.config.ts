@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: { index: 'src/index.ts', 'effect-manifest': 'src/effects/manifest-format.ts' },
   format: ['cjs', 'esm'],
   dts: false,
   clean: true,

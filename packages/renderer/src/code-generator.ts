@@ -11,9 +11,17 @@ import {
   styleDefinitionToCssDeclarations,
   resolveBaseNodeStyles,
   collectResponsiveCssRules,
+  escapeCssIdentifier,
 } from './styles.js';
 import { collectAnimationStylesCss } from './animation.js';
 import { themeToCssDeclarations } from './theme.js';
+import {
+  buildEffectManifest,
+  EFFECT_MANIFEST_ELEMENT_ID,
+  EFFECT_NODE_ATTRIBUTE,
+  type EffectRegistry,
+  type SkippedManifestEffect,
+} from '@kubuild/core';
 
 export interface GenerateHtmlOptions {
   /**
@@ -29,6 +37,11 @@ export interface GenerateHtmlOptions {
    * Root tag for the page container ('main' | 'div'). Defaults to 'main'.
    */
   rootTag?: 'main' | 'div';
+  /**
+   * Node ids whose outermost element gets `data-kb-node="<id>"`, the hook the page runtime
+   * mounts effects on. Set by `generateStandaloneHtml` from the effect manifest.
+   */
+  runtimeNodeIds?: ReadonlySet<string>;
 }
 
 export interface GenerateCssOptions {
@@ -47,6 +60,23 @@ export interface StandaloneHtmlOptions {
   cssOptions?: GenerateCssOptions;
   /** Custom language attribute for <html>. Defaults to 'en'. */
   lang?: string;
+  /**
+   * Ship the document's effects (parallax, ...) with the page. Effects are resolved against
+   * `registry` at export time; without this option the page is HTML + CSS only.
+   */
+  effects?: StandaloneEffectsOptions;
+}
+
+export interface StandaloneEffectsOptions {
+  registry: EffectRegistry;
+  /**
+   * How the page loads `@kubuild/runtime-dom`'s `kubuild-runtime.js`: a `<script src defer>`
+   * (works under a strict CSP; the file must be served next to the page) or the bundle
+   * source inlined into the page (single file, needs `'unsafe-inline'` under a CSP).
+   */
+  runtime: { src: string } | { inline: string };
+  /** Receives effects that could not be shipped (unknown plugin, invalid config, no runtime). */
+  onSkipped?: (skipped: SkippedManifestEffect[]) => void;
 }
 
 function escapeHtml(str: unknown): string {
@@ -79,10 +109,19 @@ function getVimeoId(url: string): string | null {
   return match ? match[3] : null;
 }
 
+const OPENING_TAG = /^(\s*<[a-zA-Z][\w-]*)/;
+
 /**
  * Recursively generates clean, indented semantic HTML markup for a node tree.
  */
 function renderNodeToHtml(node: Node, indentLevel: number, options: GenerateHtmlOptions): string {
+  const html = renderNodeMarkup(node, indentLevel, options);
+  if (!options.runtimeNodeIds?.has(node.id)) return html;
+  // Function replacer: a `$` in the node id must not be read as a replacement pattern.
+  return html.replace(OPENING_TAG, (tag) => `${tag} ${EFFECT_NODE_ATTRIBUTE}="${escapeAttr(node.id)}"`);
+}
+
+function renderNodeMarkup(node: Node, indentLevel: number, options: GenerateHtmlOptions): string {
   const indent = ' '.repeat(indentLevel * (options.indentSize ?? 2));
   const innerIndent = ' '.repeat((indentLevel + 1) * (options.indentSize ?? 2));
   const props = node.props || {};
@@ -90,8 +129,10 @@ function renderNodeToHtml(node: Node, indentLevel: number, options: GenerateHtml
   const includeNodeClass = options.includeNodeClasses !== false;
   const nodeClass = includeNodeClass ? `kb-node-${node.id}` : '';
 
+  // Escaped here because every case interpolates the result into `class="..."`, and the
+  // node class carries the (untrusted) node id.
   const buildClass = (...classes: (string | undefined | false)[]) => {
-    return classes.filter(Boolean).join(' ');
+    return escapeAttr(classes.filter(Boolean).join(' '));
   };
 
   const idAttr = props.id ? ` id="${escapeAttr(props.id)}"` : '';
@@ -512,7 +553,7 @@ export function generateDocumentCss(
   const stateRules: string[] = [];
 
   const walk = (node: Node) => {
-    const selector = `.${classPrefix}${node.id}`;
+    const selector = `.${classPrefix}${escapeCssIdentifier(node.id)}`;
 
     if (node.styles) {
       // Base styles (desktop/tablet/mobile layers are emitted as media-query overrides below)
@@ -570,7 +611,7 @@ export function generateDocumentCss(
   // Breakpoint Media Queries (disjoint ranges, see BREAKPOINTS in @kubuild/schema)
   for (const breakpoint of BREAKPOINT_ORDER) {
     const rules = responsiveRules[breakpoint]
-      .map((rule) => formatCssRule(`.${classPrefix}${rule.nodeId}`, rule.declarations, '  '))
+      .map((rule) => formatCssRule(`.${classPrefix}${escapeCssIdentifier(rule.nodeId)}`, rule.declarations, '  '))
       .filter(Boolean);
     if (rules.length === 0) continue;
     const query = BREAKPOINT_MEDIA_QUERIES[breakpoint];
@@ -602,11 +643,14 @@ export function generateStandaloneHtml(
   const author = doc.metadata?.author ? escapeAttr(doc.metadata.author) : '';
   const lang = options.lang || 'en';
 
-  const css = generateDocumentCss(doc, options.cssOptions);
-  const html = generateSemanticHtml(doc, options.htmlOptions);
+  const runtime = options.effects ? buildRuntimeScripts(doc, options.effects) : null;
+
+  const css = escapeStyleElementContent(generateDocumentCss(doc, options.cssOptions));
+  const html = generateSemanticHtml(doc, { ...options.htmlOptions, runtimeNodeIds: runtime?.nodeIds });
 
   const metaDescription = description ? `  <meta name="description" content="${description}">\n` : '';
   const metaAuthor = author ? `  <meta name="author" content="${author}">\n` : '';
+  const scripts = runtime ? `\n${runtime.scripts}` : '';
 
   return `<!DOCTYPE html>
 <html lang="${lang}">
@@ -619,7 +663,43 @@ ${css}
   </style>
 </head>
 <body>
-${html}
+${html}${scripts}
 </body>
 </html>`;
+}
+
+/**
+ * Keeps CSS from closing the surrounding `<style>` element. Style values are only screened
+ * for `<script` by the schema, so `red</style><img onerror=...>` would otherwise escape it.
+ * `<` is never valid in CSS outside a string, and inside one `\\3c ` is the same character.
+ */
+function escapeStyleElementContent(css: string): string {
+  return css.replace(/</g, '\\3c ');
+}
+
+/** Keeps JSON / JS from closing the surrounding `<script>` element early. */
+function escapeScriptContent(text: string): string {
+  return text.replace(/<\/(script)/gi, '<\\/$1').replace(/<!--/g, '<\\!--');
+}
+
+function buildRuntimeScripts(
+  doc: PageDocument,
+  effects: StandaloneEffectsOptions,
+): { nodeIds: Set<string>; scripts: string } | null {
+  const { manifest, skipped } = buildEffectManifest(doc.document, effects.registry);
+  if (skipped.length > 0) effects.onSkipped?.(skipped);
+  const nodeIds = new Set(Object.keys(manifest.nodes));
+  // A page with nothing to run gets no script at all.
+  if (nodeIds.size === 0) return null;
+
+  // `<` as \u003c keeps node ids or config strings from ending the script element.
+  const json = JSON.stringify(manifest).replace(/</g, '\\u003c');
+  const loader =
+    'src' in effects.runtime
+      ? `<script src="${escapeAttr(effects.runtime.src)}" defer></script>`
+      : `<script>\n${escapeScriptContent(effects.runtime.inline)}\n</script>`;
+  return {
+    nodeIds,
+    scripts: `<script type="application/json" id="${EFFECT_MANIFEST_ELEMENT_ID}">${json}</script>\n${loader}`,
+  };
 }

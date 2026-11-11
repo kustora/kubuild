@@ -83,6 +83,21 @@ export interface EffectPlugin<TConfig extends Record<string, unknown> = Record<s
 }
 
 /**
+ * The browser-only slice of a plugin: what a published page needs to run the effect. A
+ * static HTML export ships runtimes (not full plugins), so the page bundle carries no zod
+ * parser, editor fields or AI text — configs arrive already parsed in the effect manifest.
+ */
+export interface EffectRuntime<TConfig extends Record<string, unknown> = Record<string, unknown>> {
+  id: string;
+  reducedMotion?: 'skip' | 'mount';
+  mount(element: HTMLElement, config: TConfig, context: EffectRuntimeContext): void | EffectCleanup;
+}
+
+// Runtimes are looked up by id across plugins, so their config types are erased here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyEffectRuntime = EffectRuntime<any>;
+
+/**
  * Identity helper that keeps `TConfig` inferred from `defaults` while checking the object
  * against the contract.
  */

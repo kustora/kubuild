@@ -58,7 +58,9 @@
     "@kubuild/core": "workspace:*",
     "@kubuild/html-import": "workspace:*",
     "@kubuild/renderer": "workspace:*",
+    "@kubuild/runtime-dom": "workspace:*",
     "@kubuild/schema": "workspace:*",
+    "fflate": "^0.8.3",
     "lucide-react": "^1.33.0",
     "zustand": "^5.0.15"
   },

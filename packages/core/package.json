@@ -16,6 +16,16 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
+    },
+    "./effect-manifest": {
+      "import": {
+        "types": "./dist/effects/manifest-format.d.ts",
+        "default": "./dist/effect-manifest.js"
+      },
+      "require": {
+        "types": "./dist/effects/manifest-format.d.cts",
+        "default": "./dist/effect-manifest.cjs"
+      }
     }
   },
   "files": [

@@ -10,6 +10,9 @@ import {
   defineEffectPlugin,
   resolveNodeEffects,
   collectEffectNodes,
+  buildEffectManifest,
+  parseEffectManifest,
+  EFFECT_MANIFEST_VERSION,
 } from '../src';
 
 function doc(): PageDocument {
@@ -134,5 +137,73 @@ describe('1.3.0 -> 1.4.0 migration and .stora round trip', () => {
     expect(findNodeById(imported.document.document, 'hero')?.effects).toEqual([
       { plugin: 'some-future-plugin', enabled: true, config: { depth: 3, axis: 'y' } },
     ]);
+  });
+});
+
+describe('effect manifest (static export runtime)', () => {
+  const mountable = defineEffectPlugin<{ speed: number }>({ ...speedPlugin, id: 'test-mount', mount: () => {} });
+
+  function docWithEffects(): PageDocument {
+    const d = doc();
+    d.document.children = [
+      {
+        id: 'hero',
+        type: 'section',
+        props: {},
+        styles: {},
+        effects: [
+          { plugin: 'test-mount', enabled: true, config: {} },
+          { plugin: 'test-mount', enabled: false, config: { speed: 0.1 } },
+          { plugin: 'test-speed', enabled: true, config: { speed: 0.2 } },
+          { plugin: 'missing', enabled: true, config: {} },
+        ],
+        children: [
+          {
+            id: 'card',
+            type: 'container',
+            props: {},
+            styles: {},
+            effects: [{ plugin: 'test-mount', enabled: true, config: { speed: 9 } }],
+            children: [],
+          },
+        ],
+      },
+    ];
+    return d;
+  }
+
+  it('keeps only enabled, valid, mountable effects with parsed config', () => {
+    const registry = createEffectRegistry([speedPlugin, mountable]);
+    const { manifest, skipped } = buildEffectManifest(docWithEffects().document, registry);
+
+    expect(manifest.version).toBe(EFFECT_MANIFEST_VERSION);
+    expect({ ...manifest.nodes }).toEqual({ hero: [{ plugin: 'test-mount', config: { speed: 0.5 } }] });
+    expect(skipped).toEqual([
+      { nodeId: 'hero', plugin: 'test-speed', reason: 'no-runtime' },
+      { nodeId: 'hero', plugin: 'missing', reason: 'unknown-plugin' },
+      { nodeId: 'card', plugin: 'test-mount', reason: 'invalid-config', error: expect.any(String) },
+    ]);
+  });
+
+  it('round-trips through JSON and drops malformed entries on parse', () => {
+    const registry = createEffectRegistry([mountable]);
+    const { manifest } = buildEffectManifest(docWithEffects().document, registry);
+    expect(parseEffectManifest(JSON.parse(JSON.stringify(manifest)))).toEqual(manifest);
+
+    const parsed = parseEffectManifest({
+      version: EFFECT_MANIFEST_VERSION,
+      nodes: { a: [{ plugin: 'x', config: {} }, { plugin: 1 }, 'bad'], b: 'bad', c: [] },
+    });
+    expect({ ...parsed?.nodes }).toEqual({ a: [{ plugin: 'x', config: {} }] });
+    expect(parseEffectManifest({ version: 99, nodes: {} })).toBeNull();
+    expect(parseEffectManifest(null)).toBeNull();
+  });
+
+  it('keeps a "__proto__" node id as a plain key', () => {
+    const parsed = parseEffectManifest(
+      JSON.parse('{"version":1,"nodes":{"__proto__":[{"plugin":"x","config":{}}]}}'),
+    );
+    expect(Object.keys(parsed!.nodes)).toEqual(['__proto__']);
+    expect(Object.getPrototypeOf({})).toBe(Object.prototype);
   });
 });

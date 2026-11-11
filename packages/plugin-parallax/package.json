@@ -16,6 +16,16 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
+    },
+    "./dom": {
+      "import": {
+        "types": "./dist/dom.d.ts",
+        "default": "./dist/dom.js"
+      },
+      "require": {
+        "types": "./dist/dom.d.cts",
+        "default": "./dist/dom.cjs"
+      }
     }
   },
   "files": [

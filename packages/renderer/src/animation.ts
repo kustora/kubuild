@@ -1,4 +1,5 @@
 import { PageDocument, Node, AnimationConfig } from '@kubuild/schema';
+import { escapeCssIdentifier } from './styles.js';
 
 /**
  * Standard Keyframes for Entrance, Scroll, and Continuous Loop Animations (STORA-263, STORA-264)
@@ -82,17 +83,10 @@ export const ANIMATION_KEYFRAMES_CSS = `
 `.trim();
 
 /**
- * Escape a node id for safe interpolation into an attribute selector.
- */
-function escapeCssIdent(value: string): string {
-  return value.replace(/["\\\]]/g, '\\$&');
-}
-
-/**
  * Generate CSS rules for Hover Micro-Interactions (STORA-264)
  */
 export function getHoverEffectCss(nodeId: string, hoverEffect: string): string[] {
-  const safeId = escapeCssIdent(nodeId);
+  const safeId = escapeCssIdentifier(nodeId);
   const rules: string[] = [];
 
   switch (hoverEffect) {
@@ -131,7 +125,7 @@ export function getHoverEffectCss(nodeId: string, hoverEffect: string): string[]
  * Generate CSS rules for Continuous Loop Effects (STORA-264)
  */
 export function getLoopEffectCss(nodeId: string, loopEffect: string): string[] {
-  const safeId = escapeCssIdent(nodeId);
+  const safeId = escapeCssIdentifier(nodeId);
   const rules: string[] = [];
 
   switch (loopEffect) {
@@ -172,7 +166,7 @@ export function getLoopEffectCss(nodeId: string, loopEffect: string): string[] {
  */
 export function getEntranceAnimationCss(nodeId: string, anim: AnimationConfig): string[] {
   if (!anim.type || anim.type === 'none') return [];
-  const safeId = escapeCssIdent(nodeId);
+  const safeId = escapeCssIdentifier(nodeId);
   const duration = typeof anim.duration === 'number' ? anim.duration : 600;
   const delay = typeof anim.delay === 'number' ? anim.delay : 0;
   const easing = anim.easing || 'ease-out';
@@ -223,7 +217,7 @@ export function replayNodeAnimation(nodeId: string, rootElement?: HTMLElement | 
   const root = rootElement || (typeof window !== 'undefined' ? window.document : null);
   if (!root) return false;
 
-  const el = root.querySelector(`[data-kubuild-node="${escapeCssIdent(nodeId)}"]`) as HTMLElement | null;
+  const el = root.querySelector(`[data-kubuild-node="${escapeCssIdentifier(nodeId)}"]`) as HTMLElement | null;
   if (!el) return false;
 
   const currentAnimation = el.style.animation;
