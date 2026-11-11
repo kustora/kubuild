@@ -1,6 +1,6 @@
 {
   "name": "@kubuild/effect-kit",
-  "version": "0.12.0",
+  "version": "0.1.0",
   "description": "Shared building blocks (motion compositor, config parsing) for KUBUILD effect plugins",
   "type": "module",
   "main": "./dist/index.cjs",

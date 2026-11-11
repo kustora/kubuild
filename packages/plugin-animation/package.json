@@ -1,6 +1,6 @@
 {
   "name": "@kubuild/plugin-animation",
-  "version": "0.12.0",
+  "version": "0.1.0",
   "description": "Preset-driven animation generator effect plugins (entrance, loop, hover) for KUBUILD, powered by Motion",
   "type": "module",
   "main": "./dist/index.cjs",

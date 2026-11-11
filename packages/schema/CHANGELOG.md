@@ -1,5 +1,11 @@
 # @kubuild/schema
 
+## 0.13.0
+
+### Minor Changes
+
+- [`f7d2ced`](https://github.com/kustora/kubuild/commit/f7d2ced32a97c833edf9d654e2fe357ac599392a) Thanks [@riziqalbab](https://github.com/riziqalbab)! - **License change:** starting with this release, every `@kubuild/*` package is licensed under the Apache License 2.0 instead of MIT. Apache-2.0 is still permissive and adds an explicit patent grant. Versions up to and including `0.12.0` stay MIT-licensed.
+
 ## 0.12.0
 
 ## 0.11.0

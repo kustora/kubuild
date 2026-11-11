@@ -1,6 +1,6 @@
 {
   "name": "@kubuild/html-import",
-  "version": "0.12.0",
+  "version": "0.1.0",
   "description": "Static HTML to KUBUILD PageDocument importer and compiler",
   "type": "module",
   "main": "./dist/index.cjs",

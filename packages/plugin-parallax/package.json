@@ -1,6 +1,6 @@
 {
   "name": "@kubuild/plugin-parallax",
-  "version": "0.12.0",
+  "version": "0.1.0",
   "description": "Parallax and scroll-linked effect plugins for KUBUILD",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -1,5 +1,22 @@
 # @kubuild/react
 
+## 0.13.0
+
+### Minor Changes
+
+- [`f7d2ced`](https://github.com/kustora/kubuild/commit/f7d2ced32a97c833edf9d654e2fe357ac599392a) Thanks [@riziqalbab](https://github.com/riziqalbab)! - **License change:** starting with this release, every `@kubuild/*` package is licensed under the Apache License 2.0 instead of MIT. Apache-2.0 is still permissive and adds an explicit patent grant. Versions up to and including `0.12.0` stay MIT-licensed.
+
+### Patch Changes
+
+- Updated dependencies [[`f7d2ced`](https://github.com/kustora/kubuild/commit/f7d2ced32a97c833edf9d654e2fe357ac599392a), [`ede6941`](https://github.com/kustora/kubuild/commit/ede69414258a0539db8a3c1c40f4d977180a3d8f), `ba4a207`]:
+  - @kubuild/ai@0.13.0
+  - @kubuild/components@0.13.0
+  - @kubuild/core@0.13.0
+  - @kubuild/editor@0.13.0
+  - @kubuild/renderer@0.13.0
+  - @kubuild/schema@0.13.0
+  - @kubuild/html-import@0.1.0
+
 ## 0.12.0
 
 ### Patch Changes
