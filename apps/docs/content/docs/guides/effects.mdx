@@ -42,6 +42,11 @@ A preset-driven animation generator played with [Motion](https://motion.dev). Se
 | `animate-entrance` | Reveals the element (fade, slide, zoom, pop, rotate) when it scrolls into view; can stagger its children. | `preset`, `duration`, `delay`, `easing` (incl. springs), `stagger`, `once` |
 | `animate-loop` | Repeats float, pulse, spin, wiggle, … while on screen. | `preset`, `intensity`, `duration` |
 | `animate-hover` | Lift, grow, tilt, push, … while hovered. | `preset`, `intensity`, `duration`, `easing` |
+| `animate-timeline` | Custom keyframe timeline (move / scale / rotate / fade per step, per-step easing). | `steps`, `trigger`, `duration`, `repeat`, `loop`, `alternate` |
+| `animate-text` | Splits text into words or letters and reveals them in turn; includes a typewriter. | `split`, `preset`, `stagger`, `trigger` |
+| `animate-counter` | Counts the number in the text up, keeping its formatting. | `from`, `duration`, `trigger` |
+| `animate-draw` | Draws the strokes of SVG lines and paths. | `duration`, `stagger`, `trigger` |
+| `scroll-pin` | Holds a section's content on screen while scroll-scrubbed animations inside play out. | `length`, `offset`, `fullHeight` |
 
 Every effect is skipped for visitors with `prefers-reduced-motion: reduce`. Several effects on one node compose: translations add, scales and opacities multiply, and the node's own `transform` style is never overwritten.
 
@@ -116,7 +121,7 @@ Plugin objects are DOM-free apart from `mount`, which the server never calls, so
 
 ## Exporting
 
-The editor toolbar's **HTML** button (or `downloadDocumentAsStaticSite`) produces a self-hostable ZIP. When the page has effects, it contains `index.html` plus `kubuild-runtime.js` — a ~12 KB gzipped, framework-free script loaded with `<script src defer>`. See [Static HTML export](/docs/guides/static-html-export).
+The editor toolbar's **HTML** button (or `downloadDocumentAsStaticSite`) produces a self-hostable ZIP. When the page has effects, it contains `index.html` plus `kubuild-runtime.js` — a ~15 KB gzipped, framework-free script loaded with `<script src defer>`. See [Static HTML export](/docs/guides/static-html-export).
 
 ## Writing your own effect plugin
 
@@ -178,7 +183,7 @@ Contract checklist:
 | :--- | :--- |
 | `id` | Lowercase letters, digits and single hyphens. It is what documents store — never rename it. |
 | `parse` | Pure and DOM-free; receives **untrusted** config (imports, AI output) and must fill defaults. |
-| `fields` | `number` / `select` / `boolean` controls; every key should exist in `defaults`. |
+| `fields` | `number` / `select` / `boolean` controls, or `keyframes` (a timeline editor whose value is `EffectKeyframe[]`); every key should exist in `defaults`. |
 | `mount` | Move elements through `createMotionChannel` from [`@kubuild/effect-kit`](/docs/packages/effect-kit) so your effect composes with the first-party ones; otherwise write only properties you own, resolve the window via `element.ownerDocument.defaultView` (the canvas may be in an iframe), and return a cleanup that restores the element. |
 
 <Callout type="warn" title="Custom plugins and static export">

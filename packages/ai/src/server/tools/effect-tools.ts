@@ -79,7 +79,7 @@ export function createEffectTools(registry: EffectRegistry): AgentTool[] {
     definition: {
       name: TOOL,
       description:
-        "Set the runtime effects (parallax, scroll-linked motion, …) of one node. REPLACES the node's whole effect list: read_node first and include any existing effects you want to keep. Pass [] to remove all effects. Only plugins from the EFFECT PLUGINS section exist; omitted config fields use the plugin defaults.",
+        "Set the runtime effects (animations, text reveals, counters, parallax, scroll-linked motion, scroll pins, …) of one node. REPLACES the node's whole effect list: read_node first and include any existing effects you want to keep. Pass [] to remove all effects. Only plugins from the EFFECT PLUGINS section exist; omitted config fields use the plugin defaults.",
       inputSchema: {
         type: 'object',
         properties: {

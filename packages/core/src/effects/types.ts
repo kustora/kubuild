@@ -35,7 +35,40 @@ export type EffectFieldDescriptor =
       label: string;
       type: 'boolean';
       description?: string;
+    }
+  | {
+      key: string;
+      label: string;
+      /**
+       * A timeline: an array of `EffectKeyframe` steps, edited as rows of numbers. The
+       * config value is `EffectKeyframe[]`, sorted by `at`.
+       */
+      type: 'keyframes';
+      /** Which motion channels the editor offers per step, in column order. */
+      channels: EffectKeyframeChannel[];
+      /** Per-step easing choices; omit to hide the easing column. */
+      easings?: Array<{ value: string; label: string }>;
+      minSteps?: number;
+      maxSteps?: number;
+      description?: string;
     };
+
+export type EffectKeyframeChannel = 'x' | 'y' | 'scale' | 'rotate' | 'opacity';
+
+/**
+ * One step of a `keyframes` field. `at` is its position on the timeline (0..1); a channel
+ * left out holds its rest value (0 for x/y/rotate, 1 for scale/opacity). `ease` shapes the
+ * segment that *arrives* at this step.
+ */
+export interface EffectKeyframe {
+  at: number;
+  x?: number;
+  y?: number;
+  scale?: number;
+  rotate?: number;
+  opacity?: number;
+  ease?: string;
+}
 
 export type EffectParseResult<TConfig> =
   | { success: true; config: TConfig }

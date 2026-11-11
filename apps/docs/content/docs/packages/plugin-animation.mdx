@@ -1,6 +1,6 @@
 ---
 title: '@kubuild/plugin-animation'
-description: First-party animation generator — entrance, loop and hover presets turned into keyframes and played with Motion.
+description: First-party animation generator — presets, custom keyframe timelines, text splitting, counters, SVG drawing and pinned scroll sequences, played with Motion.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
@@ -15,10 +15,10 @@ The plugin is a **preset generator**: a document stores a preset name and a few 
 
 ## Entry points
 
-| Import                          | Contents                                                                                                                                                                                                                                                               | Where to use it               |
-| :------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
-| `@kubuild/plugin-animation`     | Full plugins (`animateEntrance`, `animateLoop`, `animateHover`, `animationPlugins`) with zod config parsing, editor fields and AI guidance, the generator (`entranceFrames`, `loopFrames`, `hoverFrames`, `sampleFrames`, preset lists) — plus everything from `/dom`. | Editor, renderer, AI server.  |
-| `@kubuild/plugin-animation/dom` | Runtimes only (`animationRuntimes` and one per plugin) and the config types. No zod.                                                                                                                                                                                   | Page bundles (`bootEffects`). |
+| Import                          | Contents                                                                                                                                                                                                                                                                                                                                 | Where to use it               |
+| :------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
+| `@kubuild/plugin-animation`     | Full plugins (`animateEntrance`, `animateLoop`, `animateHover`, `animationPlugins`) with zod config parsing, editor fields and AI guidance, the generator (`entranceFrames`, `loopFrames`, `hoverFrames`, `sampleFrames`, `sampleTimeline`, `parseCounterText`, preset lists), the trigger driver `drive` — plus everything from `/dom`. | Editor, renderer, AI server.  |
+| `@kubuild/plugin-animation/dom` | Runtimes only (`animationRuntimes` and one per plugin) and the config types. No zod.                                                                                                                                                                                                                                                     | Page bundles (`bootEffects`). |
 
 ```ts
 import { createEffectRegistry } from '@kubuild/core';
@@ -70,6 +70,86 @@ Animates into the preset's pose while the pointer is over the element and back w
 | `duration`  | ms                                                             | `250`      |
 | `easing`    | see above                                                      | `ease-out` |
 
+## Triggers (complex animations)
+
+`animate-timeline`, `animate-text`, `animate-counter` and `animate-draw` share one trigger model:
+
+| `trigger` | Plays…                                                                     | Related config                                                                                  |
+| :-------- | :------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------- |
+| `in-view` | when `threshold` of the element is visible                                 | `once` (off: resets on leave and replays)                                                       |
+| `load`    | as soon as the page runs effects                                           | —                                                                                               |
+| `hover`   | forward while hovered, backwards from where it is on leave (timeline only) | —                                                                                               |
+| `scroll`  | scrubbed by scroll position, no time involved                              | `scrollStart`, `scrollEnd` (0 = entering at the bottom, 1 = leaving at the top), `scrollSource` |
+
+With `scrollSource: "pinned-section"` the progress comes from the nearest `scroll-pin` section around the element instead of the element itself — 0 when the section's content sticks, 1 when it lets go. Staggered pieces split the scroll window in proportion to `duration` and `stagger`. Springs need time, so under `scroll` they fall back to their nearest curve.
+
+### `animate-timeline`
+
+Custom multi-step motion. `steps` is an array of 2–12 poses, edited in the inspector as a timeline:
+
+```json
+{
+  "plugin": "animate-timeline",
+  "config": {
+    "trigger": "in-view",
+    "duration": 1200,
+    "steps": [
+      { "at": 0, "y": -80, "opacity": 0 },
+      { "at": 0.5, "y": 0, "scale": 1.08, "ease": "ease-in" },
+      { "at": 0.7, "scale": 0.96, "ease": "ease-out" },
+      { "at": 1, "ease": "ease-out" }
+    ]
+  }
+}
+```
+
+| Config                                    | Type                                                                    | Default                 | Notes                                                                   |
+| :---------------------------------------- | :---------------------------------------------------------------------- | :---------------------- | :---------------------------------------------------------------------- |
+| `steps[].at`                              | 0…1                                                                     | —                       | Position on the timeline. Sorted on save.                               |
+| `steps[].x` / `y` / `rotate`              | px / px / deg                                                           | rest (0)                | Leave out what doesn't change.                                          |
+| `steps[].scale` / `opacity`               | multipliers                                                             | rest (1)                |                                                                         |
+| `steps[].ease`                            | `linear` · `ease-in` · `ease-out` · `ease-in-out` · `back-out` · `hold` | `linear`                | Shapes the move _into_ this step; `hold` jumps at the step.             |
+| `trigger`, `once`, `threshold`, `scroll*` | see above                                                               | `in-view`               |                                                                         |
+| `duration` / `delay`                      | ms                                                                      | `1200` / `0`            | Whole timeline (per child when staggering).                             |
+| `easing`                                  | animation easing                                                        | `linear`                | On top of per-step easing; a spring makes the whole timeline overshoot. |
+| `stagger`                                 | ms                                                                      | `0`                     | Above 0 plays the timeline on each child in turn.                       |
+| `repeat` / `loop` / `alternate`           | 0…100 / boolean / boolean                                               | `0` / `false` / `false` | Time triggers only.                                                     |
+
+### `animate-text`
+
+Splits the text into words or letters (`split`) and reveals them one after another with any entrance preset or `typewriter`. Words never break across lines; screen readers get the full text from a visually hidden copy, the pieces are `aria-hidden`. Cleanup puts the original text nodes back, so a framework holding them doesn't notice.
+
+| Config                                       | Default                         | Notes                                                                                  |
+| :------------------------------------------- | :------------------------------ | :------------------------------------------------------------------------------------- |
+| `split`                                      | `word`                          | `word` or `char`.                                                                      |
+| `preset`                                     | `fade-up`                       | Entrance presets or `typewriter` (instant per piece; `stagger` sets the typing speed). |
+| `distance` / `duration` / `delay` / `easing` | `24` / `500` / `0` / `ease-out` | Per piece.                                                                             |
+| `stagger`                                    | `60`                            | ms between pieces.                                                                     |
+| `trigger`                                    | `in-view`                       | `in-view`, `load` or `scroll`.                                                         |
+
+### `animate-counter`
+
+Counts the first number in the text from `from` (default `0`) up to the number written there, keeping prefix, suffix, decimals and grouping — `12,500+`, `98.6%`, `Rp 1.250.000`, `4,8/5`. The text stays the source of truth (and is what visitors without JavaScript, or with reduced motion, see). Digits are tabular while counting so the text doesn't wobble.
+
+### `animate-draw`
+
+Draws the strokes of every `path`, `line`, `polyline`, `polygon`, `circle`, `ellipse` and `rect` inside the element (also inside an HTML embed's shadow root) via `stroke-dashoffset`; `stagger` draws them one after another. Only stroked shapes show anything; a `pathLength` attribute is respected.
+
+### `scroll-pin`
+
+Pins the section's **first child** (`position: sticky`) and grows the section by `length` screen heights so there is room to hold it. Put the section's content in one container, then give elements inside scroll-triggered animations with `scrollSource: "pinned-section"` and consecutive windows (`0–0.3`, `0.3–0.6`, …) to build a scroll-told sequence.
+
+| Config       | Default | Notes                                                     |
+| :----------- | :------ | :-------------------------------------------------------- |
+| `length`     | `2`     | Extra scroll the content stays pinned, in screen heights. |
+| `offset`     | `0`     | Sticky top in px (room for a fixed header).               |
+| `fullHeight` | `true`  | Make the pinned content at least one screen tall.         |
+
+<Callout type="warn" title="Sticky needs unclipped ancestors">
+  Like any `position: sticky`, the pin does nothing if an ancestor between the section and the
+  scrolling container sets `overflow: hidden` / `auto`. Clip inside the pinned container instead.
+</Callout>
+
 ## Using the generator directly
 
 The generator is pure, so a host can preview or reuse presets without the DOM:
@@ -84,8 +164,9 @@ sampleFrames(frames, 0.5); // { x: 0, y: 20, scale: 1, rotate: 0, opacity: 0.5 }
 ## How the runtimes behave
 
 - **Composable.** Values go through the same motion compositor as `@kubuild/plugin-parallax` (from `@kubuild/effect-kit`): an entrance, a loop and a parallax on one node add up instead of fighting. A settled animation contributes nothing, so the node's own `translate` / `scale` / `rotate` / `opacity` styles show through.
-- **Light.** Only Motion's value engine (`animateValue`), `inView` and `hover` are used — about 8 KB gzipped inside `kubuild-runtime.js`.
-- **Accessible.** All three are skipped under `prefers-reduced-motion: reduce`; entrance content is then simply visible.
+- **Light.** Only Motion's value engine (`animateValue`), `inView` and `hover` are used — about 8 KB gzipped inside `kubuild-runtime.js` (~15 KB gzipped in total with every first-party runtime).
+- **Safe with untrusted pages.** Runtimes only read numbers and known names from their config; malformed timeline steps from an edited page manifest are dropped, not executed.
+- **Accessible.** Every plugin is skipped under `prefers-reduced-motion: reduce`: content is simply visible, counters show their final number, text is not split and nothing is pinned.
 
 <Callout type="info" title="Why Motion and not GSAP">
   GSAP's license forbids use in tools that let users build animations visually in competition with

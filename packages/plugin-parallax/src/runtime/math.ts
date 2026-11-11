@@ -2,32 +2,12 @@
  * Pure geometry for the parallax runtimes — no DOM access, so it is unit-testable and the
  * same numbers come out in the editor canvas and on a published page.
  */
+import { clamp, type Box } from '@kubuild/effect-kit/dom';
 
-export interface Box {
-  top: number;
-  height: number;
-  left?: number;
-  width?: number;
-}
-
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+export { clamp, scrollProgress, type Box } from '@kubuild/effect-kit/dom';
 
 export function lerp(from: number, to: number, t: number): number {
   return from + (to - from) * t;
-}
-
-/**
- * How far an element has travelled through the viewport: 0 while its top edge sits on the
- * viewport's bottom edge (just entering), 1 when its bottom edge reaches the viewport's top
- * edge (just left). Clamped outside that range.
- */
-export function scrollProgress(element: Box, viewport: Box): number {
-  const travel = viewport.height + element.height;
-  if (travel <= 0) return 0;
-  const viewportBottom = viewport.top + viewport.height;
-  return clamp((viewportBottom - element.top) / travel, 0, 1);
 }
 
 /** Signed distance (px) between the element's center and the viewport's center. */

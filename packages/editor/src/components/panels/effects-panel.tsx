@@ -1,6 +1,12 @@
 import React from 'react';
 import { MAX_NODE_EFFECTS, type Node, type NodeEffect } from '@kubuild/schema';
-import { resolveEffect, type EffectFieldDescriptor, type EffectRegistry } from '@kubuild/core';
+import {
+  resolveEffect,
+  type EffectFieldDescriptor,
+  type EffectKeyframe,
+  type EffectKeyframeChannel,
+  type EffectRegistry,
+} from '@kubuild/core';
 import { Trash2 } from 'lucide-react';
 import { ComponentIcon } from '../ui/icons.js';
 import { useTranslation } from '../../i18n/index.js';
@@ -73,11 +79,183 @@ const NumberField: React.FC<{
   );
 };
 
+const CHANNEL_LABELS: Record<EffectKeyframeChannel, string> = {
+  x: 'X',
+  y: 'Y',
+  scale: 'Scale',
+  rotate: 'Rot',
+  opacity: 'Opac',
+};
+
+function readKeyframes(value: unknown): EffectKeyframe[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (step): step is EffectKeyframe => typeof step === 'object' && step !== null && typeof step.at === 'number',
+  );
+}
+
+/** One numeric timeline cell; empty means "rest value", committed on blur/Enter. */
+const KeyframeCell: React.FC<{
+  label: string;
+  value: number | undefined;
+  onCommit: (value: number | undefined) => void;
+}> = ({ label, value, onCommit }) => {
+  const [draft, setDraft] = React.useState(value === undefined ? '' : String(value));
+  React.useEffect(() => setDraft(value === undefined ? '' : String(value)), [value]);
+  const commit = (): void => {
+    if (draft.trim() === '') {
+      if (value !== undefined) onCommit(undefined);
+      return;
+    }
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(value === undefined ? '' : String(value));
+      return;
+    }
+    if (parsed !== value) onCommit(parsed);
+  };
+  return (
+    <input
+      // Text, not number: spinner arrows would eat the few pixels a timeline cell has.
+      type="text"
+      inputMode="decimal"
+      aria-label={label}
+      title={label}
+      value={draft}
+      placeholder="–"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+      }}
+      className={`${inputClass} px-1 font-mono text-[11px] min-w-0 text-center`}
+    />
+  );
+};
+
+/**
+ * Timeline editor for `keyframes` fields: one card per step with its position (`at`, as a
+ * percentage), optional easing, and one input per motion channel (blank = rest value), so it
+ * stays readable in a narrow inspector. Steps are kept sorted by `at`, so the stored config
+ * always reads in timeline order.
+ */
+const KeyframesField: React.FC<{
+  field: Extract<EffectFieldDescriptor, { type: 'keyframes' }>;
+  value: unknown;
+  onCommit: (value: EffectKeyframe[]) => void;
+}> = ({ field, value, onCommit }) => {
+  const { t } = useTranslation();
+  const steps = readKeyframes(value);
+  const minSteps = field.minSteps ?? 2;
+  const maxSteps = field.maxSteps ?? 12;
+
+  const commitSteps = (next: EffectKeyframe[]): void => onCommit([...next].sort((a, b) => a.at - b.at));
+  const patch = (index: number, change: Partial<EffectKeyframe>): void =>
+    commitSteps(
+      steps.map((step, i) => {
+        if (i !== index) return step;
+        const merged: EffectKeyframe = { ...step, ...change };
+        for (const [key, v] of Object.entries(change)) if (v === undefined) delete merged[key as keyof EffectKeyframe];
+        return merged;
+      }),
+    );
+
+  const addStep = (): void => {
+    const last = steps[steps.length - 1];
+    const previous = steps[steps.length - 2];
+    // Split the last segment in half, carrying the last step's pose so nothing jumps.
+    const at = last ? (previous ? (previous.at + last.at) / 2 : last.at < 1 ? 1 : 0.5) : 0;
+    commitSteps([...steps, { ...(last ?? {}), at: Math.round(at * 1000) / 1000 }]);
+  };
+
+  return (
+    <div className="flex flex-col gap-1" data-testid={`keyframes-${field.key}`}>
+      <span className="font-medium text-slate-600" title={field.description}>
+        {field.label}
+      </span>
+      {steps.map((step, index) => (
+        <div
+          key={index}
+          data-testid={`keyframe-step-${index}`}
+          className="flex flex-col gap-1 p-1.5 rounded border border-slate-200 bg-slate-50/60"
+        >
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+            <span className="font-semibold text-slate-600 w-4 shrink-0">{index + 1}</span>
+            <span className="shrink-0">{t.effectsKeyframeAt}</span>
+            <div className="w-14 shrink-0">
+              <KeyframeCell
+                label={`${t.effectsKeyframeAt} ${index + 1}`}
+                value={Math.round(step.at * 1000) / 10}
+                onCommit={(percent) => patch(index, { at: Math.min(100, Math.max(0, percent ?? 0)) / 100 })}
+              />
+            </div>
+            {field.easings && (
+              <select
+                aria-label={`${t.effectsKeyframeEase} ${index + 1}`}
+                title={t.effectsKeyframeEase}
+                value={step.ease ?? ''}
+                disabled={index === 0}
+                onChange={(e) => patch(index, { ease: e.target.value || undefined })}
+                className={`${inputClass} px-1 text-[10px] min-w-0 flex-1 disabled:opacity-40`}
+              >
+                <option value="">{index === 0 ? '–' : 'Linear'}</option>
+                {field.easings.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              title={t.effectsKeyframeRemove}
+              aria-label={`${t.effectsKeyframeRemove} ${index + 1}`}
+              disabled={steps.length <= minSteps}
+              onClick={() => commitSteps(steps.filter((_, i) => i !== index))}
+              className="ml-auto shrink-0 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:hover:text-slate-400 cursor-pointer"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+          <div
+            className="grid gap-1 text-[10px] text-slate-500"
+            style={{ gridTemplateColumns: `repeat(${field.channels.length}, minmax(0, 1fr))` }}
+          >
+            {field.channels.map((channel) => (
+              <label key={channel} className="flex flex-col gap-0.5 min-w-0">
+                <span className="truncate">{CHANNEL_LABELS[channel]}</span>
+                <KeyframeCell
+                  label={`${CHANNEL_LABELS[channel]} ${index + 1}`}
+                  value={step[channel]}
+                  onCommit={(v) => patch(index, { [channel]: v })}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        data-testid={`keyframes-${field.key}-add`}
+        disabled={steps.length >= maxSteps}
+        onClick={addStep}
+        className="self-start text-[11px] font-medium text-blue-600 hover:text-blue-500 disabled:opacity-40 cursor-pointer"
+      >
+        + {t.effectsKeyframeAdd}
+      </button>
+      {field.description && <span className="text-[10px] text-slate-400 leading-snug">{field.description}</span>}
+    </div>
+  );
+};
+
 const EffectField: React.FC<{
   field: EffectFieldDescriptor;
   value: unknown;
   onCommit: (value: unknown) => void;
 }> = ({ field, value, onCommit }) => {
+  if (field.type === 'keyframes') {
+    return <KeyframesField field={field} value={value} onCommit={onCommit} />;
+  }
   if (field.type === 'boolean') {
     return (
       <label className="flex items-center gap-2 text-slate-600" title={field.description}>

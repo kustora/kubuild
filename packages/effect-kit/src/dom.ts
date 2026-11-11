@@ -5,3 +5,4 @@
  */
 export * from './motion.js';
 export * from './media.js';
+export * from './scroll.js';

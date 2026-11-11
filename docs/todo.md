@@ -1757,7 +1757,7 @@ Epic key: `EPIC-65` — package target: `@kubuild/schema`, `@kubuild/core`, `@ku
 
 Catatan: kode awal fitur ini memakai komentar `STORA-650`, yang ternyata sudah dipakai bug `<a>` di `todo-html-import.md`. Referensi efek di kode sudah diganti ke `STORA-651`.
 
-Ringkasan status: **8 Done**, **0 In Progress**, **3 To Do** (total 11).
+Ringkasan status: **9 Done**, **0 In Progress**, **3 To Do** (total 12).
 
 ### STORA-651
 
@@ -1923,6 +1923,26 @@ Ringkasan status: **8 Done**, **0 In Progress**, **3 To Do** (total 11).
   - Ikut jalan di `kubuild-runtime.js` (static export); bundle < 40 KiB.
   - Dilewati saat `prefers-reduced-motion`; field editor dan panduan AI di-generate dari plugin.
   - Halaman "Animation Demo" di playground; sudah dicek di Chrome (preview dan static export).
+
+### STORA-662
+
+- **Epic:** Effects & Static Export
+- **Task Key:** STORA-662
+- **Type:** Story
+- **Summary:** Animasi kompleks: keyframe timeline, text split, counter, SVG draw, scroll pin
+- **Description:** Lanjutan STORA-660. Lima plugin baru di `@kubuild/plugin-animation` memakai satu trigger driver (`drive`: in-view / load / hover / scroll-scrub). Tipe field `keyframes` baru di core dan editor timeline di Effects panel. Utilitas scroll dan pin dipindah ke `@kubuild/effect-kit`.
+- **Priority:** High
+- **Status:** Done
+- **Package:** `@kubuild/core`, `@kubuild/editor`, `@kubuild/effect-kit`, `@kubuild/plugin-animation`, `@kubuild/plugin-parallax`, `@kubuild/runtime-dom`, `apps/stora-playground`, `apps/docs`
+- **Dependencies:** STORA-660
+- **Acceptance Criteria:**
+  - `animate-timeline`: 2–12 step, easing per step (termasuk `hold`), repeat/loop/alternate, stagger anak; step yang rusak dari manifest dibuang, tidak dieksekusi.
+  - `animate-text`: split per kata atau huruf; text node asli dikembalikan apa adanya (objek yang sama); screen reader membaca teks utuh.
+  - `animate-counter`: format angka tetap terjaga (prefix/suffix, desimal, grouping `,` `.` nbsp); teks asli kembali saat cleanup.
+  - `animate-draw`: stroke SVG termasuk yang ada di shadow root html-embed; `pathLength` dihormati.
+  - `scroll-pin`: anak pertama dibuat sticky, section diperpanjang sesuai `length`; anak dengan `scrollSource: pinned-section` mengikuti progres pin; semua style dikembalikan.
+  - Editor: field `keyframes` tampil sebagai kartu per langkah dan tetap terbaca di inspector Simple.
+  - Sudah dicek di Chrome (preview editor dan static export); `kubuild-runtime.js` < 40 KiB.
 
 ### STORA-661
 

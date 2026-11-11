@@ -263,3 +263,111 @@ export function restlessPart(frame: Required<MotionPart>): MotionPart {
   if (frame.opacity !== 1) part.opacity = frame.opacity;
   return part;
 }
+
+/** Per-segment curves for custom timelines (springs need time, so they're whole-tween only). */
+export const STEP_EASINGS = [
+  'linear',
+  'ease-in',
+  'ease-out',
+  'ease-in-out',
+  'back-out',
+  'hold',
+] as const;
+export type StepEasing = (typeof STEP_EASINGS)[number];
+
+export const STEP_EASING_LABELS: Record<StepEasing, string> = {
+  linear: 'Linear',
+  'ease-in': 'Ease in',
+  'ease-out': 'Ease out',
+  'ease-in-out': 'Ease in-out',
+  'back-out': 'Back out',
+  hold: 'Hold (jump)',
+};
+
+/** Shapes local progress `t` (0..1) of one segment. `hold` stays put, then jumps at the end. */
+export function easeCurve(easing: StepEasing | undefined, t: number): number {
+  switch (easing) {
+    case 'ease-in':
+      return t * t * t;
+    case 'ease-out':
+      return 1 - Math.pow(1 - t, 3);
+    case 'ease-in-out':
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    case 'back-out': {
+      const c1 = 1.70158;
+      return 1 + (c1 + 1) * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+    case 'hold':
+      return t >= 1 ? 1 : 0;
+    default:
+      return t;
+  }
+}
+
+/**
+ * The curve a whole-animation easing has when progress comes from scroll position rather
+ * than time: springs have no time to play out, so they map to their closest curve.
+ */
+export function scrollEasing(easing: AnimationEasing): StepEasing {
+  switch (easing) {
+    case 'spring':
+      return 'ease-out';
+    case 'bouncy':
+      return 'back-out';
+    default:
+      return easing;
+  }
+}
+
+/** One step of a custom timeline: a pose at position `at` (0..1); `ease` shapes its arrival. */
+export interface TimelineStep extends MotionPart {
+  at: number;
+  ease?: StepEasing;
+}
+
+/**
+ * The pose at timeline position `t`. Steps must be sorted by `at`. Between two steps the
+ * arriving step's `ease` applies; outside the first/last step the nearest pose holds — except
+ * past the end, where the last segment extrapolates so a spring driving the timeline shows
+ * its overshoot.
+ */
+export function sampleTimeline(steps: readonly TimelineStep[], t: number): Required<MotionPart> {
+  if (steps.length === 0) return { ...IDENTITY_FRAME };
+  const first = steps[0];
+  const last = steps[steps.length - 1];
+  if (steps.length === 1 || t <= first.at) return { ...IDENTITY_FRAME, ...stripStep(first) };
+  let index = steps.findIndex((step, i) => i > 0 && t <= step.at);
+  if (index === -1) {
+    if (t > 1 && last.at >= 1) index = steps.length - 1;
+    else return { ...IDENTITY_FRAME, ...stripStep(last) };
+  }
+  const a = steps[index - 1];
+  const b = steps[index];
+  const span = b.at - a.at;
+  const local = span > 0 ? (t - a.at) / span : 1;
+  const eased = local <= 1 ? easeCurve(b.ease, local) : local;
+  return sampleFrames([stripStep(a), stripStep(b)], eased);
+}
+
+function stripStep({ at: _at, ease: _ease, ...pose }: TimelineStep): MotionPart {
+  return pose;
+}
+
+/**
+ * Splits one 0..1 progress across `count` pieces animated one after another: each piece
+ * takes `duration`, starts `stagger` after the previous one, and the whole run fits 0..1.
+ * Used when scroll position (not time) drives a staggered effect.
+ */
+export function staggeredProgress(
+  progress: number,
+  index: number,
+  count: number,
+  duration: number,
+  stagger: number,
+): number {
+  const total = duration + stagger * Math.max(0, count - 1);
+  if (total <= 0) return progress >= 1 ? 1 : 0;
+  const start = (index * stagger) / total;
+  const length = duration / total;
+  return Math.min(1, Math.max(0, (progress - start) / length));
+}

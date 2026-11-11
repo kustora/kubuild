@@ -285,7 +285,7 @@ export const id: TranslationSchema = {
     'Ukur style di frame browser terisolasi tanpa script pada lebar desktop, tablet, dan mobile. Pakai jika style statis kurang akurat.',
   importHtmlSnapshotFallback: 'Snapshot browser tidak tersedia, style statis dipakai.',
   effectsSector: 'Efek',
-  effectsSectorDesc: 'Parallax dan efek berbasis scroll dari plugin host',
+  effectsSectorDesc: 'Parallax, efek berbasis scroll, dan animasi dari plugin host',
   effectsPlayInPreview: 'Efek berjalan di mode Preview dan di halaman hasil export.',
   effectsAddPlaceholder: 'Tambah efek…',
   effectsAdd: 'Tambah',
@@ -295,4 +295,8 @@ export const id: TranslationSchema = {
     'Editor ini tidak punya plugin untuk efek ini. Efek tetap disimpan di halaman, tapi tidak dijalankan.',
   effectsLimitReached: 'Elemen ini sudah mencapai jumlah efek maksimum.',
   effectsNoPlugins: 'Belum ada plugin efek yang terdaftar.',
+  effectsKeyframeAt: 'Di %',
+  effectsKeyframeEase: 'Easing',
+  effectsKeyframeAdd: 'Tambah langkah',
+  effectsKeyframeRemove: 'Hapus langkah',
 };

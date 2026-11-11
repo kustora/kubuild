@@ -123,7 +123,16 @@ describe('kubuild-runtime.js bundle', () => {
   });
 
   it('ships the first-party animation runtimes', () => {
-    for (const id of ['animate-entrance', 'animate-loop', 'animate-hover']) {
+    for (const id of [
+      'animate-entrance',
+      'animate-loop',
+      'animate-hover',
+      'animate-timeline',
+      'animate-text',
+      'animate-counter',
+      'animate-draw',
+      'scroll-pin',
+    ]) {
       expect(bundle).toContain(`"${id}"`);
     }
   });

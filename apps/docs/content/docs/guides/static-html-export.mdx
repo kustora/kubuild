@@ -10,7 +10,7 @@ import { Callout } from 'fumadocs-ui/components/callout';
 ```text
 my-page.zip
 ├── index.html          ← semantic HTML + one <style> block
-├── kubuild-runtime.js  ← only when the page has effects (~32 KB, ~12 KB gzipped, no framework)
+├── kubuild-runtime.js  ← only when the page has effects (~40 KB, ~15 KB gzipped, no framework)
 └── assets/             ← uploads and host assets the page uses
 ```
 
@@ -89,4 +89,4 @@ The runtime reads the JSON manifest and mounts each effect on its `data-kb-node`
 ## Current limits
 
 - Interactive components (accordion, tabs, carousel, countdown) and action pipelines export as static markup.
-- `kubuild-runtime.js` includes the first-party parallax and animation runtimes (~12 KB gzipped); effects from your own plugins need a custom runtime bundle (see [`@kubuild/runtime-dom`](/docs/packages/runtime-dom)).
+- `kubuild-runtime.js` includes the first-party parallax and animation runtimes (~15 KB gzipped); effects from your own plugins need a custom runtime bundle (see [`@kubuild/runtime-dom`](/docs/packages/runtime-dom)).

@@ -349,7 +349,7 @@ export function buildAgentSystemPrompt(options: BuildAgentSystemPromptOptions): 
 
   if (effects && effects.size > 0) {
     sections.push(
-      `### EFFECT PLUGINS\nRuntime effects (parallax, scroll-linked motion) are attached with set_node_effects, never through styles. They play in preview and on the published page, and are skipped for visitors who prefer reduced motion. Use them sparingly — on decorative layers, hero sections and cards, not on body text or forms.\n${formatEffectCatalog(effects)}`,
+      `### EFFECT PLUGINS\nRuntime effects — animations (entrance, loop, hover, keyframe timelines, text reveals, number counters, SVG drawing), parallax, scroll-linked motion and pinned scroll sequences — are attached with set_node_effects, never through styles or CSS animation. Whenever the user asks for animation, motion or "animasi", use these plugins. They play in preview and on the published page, and are skipped for visitors who prefer reduced motion. Use them sparingly — on decorative layers, hero sections, headings, stats and cards, not on body text or forms. A sequence across several nodes (e.g. a scroll-pin section whose children play one after another) takes one set_node_effects call per node.\n${formatEffectCatalog(effects)}`,
     );
   }
 

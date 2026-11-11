@@ -284,7 +284,7 @@ export const en: TranslationSchema = {
     'Measure styles in an isolated, script-free browser frame at desktop, tablet and mobile widths. Use when static styles look off.',
   importHtmlSnapshotFallback: 'Browser snapshot unavailable, static styles were used.',
   effectsSector: 'Effects',
-  effectsSectorDesc: 'Parallax and scroll-linked effects from host plugins',
+  effectsSectorDesc: 'Parallax, scroll-linked effects and animations from host plugins',
   effectsPlayInPreview: 'Effects play in Preview mode and on the exported page.',
   effectsAddPlaceholder: 'Add an effect…',
   effectsAdd: 'Add',
@@ -294,4 +294,8 @@ export const en: TranslationSchema = {
     'This editor has no plugin for this effect. It is kept in the page but does not run.',
   effectsLimitReached: 'This element already has the maximum number of effects.',
   effectsNoPlugins: 'No effect plugins are registered.',
+  effectsKeyframeAt: 'At %',
+  effectsKeyframeEase: 'Ease',
+  effectsKeyframeAdd: 'Add step',
+  effectsKeyframeRemove: 'Remove step',
 };

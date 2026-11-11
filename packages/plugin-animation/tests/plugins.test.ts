@@ -97,7 +97,7 @@ beforeEach(() => motion.reset());
 describe('plugin definitions', () => {
   it('registers every plugin and exposes a matching runtime for each', () => {
     const registry = createEffectRegistry([...animationPlugins]);
-    expect(registry.size).toBe(3);
+    expect(registry.size).toBe(8);
     expect(animationRuntimes.map((r) => r.id)).toEqual(animationPlugins.map((p) => p.id));
     for (const plugin of animationPlugins) {
       expect(plugin.parse({})).toEqual({ success: true, config: plugin.defaults });

@@ -185,6 +185,10 @@ export interface TranslationSchema {
   effectsUnknownPlugin: string;
   effectsLimitReached: string;
   effectsNoPlugins: string;
+  effectsKeyframeAt: string;
+  effectsKeyframeEase: string;
+  effectsKeyframeAdd: string;
+  effectsKeyframeRemove: string;
 }
 
 export interface PixelEventTranslations {

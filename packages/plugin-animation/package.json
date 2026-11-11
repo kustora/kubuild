@@ -70,6 +70,9 @@
     "zod": "^4.6.6"
   },
   "devDependencies": {
+    "@kubuild/ai": "workspace:*",
+    "@kubuild/schema": "workspace:*",
+    "happy-dom": "^21.0.4",
     "tsup": "^8.3.6",
     "typescript": "^6.0.0",
     "vitest": "^4.1.12"
